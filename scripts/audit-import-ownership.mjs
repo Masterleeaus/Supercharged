@@ -54,6 +54,30 @@ export function resolveRelativeImport(importer, specifier, knownPaths) {
   return null;
 }
 
+/**
+ * Traverse only resolved literal relative edges from explicit build entrypoints.
+ * A negative result is NOT proof that an import is unused: alias and dynamic
+ * loaders, plugins, runtime evaluation and generated output are excluded.
+ */
+export function traceStaticEntrypoints(edges, entrypoints) {
+  const outgoing = new Map();
+  for (const { importer, target } of edges) {
+    if (!outgoing.has(importer)) outgoing.set(importer, new Set());
+    outgoing.get(importer).add(target);
+  }
+  const visited = new Set();
+  const queue = [...entrypoints];
+  for (let index = 0; index < queue.length; index++) {
+    const path = queue[index];
+    if (visited.has(path)) continue;
+    visited.add(path);
+    for (const target of outgoing.get(path) || []) {
+      if (!visited.has(target)) queue.push(target);
+    }
+  }
+  return [...visited].sort();
+}
+
 export function auditImportOwnership(root = ROOT, options = {}) {
   const actual = realpathSync(resolve(root));
   const files = [...walk(actual)];
@@ -83,9 +107,18 @@ export function auditImportOwnership(root = ROOT, options = {}) {
     "server/integrations/titan-revenue/",
     "server/integrations/field-link/vendor/",
   ];
+  const configuredEntrypoints = options.entrypoints || [
+    "server/index.ts",
+    "client/src/main.tsx",
+    "scripts/build-server-deps.js",
+  ];
+  const entrypoints = configuredEntrypoints.filter((path) => fileSet.has(path));
+  const missingEntrypoints = configuredEntrypoints.filter((path) => !fileSet.has(path));
+  const staticReachable = new Set(traceStaticEntrypoints(edges, entrypoints));
   const ownership = files.filter((f) => selected.some((p) => f.startsWith(p))).map((path) => ({
     path,
     directImporters: (inbound.get(path) || []).sort(),
+    staticEntrypointPathFound: staticReachable.has(path),
     sourceFile: true,
     live: "unverified",
   }));
@@ -95,6 +128,9 @@ export function auditImportOwnership(root = ROOT, options = {}) {
     unresolvedRelativeEdges: unresolved.length,
     dynamicSites,
     unresolved,
+    entrypoints,
+    missingEntrypoints,
+    staticReachableFiles: staticReachable.size,
     ownership,
     caveat: "Static literal imports cannot prove runtime reachability, safe deletion, dynamic resolution, or license permission.",
   };
@@ -114,6 +150,7 @@ function cli() {
   if (args.includes("--json")) console.log(JSON.stringify(result, null, 2));
   else {
     console.log(`Source files: ${result.sourceFiles}, relative import edges: ${result.resolvedRelativeEdges}, unresolved: ${result.unresolvedRelativeEdges}`);
+    console.log(`Explicit entrypoints: ${result.entrypoints.join(", ") || "(none)"}; static paths: ${result.staticReachableFiles}; missing: ${result.missingEntrypoints.join(", ") || "(none)"}`);
     for (const x of result.ownership.filter((x) => x.directImporters.length)) {
       console.log(`${x.path} <- ${x.directImporters.join(", ")}`);
     }
