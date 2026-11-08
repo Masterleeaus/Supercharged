@@ -23,6 +23,19 @@ import { logger } from '../utils/logger';
 import type { EmailTemplate } from '@shared/schema';
 
 const SOURCE = 'EmailService';
+
+/**
+ * TLS options for SMTP connections. Certificate checks stay on. Set SMTP_ALLOW_SELF_SIGNED=true
+ * only for a relay with a self-signed or private-CA certificate; it turns verification off.
+ */
+export function smtpTlsOptions(): { rejectUnauthorized: boolean } {
+  const allowSelfSigned = process.env.SMTP_ALLOW_SELF_SIGNED === 'true';
+  if (allowSelfSigned) {
+    logger.warn('SMTP_ALLOW_SELF_SIGNED is on: SMTP TLS certificates are not verified', undefined, SOURCE);
+  }
+  return { rejectUnauthorized: !allowSelfSigned };
+}
+
 const DEFAULT_COMPANY_NAME = '';
 const DEFAULT_TAGLINE = 'AI-Powered Calling Platform';
 
@@ -1033,9 +1046,7 @@ export class EmailService {
             user,
             pass,
           },
-          tls: {
-            rejectUnauthorized: false,
-          },
+          tls: smtpTlsOptions(),
           connectionTimeout: 15000,
           greetingTimeout: 15000,
           socketTimeout: 15000,
@@ -1088,9 +1099,7 @@ export class EmailService {
             user,
             pass,
           },
-          tls: {
-            rejectUnauthorized: false,
-          },
+          tls: smtpTlsOptions(),
           connectionTimeout: 15000,
           greetingTimeout: 15000,
           socketTimeout: 15000,
@@ -1129,9 +1138,7 @@ export class EmailService {
           user: config.username,
           pass: config.password,
         },
-        tls: {
-          rejectUnauthorized: false,
-        },
+        tls: smtpTlsOptions(),
         connectionTimeout: 15000,
         greetingTimeout: 15000,
         socketTimeout: 15000,

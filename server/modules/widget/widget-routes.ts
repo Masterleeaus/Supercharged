@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { widgetService } from "./widget-service";
 import { widgetStorage } from "./widget-storage";
 import { agents } from "@shared/schema";
+import { randomBytes } from "crypto";
 import { db } from "../../db";
 import { and, eq, sql } from "drizzle-orm";
 import multer from "multer";
@@ -40,7 +41,7 @@ const storage = multer.diskStorage({
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const uniqueSuffix = Date.now() + '-' + randomBytes(4).readUInt32BE(0);
     cb(null, 'widget-icon-' + uniqueSuffix + path.extname(file.originalname));
   },
 });
