@@ -113,16 +113,17 @@ async function isPluginEnabled(pluginName: string): Promise<boolean> {
       .where(eq(globalSettings.key, settingKey))
       .limit(1);
     
-    if (setting && setting.value) {
-      // Value is jsonb type, could be { enabled: boolean } or string 'true'/'false'
+    if (setting) {
+      // An explicitly stored false/null is a disabled plugin, not an absent setting.
+      // Only the exact boolean/string true or { enabled: true } activates it.
       const val = setting.value as any;
-      if (typeof val === 'object' && 'enabled' in val) {
+      if (val !== null && typeof val === 'object' && !Array.isArray(val)) {
         return val.enabled === true;
       }
       if (typeof val === 'string') {
         return val === 'true';
       }
-      return Boolean(val);
+      return val === true;
     }
     
     // Default: enabled
