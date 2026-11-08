@@ -11,6 +11,7 @@ import {
   MAX_READ_ROWS,
 } from '../../server/workforce/tools/read-handlers.ts';
 import { createToolRegistry } from '../../server/workforce/runtime/index.ts';
+import { GROUP01_TOOL_IDS } from '../../server/workforce/tools/handlers/group-01.ts';
 
 const CO_A = 'company-a';
 const CO_B = 'company-b';
@@ -229,15 +230,30 @@ test('input validation rejects unknown keys and bad values, naming fields only',
 });
 
 test('registerReadTools registers each bound tool as a read tool with the registry', () => {
+  // The group 01 handler set (handlers/group-01.ts) is registered too. Its writes and side-effect tools declare their own
+  // access. The five read tools below must still be access 'read' and risk 'low'.
   const registered = [];
   registerReadTools({ register: (def) => registered.push(def) }, seededStore());
   assert.deepEqual(
     registered.map((d) => d.id).sort(),
-    ['booking_requests.get', 'booking_requests.list', 'invoices.get', 'invoices.list', 'payments.list'],
+    [
+      'booking_requests.get',
+      'booking_requests.list',
+      'invoices.get',
+      'invoices.list',
+      'payments.list',
+      ...GROUP01_TOOL_IDS,
+    ].sort(),
   );
-  for (const def of registered) {
+  const readOnly = registered.filter((d) => !GROUP01_TOOL_IDS.includes(d.id));
+  assert.equal(readOnly.length, 5);
+  for (const def of readOnly) {
     assert.equal(def.access, 'read');
     assert.equal(def.risk, 'low');
+    assert.equal(typeof def.handler, 'function');
+  }
+  for (const def of registered.filter((d) => GROUP01_TOOL_IDS.includes(d.id))) {
+    assert.ok(['read', 'write'].includes(def.access), `${def.id} must declare access`);
     assert.equal(typeof def.handler, 'function');
   }
 });
@@ -265,9 +281,12 @@ test('read tools run through the tool registry and refuse companyId in params', 
   assert.equal(refused.reason, 'tenant_override');
 });
 
-test('definitions expose the same ids as the specs', () => {
+test('definitions expose the same ids as the specs, plus the group 01 handler set', () => {
   const store = seededStore();
-  const defIds = createReadToolDefinitions(store).map((d) => d.id).sort();
+  const groupIds = new Set(GROUP01_TOOL_IDS);
+  const defIds = createReadToolDefinitions(store).map((d) => d.id).filter((id) => !groupIds.has(id)).sort();
   const specIds = createReadToolSpecs(store).map((s) => s.id).sort();
   assert.deepEqual(defIds, specIds);
+  const groupDefIds = createReadToolDefinitions(store).map((d) => d.id).filter((id) => groupIds.has(id)).sort();
+  assert.deepEqual(groupDefIds, [...GROUP01_TOOL_IDS].sort());
 });

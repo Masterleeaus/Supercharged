@@ -14,9 +14,11 @@ for (const method of ['log', 'info', 'warn']) console[method] = () => {};
 
 const { loadRoleCatalogue } = await import('../../server/workforce/catalogue/loader.ts');
 const { createReadToolSpecs } = await import('../../server/workforce/tools/read-handlers.ts');
+const { GROUP01_TOOL_IDS } = await import('../../server/workforce/tools/handlers/group-01.ts');
 
 // Recorded on 2026-11-04: 100 distinct declared IDs across 125 role files, 5 bound to a handler, 95 unmapped.
-const UNMAPPED_COUNT_RECORDED = 95;
+// Group 01 (handlers/group-01.ts) adds 18 handlers, so 23 are bound and 77 are unmapped.
+const UNMAPPED_COUNT_RECORDED = 77;
 
 const ROLES_DIR = fileURLToPath(new URL('../../server/workforce/catalogue/roles', import.meta.url));
 
@@ -26,7 +28,7 @@ for (const role of catalogue.values()) for (const toolId of role.tools) declared
 
 // Typed handlers bound through the read-handler port. The store is a stub: no calls are made when building specs.
 const stubStore = new Proxy({}, { get: () => async () => [] });
-const bound = new Set(createReadToolSpecs(stubStore).map((spec) => spec.id));
+const bound = new Set([...createReadToolSpecs(stubStore).map((spec) => spec.id), ...GROUP01_TOOL_IDS]);
 
 const unmapped = [...declared].filter((toolId) => !bound.has(toolId)).sort();
 

@@ -141,6 +141,11 @@ export interface ToolDefinition {
    * refused and nothing is staged. Returns null when the params cannot be staged.
    */
   stage?: (params: Record<string, unknown>) => { category: ShadowCategory; change: PredictiveStageParams } | null;
+  /**
+   * Per-tool timeout in milliseconds (a positive integer). Declared here for each definition. The registry still runs
+   * every call with its registry-wide timeoutMs until this field is enforced.
+   */
+  timeoutMs?: number;
   handler: (params: Record<string, unknown>, context: ToolHandlerContext) => unknown | Promise<unknown>;
 }
 

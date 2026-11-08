@@ -12,6 +12,7 @@ for (const method of ['log', 'info', 'warn']) console[method] = () => {};
 
 const { TOOL_ACCESS } = await import('../../server/workforce/catalogue/tool-access.ts');
 const { createReadToolDefinitions } = await import('../../server/workforce/tools/read-handlers.ts');
+const { GROUP01_TOOL_IDS } = await import('../../server/workforce/tools/handlers/group-01.ts');
 
 const READ_VERBS = new Set(['list', 'get', 'search', 'view', 'lookup', 'check', 'read', 'availability', 'status']);
 
@@ -32,10 +33,18 @@ test('every TOOL_ACCESS value is read or write', () => {
 });
 
 test('bound read tool definitions declare access read', () => {
-  const definitions = createReadToolDefinitions(new Proxy({}, { get: () => async () => [] }));
+  // Group 01 (handlers/group-01.ts) is excluded: it has writes and side-effect tools, each classified on its own.
+  const definitions = createReadToolDefinitions(new Proxy({}, { get: () => async () => [] }))
+    .filter((def) => !GROUP01_TOOL_IDS.includes(def.id));
   assert.ok(definitions.length > 0, 'expected bound read tool definitions');
   const notRead = definitions.filter((def) => def.access !== 'read').map((def) => `${def.id}=${String(def.access)}`);
   assert.deepEqual(notRead, [], `bound read tools not declared read: ${notRead.join(', ')}`);
+});
+
+test('every group 01 read-named tool is classified read in TOOL_ACCESS', () => {
+  const groupReads = GROUP01_TOOL_IDS.filter((id) => READ_VERBS.has(id.split('.').pop()));
+  assert.ok(groupReads.length > 0);
+  for (const id of groupReads) assert.equal(TOOL_ACCESS[id], 'read', `${id} should be classified read`);
 });
 
 test('the four tools still under review are classified', () => {
