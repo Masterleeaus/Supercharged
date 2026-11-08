@@ -6,6 +6,7 @@ import { getAppointmentToolForAgent } from "./appointment-elevenlabs-tool.js";
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
+import { logger } from "../utils/logger.js";
 const PERSISTED_SECRET_PATH = path.join(process.cwd(), ".rag-webhook-secret");
 let ragWebhookSecret = null;
 function getRAGWebhookSecret() {
@@ -19,6 +20,7 @@ function getRAGWebhookSecret() {
           console.log(`\u{1F4DA} [RAG Tool] Loaded persisted webhook secret from file`);
         }
       } catch (err) {
+        logger.warn('Could not read persisted RAG webhook secret; a new one is generated', { code: err?.code }, 'RagTool');
       }
       if (!ragWebhookSecret) {
         const baseKey = process.env.JWT_SECRET || process.env.ELEVENLABS_AGENT_SECRET;
@@ -28,6 +30,7 @@ function getRAGWebhookSecret() {
           try {
             fs.writeFileSync(PERSISTED_SECRET_PATH, ragWebhookSecret, { mode: 384 });
           } catch (err) {
+            logger.error('Could not persist derived RAG webhook secret; it will change on restart', { code: err?.code }, 'RagTool');
           }
         }
       }
@@ -37,6 +40,7 @@ function getRAGWebhookSecret() {
         try {
           fs.writeFileSync(PERSISTED_SECRET_PATH, ragWebhookSecret, { mode: 384 });
         } catch (err) {
+          logger.error('Could not persist generated RAG webhook secret; it will change on restart', { code: err?.code }, 'RagTool');
         }
       }
     }

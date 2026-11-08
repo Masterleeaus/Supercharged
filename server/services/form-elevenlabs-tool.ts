@@ -29,6 +29,7 @@ import { getDomain } from "../utils/domain";
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
+import { logger } from "../utils/logger";
 
 let formWebhookSecret: string | null = null;
 
@@ -54,13 +55,17 @@ export function getFormWebhookSecret(): string {
             formWebhookSecret = fs.readFileSync(secretPath, 'utf-8').trim();
             console.log(`📋 [Form Tool] Loaded persisted webhook secret from file`);
           }
-        } catch (_) {}
+        } catch (err: any) {
+          logger.warn('Could not read persisted form webhook secret; a new one is generated', { code: err?.code }, 'FormTool');
+        }
 
         if (!formWebhookSecret) {
           formWebhookSecret = crypto.randomBytes(32).toString('hex');
           try {
             fs.writeFileSync(secretPath, formWebhookSecret, { mode: 0o600 });
-          } catch (_) {}
+          } catch (err: any) {
+            logger.error('Could not persist form webhook secret to file; it will change on restart', { code: err?.code }, 'FormTool');
+          }
           console.log(`📋 [Form Tool] Generated and persisted new webhook secret`);
         }
       }

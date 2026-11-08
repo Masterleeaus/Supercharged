@@ -15,6 +15,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
+import { logger } from "../utils/logger";
 import { Request } from "express";
 import { ExternalServiceError } from '../utils/errors';
 import { withServiceErrorHandling, wrapServiceError } from '../utils/service-error-wrapper';
@@ -148,7 +149,7 @@ export function buildMessagingWhatsappTool(elevenLabsAgentId: string, templateNa
           collectVarDescriptions.push(`{{${key}}}: ${desc}`);
         }
       }
-    } catch { }
+    } catch { logger.warn('Could not parse agent variable config; collect descriptions skipped', {}, 'ElevenLabs'); }
   }
 
   const varDescription = collectVarDescriptions.length > 0

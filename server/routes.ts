@@ -15,6 +15,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
+import { logger } from "./utils/logger";
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer } from 'ws';
@@ -363,11 +364,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const plivoMod = await import("./engines/plivo/services/plivo-call.service");
       PlivoCallServiceRef = plivoMod.PlivoCallService;
-    } catch { }
+    } catch (err: any) { logger.warn('Plivo call service not loaded for outbound rest-api calls; continuing without it', { code: err?.code }, 'Routes'); }
     try {
       const twilioMod = await import("./engines/twilio-openai/services/twilio-openai-call.service");
       TwilioOpenAICallServiceRef = twilioMod.TwilioOpenAICallService;
-    } catch { }
+    } catch (err: any) { logger.warn('Twilio OpenAI call service not loaded for outbound rest-api calls; continuing without it', { code: err?.code }, 'Routes'); }
 
     await restApiPlugin.registerRestApiRoutes(app, {
       sessionAuthMiddleware: authenticateToken as unknown as import('express').RequestHandler,
@@ -1359,7 +1360,7 @@ When using a tool:
           sipTrunkAddress = await getSipTrunkOutboundAddress(req.params.id);
           console.log(`   📞 [Transfer Config] SIP agent detected - using sip_refer transfer type (trunk: ${sipTrunkAddress})`);
         }
-      } catch { }
+      } catch (err: any) { logger.warn('SIP trunk check failed during transfer config; using conference transfer', { agentId: req.params.id, error: err?.message }, 'Routes'); }
 
       let numberType: "phone" | "sip_uri" = "phone";
       let destination = transferNumber;

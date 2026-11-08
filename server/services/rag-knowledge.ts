@@ -44,6 +44,7 @@ import {
   type KnowledgeBase
 } from "@shared/schema";
 import { eq, and, inArray, sql } from "drizzle-orm";
+import { logger } from "../utils/logger";
 
 /**
  * Tenant scope required by every knowledge search. Both values must come from the verified session
@@ -129,7 +130,9 @@ async function getOpenAIClient(): Promise<OpenAI> {
     if (dbSetting?.value) {
       apiKey = dbSetting.value as string;
     }
-  } catch (e) {}
+  } catch (e: any) {
+    logger.warn('Could not read OpenAI key from settings; falling back to environment', { error: e?.message }, 'RagKnowledge');
+  }
 
   if (!apiKey && process.env.OPENAI_API_KEY) {
     apiKey = process.env.OPENAI_API_KEY;
@@ -148,7 +151,9 @@ async function getOpenAIClient(): Promise<OpenAI> {
         baseURL = 'https://openrouter.ai/api/v1';
         embeddingModel = 'openai/text-embedding-3-small'; // OpenRouter model path
       }
-    } catch (e) {}
+    } catch (e: any) {
+      logger.warn('Could not read OpenRouter key from settings', { error: e?.message }, 'RagKnowledge');
+    }
   }
 
   if (!apiKey && process.env.OPENROUTER_API_KEY) {

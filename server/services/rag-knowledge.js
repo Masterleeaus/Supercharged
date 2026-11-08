@@ -7,6 +7,7 @@ import {
   globalSettings
 } from "../../shared/schema.js";
 import { eq, and, inArray, sql } from "drizzle-orm";
+import { logger } from "../utils/logger.js";
 let embeddingModel = "text-embedding-3-small";
 const EMBEDDING_DIMENSIONS = 1536;
 const CHUNK_SIZE = 500;
@@ -24,6 +25,7 @@ async function getOpenAIClient() {
       apiKey = dbSetting.value;
     }
   } catch (e) {
+    logger.warn('Could not read OpenAI key from settings; falling back to environment', { error: e?.message }, 'RagKnowledge');
   }
   if (!apiKey && process.env.OPENAI_API_KEY) {
     apiKey = process.env.OPENAI_API_KEY;
@@ -37,6 +39,7 @@ async function getOpenAIClient() {
         embeddingModel = "openai/text-embedding-3-small";
       }
     } catch (e) {
+      logger.warn('Could not read OpenRouter key from settings', { error: e?.message }, 'RagKnowledge');
     }
   }
   if (!apiKey && process.env.OPENROUTER_API_KEY) {

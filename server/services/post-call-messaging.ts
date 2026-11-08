@@ -1,4 +1,5 @@
 import { db } from '../db';
+import { logger } from "../utils/logger";
 import { sql, eq, and, desc, isNull } from 'drizzle-orm';
 import { agents, contacts, campaigns, appointments, emailTemplates } from '@shared/schema';
 
@@ -485,7 +486,7 @@ export async function triggerPostCallMessaging(params: {
                             break;
                           }
                         }
-                      } catch (_) { }
+                      } catch { logger.warn('Could not parse WhatsApp header variables; header URL left empty', {}, 'PostCallMessaging'); }
                     }
                     if (headerUrl) {
                       const mediaTypeLowercase = headerFormat.toLowerCase() as 'image' | 'video' | 'document';
@@ -524,7 +525,7 @@ export async function triggerPostCallMessaging(params: {
                               break;
                             }
                           }
-                        } catch (_) { }
+                        } catch { logger.warn('Could not parse WhatsApp header variables; header text left empty', {}, 'PostCallMessaging'); }
                       }
                       if (!headerVal) headerVal = contactData.contact_name || ' ';
                       components = [{ type: 'header', parameters: [{ type: 'text', text: headerVal }] }, ...components];
