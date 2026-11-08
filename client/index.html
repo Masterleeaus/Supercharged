@@ -32,20 +32,21 @@
   <script>
     (function () {
       try {
-        var cached = localStorage.getItem('agentlabs-branding:v1');
-        if (cached) {
-          var parsed = JSON.parse(cached);
-          if (parsed.data) {
-            if (parsed.data.app_name) {
-              document.title = parsed.data.app_tagline
-                ? parsed.data.app_name + ' - ' + parsed.data.app_tagline
-                : parsed.data.app_name;
-            }
-            if (parsed.data.favicon_url) {
-              var favicon = document.getElementById('dynamic-favicon');
-              if (favicon) favicon.href = parsed.data.favicon_url;
-            }
-          }
+        // Match BrandingProvider's v3 cache and 24-hour expiry.
+        // Old v1 cache entries are ignored rather than resurrecting stale branding.
+        var cached = localStorage.getItem('agentlabs-branding:v3');
+        if (!cached) return;
+        var parsed = JSON.parse(cached);
+        var age = Date.now() - parsed.timestamp;
+        if (!Number.isFinite(age) || age < 0 || age > 24 * 60 * 60 * 1000 || !parsed.data) return;
+        if (typeof parsed.data.app_name === 'string' && parsed.data.app_name.trim()) {
+          document.title = parsed.data.app_tagline
+            ? parsed.data.app_name + ' - ' + parsed.data.app_tagline
+            : parsed.data.app_name;
+        }
+        if (parsed.data.favicon_url) {
+          var favicon = document.getElementById('dynamic-favicon');
+          if (favicon) favicon.href = parsed.data.favicon_url;
         }
       } catch (e) { }
     })();
