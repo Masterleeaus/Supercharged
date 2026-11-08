@@ -75,7 +75,6 @@ import { validateAppointmentWebhookToken } from "./services/appointment-elevenla
 import { CampaignScheduler } from "./services/campaign-scheduler";
 import { generateRefundNoteForRefund, refundNoteService } from "./services/refund-note-service";
 import { safeErrorMessage } from "./utils/safe-error";
-import { markPluginAsRegistered } from "./plugins/loader";
 import { registerChatbotModule } from "./modules/chatbot/index.ts";
 import { mountChatbotModule, WIRING_FLAGS } from "./modules/chatbot/wiring/mount.ts";
 import { resolveAgentStaffIdentity } from "./modules/chatbot/agent-routes/staff-identity.ts";
@@ -108,6 +107,7 @@ import { createProviderWebhookRateLimit, readTwilioAccountSid, TWILIO_ACCOUNT_SI
 import { registerPublicAuthRoutes } from "./routes/core/public-auth-routes";
 import { registerPlatformRoutes } from "./routes/core/platform-routes";
 import { registerVoiceEngineRoutes } from "./routes/core/voice-engine-routes";
+import { registerPluginEngineRoutes } from "./routes/core/plugin-engine-routes";
 
 const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
@@ -183,63 +183,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Routes: Plivo, Twilio-OpenAI and KYC engine, see server/routes/core/voice-engine-routes.ts
   registerVoiceEngineRoutes(app, { requireAuth, requireAdmin });
 
-  // Register SIP Engine Plugin dynamically with service injection (only if plugin directory exists)
-  try {
-    const { importPlugin } = await import('./utils/plugin-import');
-    const sipEnginePlugin = await importPlugin('plugins/sip-engine/index.ts');
-    const { canAssignSipAgent } = await import("./services/sip-credit-guard");
-    const { deductSipCallCredits, checkUserCreditBalance } = await import("./services/credit-service");
-
-    sipEnginePlugin.registerSipEngineRoutes(app, {
-      sessionAuthMiddleware: authenticateToken as unknown as import('express').RequestHandler,
-      adminAuthMiddleware: checkAdminOrTeamMember as unknown as import('express').RequestHandler,
-      sipServices: {
-        canAssignSipAgent,
-        deductSipCallCredits,
-        checkUserCreditBalance,
-        ElevenLabsService,
-        getCredentialForAgent: ElevenLabsPoolService.getCredentialForAgent.bind(ElevenLabsPoolService),
-      },
-    });
-    markPluginAsRegistered('sip-engine');
-    console.log('✅ SIP Engine Plugin initialized with service injection');
-  } catch (err: any) {
-    console.log('[SIP Engine Plugin] Not installed - skipping direct registration');
-  }
-
-  // Register REST API Plugin dynamically (only if plugin directory exists)
-  try {
-    const { importPlugin: importRestPlugin } = await import('./utils/plugin-import');
-    const restApiPlugin = await importRestPlugin('plugins/rest-api/index.ts');
-
-    const { OutboundCallService } = await import("./services/outbound-call-service");
-    let PlivoCallServiceRef: any = null;
-    let TwilioOpenAICallServiceRef: any = null;
-    try {
-      const plivoMod = await import("./engines/plivo/services/plivo-call.service");
-      PlivoCallServiceRef = plivoMod.PlivoCallService;
-    } catch (err: any) { logger.warn('Plivo call service not loaded for outbound rest-api calls; continuing without it', { code: err?.code }, 'Routes'); }
-    try {
-      const twilioMod = await import("./engines/twilio-openai/services/twilio-openai-call.service");
-      TwilioOpenAICallServiceRef = twilioMod.TwilioOpenAICallService;
-    } catch (err: any) { logger.warn('Twilio OpenAI call service not loaded for outbound rest-api calls; continuing without it', { code: err?.code }, 'Routes'); }
-
-    await restApiPlugin.registerRestApiRoutes(app, {
-      sessionAuthMiddleware: authenticateToken as unknown as import('express').RequestHandler,
-      adminAuthMiddleware: checkAdminOrTeamMember as unknown as import('express').RequestHandler,
-      callServices: {
-        OutboundCallService,
-        getCredentialForAgent: ElevenLabsPoolService.getCredentialForAgent.bind(ElevenLabsPoolService),
-        PlivoCallService: PlivoCallServiceRef,
-        TwilioOpenAICallService: TwilioOpenAICallServiceRef,
-        campaignExecutor,
-      },
-    });
-    markPluginAsRegistered('rest-api');
-    console.log('✅ REST API Plugin initialized');
-  } catch (err: any) {
-    console.log('[REST API Plugin] Not installed - skipping direct registration');
-  }
+  // Routes: SIP engine and REST API plugins, see server/routes/core/plugin-engine-routes.ts
+  await registerPluginEngineRoutes(app);
 
   // Register Plugin Installer Routes FIRST (before general plugin routes to avoid /:name param conflict)
   const pluginInstallerRoutes = await import('./routes/plugin-installer');
