@@ -119,6 +119,7 @@ export interface ToolDefinition {
    */
   category?: ToolCategory;
   schema: ToolSchema;
+  timeoutMs?: number; // per-tool timeout in ms; the registry still applies its global timeout
   /** Data kinds this tool relies on (keys of FRESHNESS_LIMITS). Informational unless freshnessOf is set. */
   requiresFresh?: readonly FreshnessKind[];
   /**
