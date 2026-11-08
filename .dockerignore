@@ -8,3 +8,18 @@ docs
 *.sql
 err.json
 err2.json
+
+# Secrets and local environment: never copy into the image. Supply them at runtime (env vars or a mounted volume).
+**/.env
+**/.env.*
+**/.appointment-webhook-secret
+**/.rag-webhook-secret
+**/*-secret
+**/*.env
+**/*.pem
+**/*.key
+**/*.backup
+**/*.log
+**/*.pid
+**/.titan-backup/
+**/.claude

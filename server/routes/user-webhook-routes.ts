@@ -104,7 +104,7 @@ export function createUserWebhookRoutes(
         // Flow events
         'flow.started', 'flow.completed', 'flow.failed',
         // Appointment events
-        'appointment.booked', 'appointment.confirmed', 'appointment.cancelled', 'appointment.rescheduled', 'appointment.completed', 'appointment.no_show',
+        'appointment.booked', 'appointment.confirmed', 'appointment.cancelled', 'appointment.rescheduled', 'appointment.completed', 'appointment.no_show', 'appointment.reminder_sent',
         // Form events
         'form.submitted', 'form.lead_created'
       ];

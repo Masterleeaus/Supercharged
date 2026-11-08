@@ -56,7 +56,7 @@ export function captureChatbotWebhookRawBody(): RequestHandler {
     }
 
     // An earlier parser has already read the stream. Keep whatever it captured.
-    // The global express.json (50 MB limit) runs first, so enforce the webhook cap on that buffer here.
+    // The global express.json (1 MB default limit) runs first, so enforce the webhook cap on that buffer here.
     const consumed = (req as Request & { _body?: boolean })._body === true || req.readableEnded === true;
     if (consumed) {
       const captured = (req as Request & { rawBody?: unknown }).rawBody;

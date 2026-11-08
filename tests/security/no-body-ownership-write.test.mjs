@@ -24,9 +24,16 @@ const ts = require('typescript');
 const root = new URL('../../', import.meta.url);
 const read = (rel) => fs.readFileSync(new URL(rel, root), 'utf8');
 
-const FLOW_FILE = 'server/routes/flow-automation-routes.ts';
+// The flow routes are split: the entry file plus every module under server/routes/flow-automation/.
+const FLOW_FILES = [
+  'server/routes/flow-automation-routes.ts',
+  ...fs.readdirSync(new URL('server/routes/flow-automation/', root))
+    .filter((f) => f.endsWith('.ts'))
+    .sort()
+    .map((f) => `server/routes/flow-automation/${f}`),
+];
 const CONNECTIONS_FILE = 'server/routes/incoming-connections-routes.ts';
-const ROUTE_FILES = [FLOW_FILE, CONNECTIONS_FILE];
+const ROUTE_FILES = [...FLOW_FILES, CONNECTIONS_FILE];
 
 const FORBIDDEN_KEYS = [
   'companyId', 'company_id', 'userId', 'user_id', 'id', 'createdAt', 'updatedAt',
@@ -77,22 +84,24 @@ function allowlists(sf) {
 }
 
 // Real pickEditableFields function from the source, transpiled to JavaScript and evaluated.
-function loadPicker(sf) {
+function loadPicker(sfs) {
   let fnText = null;
-  walk(sf, (node) => {
-    if (ts.isFunctionDeclaration(node) && node.name && node.name.text === 'pickEditableFields') {
-      fnText = node.getText(sf);
-    }
-  });
-  assert.ok(fnText, 'pickEditableFields must be defined in flow-automation-routes.ts');
+  for (const sf of sfs) {
+    walk(sf, (node) => {
+      if (ts.isFunctionDeclaration(node) && node.name && node.name.text === 'pickEditableFields') {
+        fnText = node.getText(sf).replace(/^export /, '');
+      }
+    });
+  }
+  assert.ok(fnText, 'pickEditableFields must be defined in the flow-automation routes');
   const js = ts.transpileModule(fnText, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText;
   return new Function(`${js}\nreturn pickEditableFields;`)();
 }
 
-const flowSf = parse(FLOW_FILE);
+const flowSfs = FLOW_FILES.map(parse);
 const connSf = parse(CONNECTIONS_FILE);
-const lists = allowlists(flowSf);
-const picker = loadPicker(flowSf);
+const lists = Object.assign({}, ...flowSfs.map(allowlists));
+const picker = loadPicker(flowSfs);
 
 test('no .set() in the route files spreads req.body', () => {
   for (const rel of ROUTE_FILES) {
@@ -109,10 +118,10 @@ test('no .set() in the route files spreads req.body', () => {
 
 test('every spread inside a PATCH handler .set() uses the validated allowlist result', () => {
   const targets = ['/flows/:id', '/webhooks/:id', '/appointments/:id'];
-  const handlers = patchHandlers(flowSf).filter((h) => targets.some((t) => h.path.includes(t)));
+  const handlers = flowSfs.flatMap((sf) => patchHandlers(sf)).filter((h) => targets.some((t) => h.path.includes(t)));
   assert.equal(handlers.length, 3, 'flows, webhooks and appointments PATCH handlers');
   let spreads = 0;
-  walk(flowSf, (node) => {
+  for (const flowSf of flowSfs) walk(flowSf, (node) => {
     if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === 'set') {
       const inPatch = targets.some((t) => {
         let n = node;
@@ -166,7 +175,7 @@ test('the allowlists keep the fields the clients send', () => {
 });
 
 test('every PATCH handler in the flow routes answers 400 when no editable field is present', () => {
-  const handlers = patchHandlers(flowSf);
+  const handlers = flowSfs.flatMap((sf) => patchHandlers(sf));
   const targets = ['/flows/:id', '/webhooks/:id', '/appointments/:id'];
   for (const target of targets) {
     const h = handlers.find((x) => x.path.includes(target));

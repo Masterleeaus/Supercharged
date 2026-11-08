@@ -23,6 +23,7 @@ import helmet from "helmet";
 import { registerRoutes } from "./routes";
 import { resolveTrustProxy } from "./middleware/trust-proxy";
 import { isChatbotWebhookPath } from "./middleware/raw-body";
+import { perRouteBodyParser } from "./middleware/body-limits";
 import { db } from "./db";
 import { sql } from "drizzle-orm";
 function log(message: string, source = "express") {
@@ -101,22 +102,23 @@ declare module 'http' {
     rawBody: unknown
   }
 }
-app.use(express.json({
-  limit: '50mb',
+// Global body limits: 1 MB by default. Routes that need more are listed in server/middleware/body-limits.ts.
+app.use(perRouteBodyParser((limit) => express.json({
+  limit,
   verify: (req, _res, buf) => {
     req.rawBody = buf;
   }
-}));
-app.use(express.urlencoded({
+})));
+app.use(perRouteBodyParser((limit) => express.urlencoded({
   extended: false,
-  limit: '50mb',
+  limit,
   // Chatbot channel webhooks (Twilio form posts) verify over the exact bytes. Other paths are unchanged.
   verify: (req, _res, buf) => {
     if (isChatbotWebhookPath(req.originalUrl ?? req.url)) {
       req.rawBody = buf;
     }
   }
-}));
+})));
 app.use(cookieParser()); // Parse cookies for refresh token handling
 
 // Static file caching options (7 days for images/audio, reduces repeat requests)
@@ -636,6 +638,10 @@ app.use((req, res, next) => {
     server.listen(listenOptions, () => {
       log(`serving on port ${port}`);
 
+      // PM2 wait_ready (ecosystem.config.cjs): tell PM2 the server is listening. Sent before the
+      // background starters below, so a failure in one of them cannot suppress it. No-op outside PM2.
+      signalReady();
+
       // Start phone number billing cron job
       startPhoneBillingCron();
 
@@ -668,9 +674,6 @@ app.use((req, res, next) => {
       }).catch(() => {
         // BullMQ module not available, continue without it
       });
-
-      // Signal PM2 that the process is ready to receive connections
-      signalReady();
 
       console.log('✅ [Production] Server fully initialized and listening');
       resolve();

@@ -27,6 +27,7 @@ import { OpenAIPoolService } from "../engines/plivo/services/openai-pool.service
 import { IncomingAgentService } from "../services/incoming-agent";
 import { FlowAgentService } from "../services/flow-agent";
 import { setupRAGToolForAgent, isRAGEnabled } from "../services/rag-elevenlabs-tool";
+import { logger } from "../utils/logger";
 
 async function fetchWhatsappTemplateNames(userId: string): Promise<string[]> {
   try {
@@ -629,7 +630,9 @@ export function createAgentRoutes(ctx: RouteContext): Router {
                   sipTrunkAddress = await getSipTrunkOutboundAddress(agent.id);
                   console.log(`   📞 [Agent Create] SIP agent detected - using sip_refer transfer type (trunk: ${sipTrunkAddress})`);
                 }
-              } catch { }
+              } catch (sipErr: any) {
+                logger.warn('SIP trunk check failed during agent create; using conference transfer', { agentId: agent.id, error: sipErr?.message }, 'AgentRoutes');
+              }
 
               let transferDestination: any;
               if (agentTransferType === "sip_refer" && sipTrunkAddress) {

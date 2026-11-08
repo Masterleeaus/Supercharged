@@ -8,6 +8,7 @@ import { sql } from 'drizzle-orm';
 import { requireAdminPermission, AdminRequest } from '../middleware/admin-auth';
 import { discoverPlugins, getPluginStatus, setPluginEnabled } from '../plugins/loader';
 import { scheduleGracefulRestart as scheduleServerRestart } from '../utils/graceful-restart';
+import { logger } from '../utils/logger';
 
 const pluginsDir = path.resolve(process.cwd(), 'plugins');
 
@@ -92,7 +93,9 @@ function findManifestInZip(zip: AdmZip): { manifest: PluginManifest; rootDir: st
             const rootDir = parts.length === 2 ? parts[0] : '';
             return { manifest, rootDir };
           }
-        } catch {}
+        } catch {
+          logger.warn('Skipping zip entry: plugin.json could not be parsed', { entry: entry.entryName }, 'PluginInstaller');
+        }
       }
     }
   }
@@ -134,7 +137,9 @@ router.post('/validate',
         try {
           const existing = JSON.parse(fs.readFileSync(path.join(existingDir, 'plugin.json'), 'utf-8'));
           existingVersion = existing.version;
-        } catch {}
+        } catch (err: any) {
+          logger.warn('Could not read existing plugin version for upgrade', { plugin: manifest.name, code: err?.code }, 'PluginInstaller');
+        }
       }
 
       let tablesExist: string[] = [];
@@ -149,7 +154,9 @@ router.post('/validate',
           const existing = new Set((tableCheck.rows as any[]).map(r => r.table_name));
           tablesExist = requiredTables.filter(t => existing.has(t));
           tablesMissing = requiredTables.filter(t => !existing.has(t));
-        } catch {}
+        } catch (err: any) {
+          logger.warn('Plugin table check failed during install; table status not reported', { plugin: manifest.name, error: err?.message }, 'PluginInstaller');
+        }
       }
 
       const hasMigrations = (manifest.database?.migrations || []).length > 0;
@@ -271,7 +278,9 @@ router.post('/install',
             if (fs.existsSync(targetDir)) fs.rmSync(targetDir, { recursive: true, force: true });
             fs.cpSync(backupDir, targetDir, { recursive: true });
             steps.push({ step: 'rollback_files', status: 'success', message: 'Restored from backup after extraction failure' });
-          } catch {}
+          } catch (rollbackErr: any) {
+            logger.error('Could not restore plugin backup after extraction failure', rollbackErr, 'PluginInstaller');
+          }
         }
         steps.push({ step: 'extract', status: 'failed', message: `Extraction failed: ${extractErr.message}` });
         return res.status(500).json({ success: false, error: 'Failed to extract plugin files', steps });
@@ -400,7 +409,9 @@ router.post('/install',
       if (isUpgrade && fs.existsSync(backupDir)) {
         try {
           fs.rmSync(backupDir, { recursive: true, force: true });
-        } catch {}
+        } catch (err: any) {
+          logger.warn('Could not remove plugin upgrade backup directory', { plugin: manifest.name, code: err?.code }, 'PluginInstaller');
+        }
       }
 
       const allSuccess = steps.every(s => s.status !== 'failed');
@@ -458,7 +469,9 @@ router.delete('/uninstall/:name',
 
       try {
         await setPluginEnabled(name, false);
-      } catch {}
+      } catch (err: any) {
+        logger.warn('Could not disable plugin before uninstall; continuing', { plugin: name, error: err?.message }, 'PluginInstaller');
+      }
 
       const backupDir = path.join(pluginsDir, `${name}.uninstalled.${Date.now()}`);
       try {
@@ -622,7 +635,9 @@ router.get('/installed', async (_req, res) => {
           hasUI: !!(manifest.ui?.frontendBundle || manifest.ui?.adminSettings),
           error: pluginStatus?.error,
         });
-      } catch {}
+      } catch (err: any) {
+        logger.warn('Could not read installed plugin details; plugin left out of list', { dir: entry.name, error: err?.message }, 'PluginInstaller');
+      }
     }
 
     res.json({ success: true, data: { plugins, total: plugins.length } });

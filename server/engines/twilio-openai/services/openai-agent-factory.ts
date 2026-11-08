@@ -859,7 +859,7 @@ export class OpenAIAgentFactory {
     let parsedVars: Record<string, any> = {};
     try {
       if (variableDescriptions) parsedVars = JSON.parse(variableDescriptions);
-    } catch { /* ignore */ }
+    } catch { /* Variables are optional; malformed JSON leaves parsedVars empty. */ }
 
     const fixedVars: Record<string, string> = {};
     const collectVars: Record<string, string> = {};

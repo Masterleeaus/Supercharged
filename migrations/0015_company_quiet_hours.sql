@@ -1,5 +1,5 @@
 -- ============================================================
--- Migration 0014: company quiet-hours settings in the database.
+-- Migration 0015: company quiet-hours settings in the database.
 --
 -- Before this, server/modules/settings/company-settings.ts kept quiet hours in a process-local Map.
 -- They were lost on restart and not shared across instances. This table holds one row per company.

@@ -15,6 +15,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
+import { logger } from "../utils/logger";
 import { Request } from "express";
 import { ExternalServiceError } from '../utils/errors';
 import { withServiceErrorHandling, wrapServiceError } from '../utils/service-error-wrapper';
@@ -148,7 +149,7 @@ export function buildMessagingWhatsappTool(elevenLabsAgentId: string, templateNa
           collectVarDescriptions.push(`{{${key}}}: ${desc}`);
         }
       }
-    } catch { }
+    } catch { logger.warn('Could not parse agent variable config; collect descriptions skipped', {}, 'ElevenLabs'); }
   }
 
   const varDescription = collectVarDescriptions.length > 0
@@ -530,10 +531,10 @@ export class ElevenLabsService {
           const brokenIds = new Set(idMatches);
 
           if (brokenIds.size > 0) {
-            console.log(`   🛠️ Attempting to purge ${brokenIds.size} broken ID(s):`, Array.from(brokenIds));
+            logger.info(`   🛠️ Attempting to purge ${brokenIds.size} broken ID(s):`, Array.from(brokenIds));
             try {
               // 1. Fetch current agent to get existing state of tools, tool_ids and knowledge_base
-              console.log(`   🔄 Fetching current configuration for agent ${agentId} to purge stale references...`);
+              logger.info(`   🔄 Fetching current configuration for agent ${agentId} to purge stale references...`);
               const currentAgent = await this.request<any>(`/convai/agents/${agentId}`, { method: 'GET' }, useV2, timeoutMs, retryDepth + 1);
 
               const currentTools = currentAgent?.conversation_config?.agent?.prompt?.tools || [];
@@ -581,7 +582,7 @@ export class ElevenLabsService {
               // Clear cache
               workspaceToolCache.clear();
 
-              console.log(`   🔄 Retrying agent request with purged and merged payload (depth ${retryDepth})...`);
+              logger.info(`   🔄 Retrying agent request with purged and merged payload (depth ${retryDepth})...`);
               const newOptions = {
                 ...options,
                 body: JSON.stringify(payload)
@@ -658,7 +659,7 @@ export class ElevenLabsService {
           type: "sip_uri",
           sip_uri: sipUri
         };
-        console.log(`   📞 SIP REFER: Converted phone ${phoneNumber} → SIP URI: ${sipUri}`);
+        logger.info(`   📞 SIP REFER: Converted phone [redacted] → SIP URI: [redacted]`);
       } else {
         transferDestination = {
           type: "phone",
@@ -681,7 +682,7 @@ export class ElevenLabsService {
           ]
         }
       });
-      console.log(`   ✓ System Tool: transfer_to_number → ${agentConfig.transferPhoneNumber} (${transferType})`);
+      logger.info(`   ✓ System Tool: transfer_to_number → [redacted] (${transferType})`);
     }
 
     // Language Detection tool - enables automatic language switching
@@ -691,7 +692,7 @@ export class ElevenLabsService {
         name: "language_detection",
         description: "Automatically detect and switch to the user's preferred language"
       });
-      console.log(`   ✓ System Tool: language_detection`);
+      logger.info(`   ✓ System Tool: language_detection`);
     }
 
     // End Call tool - allows agent to gracefully terminate calls
@@ -701,11 +702,11 @@ export class ElevenLabsService {
         name: "end_call",
         description: "End the call when the user is finished or says goodbye"
       });
-      console.log(`   ✓ System Tool: end_call`);
+      logger.info(`   ✓ System Tool: end_call`);
     }
 
     if (systemTools.length > 0) {
-      console.log(`   📦 Built ${systemTools.length} system tool(s) for ElevenLabs agent`);
+      logger.info(`   📦 Built ${systemTools.length} system tool(s) for ElevenLabs agent`);
     }
 
     return systemTools;
@@ -732,7 +733,7 @@ export class ElevenLabsService {
       return null;
     }
 
-    console.log(`   🔄 Building node-based workflow for enabled tools`);
+    logger.info(`   🔄 Building node-based workflow for enabled tools`);
 
     // Build nodes - start with conversation node
     const nodes: any = {
@@ -775,7 +776,7 @@ export class ElevenLabsService {
         }
       };
 
-      console.log(`   ✓ Workflow Node: transfer_to_number`);
+      logger.info(`   ✓ Workflow Node: transfer_to_number`);
     }
 
     // Add detect language node if enabled - tool_id must match "language_detection"
@@ -798,7 +799,7 @@ export class ElevenLabsService {
         }
       };
 
-      console.log(`   ✓ Workflow Node: language_detection`);
+      logger.info(`   ✓ Workflow Node: language_detection`);
     }
 
     // Add end call node if enabled - tool_id must match "end_call"
@@ -821,12 +822,12 @@ export class ElevenLabsService {
         }
       };
 
-      console.log(`   ✓ Workflow Node: end_call`);
+      logger.info(`   ✓ Workflow Node: end_call`);
     }
 
     const workflow = { nodes, edges };
 
-    console.log(`   ✅ Node-based workflow configured with ${Object.keys(nodes).length} nodes and ${Object.keys(edges).length} edges`);
+    logger.info(`   ✅ Node-based workflow configured with ${Object.keys(nodes).length} nodes and ${Object.keys(edges).length} edges`);
     return workflow;
   }
 
@@ -936,7 +937,7 @@ IMPORTANT: Do NOT ask the caller for their phone number - you already have it fr
     // If any tool instructions were added, append them to the base prompt
     if (toolInstructions.length > 0) {
       const enhancedPrompt = `${basePrompt}\n\n## Available Tools\n${toolInstructions.map((instr, idx) => `${idx + 1}. ${instr}`).join('\n')}`;
-      console.log(`   ✏️  Enhanced system prompt with ${toolInstructions.length} tool instruction(s)`);
+      logger.info(`   ✏️  Enhanced system prompt with ${toolInstructions.length} tool instruction(s)`);
       return enhancedPrompt;
     }
 
@@ -944,11 +945,11 @@ IMPORTANT: Do NOT ask the caller for their phone number - you already have it fr
   }
 
   async createAgent(params: CreateAgentParams): Promise<ElevenLabsAgent> {
-    console.log(`📝 Creating ElevenLabs agent: ${params.name}`);
-    console.log(`   Voice ID: ${params.voice_id}`);
-    console.log(`   Language: ${params.language || "en"}`);
-    console.log(`   Model: ${params.model || "gpt-4o-mini"}`);
-    console.log(`   Temperature: ${params.temperature !== undefined ? params.temperature : 0.5}`);
+    logger.info(`📝 Creating ElevenLabs agent: ${params.name}`);
+    logger.info(`   Voice ID: ${params.voice_id}`);
+    logger.info(`   Language: ${params.language || "en"}`);
+    logger.info(`   Model: ${params.model || "gpt-4o-mini"}`);
+    logger.info(`   Temperature: ${params.temperature !== undefined ? params.temperature : 0.5}`);
 
     // Build enhanced prompt with voice tone and personality
     let enhancedPrompt = params.prompt;
@@ -972,7 +973,7 @@ IMPORTANT: Do NOT ask the caller for their phone number - you already have it fr
     // Build system tools as ARRAY for prompt.tools (per ElevenLabs API docs)
     // All agents use conference transfer (sip_refer has known issues with ElevenLabs SIP trunks)
     if (isSipAgent) {
-      console.log(`   📞 SIP agent detected - using conference transfer type (direct phone number)`);
+      logger.info(`   📞 SIP agent detected - using conference transfer type (direct phone number)`);
     }
     const systemTools = this.buildSystemTools({
       transferEnabled: params.transferEnabled,
@@ -994,7 +995,7 @@ IMPORTANT: Do NOT ask the caller for their phone number - you already have it fr
         endConversationEnabled: params.endConversationEnabled,
       });
     } else {
-      console.log(`   ⏭️  Skipping workflow creation (skipWorkflow=true)`);
+      logger.warn(`   ⏭️  Skipping workflow creation (skipWorkflow=true)`);
     }
 
     // Build prompt config - system tools go in prompt.tools array (NOT built_in_tools)
@@ -1011,7 +1012,7 @@ IMPORTANT: Do NOT ask the caller for their phone number - you already have it fr
         name: kb.title,
         id: kb.elevenLabsDocId
       }));
-      console.log(`   Knowledge bases: ${params.knowledge_bases.length} KB(s)`);
+      logger.info(`   Knowledge bases: ${params.knowledge_bases.length} KB(s)`);
     }
 
     // Combine system tools with any custom tools into prompt.tools array
@@ -1025,7 +1026,7 @@ IMPORTANT: Do NOT ask the caller for their phone number - you already have it fr
 
     if (allPromptTools.length > 0) {
       promptConfig.tools = allPromptTools;
-      console.log(`   Prompt tools: ${allPromptTools.length} (${systemTools.length} system + ${params.tools?.length || 0} custom)`);
+      logger.info(`   Prompt tools: ${allPromptTools.length} (${systemTools.length} system + ${params.tools?.length || 0} custom)`);
     }
 
     const agentConfig: any = {
@@ -1067,7 +1068,7 @@ IMPORTANT: Do NOT ask the caller for their phone number - you already have it fr
     // Add webhook tools at agent root level (per ElevenLabs API documentation)
     if (params.webhookTools && params.webhookTools.length > 0) {
       requestBody.tools = params.webhookTools;
-      console.log(`   📚 Webhook tools: ${params.webhookTools.map(t => t.name).join(', ')}`);
+      logger.info(`   📚 Webhook tools: ${params.webhookTools.map(t => t.name).join(', ')}`);
     }
 
     // V3 Features (all optional, additive only)
@@ -1075,7 +1076,7 @@ IMPORTANT: Do NOT ask the caller for their phone number - you already have it fr
       requestBody.conversation_config.safety = {
         guardrails: { custom: params.customGuardrails },
       };
-      console.log(`   🛡️ Custom guardrails: ${params.customGuardrails.length} rules`);
+      logger.info(`   🛡️ Custom guardrails: ${params.customGuardrails.length} rules`);
     }
     if (params.toolErrorHandlingMode) {
       requestBody.tool_error_handling_mode = params.toolErrorHandlingMode;
@@ -1090,14 +1091,14 @@ IMPORTANT: Do NOT ask the caller for their phone number - you already have it fr
       requestBody.conversation_config.tts.suggested_audio_tags = DEFAULT_EXPRESSIVE_AUDIO_TAGS;
     }
 
-    console.log(`📤 Sending to ElevenLabs API:`, JSON.stringify(requestBody, null, 2));
+    logger.info(`📤 Sending to ElevenLabs API:`);
 
     const result = await this.request<ElevenLabsAgent>("/convai/agents/create", {
       method: "POST",
       body: JSON.stringify(requestBody),
     });
 
-    console.log(`✅ ElevenLabs agent created successfully:`, result.agent_id);
+    logger.info(`✅ ElevenLabs agent created successfully:`, result.agent_id);
     return result;
   }
 
@@ -1134,19 +1135,19 @@ IMPORTANT: Do NOT ask the caller for their phone number - you already have it fr
     };
     webhookTools?: any[];
   }): Promise<ElevenLabsAgent> {
-    console.log(`📝 Creating ElevenLabs Flow Agent: ${params.name}`);
-    console.log(`   Voice ID: ${params.voice_id}`);
-    console.log(`   Language: ${params.language || "en"}`);
-    console.log(`   LLM Model: ${params.llmModel || "gpt-4o-mini"}`);
-    console.log(`   Temperature: ${params.temperature ?? 0.3}`);
-    console.log(`   Max Duration: ${params.maxDurationSeconds || 600} seconds`);
-    console.log(`   Language Detection: ${params.detectLanguageEnabled ? "enabled" : "disabled"}`);
-    console.log(`   System Prompt: ${params.systemPrompt ? 'custom' : 'default'}`);
-    console.log(`   First Message: ${params.firstMessage ? 'custom' : 'default'}`);
-    console.log(`   Knowledge Bases: ${params.knowledgeBases?.length || 0}`);
-    console.log(`   TTS Model: ${params.ttsModel || 'auto'}`);
-    console.log(`   Workflow nodes: ${Object.keys(params.workflow.nodes).length}`);
-    console.log(`   Workflow edges: ${Object.keys(params.workflow.edges).length}`);
+    logger.info(`📝 Creating ElevenLabs Flow Agent: ${params.name}`);
+    logger.info(`   Voice ID: ${params.voice_id}`);
+    logger.info(`   Language: ${params.language || "en"}`);
+    logger.info(`   LLM Model: ${params.llmModel || "gpt-4o-mini"}`);
+    logger.info(`   Temperature: ${params.temperature ?? 0.3}`);
+    logger.info(`   Max Duration: ${params.maxDurationSeconds || 600} seconds`);
+    logger.info(`   Language Detection: ${params.detectLanguageEnabled ? "enabled" : "disabled"}`);
+    logger.info(`   System Prompt: ${params.systemPrompt ? 'custom' : 'default'}`);
+    logger.info(`   First Message: ${params.firstMessage ? 'custom' : 'default'}`);
+    logger.info(`   Knowledge Bases: ${params.knowledgeBases?.length || 0}`);
+    logger.info(`   TTS Model: ${params.ttsModel || 'auto'}`);
+    logger.info(`   Workflow nodes: ${Object.keys(params.workflow.nodes).length}`);
+    logger.info(`   Workflow edges: ${Object.keys(params.workflow.edges).length}`);
 
     // Workflow is already in ElevenLabs format (objects keyed by ID)
     const workflowNodes = params.workflow.nodes;
@@ -1164,7 +1165,7 @@ IMPORTANT: Do NOT ask the caller for their phone number - you already have it fr
     if (params.webhookTools && params.webhookTools.length > 0) {
       // Use provided webhook tools (they have correct URLs from the flow compiler)
       webhookTools = params.webhookTools;
-      console.log(`   📦 Using ${webhookTools.length} pre-configured webhook tool(s)`);
+      logger.info(`   📦 Using ${webhookTools.length} pre-configured webhook tool(s)`);
     } else {
       // Fallback: Auto-generate from workflow tool nodes (legacy behavior)
       // IMPORTANT: Skip tools that are handled in phase 2 (they need agent ID for valid webhook URLs)
@@ -1176,7 +1177,7 @@ IMPORTANT: Do NOT ask the caller for their phone number - you already have it fr
           const toolId = tool.tool_id || `webhook_${nodeId}`;
           // Skip phase-2 tools - they'll be added after agent creation with valid URLs
           if (phase2Prefixes.some(prefix => toolId.startsWith(prefix))) {
-            console.log(`   ⏭️ Skipping phase-2 tool: ${toolId} (will be added after agent creation)`);
+            logger.warn(`   ⏭️ Skipping phase-2 tool: ${toolId} (will be added after agent creation)`);
             return null;
           }
           return {
@@ -1194,7 +1195,7 @@ IMPORTANT: Do NOT ask the caller for their phone number - you already have it fr
         }).filter(Boolean);
       });
       if (webhookTools.length > 0) {
-        console.log(`   📦 Auto-generated ${webhookTools.length} webhook tool(s) from workflow`);
+        logger.info(`   📦 Auto-generated ${webhookTools.length} webhook tool(s) from workflow`);
       }
     }
 
@@ -1222,7 +1223,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     let basePrompt: string;
     if (params.systemPrompt) {
       basePrompt = `${defaultStrictPrompt}\n\n--- ADDITIONAL AGENT INSTRUCTIONS (provided by the agent creator) ---\nThe following instructions define your persona, domain, and behavioral constraints. You MUST follow these AT ALL TIMES, even while executing the workflow:\n\n${params.systemPrompt}\n\n--- END OF ADDITIONAL INSTRUCTIONS ---\nRemember: Follow BOTH the workflow steps AND the additional instructions above. Never deviate from your assigned domain or persona.`;
-      console.log(`   ✓ Merged custom prompt (${params.systemPrompt.length} chars) with strict workflow rules`);
+      logger.info(`   ✓ Merged custom prompt (${params.systemPrompt.length} chars) with strict workflow rules`);
     } else {
       basePrompt = defaultStrictPrompt;
     }
@@ -1243,7 +1244,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     let ttsModel = params.ttsModel || defaultModel;
 
     if (!validModels.includes(ttsModel)) {
-      console.log(`   ⚠️ TTS model ${ttsModel} is not valid, using ${defaultModel}`);
+      logger.info(`   ⚠️ TTS model ${ttsModel} is not valid, using ${defaultModel}`);
       ttsModel = defaultModel;
     }
 
@@ -1257,7 +1258,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
         name: "language_detection",
         description: "Automatically detect and switch to the user's preferred language"
       });
-      console.log(`   ✓ System Tool: language_detection`);
+      logger.info(`   ✓ System Tool: language_detection`);
     }
 
     // NOTE: end_call tool REMOVED for flow agents.
@@ -1267,7 +1268,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     // Note: Transfer functionality is handled by workflow phone_number nodes directly
     // ElevenLabs uses the workflow edges to determine when to transfer calls
     if (hasTransferNodes) {
-      console.log(`   📞 Has transfer nodes: true (handled via workflow)`);
+      logger.info(`   📞 Has transfer nodes: true (handled via workflow)`);
     }
 
     // Build knowledge base configuration if provided - requires type, id, and name
@@ -1328,7 +1329,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     // Log combined prompt tools
     if (allPromptTools.length > 0) {
       const passedToolsCount = params.webhookTools?.length || 0;
-      console.log(`   📦 Prompt tools: ${allPromptTools.length} (${systemTools.length} system + ${webhookTools.length} workflow + ${passedToolsCount} passed)`);
+      logger.info(`   📦 Prompt tools: ${allPromptTools.length} (${systemTools.length} system + ${webhookTools.length} workflow + ${passedToolsCount} passed)`);
     }
 
     // V3 Features (all optional, additive only)
@@ -1336,7 +1337,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       requestBody.conversation_config.safety = {
         guardrails: { custom: params.customGuardrails },
       };
-      console.log(`   🛡️ Custom guardrails: ${params.customGuardrails.length} rules`);
+      logger.info(`   🛡️ Custom guardrails: ${params.customGuardrails.length} rules`);
     }
     if (params.toolErrorHandlingMode) {
       requestBody.tool_error_handling_mode = params.toolErrorHandlingMode;
@@ -1351,14 +1352,14 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       requestBody.conversation_config.tts.suggested_audio_tags = DEFAULT_EXPRESSIVE_AUDIO_TAGS;
     }
 
-    console.log(`📤 Sending Flow Agent to ElevenLabs API:`, JSON.stringify(requestBody, null, 2));
+    logger.info(`📤 Sending Flow Agent to ElevenLabs API:`);
 
     const result = await this.request<ElevenLabsAgent>("/convai/agents/create", {
       method: "POST",
       body: JSON.stringify(requestBody),
     });
 
-    console.log(`✅ ElevenLabs Flow Agent created successfully:`, result.agent_id);
+    logger.info(`✅ ElevenLabs Flow Agent created successfully:`, result.agent_id);
     return result;
   }
 
@@ -1392,16 +1393,16 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     turnTimeout?: number;  // Turn timeout in seconds
     suggestedAudioTags?: boolean;  // Expressive Mode
   }): Promise<ElevenLabsAgent> {
-    console.log(`🔄 Updating Flow Agent workflow: ${agentId}`);
-    console.log(`   Workflow nodes: ${Object.keys(workflow.nodes).length}`);
-    console.log(`   Workflow edges: ${Object.keys(workflow.edges).length}`);
-    console.log(`   Language Detection: ${detectLanguageEnabled ? "enabled" : "disabled"}`);
-    console.log(`   Language: ${language || "not changing"}`);
-    console.log(`   TTS Model: ${ttsModel || "not changing"}`);
-    console.log(`   LLM Model: ${llmModel || "not changing"}`);
-    console.log(`   Temperature: ${temperature !== undefined ? temperature : "not changing"}`);
-    console.log(`   First Message: ${firstMessage ? `"${firstMessage.substring(0, 50)}..."` : "not changing"}`);
-    console.log(`   Voice ID: ${voiceId || "not changing"}`);
+    logger.info(`🔄 Updating Flow Agent workflow: ${agentId}`);
+    logger.info(`   Workflow nodes: ${Object.keys(workflow.nodes).length}`);
+    logger.info(`   Workflow edges: ${Object.keys(workflow.edges).length}`);
+    logger.info(`   Language Detection: ${detectLanguageEnabled ? "enabled" : "disabled"}`);
+    logger.info(`   Language: ${language || "not changing"}`);
+    logger.info(`   TTS Model: ${ttsModel || "not changing"}`);
+    logger.info(`   LLM Model: ${llmModel || "not changing"}`);
+    logger.info(`   Temperature: ${temperature !== undefined ? temperature : "not changing"}`);
+    logger.info(`   First Message: ${firstMessage ? `"${firstMessage.substring(0, 50)}..."` : "not changing"}`);
+    logger.info(`   Voice ID: ${voiceId || "not changing"}`);
 
     // Workflow is already in ElevenLabs format (objects keyed by ID)
     const workflowNodes = workflow.nodes;
@@ -1443,7 +1444,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     // Include voice_id if provided
     if (voiceId) {
       updatePayload.conversation_config.tts.voice_id = voiceId;
-      console.log(`   ✓ Voice ID update: ${voiceId}`);
+      logger.info(`   ✓ Voice ID update: ${voiceId}`);
     }
 
     // Set agent language if provided
@@ -1458,12 +1459,12 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       let effectiveTtsModel = ttsModel || "eleven_v3_conversational";
 
       if (ttsModel && !validModels.includes(ttsModel)) {
-        console.log(`   ⚠️ TTS model ${ttsModel} is not valid, using eleven_v3_conversational`);
+        logger.info(`   ⚠️ TTS model ${ttsModel} is not valid, using eleven_v3_conversational`);
         effectiveTtsModel = "eleven_v3_conversational";
       }
 
       updatePayload.conversation_config.tts.model_id = effectiveTtsModel;
-      console.log(`   ✓ TTS config: model=${effectiveTtsModel}, language=${language}`);
+      logger.info(`   ✓ TTS config: model=${effectiveTtsModel}, language=${language}`);
     }
 
     // Include LLM model and temperature if provided
@@ -1480,11 +1481,11 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
 
       if (llmModel !== undefined) {
         updatePayload.conversation_config.agent.prompt.llm = llmModel;
-        console.log(`   ✓ LLM Model update: ${llmModel}`);
+        logger.info(`   ✓ LLM Model update: ${llmModel}`);
       }
       if (temperature !== undefined) {
         updatePayload.conversation_config.agent.prompt.temperature = temperature;
-        console.log(`   ✓ Temperature update: ${temperature}`);
+        logger.info(`   ✓ Temperature update: ${temperature}`);
       }
     }
 
@@ -1500,7 +1501,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
         updatePayload.conversation_config.agent = {};
       }
       updatePayload.conversation_config.agent.first_message = firstMessage;
-      console.log(`   ✓ First message set from flow`);
+      logger.info(`   ✓ First message set from flow`);
     }
 
     // Detect if workflow has transfer nodes (phone_number type) for logging purposes
@@ -1514,7 +1515,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     if (additionalOptions?.webhookTools && additionalOptions.webhookTools.length > 0) {
       // Use provided webhook tools (they have correct URLs from the flow compiler)
       webhookTools = additionalOptions.webhookTools;
-      console.log(`   📦 Using ${webhookTools.length} pre-configured webhook tool(s)`);
+      logger.info(`   📦 Using ${webhookTools.length} pre-configured webhook tool(s)`);
     } else {
       // Fallback: Auto-generate from workflow tool nodes (legacy behavior)
       // IMPORTANT: Skip tools that are handled in phase 2 (they need agent ID for valid webhook URLs)
@@ -1526,7 +1527,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
           const toolId = tool.tool_id || `webhook_${nodeId}`;
           // Skip phase-2 tools - they'll be added after agent creation with valid URLs
           if (phase2Prefixes.some(prefix => toolId.startsWith(prefix))) {
-            console.log(`   ⏭️ Skipping phase-2 tool: ${toolId} (will be added after agent creation)`);
+            logger.warn(`   ⏭️ Skipping phase-2 tool: ${toolId} (will be added after agent creation)`);
             return null;
           }
           return {
@@ -1544,7 +1545,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
         }).filter(Boolean);
       });
       if (webhookTools.length > 0) {
-        console.log(`   📦 Auto-generated ${webhookTools.length} webhook tool(s) from workflow`);
+        logger.info(`   📦 Auto-generated ${webhookTools.length} webhook tool(s) from workflow`);
       }
     }
 
@@ -1556,7 +1557,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       } catch (error: any) {
         const isDocNotFound = error.message?.includes('not found') || error.message?.includes('Document with id');
         if (isDocNotFound) {
-          console.log(`⚠️ [Workspace Tools] Stale tool ID detected, clearing cache and retrying...`);
+          logger.warn(`⚠️ [Workspace Tools] Stale tool ID detected, clearing cache and retrying...`);
           workspaceToolCache.clear();
           Object.assign(workflow, preRegistrationSnapshot);
           await this.registerWorkflowToolsAndUpdateWorkflow(webhookTools, workflow);
@@ -1576,7 +1577,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
         name: "language_detection",
         description: "Automatically detect and switch to the user's preferred language"
       });
-      console.log(`   ✓ System Tool: language_detection`);
+      logger.info(`   ✓ System Tool: language_detection`);
     }
 
     // NOTE: end_call tool REMOVED for flow agents.
@@ -1586,7 +1587,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     // Note: Transfer functionality is handled by workflow phone_number nodes directly
     // ElevenLabs uses the workflow edges to determine when to transfer calls
     if (hasTransferNodes) {
-      console.log(`   📞 Has transfer nodes: true (handled via workflow)`);
+      logger.info(`   📞 Has transfer nodes: true (handled via workflow)`);
     }
 
     // TOOL PRESERVATION: Fetch existing tools and preserve RAG/other tools not being updated
@@ -1595,7 +1596,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     try {
       const existingAgent = await this.getAgent(agentId);
       const existingTools = (existingAgent as any)?.conversation_config?.agent?.prompt?.tools || [];
-      console.log(`   🔍 Found ${existingTools.length} existing tool(s)`);
+      logger.info(`   🔍 Found ${existingTools.length} existing tool(s)`);
 
       // Get names of tools we're about to add/update
       const newToolNames = new Set([
@@ -1616,7 +1617,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
 
         // Skip if this exact tool name is being replaced by our update
         if (newToolNames.has(toolName)) {
-          console.log(`   ↺ Replacing tool: ${toolName}`);
+          logger.info(`   ↺ Replacing tool: ${toolName}`);
           return false;
         }
 
@@ -1624,7 +1625,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
         // (e.g. send_whatsapp, send_email). These should ALWAYS be replaced by the current flow's tools.
         const phase2Prefixes = ['send_whatsapp', 'send_email', 'play_audio', 'collect_caller_email'];
         if (phase2Prefixes.some(prefix => toolName.startsWith(prefix))) {
-          console.log(`   ↺ Clearing stale messaging tool: ${toolName}`);
+          logger.info(`   ↺ Clearing stale messaging tool: ${toolName}`);
           return false;
         }
 
@@ -1634,35 +1635,35 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
           // must be fully replaced on every flow save. Keeping old suffixed tools
           // alongside new ones causes the agent to submit data to the wrong form.
           if (toolName.startsWith('submit_form_')) {
-            console.log(`   🗑️ Dropping stale form tool: ${toolName}`);
+            logger.info(`   🗑️ Dropping stale form tool: ${toolName}`);
             return false;
           }
 
           // ALWAYS drop stale webhook_node-* tools — these are flow-specific webhook
           // nodes that must be rebuilt from the current flow definition each save.
           if (toolName.startsWith('webhook_node-')) {
-            console.log(`   🗑️ Dropping stale webhook node tool: ${toolName}`);
+            logger.info(`   🗑️ Dropping stale webhook node tool: ${toolName}`);
             return false;
           }
 
           if (toolName.startsWith('ask_knowledge_')) {
-            console.log(`   ✓ Preserving RAG tool: ${toolName}`);
+            logger.info(`   ✓ Preserving RAG tool: ${toolName}`);
           } else {
-            console.log(`   ✓ Preserving webhook tool: ${toolName}`);
+            logger.info(`   ✓ Preserving webhook tool: ${toolName}`);
           }
           return true;
         }
 
         // Preserve any other non-system tools
-        console.log(`   ✓ Preserving tool: ${toolName} (type: ${toolType})`);
+        logger.info(`   ✓ Preserving tool: ${toolName} (type: ${toolType})`);
         return true;
       });
 
       if (preservedTools.length > 0) {
-        console.log(`   📦 Preserving ${preservedTools.length} existing tool(s)`);
+        logger.info(`   📦 Preserving ${preservedTools.length} existing tool(s)`);
       }
     } catch (error: any) {
-      console.log(`   ⚠️ Could not fetch existing tools: ${error.message}`);
+      logger.warn(`   ⚠️ Could not fetch existing tools: ${error.message}`);
     }
 
     // Combine system tools + preserved tools + new webhook tools for prompt.tools array
@@ -1670,10 +1671,10 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
 
     // Log combined prompt tools
     if (allPromptTools.length > 0) {
-      console.log(`   📦 Prompt tools: ${allPromptTools.length} (${systemTools.length} system + ${preservedTools.length} preserved + ${webhookTools.length} webhook)`);
+      logger.info(`   📦 Prompt tools: ${allPromptTools.length} (${systemTools.length} system + ${preservedTools.length} preserved + ${webhookTools.length} webhook)`);
       // Log all tool names for verification
       const toolNames = allPromptTools.map((t: any) => t.name).join(', ');
-      console.log(`   📋 Final tools: [${toolNames}]`);
+      logger.info(`   📋 Final tools: [${toolNames}]`);
     }
 
     // Add tools to prompt config if any are defined
@@ -1702,7 +1703,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       updatePayload.conversation_config.agent.prompt = {};
     }
     updatePayload.conversation_config.agent.prompt.ignore_default_personality = true;
-    console.log(`   ✓ ignore_default_personality: true (scripted mode)`);
+    logger.info(`   ✓ ignore_default_personality: true (scripted mode)`);
 
     updatePayload.tool_error_handling_mode = "relaxed";
 
@@ -1713,10 +1714,10 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       let finalPrompt = additionalOptions.basePrompt;
       if (detectLanguageEnabled && !finalPrompt.includes('language_detection')) {
         finalPrompt += `\n\nIMPORTANT: You have access to the language_detection tool. If the user speaks in a language other than the current conversation language, use the language_detection tool to switch to their preferred language automatically.`;
-        console.log(`   ✓ Appended language_detection instructions to base prompt`);
+        logger.info(`   ✓ Appended language_detection instructions to base prompt`);
       }
       updatePayload.conversation_config.agent.prompt.prompt = finalPrompt;
-      console.log(`   ✓ Base prompt set (${finalPrompt.length} chars)`);
+      logger.info(`   ✓ Base prompt set (${finalPrompt.length} chars)`);
     } else {
       // No basePrompt provided — fetch the existing agent's prompt to prevent
       // ElevenLabs from wiping it out when we PATCH tools/ignore_default_personality
@@ -1725,15 +1726,15 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
         const existingPrompt = (existingAgent as any)?.conversation_config?.agent?.prompt?.prompt;
         if (existingPrompt) {
           updatePayload.conversation_config.agent.prompt.prompt = existingPrompt;
-          console.log(`   ✓ Preserved existing base prompt (${existingPrompt.length} chars)`);
+          logger.info(`   ✓ Preserved existing base prompt (${existingPrompt.length} chars)`);
         } else {
           // Fallback: set a minimal scripted agent prompt
           const fallbackPrompt = `You are a SCRIPTED phone agent. You MUST follow the workflow EXACTLY. When a workflow step contains text to say, output ONLY that text. After speaking, STOP and wait for the user's response. Do not improvise or add extra words.`;
           updatePayload.conversation_config.agent.prompt.prompt = fallbackPrompt;
-          console.log(`   ⚠️ No existing prompt found — set fallback scripted prompt`);
+          logger.warn(`   ⚠️ No existing prompt found — set fallback scripted prompt`);
         }
       } catch (e: any) {
-        console.log(`   ⚠️ Could not fetch existing agent for prompt preservation: ${e.message}`);
+        logger.warn(`   ⚠️ Could not fetch existing agent for prompt preservation: ${e.message}`);
       }
     }
 
@@ -1753,13 +1754,13 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
         name: kb.title,
         id: kb.elevenLabsDocId
       }));
-      console.log(`   📚 Knowledge bases: ${additionalOptions.knowledgeBases.length}`);
+      logger.info(`   📚 Knowledge bases: ${additionalOptions.knowledgeBases.length}`);
     }
 
     // Include name update if provided
     if (additionalOptions?.name) {
       updatePayload.name = additionalOptions.name;
-      console.log(`   📝 Name update: ${additionalOptions.name}`);
+      logger.info(`   📝 Name update: ${additionalOptions.name}`);
     }
 
     // Include ASR config for Twilio native integration (pcm_16000 for better accuracy)
@@ -1779,17 +1780,17 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
         updatePayload.conversation_config.tts = {};
       }
       updatePayload.conversation_config.tts.suggested_audio_tags = DEFAULT_EXPRESSIVE_AUDIO_TAGS;
-      console.log(`   ✓ Expressive Mode: enabled (${DEFAULT_EXPRESSIVE_AUDIO_TAGS.length} audio tags)`);
+      logger.info(`   ✓ Expressive Mode: enabled (${DEFAULT_EXPRESSIVE_AUDIO_TAGS.length} audio tags)`);
     }
 
-    console.log(`📤 Sending Flow Agent workflow update (consolidated):`, JSON.stringify(updatePayload, null, 2));
+    logger.info(`📤 Sending Flow Agent workflow update (consolidated):`);
 
     try {
       const result = await this.request<ElevenLabsAgent>(`/convai/agents/${agentId}`, {
         method: "PATCH",
         body: JSON.stringify(updatePayload),
       });
-      console.log(`✅ Flow Agent workflow updated successfully`);
+      logger.info(`✅ Flow Agent workflow updated successfully`);
       return result;
     } catch (patchError: any) {
       const errorText = patchError.message || "";
@@ -1804,7 +1805,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
         const brokenIds = new Set(idMatches);
 
         if (brokenIds.size > 0) {
-          console.log(`   🛠️ Attempting to purge ${brokenIds.size} broken ID(s):`, Array.from(brokenIds));
+          logger.info(`   🛠️ Attempting to purge ${brokenIds.size} broken ID(s):`, Array.from(brokenIds));
 
           // 1. Purge from prompt tools
           if (updatePayload.conversation_config?.agent?.prompt?.tools) {
@@ -1812,7 +1813,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
             updatePayload.conversation_config.agent.prompt.tools = updatePayload.conversation_config.agent.prompt.tools.filter(
               (t: any) => !brokenIds.has(t.id) && !brokenIds.has(t.name)
             );
-            console.log(`   🗑️ Purged ${originalCount - updatePayload.conversation_config.agent.prompt.tools.length} tool(s) from prompt`);
+            logger.info(`   🗑️ Purged ${originalCount - updatePayload.conversation_config.agent.prompt.tools.length} tool(s) from prompt`);
           }
 
           // 2. Purge from knowledge base
@@ -1821,19 +1822,19 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
             updatePayload.conversation_config.agent.prompt.knowledge_base = updatePayload.conversation_config.agent.prompt.knowledge_base.filter(
               (kb: any) => !brokenIds.has(kb.id)
             );
-            console.log(`   🗑️ Purged ${originalCount - updatePayload.conversation_config.agent.prompt.knowledge_base.length} document(s) from knowledge base`);
+            logger.info(`   🗑️ Purged ${originalCount - updatePayload.conversation_config.agent.prompt.knowledge_base.length} document(s) from knowledge base`);
           }
         } else {
-          console.log(`   ⚠️ Could not extract specific IDs from error, performing global cache clear`);
+          logger.warn(`   ⚠️ Could not extract specific IDs from error, performing global cache clear`);
         }
 
         // 3. Clear workspace cache regardless - something is out of sync
         workspaceToolCache.clear();
-        console.log(`   🧹 Workspace tool cache cleared`);
+        logger.info(`   🧹 Workspace tool cache cleared`);
 
         // 4. If we have a pre-registration snapshot and webhook tools, try a full re-register
         if (webhookTools.length > 0 && preRegistrationSnapshot) {
-          console.log(`   🔄 Performing full re-registration of flow tools...`);
+          logger.info(`   🔄 Performing full re-registration of flow tools...`);
           Object.assign(workflow, preRegistrationSnapshot);
           await this.registerWorkflowToolsAndUpdateWorkflow(webhookTools, workflow);
           updatePayload.workflow = workflow;
@@ -1847,13 +1848,13 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
           updatePayload.conversation_config.agent.prompt.tools = refreshedPromptTools;
         }
 
-        console.log(`   🔄 Retrying workflow update...`);
+        logger.info(`   🔄 Retrying workflow update...`);
         try {
           const retryResult = await this.request<ElevenLabsAgent>(`/convai/agents/${agentId}`, {
             method: "PATCH",
             body: JSON.stringify(updatePayload),
           });
-          console.log(`✅ Flow Agent workflow updated successfully (after robust recovery)`);
+          logger.info(`✅ Flow Agent workflow updated successfully (after robust recovery)`);
           return retryResult;
         } catch (retryError: any) {
           console.error(`❌ Workflow update failed again after recovery attempt:`, retryError.message);
@@ -1879,14 +1880,14 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
    * @returns Full agent configuration from ElevenLabs
    */
   async verifyAgent(agentId: string): Promise<ElevenLabsAgent> {
-    console.log(`🔍 Verifying ElevenLabs agent: ${agentId}`);
+    logger.info(`🔍 Verifying ElevenLabs agent: ${agentId}`);
     const agent = await this.request<ElevenLabsAgent>(`/convai/agents/${agentId}`);
-    console.log(`✅ Agent verified: ${agent.name}`);
+    logger.info(`✅ Agent verified: ${agent.name}`);
     const promptTools = (agent as any)?.conversation_config?.agent?.prompt?.tools;
     const systemToolCount = promptTools?.filter((t: any) => t.type === 'system').length || 0;
     const webhookToolCount = promptTools?.filter((t: any) => t.type === 'webhook').length || 0;
-    console.log(`   Prompt tools: ${promptTools?.length || 0} (${systemToolCount} system, ${webhookToolCount} webhook)`);
-    console.log(`   Workflow configured: ${(agent as any).workflow ? 'Yes' : 'No'}`);
+    logger.info(`   Prompt tools: ${promptTools?.length || 0} (${systemToolCount} system, ${webhookToolCount} webhook)`);
+    logger.info(`   Workflow configured: ${(agent as any).workflow ? 'Yes' : 'No'}`);
     return agent;
   }
 
@@ -1903,11 +1904,11 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     endConversationEnabled?: boolean;
     databaseAgentId?: string;
   }): Promise<ElevenLabsAgent> {
-    console.log(`🔧 Updating agent tools: ${agentId}`);
+    logger.info(`🔧 Updating agent tools: ${agentId}`);
 
     const isSipAgent = toolsConfig.databaseAgentId && await isAgentOnSipPhoneNumber(toolsConfig.databaseAgentId);
     if (isSipAgent) {
-      console.log(`   📞 SIP agent detected - using conference transfer type (direct phone number)`);
+      logger.info(`   📞 SIP agent detected - using conference transfer type (direct phone number)`);
     }
     const systemTools = this.buildSystemTools({ ...toolsConfig, transferType: "conference" });
     const workflow = this.buildWorkflow(toolsConfig);
@@ -1928,14 +1929,14 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       workflow: workflow || { nodes: {}, edges: {} }
     };
 
-    console.log(`📤 Sending tools update:`, JSON.stringify(updatePayload, null, 2));
+    logger.info(`📤 Sending tools update:`);
 
     const result = await this.request<ElevenLabsAgent>(`/convai/agents/${agentId}`, {
       method: "PATCH",
       body: JSON.stringify(updatePayload),
     });
 
-    console.log(`✅ Agent tools updated successfully`);
+    logger.info(`✅ Agent tools updated successfully`);
     return result;
   }
 
@@ -1959,13 +1960,13 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       month: 'long',
       day: 'numeric'
     });
-    console.log(`📅 [ElevenLabs] Refreshing appointment tool with current date for agent: ${agentId}`);
-    console.log(`   Today's date: ${currentDateStr}`);
+    logger.info(`📅 [ElevenLabs] Refreshing appointment tool with current date for agent: ${agentId}`);
+    logger.info(`   Today's date: ${currentDateStr}`);
 
     // 1. Get/create/update the workspace tool
     const freshAppointmentTool = getAppointmentToolForAgent(agentId);
     const toolId = await this.getOrCreateWorkspaceTool(freshAppointmentTool);
-    console.log(`   Workspace tool ID for appointment: ${toolId}`);
+    logger.info(`   Workspace tool ID for appointment: ${toolId}`);
 
     // 2. Fetch existing agent configuration
     const existingAgent = await this.getAgent(agentId);
@@ -1978,7 +1979,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     });
 
     if (nonAppointmentTools.length !== existingTools.length) {
-      console.log(`   🧹 Cleaning up ${existingTools.length - nonAppointmentTools.length} legacy inline appointment tool(s) from prompt.tools`);
+      logger.info(`   🧹 Cleaning up ${existingTools.length - nonAppointmentTools.length} legacy inline appointment tool(s) from prompt.tools`);
       await this.request(`/convai/agents/${agentId}`, {
         method: "PATCH",
         body: JSON.stringify({
@@ -1991,12 +1992,12 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
           }
         }),
       });
-      console.log(`   Legacy inline tools removed`);
+      logger.info(`   Legacy inline tools removed`);
     }
 
     // 4. Ensure the workspace tool ID is attached to the agent's tool_ids
     if (!existingToolIds.includes(toolId)) {
-      console.log(`   Attaching workspace tool ID ${toolId} to agent ${agentId}`);
+      logger.info(`   Attaching workspace tool ID ${toolId} to agent ${agentId}`);
       const updatedToolIds = Array.from(new Set([...existingToolIds, toolId]));
 
       await this.request(`/convai/agents/${agentId}`, {
@@ -2011,9 +2012,9 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
           }
         }),
       });
-      console.log(`   ✅ Appointment tool attached to agent tool_ids`);
+      logger.info(`   ✅ Appointment tool attached to agent tool_ids`);
     } else {
-      console.log(`   ✅ Appointment tool ${toolId} is already attached to agent tool_ids`);
+      logger.info(`   ✅ Appointment tool ${toolId} is already attached to agent tool_ids`);
     }
 
     // POST-REFRESH VALIDATION: Verify the workspace tool was updated with today's date
@@ -2025,7 +2026,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
         const yearStr = new Date().getFullYear().toString();
         const hasCurrentYear = appointmentTool.tool_config.description.includes(yearStr);
         if (hasCurrentYear) {
-          console.log(`✅ [ElevenLabs] Workspace tool verified - description includes ${yearStr}`);
+          logger.info(`✅ [ElevenLabs] Workspace tool verified - description includes ${yearStr}`);
         } else {
           console.warn(`⚠️ [ElevenLabs] Workspace tool description may be stale - current year ${yearStr} not found`);
         }
@@ -2034,7 +2035,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       console.warn(`⚠️ [ElevenLabs] Post-refresh validation failed: ${verifyError.message}`);
     }
 
-    console.log(`✅ [ElevenLabs] Appointment tool refreshed with current date context`);
+    logger.info(`✅ [ElevenLabs] Appointment tool refreshed with current date context`);
   }
 
   async refreshAgentPromptWithCurrentDate(agentId: string): Promise<void> {
@@ -2046,8 +2047,8 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
         month: 'long',
         day: 'numeric'
       });
-      console.log(`📅 [ElevenLabs] Refreshing agent prompt with current date context for agent: ${agentId}`);
-      console.log(`   Today's date: ${currentDateStr}`);
+      logger.info(`📅 [ElevenLabs] Refreshing agent prompt with current date context for agent: ${agentId}`);
+      logger.info(`   Today's date: ${currentDateStr}`);
 
       const existingAgent = await this.getAgent(agentId);
       const prompt = (existingAgent as any).conversation_config?.agent?.prompt?.prompt || '';
@@ -2071,7 +2072,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
           }
         }),
       });
-      console.log(`📅 [ElevenLabs] Refreshed agent prompt with current date context: ${currentDateStr}`);
+      logger.info(`📅 [ElevenLabs] Refreshed agent prompt with current date context: ${currentDateStr}`);
     } catch (err: any) {
       console.warn(`⚠️ [ElevenLabs] Failed to refresh agent prompt with current date: ${err.message}`);
     }
@@ -2083,7 +2084,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     detectLanguageEnabled?: boolean;
     endConversationEnabled?: boolean;
   }): Promise<ElevenLabsAgent> {
-    console.log(`🔄 Updating agent workflow: ${agentId}`);
+    logger.info(`🔄 Updating agent workflow: ${agentId}`);
 
     const workflow = this.buildWorkflow(workflowConfig);
 
@@ -2091,20 +2092,20 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       workflow: workflow || { nodes: {}, edges: {} }
     };
 
-    console.log(`📤 Sending workflow update:`, JSON.stringify(updatePayload, null, 2));
+    logger.info(`📤 Sending workflow update:`);
 
     const result = await this.request<ElevenLabsAgent>(`/convai/agents/${agentId}`, {
       method: "PATCH",
       body: JSON.stringify(updatePayload),
     });
 
-    console.log(`✅ Agent workflow updated successfully`);
+    logger.info(`✅ Agent workflow updated successfully`);
     return result;
   }
 
   async updateAgent(agentId: string, params: Partial<CreateAgentParams>): Promise<ElevenLabsAgent> {
-    console.log(`📝 Updating ElevenLabs agent: ${agentId}`);
-    console.log(`   Updates:`, JSON.stringify(params, null, 2));
+    logger.info(`📝 Updating ElevenLabs agent: ${agentId}`);
+    logger.info(`   Updates:`, JSON.stringify(params, null, 2));
 
     // Build the update payload with correct structure
     const updatePayload: any = {};
@@ -2137,10 +2138,10 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     let workflowConfig: any = null;
 
     if (hasAnyToolConfig) {
-      console.log(`🔧 Building system tools for PATCH`);
+      logger.info(`🔧 Building system tools for PATCH`);
 
       if (isSipAgent) {
-        console.log(`   📞 SIP agent detected - using conference transfer type (direct phone number)`);
+        logger.info(`   📞 SIP agent detected - using conference transfer type (direct phone number)`);
       }
       systemTools = this.buildSystemTools({
         transferEnabled: params.transferEnabled,
@@ -2152,7 +2153,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
 
       // Skip workflow rebuild if flag is set (for Flow agents whose workflow is managed by flow builder)
       if (params.skipWorkflowRebuild) {
-        console.log(`   ⏭️ Skipping workflow rebuild (skipWorkflowRebuild=true)`);
+        logger.warn(`   ⏭️ Skipping workflow rebuild (skipWorkflowRebuild=true)`);
       } else {
         workflowConfig = this.buildWorkflow({
           transferEnabled: params.transferEnabled,
@@ -2219,25 +2220,25 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       if (params.messagingEmailEnabled) {
         const collectEmailTool = buildCollectCallerEmailTool(agentId);
         allPromptTools.push(collectEmailTool);
-        console.log(`   📬 Collect caller email tool added for post-call follow-up`);
+        logger.info(`   📬 Collect caller email tool added for post-call follow-up`);
         const emailTool = buildMessagingEmailTool(agentId, params.messagingEmailTemplates || [], params.messagingEmailSelectedTemplate);
         allPromptTools.push(emailTool);
-        console.log(`   📧 Email messaging tool added${params.messagingEmailSelectedTemplate ? ` (selected: ${params.messagingEmailSelectedTemplate})` : ''}`);
+        logger.info(`   📧 Email messaging tool added${params.messagingEmailSelectedTemplate ? ` (selected: ${params.messagingEmailSelectedTemplate})` : ''}`);
       }
       if (params.messagingWhatsappEnabled) {
         const whatsappTool = buildMessagingWhatsappTool(agentId, params.messagingWhatsappTemplates || [], params.messagingWhatsappSelectedTemplate, params.messagingWhatsappVariables);
         allPromptTools.push(whatsappTool);
-        console.log(`   💬 WhatsApp messaging tool added${params.messagingWhatsappSelectedTemplate ? ` (selected: ${params.messagingWhatsappSelectedTemplate})` : ''}`);
+        logger.info(`   💬 WhatsApp messaging tool added${params.messagingWhatsappSelectedTemplate ? ` (selected: ${params.messagingWhatsappSelectedTemplate})` : ''}`);
       }
 
       // Add combined tools to prompt.tools (per ElevenLabs API docs)
       if (allPromptTools.length > 0) {
         promptConfig.tools = allPromptTools;
-        console.log(`   Prompt tools: ${allPromptTools.length} (${systemTools.length} system + ${params.tools?.length || 0} custom)`);
+        logger.info(`   Prompt tools: ${allPromptTools.length} (${systemTools.length} system + ${params.tools?.length || 0} custom)`);
       } else if (hasAnyToolConfig) {
         // Explicitly set empty tools array if all tools are disabled
         promptConfig.tools = [];
-        console.log(`   Prompt tools cleared (all disabled)`);
+        logger.info(`   Prompt tools cleared (all disabled)`);
       }
     }
 
@@ -2283,7 +2284,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       if (requestedModel && validModels.includes(requestedModel)) {
         ttsConfig.model_id = requestedModel;
       } else if (requestedModel && !validModels.includes(requestedModel)) {
-        console.log(`   ⚠️ TTS model ${requestedModel} is not valid, using ${smartDefault}`);
+        logger.info(`   ⚠️ TTS model ${requestedModel} is not valid, using ${smartDefault}`);
         ttsConfig.model_id = smartDefault;
       } else if (params.language || params.voice_id) {
         ttsConfig.model_id = smartDefault;
@@ -2296,9 +2297,9 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
         ttsConfig.stability = params.voiceStability ?? 0.65;
         ttsConfig.similarity_boost = params.voiceSimilarityBoost ?? 0.85;
         ttsConfig.speed = params.voiceSpeed ?? 0.92;
-        console.log(`   🎙️ Voice settings: stability=${ttsConfig.stability}, similarity=${ttsConfig.similarity_boost}, speed=${ttsConfig.speed}`);
+        logger.info(`   🎙️ Voice settings: stability=${ttsConfig.stability}, similarity=${ttsConfig.similarity_boost}, speed=${ttsConfig.speed}`);
       } else if (hasVoiceSettings && isV3Model) {
-        console.log(`   🎙️ V3 model active - voice settings (stability, similarity, speed) skipped (ignored by V3)`);
+        logger.warn(`   🎙️ V3 model active - voice settings (stability, similarity, speed) skipped (ignored by V3)`);
       }
 
       conversationConfigUpdates.tts = ttsConfig;
@@ -2338,7 +2339,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     // Add webhook tools at agent root level (per ElevenLabs API documentation)
     if (params.webhookTools && params.webhookTools.length > 0) {
       updatePayload.tools = params.webhookTools;
-      console.log(`   📚 Webhook tools: ${params.webhookTools.map(t => t.name).join(', ')}`);
+      logger.info(`   📚 Webhook tools: ${params.webhookTools.map(t => t.name).join(', ')}`);
     }
 
     // V3 Features (all optional, additive only)
@@ -2347,7 +2348,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       updatePayload.conversation_config.safety = {
         guardrails: { custom: params.customGuardrails },
       };
-      console.log(`   🛡️ Custom guardrails: ${params.customGuardrails.length} rules`);
+      logger.info(`   🛡️ Custom guardrails: ${params.customGuardrails.length} rules`);
     }
     if (params.toolErrorHandlingMode) {
       updatePayload.tool_error_handling_mode = params.toolErrorHandlingMode;
@@ -2368,21 +2369,21 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
 
     // Log knowledge base count if provided
     if (params.knowledge_bases !== undefined) {
-      console.log(`   Knowledge bases: ${params.knowledge_bases.length} KB(s)`);
+      logger.info(`   Knowledge bases: ${params.knowledge_bases.length} KB(s)`);
     }
 
-    console.log(`📤 Sending update to ElevenLabs API:`, JSON.stringify(updatePayload, null, 2));
+    logger.info(`📤 Sending update to ElevenLabs API:`);
 
     const result = await this.request<ElevenLabsAgent>(`/convai/agents/${agentId}`, {
       method: "PATCH",
       body: JSON.stringify(updatePayload),
     });
 
-    console.log(`✅ ElevenLabs agent updated successfully`);
+    logger.info(`✅ ElevenLabs agent updated successfully`);
 
     // Separately associate/disassociate the appointment booking tool via tool_ids
     if (params.appointmentBookingEnabled !== undefined) {
-      console.log(`📅 [ElevenLabs] Updating appointment booking tool association (enabled: ${params.appointmentBookingEnabled})`);
+      logger.info(`📅 [ElevenLabs] Updating appointment booking tool association (enabled: ${params.appointmentBookingEnabled})`);
       try {
         const appointmentTool = getAppointmentToolForAgent(agentId);
 
@@ -2405,14 +2406,14 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
 
           if (targetTool) {
             updatedToolIds = updatedToolIds.filter(id => id !== targetTool.id);
-            console.log(`   Removing tool ID ${targetTool.id} from agent ${agentId}`);
+            logger.info(`   Removing tool ID ${targetTool.id} from agent ${agentId}`);
           }
         }
 
         // Only update if tool_ids changed
         const hasChanged = JSON.stringify(existingToolIds.sort()) !== JSON.stringify(updatedToolIds.sort());
         if (hasChanged) {
-          console.log(`   Updating agent ${agentId} tool_ids to:`, updatedToolIds);
+          logger.info(`   Updating agent ${agentId} tool_ids to:`, updatedToolIds);
           await this.request(`/convai/agents/${agentId}`, {
             method: "PATCH",
             body: JSON.stringify({
@@ -2425,9 +2426,9 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
               }
             })
           });
-          console.log(`✅ Agent tool_ids updated successfully`);
+          logger.info(`✅ Agent tool_ids updated successfully`);
         } else {
-          console.log(`✅ Agent tool_ids already up to date`);
+          logger.info(`✅ Agent tool_ids already up to date`);
         }
       } catch (toolUpdateError: any) {
         console.error(`❌ Failed to update agent appointment tool association:`, toolUpdateError.message);
@@ -2452,14 +2453,14 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
    * @returns Updated agent
    */
   async patchAgentRaw(agentId: string, payload: Record<string, any>): Promise<ElevenLabsAgent> {
-    console.log(`📤 Raw PATCH to agent ${agentId}:`, JSON.stringify(payload, null, 2));
+    logger.info(`📤 Raw PATCH to agent ${agentId}:`);
 
     const result = await this.request<ElevenLabsAgent>(`/convai/agents/${agentId}`, {
       method: "PATCH",
       body: JSON.stringify(payload),
     });
 
-    console.log(`✅ Agent raw patch completed`);
+    logger.info(`✅ Agent raw patch completed`);
     return result;
   }
 
@@ -2469,9 +2470,9 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
    */
   async listWorkspaceTools(): Promise<ElevenLabsWorkspaceTool[]> {
     try {
-      console.log(`🔧 Fetching workspace tools from ElevenLabs...`);
+      logger.info(`🔧 Fetching workspace tools from ElevenLabs...`);
       const response = await this.request<{ tools: ElevenLabsWorkspaceTool[] }>('/convai/tools');
-      console.log(`   Found ${response.tools?.length || 0} workspace tool(s)`);
+      logger.info(`   Found ${response.tools?.length || 0} workspace tool(s)`);
       return response.tools || [];
     } catch (error: any) {
       console.error(`❌ Failed to list workspace tools:`, error.message);
@@ -2499,15 +2500,15 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       request_body_schema?: any;
     };
   }): Promise<ElevenLabsWorkspaceTool> {
-    console.log(`🔧 Creating workspace tool: ${toolConfig.name}`);
-    console.log(`   URL: ${toolConfig.api_schema.url}`);
+    logger.info(`🔧 Creating workspace tool: ${toolConfig.name}`);
+    logger.info(`   URL: [redacted]`);
 
     const response = await this.request<ElevenLabsWorkspaceTool>('/convai/tools', {
       method: 'POST',
       body: JSON.stringify({ tool_config: toolConfig }),
     });
 
-    console.log(`✅ Workspace tool created: ${response.id}`);
+    logger.info(`✅ Workspace tool created: ${response.id}`);
 
     // Cache the tool ID (scoped by API key to prevent cross-workspace confusion)
     const cacheKey = getToolCacheKey(this.apiKey, toolConfig.name);
@@ -2521,11 +2522,11 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
    * DELETE /v1/convai/tools/:tool_id
    */
   async deleteWorkspaceTool(toolId: string): Promise<void> {
-    console.log(`🗑️ Deleting workspace tool: ${toolId}`);
+    logger.info(`🗑️ Deleting workspace tool: ${toolId}`);
     await this.request(`/convai/tools/${toolId}`, {
       method: 'DELETE',
     });
-    console.log(`✅ Workspace tool deleted`);
+    logger.info(`✅ Workspace tool deleted`);
   }
 
   /**
@@ -2545,12 +2546,12 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       request_body_schema?: any;
     };
   }): Promise<ElevenLabsWorkspaceTool> {
-    console.log(`🔧 Updating workspace tool: ${toolId} (${toolConfig.name})`);
+    logger.info(`🔧 Updating workspace tool: ${toolId} (${toolConfig.name})`);
     const response = await this.request<ElevenLabsWorkspaceTool>(`/convai/tools/${toolId}`, {
       method: 'PATCH',
       body: JSON.stringify({ tool_config: toolConfig }),
     });
-    console.log(`✅ Workspace tool updated: ${toolId}`);
+    logger.info(`✅ Workspace tool updated: ${toolId}`);
     return response;
   }
 
@@ -2586,7 +2587,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
         JSON.stringify(tool.tool_config?.api_schema?.request_body_schema) !== JSON.stringify(toolConfig.api_schema.request_body_schema);
 
       if (needsUpdate) {
-        console.log(`🔧 Workspace tool ${tool.id} config is outdated. Updating...`);
+        logger.info(`🔧 Workspace tool ${tool.id} config is outdated. Updating...`);
         try {
           await this.updateWorkspaceTool(tool.id, toolConfig);
         } catch (updateErr: any) {
@@ -2599,18 +2600,18 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     if (cachedId) {
       const existingTool = existingTools.find(t => t.id === cachedId);
       if (existingTool) {
-        console.log(`🔧 Using cached workspace tool ID (validated): ${cachedId}`);
+        logger.info(`🔧 Using cached workspace tool ID (validated): ${cachedId}`);
         await checkAndUpdateIfNeeded(existingTool);
         return cachedId;
       }
-      console.log(`⚠️ Cached workspace tool ${cachedId} no longer exists on ElevenLabs, invalidating cache`);
+      logger.info(`⚠️ Cached workspace tool ${cachedId} no longer exists on ElevenLabs, invalidating cache`);
       workspaceToolCache.delete(cacheKey);
     }
 
     const existingTool = existingTools.find(t => t.tool_config?.name === toolConfig.name);
 
     if (existingTool) {
-      console.log(`🔧 Found existing workspace tool: ${existingTool.id}`);
+      logger.info(`🔧 Found existing workspace tool: ${existingTool.id}`);
       await checkAndUpdateIfNeeded(existingTool);
       workspaceToolCache.set(cacheKey, existingTool.id);
       return existingTool.id;
@@ -2645,7 +2646,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       return toolIdMapping;
     }
 
-    console.log(`🔧 [Workspace Tools] Registering ${webhookTools.length} workflow tool(s)...`);
+    logger.info(`🔧 [Workspace Tools] Registering ${webhookTools.length} workflow tool(s)...`);
 
     for (const tool of webhookTools) {
       const workspaceToolId = await this.getOrCreateWorkspaceTool({
@@ -2663,7 +2664,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       });
 
       toolIdMapping.set(tool.name, workspaceToolId);
-      console.log(`   ✓ Registered: ${tool.name} -> ${workspaceToolId}`);
+      logger.info(`   ✓ Registered: ${tool.name} -> ${workspaceToolId}`);
     }
 
     // Update workflow tool nodes to use actual workspace tool IDs
@@ -2674,7 +2675,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
           const workspaceToolId = toolIdMapping.get(friendlyName);
 
           if (workspaceToolId && workspaceToolId !== friendlyName) {
-            console.log(`   🔄 Node ${nodeId}: ${friendlyName} -> ${workspaceToolId}`);
+            logger.info(`   🔄 Node ${nodeId}: ${friendlyName} -> ${workspaceToolId}`);
             return { tool_id: workspaceToolId };
           }
           return tool;
@@ -2690,7 +2691,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
         const updatedIds = node.additional_tool_ids.map((friendlyName: string) => {
           const workspaceToolId = toolIdMapping.get(friendlyName);
           if (workspaceToolId && workspaceToolId !== friendlyName) {
-            console.log(`   🔄 Node ${nodeId} additional_tool_ids: ${friendlyName} -> ${workspaceToolId}`);
+            logger.info(`   🔄 Node ${nodeId} additional_tool_ids: ${friendlyName} -> ${workspaceToolId}`);
             return workspaceToolId;
           }
           return friendlyName;
@@ -2699,7 +2700,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       }
     }
 
-    console.log(`✅ [Workspace Tools] Registered ${toolIdMapping.size} tool(s) and updated workflow`);
+    logger.info(`✅ [Workspace Tools] Registered ${toolIdMapping.size} tool(s) and updated workflow`);
 
     return toolIdMapping;
   }
@@ -2730,16 +2731,16 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       request_body_schema?: any;
     };
   }>, systemTools?: any[]): Promise<void> {
-    console.log(`🔧 Linking tools to agent ${agentId}`);
+    logger.info(`🔧 Linking tools to agent ${agentId}`);
 
     // Fetch existing agent to preserve workflow webhook tools
     let existingTools: any[] = [];
     try {
       const agent = await this.getAgent(agentId);
       existingTools = (agent as any)?.conversation_config?.agent?.prompt?.tools || [];
-      console.log(`   Found ${existingTools.length} existing tool(s)`);
+      logger.info(`   Found ${existingTools.length} existing tool(s)`);
     } catch (error: any) {
-      console.log(`   Could not fetch existing tools: ${error.message}`);
+      logger.warn(`   Could not fetch existing tools: ${error.message}`);
     }
 
     // Get names of tools we're about to add/update
@@ -2756,7 +2757,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       if (newToolNames.has(tool.name)) return false;
       // Preserve workflow webhook tools (webhook_node-* pattern)
       if (tool.type === 'webhook' && tool.name.startsWith('webhook_')) {
-        console.log(`   Preserving workflow webhook: ${tool.name}`);
+        logger.info(`   Preserving workflow webhook: ${tool.name}`);
         return true;
       }
       return false;
@@ -2769,23 +2770,23 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     // Add system tools first (type: "system")
     if (systemTools && systemTools.length > 0) {
       allTools.push(...systemTools);
-      console.log(`   System tools: ${systemTools.map(t => t.name).join(', ')}`);
+      logger.info(`   System tools: ${systemTools.map(t => t.name).join(', ')}`);
     }
 
     // Add preserved workflow webhook tools
     if (preservedTools.length > 0) {
       allTools.push(...preservedTools);
-      console.log(`   Preserved webhooks: ${preservedTools.map((t: any) => t.name).join(', ')}`);
+      logger.info(`   Preserved webhooks: ${preservedTools.map((t: any) => t.name).join(', ')}`);
     }
 
     // Add new webhook tools (already have type: "webhook")
     if (toolConfigs.length > 0) {
       allTools.push(...toolConfigs);
-      console.log(`   New webhook tools: ${toolConfigs.map(t => t.name).join(', ')}`);
+      logger.info(`   New webhook tools: ${toolConfigs.map(t => t.name).join(', ')}`);
     }
 
     if (allTools.length === 0) {
-      console.log(`🔧 No tools to link to agent ${agentId}`);
+      logger.info(`🔧 No tools to link to agent ${agentId}`);
       return;
     }
 
@@ -2799,14 +2800,14 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       }
     };
 
-    console.log(`📤 Linking ${allTools.length} tools (${systemTools?.length || 0} system + ${preservedTools.length} preserved + ${toolConfigs.length} new):`, JSON.stringify(updatePayload, null, 2));
+    logger.info(`📤 Linking ${allTools.length} tools (${systemTools?.length || 0} system + ${preservedTools.length} preserved + ${toolConfigs.length} new):`);
 
     await this.request(`/convai/agents/${agentId}`, {
       method: 'PATCH',
       body: JSON.stringify(updatePayload),
     });
 
-    console.log(`✅ Tools linked to agent successfully`);
+    logger.info(`✅ Tools linked to agent successfully`);
   }
 
   /**
@@ -2823,7 +2824,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     prefix: string,
     newTools: Array<{ type: "webhook"; name: string; description: string; api_schema: any }>
   ): Promise<void> {
-    console.log(`🔧 [replaceToolsByPrefix] Replacing "${prefix}" tools on agent ${agentId}`);
+    logger.info(`🔧 [replaceToolsByPrefix] Replacing "${prefix}" tools on agent ${agentId}`);
 
     let existingTools: any[] = [];
     try {
@@ -2845,7 +2846,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       }),
     });
 
-    console.log(`   ✅ Replaced ${newTools.length} tool(s) with prefix "${prefix}", retained ${retained.length} other tool(s)`);
+    logger.info(`   ✅ Replaced ${newTools.length} tool(s) with prefix "${prefix}", retained ${retained.length} other tool(s)`);
   }
 
   /**
@@ -2853,7 +2854,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
    * Sets conversation_config.agent.prompt.tools = []
    */
   async unlinkToolsFromAgent(agentId: string): Promise<void> {
-    console.log(`🔧 Unlinking all tools from agent ${agentId}`);
+    logger.info(`🔧 Unlinking all tools from agent ${agentId}`);
 
     const updatePayload = {
       conversation_config: {
@@ -2870,12 +2871,12 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       body: JSON.stringify(updatePayload),
     });
 
-    console.log(`✅ Tools unlinked from agent`);
+    logger.info(`✅ Tools unlinked from agent`);
   }
 
   async listVoices(): Promise<{ voices: ElevenLabsVoice[] }> {
     try {
-      console.log(`🎤 Fetching voices from ElevenLabs v2 API...`);
+      logger.info(`🎤 Fetching voices from ElevenLabs v2 API...`);
 
       // Fetch all voices using v2 API with pagination
       // v2 API uses next_page_token instead of cursor
@@ -2905,11 +2906,11 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
 
           if (response.voices && response.voices.length > 0) {
             allVoices.push(...response.voices);
-            console.log(`📄 Page ${pageCount + 1}: Fetched ${response.voices.length} voices (Total so far: ${allVoices.length})`);
+            logger.info(`📄 Page ${pageCount + 1}: Fetched ${response.voices.length} voices (Total so far: ${allVoices.length})`);
 
             // Log total count if available
             if (pageCount === 0 && response.total_count !== undefined) {
-              console.log(`📊 Total available voices: ${response.total_count}`);
+              logger.info(`📊 Total available voices: ${response.total_count}`);
             }
           }
 
@@ -2919,7 +2920,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
 
           // Safety check to prevent infinite loops
           if (pageCount >= maxPages) {
-            console.log(`⚠️ Reached maximum page limit (${maxPages} pages). Stopping pagination.`);
+            logger.info(`⚠️ Reached maximum page limit (${maxPages} pages). Stopping pagination.`);
             break;
           }
         } catch (pageError: any) {
@@ -2937,7 +2938,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       });
 
       const uniqueVoices = Array.from(voiceMap.values());
-      console.log(`✅ Total unique voices fetched: ${uniqueVoices.length} (across ${pageCount} pages)`);
+      logger.info(`✅ Total unique voices fetched: ${uniqueVoices.length} (across ${pageCount} pages)`);
 
       // Print conversational voices in tabular format
       this.printConversationalVoices(uniqueVoices);
@@ -2963,11 +2964,11 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     });
 
     if (conversationalVoices.length > 0) {
-      console.log(`\n${'='.repeat(100)}`);
-      console.log(`🗣️  CONVERSATIONAL VOICES (${conversationalVoices.length} found)`);
-      console.log(`${'='.repeat(100)}`);
-      console.log(`${'voice_id'.padEnd(25)} | ${'name'.padEnd(30)} | ${'language'.padEnd(12)} | ${'category'.padEnd(15)}`);
-      console.log(`${'-'.repeat(100)}`);
+      logger.info(`\n${'='.repeat(100)}`);
+      logger.info(`🗣️  CONVERSATIONAL VOICES (${conversationalVoices.length} found)`);
+      logger.info(`${'='.repeat(100)}`);
+      logger.info(`${'voice_id'.padEnd(25)} | ${'name'.padEnd(30)} | ${'language'.padEnd(12)} | ${'category'.padEnd(15)}`);
+      logger.info(`${'-'.repeat(100)}`);
 
       conversationalVoices.forEach(voice => {
         const voiceId = (voice.voice_id || 'N/A').substring(0, 24).padEnd(25);
@@ -2975,12 +2976,12 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
         const language = (voice.labels?.language || 'en').substring(0, 11).padEnd(12);
         const category = (voice.category || 'N/A').substring(0, 14).padEnd(15);
 
-        console.log(`${voiceId} | ${name} | ${language} | ${category}`);
+        logger.info(`${voiceId} | ${name} | ${language} | ${category}`);
       });
 
-      console.log(`${'='.repeat(100)}\n`);
+      logger.info(`${'='.repeat(100)}\n`);
     } else {
-      console.log(`\n⚠️  No voices with conversational/dialogue keywords found.`);
+      logger.info(`\n⚠️  No voices with conversational/dialogue keywords found.`);
     }
   }
 
@@ -3027,11 +3028,11 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       };
     }
 
-    console.log(`🎤 Generating voice preview for voice ${voiceId}...`);
-    console.log(`   Text: "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`);
-    console.log(`   Model: ${requestBody.model_id}`);
+    logger.info(`🎤 Generating voice preview for voice ${voiceId}...`);
+    logger.info(`   Text: "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`);
+    logger.info(`   Model: ${requestBody.model_id}`);
     if (voiceSettings) {
-      console.log(`   Settings: stability=${voiceSettings.stability}, similarity=${voiceSettings.similarity_boost}, speed=${voiceSettings.speed}`);
+      logger.info(`   Settings: stability=${voiceSettings.stability}, similarity=${voiceSettings.similarity_boost}, speed=${voiceSettings.speed}`);
     }
 
     // Create AbortController for timeout (60 seconds for TTS which can be slow)
@@ -3066,7 +3067,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       const arrayBuffer = await response.arrayBuffer();
       const audioBuffer = Buffer.from(arrayBuffer);
 
-      console.log(`✅ Voice preview generated: ${audioBuffer.length} bytes`);
+      logger.info(`✅ Voice preview generated: ${audioBuffer.length} bytes`);
 
       return audioBuffer;
     } catch (error: any) {
@@ -3168,7 +3169,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
         options.useCases.forEach(uc => params.append('use_cases', uc));
       }
 
-      console.log(`🎤 Fetching shared voices from ElevenLabs library...`);
+      logger.info(`🎤 Fetching shared voices from ElevenLabs library...`);
 
       const response = await this.request<{
         voices: SharedVoice[];
@@ -3176,7 +3177,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
         last_sort_id?: string;
       }>(`/shared-voices?${params.toString()}`);
 
-      console.log(`✅ Fetched ${response.voices?.length || 0} shared voices`);
+      logger.info(`✅ Fetched ${response.voices?.length || 0} shared voices`);
 
       return {
         voices: response.voices || [],
@@ -3192,7 +3193,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
    * Add a shared voice from the library to the current account
    */
   async addSharedVoice(publicOwnerId: string, voiceId: string, newName?: string): Promise<{ voice_id: string }> {
-    console.log(`➕ Adding shared voice ${voiceId} from owner ${publicOwnerId}...`);
+    logger.info(`➕ Adding shared voice ${voiceId} from owner ${publicOwnerId}...`);
 
     const response = await this.request<{ voice_id: string }>(
       `/voices/add/${publicOwnerId}/${voiceId}`,
@@ -3202,7 +3203,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       }
     );
 
-    console.log(`✅ Voice added successfully with ID: ${response.voice_id}`);
+    logger.info(`✅ Voice added successfully with ID: ${response.voice_id}`);
     return response;
   }
 
@@ -3221,7 +3222,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     agentId: string,
     customLlmWsUrl?: string
   ): Promise<{ signed_url: string; agent_id?: string }> {
-    console.log(`🔐 Getting signed URL for ElevenLabs agent: ${agentId}`);
+    logger.info(`🔐 Getting signed URL for ElevenLabs agent: ${agentId}`);
 
     // Proactively check and heal any stale tool/document IDs on the agent to prevent 3000 WebSession closure
     try {
@@ -3251,12 +3252,12 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
           }
         };
 
-        console.log(`   🛠️ Proactively purging stale tools from agent ${agentId}...`);
+        logger.info(`   🛠️ Proactively purging stale tools from agent ${agentId}...`);
         await this.request<any>(`/convai/agents/${agentId}`, {
           method: 'PATCH',
           body: JSON.stringify(updatePayload)
         });
-        console.log(`   ✅ Agent ${agentId} stale tools successfully purged.`);
+        logger.info(`   ✅ Agent ${agentId} stale tools successfully purged.`);
       }
     } catch (err: any) {
       console.error(`⚠️ [ElevenLabs Service] Proactive stale tool check failed for agent ${agentId}:`, err.message);
@@ -3276,7 +3277,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
         }
       );
 
-      console.log(`✅ Got signed URL for agent ${agentId} (expires in 15 minutes)`);
+      logger.info(`✅ Got signed URL for agent ${agentId} (expires in 15 minutes)`);
       return result;
     } catch (error: any) {
       console.error(`❌ Failed to get signed URL for agent ${agentId}:`, error);
@@ -3294,7 +3295,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
   }
 
   async uploadKnowledgeBaseFile(file: Buffer, filename: string, name?: string): Promise<{ id: string; name: string }> {
-    console.log(`📤 Uploading knowledge base file: ${filename}`);
+    logger.info(`📤 Uploading knowledge base file: ${filename}`);
 
     // Determine MIME type from file extension
     const ext = filename.toLowerCase().split('.').pop();
@@ -3318,7 +3319,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
         break;
     }
 
-    console.log(`   MIME type: ${mimeType}`);
+    logger.info(`   MIME type: ${mimeType}`);
 
     const formData = new FormData();
     const blob = new Blob([new Uint8Array(file)], { type: mimeType });
@@ -3349,7 +3350,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       }
 
       const result = await response.json();
-      console.log(`✅ Knowledge base file uploaded: ${result.id}`);
+      logger.info(`✅ Knowledge base file uploaded: ${result.id}`);
       return result;
     } catch (error: any) {
       if (error.name === 'AbortError') {
@@ -3367,26 +3368,26 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
   }
 
   async addKnowledgeBaseFromUrl(url: string, name?: string): Promise<{ id: string; name: string }> {
-    console.log(`📤 Adding knowledge base from URL: ${url}`);
+    logger.info(`📤 Adding knowledge base from URL: [redacted]`);
 
     const result = await this.request<{ id: string; name: string }>('/convai/knowledge-base/url', {
       method: 'POST',
       body: JSON.stringify({ url, name }),
     });
 
-    console.log(`✅ Knowledge base URL added: ${result.id}`);
+    logger.info(`✅ Knowledge base URL added: ${result.id}`);
     return result;
   }
 
   async addKnowledgeBaseFromText(text: string, name: string): Promise<{ id: string; name: string }> {
-    console.log(`📤 Adding knowledge base from text: ${name}`);
+    logger.info(`📤 Adding knowledge base from text: ${name}`);
 
     const result = await this.request<{ id: string; name: string }>('/convai/knowledge-base/text', {
       method: 'POST',
       body: JSON.stringify({ text, name }),
     });
 
-    console.log(`✅ Knowledge base text added: ${result.id}`);
+    logger.info(`✅ Knowledge base text added: ${result.id}`);
     return result;
   }
 
@@ -3421,11 +3422,11 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
   }
 
   async deleteKnowledgeBase(documentId: string): Promise<void> {
-    console.log(`🗑️  Deleting knowledge base document: ${documentId}`);
+    logger.info(`🗑️  Deleting knowledge base document: ${documentId}`);
     await this.request(`/convai/knowledge-base/${documentId}`, {
       method: 'DELETE',
     });
-    console.log(`✅ Knowledge base document deleted`);
+    logger.info(`✅ Knowledge base document deleted`);
   }
 
   async getLLMPricing(params?: {
@@ -3444,7 +3445,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       tags?: string[];
     }>;
   }> {
-    console.log(`💰 Fetching LLM pricing information from ElevenLabs`);
+    logger.info(`💰 Fetching LLM pricing information from ElevenLabs`);
 
     const result = await this.request<{
       llm_prices: Array<{
@@ -3466,7 +3467,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       }),
     });
 
-    console.log(`✅ Fetched pricing for ${result.llm_prices.length} LLM models`);
+    logger.info(`✅ Fetched pricing for ${result.llm_prices.length} LLM models`);
     return result;
   }
 
@@ -3477,7 +3478,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     label?: string;
     enableOutbound?: boolean;
   }): Promise<{ phone_number_id: string }> {
-    console.log(`📞 Syncing phone number to ElevenLabs: ${params.phoneNumber}`);
+    logger.info(`📞 Syncing phone number to ElevenLabs: [redacted]`);
 
     const result = await this.request<{ phone_number_id: string }>('/convai/phone-numbers', {
       method: 'POST',
@@ -3489,15 +3490,15 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       }),
     });
 
-    console.log(`✅ Phone number synced to ElevenLabs: ${result.phone_number_id}`);
+    logger.info(`✅ Phone number synced to ElevenLabs: ${result.phone_number_id}`);
 
     // Enable outbound support after syncing (default true for purchased numbers)
     if (params.enableOutbound !== false) {
-      console.log(`📞 Enabling outbound support for phone number`);
+      logger.info(`📞 Enabling outbound support for phone number`);
       await this.updatePhoneNumber(result.phone_number_id, {
         supportsOutbound: true,
       });
-      console.log(`✅ Outbound support enabled`);
+      logger.info(`✅ Outbound support enabled`);
     }
 
     return result;
@@ -3511,7 +3512,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       agent_id?: string;
     }>;
   }> {
-    console.log(`📞 Fetching phone numbers from ElevenLabs`);
+    logger.info(`📞 Fetching phone numbers from ElevenLabs`);
     const result = await this.request<{
       phone_numbers: Array<{
         phone_number_id: string;
@@ -3520,7 +3521,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
         agent_id?: string;
       }>;
     }>('/convai/phone-numbers');
-    console.log(`✅ Fetched ${result.phone_numbers.length} phone number(s)`);
+    logger.info(`✅ Fetched ${result.phone_numbers.length} phone number(s)`);
     return result;
   }
 
@@ -3545,7 +3546,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     supportsOutbound?: boolean;
     inboundAgentId?: string | null;
   }): Promise<void> {
-    console.log(`📞 Updating phone number in ElevenLabs: ${phoneNumberId}`);
+    logger.info(`📞 Updating phone number in ElevenLabs: ${phoneNumberId}`);
     const body: any = {};
 
     if (params.label !== undefined) {
@@ -3564,25 +3565,25 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       body.inbound_agent_id = params.inboundAgentId;
     }
 
-    console.log(`📞 Update payload:`, JSON.stringify(body));
+    logger.info(`📞 Update payload:`);
 
     await this.request(`/convai/phone-numbers/${phoneNumberId}`, {
       method: 'PATCH',
       body: JSON.stringify(body),
     });
-    console.log(`✅ Phone number updated in ElevenLabs`);
+    logger.info(`✅ Phone number updated in ElevenLabs`);
   }
 
   async deletePhoneNumber(phoneNumberId: string): Promise<void> {
-    console.log(`📞 Deleting phone number from ElevenLabs: ${phoneNumberId}`);
+    logger.info(`📞 Deleting phone number from ElevenLabs: ${phoneNumberId}`);
     await this.request(`/convai/phone-numbers/${phoneNumberId}`, {
       method: 'DELETE',
     });
-    console.log(`✅ Phone number deleted from ElevenLabs`);
+    logger.info(`✅ Phone number deleted from ElevenLabs`);
   }
 
   async assignAgentToPhoneNumber(phoneNumberId: string, agentId: string, forInbound: boolean = true): Promise<void> {
-    console.log(`📞 Assigning agent ${agentId} to phone number ${phoneNumberId} (inbound: ${forInbound})`);
+    logger.info(`📞 Assigning agent ${agentId} to phone number ${phoneNumberId} (inbound: ${forInbound})`);
 
     if (forInbound) {
       await this.updatePhoneNumber(phoneNumberId, {
@@ -3594,17 +3595,17 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       await this.updatePhoneNumber(phoneNumberId, { agentId });
     }
 
-    console.log(`✅ Agent assigned to phone number`);
+    logger.info(`✅ Agent assigned to phone number`);
   }
 
   async unassignAgentFromPhoneNumber(phoneNumberId: string): Promise<void> {
-    console.log(`📞 Unassigning agent from phone number ${phoneNumberId}`);
+    logger.info(`📞 Unassigning agent from phone number ${phoneNumberId}`);
     await this.updatePhoneNumber(phoneNumberId, {
       agentId: null,
       inboundAgentId: null,
       supportsInbound: false,
     });
-    console.log(`✅ Agent unassigned from phone number`);
+    logger.info(`✅ Agent unassigned from phone number`);
   }
 
   // ============================================================================
@@ -3638,12 +3639,12 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     conversation_id: string | null;
     call_sid?: string;
   }> {
-    console.log(`📞 Initiating outbound call via ElevenLabs Twilio API`);
-    console.log(`   From (phone_number_id): ${params.phoneNumberId}`);
-    console.log(`   To: ${params.toNumber}`);
-    console.log(`   Agent: ${params.agentId}`);
+    logger.info(`📞 Initiating outbound call via ElevenLabs Twilio API`);
+    logger.info(`   From (phone_number_id): ${params.phoneNumberId}`);
+    logger.info(`   To: ${params.toNumber}`);
+    logger.info(`   Agent: ${params.agentId}`);
     if (params.dynamicData) {
-      console.log(`   Dynamic data keys: ${Object.keys(params.dynamicData).join(', ')}`);
+      logger.info(`   Dynamic data keys: ${Object.keys(params.dynamicData).join(', ')}`);
     }
 
     const requestBody: any = {
@@ -3684,11 +3685,11 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
 
       if (params.dynamicData && Object.keys(params.dynamicData).length > 0) {
         requestBody.conversation_initiation_client_data.dynamic_variables = params.dynamicData;
-        console.log(`   Dynamic data for variable substitution:`, JSON.stringify(params.dynamicData));
+        logger.info(`   Dynamic data for variable substitution:`, JSON.stringify(params.dynamicData));
       }
     }
 
-    console.log(`📤 Sending outbound call request to /twilio/outbound-call:`, JSON.stringify(requestBody, null, 2));
+    logger.info(`📤 Sending outbound call request to /twilio/outbound-call:`);
 
     // Use the correct Twilio outbound call endpoint
     const result = await this.request<{
@@ -3701,12 +3702,12 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       body: JSON.stringify(requestBody),
     });
 
-    console.log(`✅ Outbound call initiated`);
-    console.log(`   Success: ${result.success}`);
-    console.log(`   Message: ${result.message}`);
-    console.log(`   Conversation ID: ${result.conversation_id}`);
+    logger.info(`✅ Outbound call initiated`);
+    logger.info(`   Success: ${result.success}`);
+    logger.info(`   Message: ${result.message}`);
+    logger.info(`   Conversation ID: ${result.conversation_id}`);
     if (result.callSid) {
-      console.log(`   Call SID: ${result.callSid}`);
+      logger.info(`   Call SID: ${result.callSid}`);
     }
 
     // Map API response to expected return format
@@ -3732,7 +3733,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       });
 
       if (!settingsResponse.ok) {
-        console.log(`   ⚠️ Could not fetch ElevenLabs workspace settings: ${settingsResponse.status}`);
+        logger.warn(`   ⚠️ Could not fetch ElevenLabs workspace settings: ${settingsResponse.status}`);
         return;
       }
 
@@ -3741,11 +3742,11 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
 
       // Check if a webhook is already configured with our URL
       if (existingWebhooks?.post_call_webhook_id) {
-        console.log(`   ✓ ElevenLabs post-call webhook already configured: ${existingWebhooks.post_call_webhook_id}`);
+        logger.info(`   ✓ ElevenLabs post-call webhook already configured: ${existingWebhooks.post_call_webhook_id}`);
         return;
       }
 
-      console.log(`   🔧 Configuring ElevenLabs post-call webhook → ${webhookUrl}`);
+      logger.info(`   🔧 Configuring ElevenLabs post-call webhook → [redacted]`);
 
       // Create webhook via ElevenLabs API
       const createResponse = await fetch(`${ELEVENLABS_V1_BASE_URL}/webhooks`, {
@@ -3759,13 +3760,13 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
 
       if (!createResponse.ok) {
         const errText = await createResponse.text();
-        console.log(`   ⚠️ Failed to create ElevenLabs webhook: ${createResponse.status} - ${errText}`);
+        logger.error(`   ⚠️ Failed to create ElevenLabs webhook: ${createResponse.status} - ${errText}`);
         return;
       }
 
       const webhookData = await createResponse.json() as any;
       const webhookId = webhookData.webhook_id;
-      console.log(`   ✅ Created ElevenLabs webhook: ${webhookId}`);
+      logger.info(`   ✅ Created ElevenLabs webhook: ${webhookId}`);
 
       // Configure workspace to use this webhook for post-call events
       const patchResponse = await fetch(`${ELEVENLABS_V1_BASE_URL}/convai/settings`, {
@@ -3781,13 +3782,13 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       });
 
       if (patchResponse.ok) {
-        console.log(`   ✅ ElevenLabs workspace webhook configured successfully`);
+        logger.info(`   ✅ ElevenLabs workspace webhook configured successfully`);
       } else {
         const errText = await patchResponse.text();
-        console.log(`   ⚠️ Failed to configure workspace webhook: ${patchResponse.status} - ${errText}`);
+        logger.error(`   ⚠️ Failed to configure workspace webhook: ${patchResponse.status} - ${errText}`);
       }
     } catch (error: any) {
-      console.log(`   ⚠️ Could not configure ElevenLabs post-call webhook: ${error.message}`);
+      logger.warn(`   ⚠️ Could not configure ElevenLabs post-call webhook: ${error.message}`);
     }
   }
 
@@ -3818,7 +3819,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     next_cursor?: string;
     has_more: boolean;
   }> {
-    console.log(`📋 Fetching conversations from ElevenLabs`);
+    logger.info(`📋 Fetching conversations from ElevenLabs`);
 
     const queryParams = new URLSearchParams();
     if (params?.agentId) {
@@ -3848,7 +3849,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       has_more: boolean;
     }>(endpoint);
 
-    console.log(`✅ Fetched ${result.conversations.length} conversation(s)`);
+    logger.info(`✅ Fetched ${result.conversations.length} conversation(s)`);
     return result;
   }
 
@@ -3894,7 +3895,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     has_user_audio?: boolean;
     has_response_audio?: boolean;
   }> {
-    console.log(`📞 Fetching conversation details: ${conversationId}`);
+    logger.info(`📞 Fetching conversation details: ${conversationId}`);
 
     const result = await this.request<{
       conversation_id: string;
@@ -3932,11 +3933,11 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       has_response_audio?: boolean;
     }>(`/convai/conversations/${conversationId}`);
 
-    console.log(`✅ Fetched conversation details`);
-    console.log(`   Status: ${result.status}`);
-    console.log(`   Duration: ${result.call_duration_secs || 0}s`);
-    console.log(`   Transcript entries: ${result.transcript?.length || 0}`);
-    console.log(`   Has recording: ${result.recording_url ? 'Yes' : 'No'}`);
+    logger.info(`✅ Fetched conversation details`);
+    logger.info(`   Status: ${result.status}`);
+    logger.info(`   Duration: ${result.call_duration_secs || 0}s`);
+    logger.info(`   Transcript entries: ${result.transcript?.length || 0}`);
+    logger.info(`   Has recording: ${result.recording_url ? 'Yes' : 'No'}`);
 
     return result;
   }
@@ -3953,7 +3954,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     contentType: string;
     error?: string;
   }> {
-    console.log(`🎙️  Fetching conversation audio: ${conversationId}`);
+    logger.info(`🎙️  Fetching conversation audio: ${conversationId}`);
 
     // Create AbortController for timeout (60 seconds for audio download)
     const controller = new AbortController();
@@ -3984,7 +3985,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       const arrayBuffer = await response.arrayBuffer();
       const audioBuffer = Buffer.from(arrayBuffer);
 
-      console.log(`✅ Audio fetched: ${audioBuffer.length} bytes`);
+      logger.info(`✅ Audio fetched: ${audioBuffer.length} bytes`);
       return {
         audioBuffer,
         contentType,
@@ -4016,13 +4017,13 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
    * @param conversationId - ElevenLabs conversation ID
    */
   async deleteConversation(conversationId: string): Promise<void> {
-    console.log(`🗑️  Deleting conversation: ${conversationId}`);
+    logger.info(`🗑️  Deleting conversation: ${conversationId}`);
 
     await this.request(`/convai/conversations/${conversationId}`, {
       method: 'DELETE',
     });
 
-    console.log(`✅ Conversation deleted`);
+    logger.info(`✅ Conversation deleted`);
   }
 
   /**
@@ -4039,12 +4040,12 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       secret?: string;
     };
   }> {
-    console.log(`🔗 Fetching webhook config for agent: ${agentId}`);
+    logger.info(`🔗 Fetching webhook config for agent: ${agentId}`);
 
     const agent = await this.getAgent(agentId);
     const webhookConfig = (agent as any).webhook;
 
-    console.log(`✅ Webhook config: ${webhookConfig ? JSON.stringify(webhookConfig) : 'Not configured'}`);
+    logger.info(`✅ Webhook config: [redacted]`);
     return { webhook: webhookConfig };
   }
 
@@ -4062,9 +4063,9 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     events?: string[];
     secret?: string;
   }): Promise<void> {
-    console.log(`🔗 Configuring webhook for agent: ${agentId}`);
-    console.log(`   URL: ${params.webhookUrl}`);
-    console.log(`   Events: ${params.events?.join(', ') || 'conversation.completed'}`);
+    logger.info(`🔗 Configuring webhook for agent: ${agentId}`);
+    logger.info(`   URL: ${params.webhookUrl}`);
+    logger.info(`   Events: ${params.events?.join(', ') || 'conversation.completed'}`);
 
     const updatePayload = {
       webhook: {
@@ -4079,7 +4080,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       body: JSON.stringify(updatePayload),
     });
 
-    console.log(`✅ Webhook configured for agent`);
+    logger.info(`✅ Webhook configured for agent`);
   }
 
   /**
@@ -4088,7 +4089,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
    * @param agentId - ElevenLabs agent ID
    */
   async removeAgentWebhook(agentId: string): Promise<void> {
-    console.log(`🔗 Removing webhook from agent: ${agentId}`);
+    logger.info(`🔗 Removing webhook from agent: ${agentId}`);
 
     await this.request(`/convai/agents/${agentId}`, {
       method: 'PATCH',
@@ -4097,7 +4098,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       }),
     });
 
-    console.log(`✅ Webhook removed from agent`);
+    logger.info(`✅ Webhook removed from agent`);
   }
 }
 

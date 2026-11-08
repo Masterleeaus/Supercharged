@@ -27,6 +27,7 @@
  * - RAG knowledge base tool is automatically added when agents have knowledge bases
  */
 
+import { logger } from "../utils/logger";
 import { ElevenLabsService, isAgentOnSipPhoneNumber, getSipTrunkOutboundAddress } from './elevenlabs';
 import { ElevenLabsPoolService } from './elevenlabs-pool';
 import { storage } from '../storage';
@@ -553,7 +554,7 @@ export class IncomingAgentService {
           sipTrunkAddress = await getSipTrunkOutboundAddress(agentId);
           console.log(`   📞 [Incoming] SIP agent detected - using sip_refer transfer type (trunk: ${sipTrunkAddress})`);
         }
-      } catch { }
+      } catch (err: any) { logger.warn('SIP trunk check failed for incoming agent; using conference transfer', { agentId, error: err?.message }, 'IncomingAgent'); }
 
       let transferDestination: any;
       if (transferType === "sip_refer" && sipTrunkAddress) {

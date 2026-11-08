@@ -15,7 +15,8 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
-import type { Express, Request, Response } from "express";
+import { logger } from "./utils/logger";
+import type { Express, Request, RequestHandler, Response } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer } from 'ws';
 import { storage } from "./storage";
@@ -136,8 +137,10 @@ import { safeErrorMessage } from "./utils/safe-error";
 import { markPluginAsRegistered } from "./plugins/loader";
 import { registerChatbotModule } from "./modules/chatbot/index.ts";
 import { mountChatbotModule, WIRING_FLAGS } from "./modules/chatbot/wiring/mount.ts";
-import { readFlag } from "./modules/chatbot/contracts/flags.ts";
+import { resolveAgentStaffIdentity } from "./modules/chatbot/agent-routes/staff-identity.ts";
+import { CONTRACT_FLAGS, readFlag } from "./modules/chatbot/contracts/flags.ts";
 import { createSecretBox } from "./modules/chatbot/secrets/secret-box.ts";
+import { startChatbotWorkersFromEnv } from "./modules/chatbot/workers/boot.ts";
 import { captureChatbotWebhookRawBody } from "./middleware/raw-body.ts";
 import { workforceHealthHandler } from "./workforce/runtime/health.ts";
 import { agentRunsFromRecords, createWorkforceAdminRouter, workforceControls } from "./workforce/runtime/workforce-admin-routes.ts";
@@ -278,17 +281,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const subscriptionRoutes = createSubscriptionRoutes(routeContext);
   app.use(subscriptionRoutes);
 
+  // Auth middleware as Express handlers. authenticateToken reads AuthRequest (userId, userRole),
+  // which is a Request with optional extra fields, so it is assignable to RequestHandler directly.
+  const requireAuth: RequestHandler = authenticateToken;
+  const requireAdmin: RequestHandler = checkAdmin;
+
   // Register Plivo + OpenAI Realtime Engine routes
   // Apply authenticateToken middleware only to user-facing Plivo API routes (not webhooks/stream)
   // Webhooks need to remain unauthenticated for Plivo callbacks
-  // TODO: Express middleware type compatibility - authenticateToken uses AuthRequest (extends Request)
-  // but app.use() expects RequestHandler<Request>. Fixing requires refactoring all middleware to use
-  // generics or a wrapper function. Using 'as unknown as RequestHandler' for explicit type unsafety.
-  app.use('/api/plivo/openai', authenticateToken as unknown as import('express').RequestHandler);
-  app.use('/api/plivo/phone-numbers', authenticateToken as unknown as import('express').RequestHandler);
+  app.use('/api/plivo/openai', requireAuth);
+  app.use('/api/plivo/phone-numbers', requireAuth);
   // Note: /api/plivo/admin routes use requireAdminAuth + requireAdminPermission middleware at route level
   // to support both platform admins (JWT) and admin team members (session tokens)
-  app.use('/api/plivo/incoming-connections', authenticateToken as unknown as import('express').RequestHandler);
+  app.use('/api/plivo/incoming-connections', requireAuth);
   const plivoApiRoutes = createPlivoApiRoutes();
   app.use(plivoApiRoutes);
 
@@ -314,19 +319,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize Twilio + OpenAI Realtime Engine (ISOLATED from Twilio+ElevenLabs and Plivo+OpenAI)
   // This provides Twilio telephony with OpenAI Realtime API for international calling
   app.use('/api/twilio-openai', twilioOpenaiWebhookRoutes);
-  // TODO: Express middleware type compatibility - see note above about authenticateToken
-  app.use('/api/twilio-openai/incoming-connections', authenticateToken as unknown as import('express').RequestHandler, twilioOpenaiIncomingConnectionsRoutes);
+  app.use('/api/twilio-openai/incoming-connections', requireAuth, twilioOpenaiIncomingConnectionsRoutes);
   console.log('✅ Twilio + OpenAI Realtime Engine initialized');
 
   // Register KYC Engine routes
-  // TODO: Express middleware type compatibility - KYC engine accepts generic middleware types
-  // but authenticateToken/checkAdmin use extended Request types. Fixing requires updating the
-  // KYC engine interface to accept properly typed middleware.
-  registerKycRoutes(
-    app,
-    authenticateToken as unknown as import('express').RequestHandler,
-    checkAdmin as unknown as import('express').RequestHandler
-  );
+  registerKycRoutes(app, requireAuth, requireAdmin);
 
   // Register SIP Engine Plugin dynamically with service injection (only if plugin directory exists)
   try {
@@ -363,11 +360,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const plivoMod = await import("./engines/plivo/services/plivo-call.service");
       PlivoCallServiceRef = plivoMod.PlivoCallService;
-    } catch { }
+    } catch (err: any) { logger.warn('Plivo call service not loaded for outbound rest-api calls; continuing without it', { code: err?.code }, 'Routes'); }
     try {
       const twilioMod = await import("./engines/twilio-openai/services/twilio-openai-call.service");
       TwilioOpenAICallServiceRef = twilioMod.TwilioOpenAICallService;
-    } catch { }
+    } catch (err: any) { logger.warn('Twilio OpenAI call service not loaded for outbound rest-api calls; continuing without it', { code: err?.code }, 'Routes'); }
 
     await restApiPlugin.registerRestApiRoutes(app, {
       sessionAuthMiddleware: authenticateToken as unknown as import('express').RequestHandler,
@@ -1359,7 +1356,7 @@ When using a tool:
           sipTrunkAddress = await getSipTrunkOutboundAddress(req.params.id);
           console.log(`   📞 [Transfer Config] SIP agent detected - using sip_refer transfer type (trunk: ${sipTrunkAddress})`);
         }
-      } catch { }
+      } catch (err: any) { logger.warn('SIP trunk check failed during transfer config; using conference transfer', { agentId: req.params.id, error: err?.message }, 'Routes'); }
 
       let numberType: "phone" | "sip_uri" = "phone";
       let destination = transferNumber;
@@ -1751,15 +1748,21 @@ When using a tool:
   // keeps its own authenticate and requireCompanyScope. Flags are read inside mountChatbotModule; with flags off it mounts nothing new.
   // The secret box is built only when a surface that stores secrets is on. createSecretBox throws when CHATBOT_SECRET_KEY
   // is missing, so with those flags off a deployment without the key still starts.
-  const chatbotSecretsOn = [WIRING_FLAGS.BOOKINGS, WIRING_FLAGS.WIDGET, WIRING_FLAGS.CHANNELS].some((flag) => readFlag(flag, process.env));
+  // The outbound webhook dispatcher also stores secrets (signing keys), so its flag counts here too.
+  const chatbotSecretsOn = [WIRING_FLAGS.BOOKINGS, WIRING_FLAGS.WIDGET, WIRING_FLAGS.CHANNELS, CONTRACT_FLAGS.OUTBOUND_WEBHOOKS_ENABLED].some((flag) =>
+    readFlag(flag, process.env),
+  );
+  const chatbotSecretBox = chatbotSecretsOn ? createSecretBox({ env: process.env }) : undefined;
   mountChatbotModule(app, {
     db,
     env: process.env,
     authenticate: routeContext.authenticateHybrid as unknown as import('express').RequestHandler,
     requireCompanyScope: requireCompanyScope(),
     requireRole: (...roles: string[]) => requireRole(...roles) as unknown as import('express').RequestHandler,
-    // agentAuthenticate is not passed: the app has no staff identity resolver for the agent surface, so agent calls answer 401.
-    secretBox: chatbotSecretsOn ? createSecretBox({ env: process.env }) : undefined,
+    // Agent surface: identity comes from req.user, which authenticateHybrid sets from a verified token. Company and role
+    // come from that user only, never from headers or body. A user with no company gets 403, no identity gets 401.
+    agentAuthenticate: resolveAgentStaffIdentity,
+    secretBox: chatbotSecretBox,
     // No reply runtime or receipt store is wired yet. These stubs keep startup working and refuse the work itself.
     widget: {
       messages: { send: async () => { throw new Error("chatbot widget reply runtime is not wired"); } },
@@ -1767,6 +1770,9 @@ When using a tool:
     },
     channels: { onReceipt: async () => { throw new Error("chatbot channel receipt store is not wired"); } },
   });
+  // Chatbot background workers. Off unless CHATBOT_WORKERS_ENABLED is exactly "true"; then only the services whose own
+  // flag is on are built and passed in (see workers/boot.ts). Voice-call limits are not built: no production provider.
+  startChatbotWorkersFromEnv({ db, env: process.env, secretBox: chatbotSecretBox });
   // Chatbot module (port of the Clean-Hub Chatbot extension). Authenticated, company-scoped.
   // Tables are DRAFT (migrations/DRAFT_chatbot.sql); requests fail until the draft is applied.
   // A request that matches no route mounted above falls through to this core route unchanged.
