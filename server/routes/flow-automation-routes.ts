@@ -3200,7 +3200,6 @@ router.post("/flows/:id/clone", async (req: AuthRequest, res: Response) => {
     }
 
     const newFlowId = nanoid();
-    // TODO: Drizzle type inference - cloning flow with nodes/edges from existing record
     const [clonedFlow] = await db
       .insert(flows)
       .values({
@@ -3213,7 +3212,7 @@ router.post("/flows/:id/clone", async (req: AuthRequest, res: Response) => {
         edges: originalFlow.edges,
         isActive: false,
         isTemplate: false,
-      } as typeof flows.$inferInsert)
+      })
       .returning();
 
     res.json(clonedFlow);
