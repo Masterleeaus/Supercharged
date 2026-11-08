@@ -1,3 +1,4 @@
+import { logger } from '../../utils/logger';
 import { db } from "../../db";
 import { googleSheetsCredentials } from "@shared/schema";
 import { eq } from "drizzle-orm";
@@ -225,7 +226,7 @@ export async function ensureSheetHeaders(
     }
 
     if (existing.length > 0) {
-      console.log(`[GoogleSheets] Header row already exists in "${sheetName}" — skipping write`);
+      logger.warn(`[GoogleSheets] Header row already exists in "${sheetName}" — skipping write`);
       return false;
     }
 
@@ -255,7 +256,7 @@ export async function ensureSheetHeaders(
       return false;
     }
 
-    console.log(`[GoogleSheets] Header row written to "${sheetName}" (${spreadsheetId}): [${headerRow.join(', ')}]`);
+    logger.info(`[GoogleSheets] Header row written to "${sheetName}" (${spreadsheetId}): [${headerRow.join(', ')}]`);
     return true;
   } catch (err: any) {
     console.error("[GoogleSheets] ensureSheetHeaders error:", err.message);

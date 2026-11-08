@@ -14,6 +14,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
+import { logger } from '../utils/logger';
 /**
  * Outbound Call Service
  * 
@@ -71,10 +72,10 @@ export class OutboundCallService {
    * @returns Call response with conversation ID and call SID
    */
   async initiateCall(params: OutboundCallParams): Promise<OutboundCallResponse> {
-    console.log(`📞 [OutboundCallService] Initiating outbound call`);
-    console.log(`   Agent ID: ${params.agentId}`);
-    console.log(`   Phone Number ID: ${params.agentPhoneNumberId}`);
-    console.log(`   To: ${params.toNumber}`);
+    logger.info(`📞 [OutboundCallService] Initiating outbound call`);
+    logger.info(`   Agent ID: ${params.agentId}`);
+    logger.info(`   Phone Number ID: ${params.agentPhoneNumberId}`);
+    logger.info(`   To: ${params.toNumber}`);
 
     // Build request body with snake_case keys as per ElevenLabs REST API
     // Note: The SDK uses camelCase but converts to snake_case internally
@@ -126,11 +127,11 @@ export class OutboundCallService {
         requestBody.conversation_initiation_client_data = {};
       }
       requestBody.conversation_initiation_client_data.dynamic_variables = params.dynamicData;
-      console.log(`   Dynamic data:`, JSON.stringify(params.dynamicData));
+      logger.info(`   Dynamic data: [redacted]`);
     }
 
-    console.log(`📤 [OutboundCallService] POST /convai/twilio/outbound-call`);
-    console.log(`   Payload:`, JSON.stringify(requestBody, null, 2));
+    logger.info(`📤 [OutboundCallService] POST /convai/twilio/outbound-call`);
+    logger.info(`   Payload: [redacted]`);
 
     try {
       const controller = new AbortController();
@@ -148,8 +149,8 @@ export class OutboundCallService {
 
       clearTimeout(timeoutId);
       const responseText = await response.text();
-      console.log(`📥 [OutboundCallService] Response status: ${response.status}`);
-      console.log(`📥 [OutboundCallService] Response body: ${responseText}`);
+      logger.info(`📥 [OutboundCallService] Response status: ${response.status}`);
+      logger.info(`📥 [OutboundCallService] Response body: ${responseText}`);
 
       if (!response.ok) {
         const errorMsg = `ElevenLabs outbound call failed: ${response.status} - ${responseText}`;
@@ -162,13 +163,13 @@ export class OutboundCallService {
       if (result.success === false) {
         console.error(`❌ [OutboundCallService] Call failed to initiate: ${result.message || 'Unknown ElevenLabs error'}`);
       } else {
-        console.log(`✅ [OutboundCallService] Call initiated successfully`);
+        logger.info(`✅ [OutboundCallService] Call initiated successfully`);
       }
-      console.log(`   Success: ${result.success}`);
-      console.log(`   Message: ${result.message}`);
-      console.log(`   Conversation ID: ${result.conversationId || result.conversation_id}`);
-      console.log(`   Call SID: ${result.callSid || result.call_sid || 'NULL'}`);
-      console.log(`   Raw ElevenLabs Response:`, JSON.stringify(result));
+      logger.info(`   Success: ${result.success}`);
+      logger.info(`   Message: ${result.message}`);
+      logger.info(`   Conversation ID: ${result.conversationId || result.conversation_id}`);
+      logger.info(`   Call SID: ${result.callSid || result.call_sid || 'NULL'}`);
+      logger.info(`   Raw ElevenLabs Response: [redacted]`);
 
       // Handle both camelCase and snake_case response formats for compatibility
       return {

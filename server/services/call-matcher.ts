@@ -31,6 +31,7 @@
  * - Incoming calls: calls.incomingConnectionId -> incomingConnections.agentId
  */
 
+import { logger } from '../utils/logger';
 import { db } from '../db';
 import { calls, agents, contacts, campaigns, incomingConnections, sipCalls } from '../../shared/schema';
 import { eq, and, desc, gte, or, sql, isNull } from 'drizzle-orm';
@@ -110,12 +111,12 @@ export async function findCallForWebhook(
   const activeCallWindowStart = new Date(Date.now() - ACTIVE_CALL_WINDOW_MINUTES * 60 * 1000);
   const normalizedSearchPhone = normalizePhone(webhookPhone);
   
-  console.log(`🔍 [Call Matcher] Looking for call matching:`);
-  console.log(`   Agent (ElevenLabs): ${elevenLabsAgentId}`);
-  console.log(`   Phone: ${webhookPhone} (normalized: ${normalizedSearchPhone})`);
-  console.log(`   User: ${userId}`);
-  console.log(`   Phone match window: last ${PHONE_MATCH_WINDOW_MINUTES} minutes`);
-  console.log(`   Active call window: last ${ACTIVE_CALL_WINDOW_MINUTES} minutes`);
+  logger.info(`🔍 [Call Matcher] Looking for call matching:`);
+  logger.info(`   Agent (ElevenLabs): ${elevenLabsAgentId}`);
+  logger.info(`   Phone: [redacted] (normalized: [redacted])`);
+  logger.info(`   User: ${userId}`);
+  logger.info(`   Phone match window: last ${PHONE_MATCH_WINDOW_MINUTES} minutes`);
+  logger.info(`   Active call window: last ${ACTIVE_CALL_WINDOW_MINUTES} minutes`);
   
   const agentResult = await db
     .select({ id: agents.id })
@@ -213,7 +214,7 @@ export async function findCallForWebhook(
     .orderBy(desc(sipCalls.startedAt))
     .limit(20);
   
-  console.log(`🔍 [Call Matcher] Query results: outbound=${outboundCalls.length}, incoming=${incomingCalls.length}, metadata=${metadataCalls.length}, sip=${sipCallsResult.length}`);
+  logger.info(`🔍 [Call Matcher] Query results: outbound=${outboundCalls.length}, incoming=${incomingCalls.length}, metadata=${metadataCalls.length}, sip=${sipCallsResult.length}`);
   
   // Merge and deduplicate regular calls
   const callMap = new Map<string, typeof outboundCalls[0]>();
@@ -247,10 +248,10 @@ export async function findCallForWebhook(
       return bTime - aTime;
     });
   
-  console.log(`🔍 [Call Matcher] Found ${recentCalls.length} recent calls for agent (including ${sipCallsResult.length} SIP calls)`);
+  logger.info(`🔍 [Call Matcher] Found ${recentCalls.length} recent calls for agent (including ${sipCallsResult.length} SIP calls)`);
   
   if (recentCalls.length === 0) {
-    console.log(`🔍 [Call Matcher] No recent calls found - cannot match`);
+    logger.warn(`🔍 [Call Matcher] No recent calls found - cannot match`);
     return null;
   }
   
@@ -263,8 +264,8 @@ export async function findCallForWebhook(
     for (const call of recentCalls) {
       const isActive = (call.status === 'in-progress' || call.status === 'ringing') && call.endedAt === null;
       if (phonesMatch(call.phoneNumber, webhookPhone) && isActive) {
-        console.log(`🔍 [Call Matcher] ✅ Phone match found (active): ${call.id}`);
-        console.log(`   Matched: ${call.phoneNumber} ~ ${webhookPhone}`);
+        logger.info(`🔍 [Call Matcher] ✅ Phone match found (active): ${call.id}`);
+        logger.info(`   Matched: [redacted] ~ [redacted]`);
         return await buildMatchResult(call, 'phone_match');
       }
     }
@@ -272,12 +273,12 @@ export async function findCallForWebhook(
     // Second pass: accept completed calls with phone match (webhook may arrive after call ends)
     for (const call of recentCalls) {
       if (phonesMatch(call.phoneNumber, webhookPhone)) {
-        console.log(`🔍 [Call Matcher] ✅ Phone match found (completed): ${call.id}`);
-        console.log(`   Matched: ${call.phoneNumber} ~ ${webhookPhone}`);
+        logger.info(`🔍 [Call Matcher] ✅ Phone match found (completed): ${call.id}`);
+        logger.info(`   Matched: [redacted] ~ [redacted]`);
         return await buildMatchResult(call, 'phone_match');
       }
     }
-    console.log(`🔍 [Call Matcher] No phone match found among ${recentCalls.length} calls for ${webhookPhone}`);
+    logger.warn(`🔍 [Call Matcher] No phone match found among ${recentCalls.length} calls for [redacted]`);
   }
   
   // STRATEGY 2: If no phone provided/matched, only match if there's exactly ONE truly active call
@@ -291,7 +292,7 @@ export async function findCallForWebhook(
     return isActive && isRecent;
   });
   
-  console.log(`🔍 [Call Matcher] Found ${activeCalls.length} truly active calls (within ${ACTIVE_CALL_WINDOW_MINUTES}min, endedAt=null)`);
+  logger.info(`🔍 [Call Matcher] Found ${activeCalls.length} truly active calls (within ${ACTIVE_CALL_WINDOW_MINUTES}min, endedAt=null)`);
   
   if (activeCalls.length === 1) {
     const singleActiveCall = activeCalls[0];
@@ -299,9 +300,9 @@ export async function findCallForWebhook(
       console.warn(`🔍 [Call Matcher] ⚠️ Single active call phone mismatch (+${singleActiveCall.phoneNumber} vs +${webhookPhone}) - returning null`);
       return null;
     }
-    console.log(`🔍 [Call Matcher] ✅ Single active call found: ${singleActiveCall.id}`);
-    console.log(`   Started: ${singleActiveCall.startedAt?.toISOString()}`);
-    console.log(`   Status: ${singleActiveCall.status}`);
+    logger.info(`🔍 [Call Matcher] ✅ Single active call found: ${singleActiveCall.id}`);
+    logger.info(`   Started: ${singleActiveCall.startedAt?.toISOString()}`);
+    logger.info(`   Status: ${singleActiveCall.status}`);
     return await buildMatchResult(singleActiveCall, 'single_active_call');
   }
   
@@ -320,10 +321,10 @@ export async function findCallForWebhook(
       console.warn(`🔍 [Call Matcher] ⚠️ Single recent call phone mismatch (+${singleRecentCall.phoneNumber} vs +${webhookPhone}) - returning null`);
       return null;
     }
-    console.log(`🔍 [Call Matcher] ✅ Single recent call fallback: ${singleRecentCall.id}`);
-    console.log(`   Started: ${singleRecentCall.startedAt?.toISOString()}`);
-    console.log(`   Status: ${singleRecentCall.status}`);
-    console.log(`   Note: Call may have ended, but it's the only one for this agent`);
+    logger.info(`🔍 [Call Matcher] ✅ Single recent call fallback: ${singleRecentCall.id}`);
+    logger.info(`   Started: ${singleRecentCall.startedAt?.toISOString()}`);
+    logger.info(`   Status: ${singleRecentCall.status}`);
+    logger.info(`   Note: Call may have ended, but it's the only one for this agent`);
     return await buildMatchResult(singleRecentCall, 'single_active_call');
   }
   
@@ -360,11 +361,11 @@ async function buildMatchResult(
     }
   }
   
-  console.log(`🔍 [Call Matcher] Match result:`);
-  console.log(`   Call ID: ${call.id}`);
-  console.log(`   Phone: ${call.phoneNumber}`);
-  console.log(`   Contact: ${contactName || 'N/A'}`);
-  console.log(`   Confidence: ${confidence}`);
+  logger.info(`🔍 [Call Matcher] Match result:`);
+  logger.info(`   Call ID: ${call.id}`);
+  logger.info(`   Phone: [redacted]`);
+  logger.info(`   Contact: ${contactName || 'N/A'}`);
+  logger.info(`   Confidence: ${confidence}`);
   
   return {
     callId: call.id,

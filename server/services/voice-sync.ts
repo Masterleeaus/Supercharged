@@ -14,6 +14,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
+import { logger } from '../utils/logger';
 import { db } from "../db";
 import { syncedVoices, elevenLabsCredentials } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
@@ -91,11 +92,11 @@ export class VoiceSyncService {
     try {
       const alreadySynced = await this.isVoiceSynced(credential.id, voiceId);
       if (alreadySynced) {
-        console.log(`🔊 Voice ${voiceId} already synced to credential ${credential.id}`);
+        logger.info(`🔊 Voice ${voiceId} already synced to credential ${credential.id}`);
         return { success: true };
       }
 
-      console.log(`🔊 Syncing voice ${voiceId} (${voiceName || 'unknown'}) to credential ${credential.id}...`);
+      logger.info(`🔊 Syncing voice ${voiceId} (${voiceName || 'unknown'}) to credential ${credential.id}...`);
 
       // Retry on transient 429/5xx + network errors.
       const response = await withRetry(
@@ -159,7 +160,7 @@ export class VoiceSyncService {
         },
       });
 
-      console.log(`✅ Voice ${voiceId} synced successfully to credential ${credential.id}`);
+      logger.info(`✅ Voice ${voiceId} synced successfully to credential ${credential.id}`);
       return { success: true };
     } catch (error) {
       console.error(`❌ Error syncing voice ${voiceId}:`, error);
@@ -173,7 +174,7 @@ export class VoiceSyncService {
     voiceName: string | null
   ): Promise<{ synced: number; failed: number; skipped: number }> {
     if (this.isDefaultVoice(voiceId)) {
-      console.log(`🔊 Voice ${voiceId} is a default voice, skipping sync`);
+      logger.warn(`🔊 Voice ${voiceId} is a default voice, skipping sync`);
       return { synced: 0, failed: 0, skipped: 1 };
     }
 
@@ -183,11 +184,11 @@ export class VoiceSyncService {
       .where(eq(elevenLabsCredentials.isActive, true));
 
     if (activeCredentials.length === 0) {
-      console.log("⚠️ No active ElevenLabs credentials found for voice sync");
+      logger.warn("⚠️ No active ElevenLabs credentials found for voice sync");
       return { synced: 0, failed: 0, skipped: 0 };
     }
 
-    console.log(`🔊 Starting sync of voice ${voiceId} to ${activeCredentials.length} credentials...`);
+    logger.info(`🔊 Starting sync of voice ${voiceId} to ${activeCredentials.length} credentials...`);
 
     let synced = 0;
     let failed = 0;
@@ -209,7 +210,7 @@ export class VoiceSyncService {
       await new Promise(resolve => setTimeout(resolve, 100));
     }
 
-    console.log(`🔊 Voice sync complete: ${synced} synced, ${failed} failed`);
+    logger.info(`🔊 Voice sync complete: ${synced} synced, ${failed} failed`);
     return { synced, failed, skipped: 0 };
   }
 
@@ -234,7 +235,7 @@ export class VoiceSyncService {
       .where(eq(elevenLabsCredentials.isActive, true));
 
     if (activeCredentials.length === 0) {
-      console.log("⚠️ No active ElevenLabs credentials found for full voice sync");
+      logger.warn("⚠️ No active ElevenLabs credentials found for full voice sync");
       return { synced: 0, failed: 0, skipped: 0 };
     }
 
@@ -253,11 +254,11 @@ export class VoiceSyncService {
     }
 
     if (uniqueVoices.size === 0) {
-      console.log("🔊 No voices to sync across credentials");
+      logger.warn("🔊 No voices to sync across credentials");
       return { synced: 0, failed: 0, skipped: 0 };
     }
 
-    console.log(`🔊 Syncing ${uniqueVoices.size} voices across ${activeCredentials.length} credentials...`);
+    logger.info(`🔊 Syncing ${uniqueVoices.size} voices across ${activeCredentials.length} credentials...`);
 
     let synced = 0;
     let failed = 0;
@@ -279,7 +280,7 @@ export class VoiceSyncService {
       }
     }
 
-    console.log(`🔊 Full voice sync complete: ${synced} synced, ${failed} failed, ${skipped} skipped`);
+    logger.info(`🔊 Full voice sync complete: ${synced} synced, ${failed} failed, ${skipped} skipped`);
     return { synced, failed, skipped };
   }
 

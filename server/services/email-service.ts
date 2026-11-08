@@ -1224,8 +1224,8 @@ export class EmailService {
       const reason = !this.smtpConfigured 
         ? 'SMTP not configured (missing SMTP_HOST, SMTP_PORT, SMTP_USER, or SMTP_PASS)' 
         : 'Email transporter not initialized';
-      logger.warn(`[EMAIL DISABLED] Cannot send to: ${to} - ${reason}`, { subject }, SOURCE);
-      console.log(`⚠️ [Email] SMTP not enabled - email to ${to} not sent. Subject: "${subject}"`);
+      logger.warn(`[EMAIL DISABLED] Cannot send to: [redacted] - ${reason}`, { subject }, SOURCE);
+      logger.info(`⚠️ [Email] SMTP not enabled - email to [redacted] not sent. Subject: "${subject}"`);
       return { success: false, error: reason };
     }
 
@@ -1238,7 +1238,7 @@ export class EmailService {
     if (!fromAddress) {
       const error = 'No from address configured (SMTP_FROM or SMTP_USER required)';
       logger.error(`[EMAIL ERROR] ${error}`, undefined, SOURCE);
-      console.log(`❌ [Email] ${error}`);
+      logger.error(`❌ [Email] ${error}`);
       return { success: false, error };
     }
     
@@ -1247,7 +1247,7 @@ export class EmailService {
     if (!emailRegex.test(fromAddress)) {
       const error = `Invalid from address format: ${fromAddress}. Must be a valid email address.`;
       logger.error(`[EMAIL ERROR] ${error}`, undefined, SOURCE);
-      console.log(`❌ [Email] ${error}`);
+      logger.error(`❌ [Email] ${error}`);
       return { success: false, error };
     }
 
@@ -1292,7 +1292,7 @@ export class EmailService {
         if (Object.keys(rest).length > 0) mailOptions.headers = rest;
       }
 
-      console.log(`📧 [Email] Sending to: ${to}, Subject: "${subject}", From: ${fromAddress}${options?.replyTo ? `, Reply-To: ${options.replyTo}` : ''}`);
+      logger.info(`📧 [Email] Sending to: [redacted], Subject: "${subject}", From: ${fromAddress}${options?.replyTo ? `, Reply-To: ${options.replyTo}` : ''}`);
       
       const retryableCodes = new Set(['ETIMEDOUT', 'ECONNRESET', 'ECONNREFUSED', 'ESOCKET', 'EAI_AGAIN']);
       const maxRetries = 2;
@@ -1302,42 +1302,42 @@ export class EmailService {
         try {
           if (attempt > 0) {
             const delay = attempt * 1000;
-            console.log(`🔄 [Email] Retry ${attempt}/${maxRetries} to ${to} after ${delay}ms...`);
+            logger.warn(`🔄 [Email] Retry ${attempt}/${maxRetries} to [redacted] after ${delay}ms...`);
             await new Promise(resolve => setTimeout(resolve, delay));
           }
           const info = await this.transporter!.sendMail(mailOptions);
-          logger.info(`Email sent successfully to: ${to}`, { messageId: info.messageId, attempts: attempt + 1 }, SOURCE);
-          console.log(`✅ [Email] Sent successfully to: ${to}, MessageId: ${info.messageId}${attempt > 0 ? ` (after ${attempt} retries)` : ''}`);
+          logger.info(`Email sent successfully to: [redacted]`, { messageId: info.messageId, attempts: attempt + 1 }, SOURCE);
+          logger.info(`✅ [Email] Sent successfully to: [redacted], MessageId: ${info.messageId}${attempt > 0 ? ` (after ${attempt} retries)` : ''}`);
           return { success: true, messageId: info.messageId };
         } catch (error: any) {
           lastError = error;
           if (!retryableCodes.has(error?.code) || attempt === maxRetries) {
             break;
           }
-          console.log(`⚠️ [Email] Transient error sending to ${to}: ${error.code || error.message}`);
+          logger.error(`⚠️ [Email] Transient error sending to [redacted]: ${error.code || error.message}`);
         }
       }
 
       const errorMsg = lastError?.message || 'Unknown error';
-      logger.error(`Failed to send email to: ${to}`, lastError, SOURCE);
-      console.log(`❌ [Email] Failed to send to: ${to} - Error: ${errorMsg}`);
+      logger.error(`Failed to send email to: [redacted]`, lastError, SOURCE);
+      logger.error(`❌ [Email] Failed to send to: [redacted] - Error: ${errorMsg}`);
       return { success: false, error: errorMsg };
     } catch (error: any) {
       const errorMsg = error?.message || 'Unknown error';
-      logger.error(`Failed to send email to: ${to}`, error, SOURCE);
-      console.log(`❌ [Email] Failed to send to: ${to} - Error: ${errorMsg}`);
+      logger.error(`Failed to send email to: [redacted]`, error, SOURCE);
+      logger.error(`❌ [Email] Failed to send to: [redacted] - Error: ${errorMsg}`);
       return { success: false, error: errorMsg };
     }
   }
 
   async sendWelcomeEmail(userId: string): Promise<{ success: boolean; error?: string }> {
-    console.log(`📧 [Email] Preparing welcome email for user: ${userId}`);
+    logger.info(`📧 [Email] Preparing welcome email for user: ${userId}`);
     
     const eventType = NOTIFICATION_TYPE_MAP.welcome;
     if (!(await this.isNotificationTypeEnabled(eventType))) {
       const msg = `Welcome email disabled in settings (event type: ${eventType})`;
       logger.info(msg, undefined, SOURCE);
-      console.log(`⚠️ [Email] ${msg}`);
+      logger.info(`⚠️ [Email] ${msg}`);
       return { success: false, error: msg };
     }
 
@@ -1346,7 +1346,7 @@ export class EmailService {
       if (!user) {
         const error = `User not found for welcome email: ${userId}`;
         logger.error(error, undefined, SOURCE);
-        console.log(`❌ [Email] ${error}`);
+        logger.error(`❌ [Email] ${error}`);
         return { success: false, error };
       }
 
@@ -1361,26 +1361,26 @@ export class EmailService {
 
       let result;
       if (dbTemplate) {
-        console.log(`📧 [Email] Using database template for welcome email`);
+        logger.info(`📧 [Email] Using database template for welcome email`);
         result = await this.sendEmail(user.email, dbTemplate.subject, dbTemplate.htmlBody);
       } else {
-        console.log(`📧 [Email] Using fallback template for welcome email`);
+        logger.warn(`📧 [Email] Using fallback template for welcome email`);
         const html = welcomeEmail(user.name, branding);
         const subject = `Welcome to ${branding.appName}!`;
         result = await this.sendEmail(user.email, subject, html);
       }
 
       if (result.success) {
-        console.log(`✅ [Email] Welcome email sent to ${user.email}`);
+        logger.info(`✅ [Email] Welcome email sent to [redacted]`);
       } else {
-        console.log(`❌ [Email] Welcome email failed for ${user.email}: ${result.error}`);
+        logger.error(`❌ [Email] Welcome email failed for [redacted]: ${result.error}`);
       }
       
       return result;
     } catch (error: any) {
       const errorMsg = error?.message || 'Unknown error';
       logger.error(`Failed to send welcome email for user: ${userId}`, error, SOURCE);
-      console.log(`❌ [Email] Exception sending welcome email: ${errorMsg}`);
+      logger.error(`❌ [Email] Exception sending welcome email: ${errorMsg}`);
       return { success: false, error: errorMsg };
     }
   }
@@ -1915,7 +1915,7 @@ export class EmailService {
 
       if (dbTemplate) {
         const result = await this.sendEmail(email, dbTemplate.subject, dbTemplate.htmlBody);
-        logger.info(`OTP email sent to: ${email}`, undefined, SOURCE);
+        logger.info(`OTP email sent to: [redacted]`, undefined, SOURCE);
         return result;
       }
 
@@ -1924,10 +1924,10 @@ export class EmailService {
       const subject = `Your ${branding.appName} Verification Code`;
 
       const result = await this.sendEmail(email, subject, html);
-      logger.info(`OTP email sent to: ${email}`, undefined, SOURCE);
+      logger.info(`OTP email sent to: [redacted]`, undefined, SOURCE);
       return result;
     } catch (error) {
-      logger.error(`Failed to send OTP email to: ${email}`, error, SOURCE);
+      logger.error(`Failed to send OTP email to: [redacted]`, error, SOURCE);
       throw new Error('Failed to send verification email');
     }
   }
@@ -1950,7 +1950,7 @@ export class EmailService {
 
       if (dbTemplate) {
         const result = await this.sendEmail(email, dbTemplate.subject, dbTemplate.htmlBody);
-        logger.info(`Password reset email sent to: ${email}`, undefined, SOURCE);
+        logger.info(`Password reset email sent to: [redacted]`, undefined, SOURCE);
         return result;
       }
 
@@ -1959,10 +1959,10 @@ export class EmailService {
       const subject = `Reset Your ${branding.appName} Password`;
 
       const result = await this.sendEmail(email, subject, html);
-      logger.info(`Password reset email sent to: ${email}`, undefined, SOURCE);
+      logger.info(`Password reset email sent to: [redacted]`, undefined, SOURCE);
       return result;
     } catch (error) {
-      logger.error(`Failed to send password reset email to: ${email}`, error, SOURCE);
+      logger.error(`Failed to send password reset email to: [redacted]`, error, SOURCE);
       throw new Error('Failed to send password reset email');
     }
   }

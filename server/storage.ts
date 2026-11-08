@@ -15,6 +15,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
+import { logger } from './utils/logger';
 import { db } from "./db";
 import { nanoid } from "nanoid";
 import { 
@@ -2483,7 +2484,7 @@ export class DbStorage implements IStorage {
           value = ${jsonValue}::jsonb,
           updated_at = NOW()
       `);
-      console.log(`✅ [Settings] Saved setting '${key}' successfully`);
+      logger.info(`✅ [Settings] Saved setting '${key}' successfully`);
     } catch (error: any) {
       console.error(`❌ [Settings] Failed to save setting '${key}':`, error.message);
       throw new Error(`Failed to save setting '${key}': ${error.message}`);

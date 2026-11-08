@@ -16,6 +16,7 @@
  * ============================================================
  */
 
+import { logger } from '../utils/logger';
 import { storage } from '../storage';
 import { db } from '../db';
 import { paymentWebhookQueue } from '@shared/schema';
@@ -208,11 +209,11 @@ export class WebhookRetryService {
 
   start(): void {
     if (this.schedulerInterval) {
-      console.log('⚠️ [WebhookRetry] Scheduler already running');
+      logger.info('⚠️ [WebhookRetry] Scheduler already running');
       return;
     }
 
-    console.log('🚀 [WebhookRetry] Starting webhook retry scheduler (runs every 5 minutes)');
+    logger.info('🚀 [WebhookRetry] Starting webhook retry scheduler (runs every 5 minutes)');
     
     this.schedulerInterval = setInterval(() => {
       this.processRetryableWebhooks().catch(err => {
@@ -229,13 +230,13 @@ export class WebhookRetryService {
     if (this.schedulerInterval) {
       clearInterval(this.schedulerInterval);
       this.schedulerInterval = null;
-      console.log('⏹️ [WebhookRetry] Scheduler stopped');
+      logger.info('⏹️ [WebhookRetry] Scheduler stopped');
     }
   }
 
   async processRetryableWebhooks(): Promise<void> {
     if (this.isProcessing) {
-      console.log('⏳ [WebhookRetry] Already processing, skipping this cycle');
+      logger.warn('⏳ [WebhookRetry] Already processing, skipping this cycle');
       return;
     }
 
@@ -254,7 +255,7 @@ export class WebhookRetryService {
         return;
       }
 
-      console.log(`📋 [WebhookRetry] Processing ${webhooks.length} retryable webhook(s)`);
+      logger.info(`📋 [WebhookRetry] Processing ${webhooks.length} retryable webhook(s)`);
 
       for (const webhook of webhooks) {
         try {
@@ -264,7 +265,7 @@ export class WebhookRetryService {
         }
       }
 
-      console.log(`✅ [WebhookRetry] Finished processing ${webhooks.length} webhook(s)`);
+      logger.info(`✅ [WebhookRetry] Finished processing ${webhooks.length} webhook(s)`);
     } catch (error: any) {
       console.error('❌ [WebhookRetry] Error in processRetryableWebhooks:', error);
     } finally {
@@ -274,13 +275,13 @@ export class WebhookRetryService {
 
   async processWebhook(webhook: PaymentWebhookQueue): Promise<void> {
     if (isDeadLetter(webhook)) {
-      console.log(`🪦 [WebhookRetry] Webhook ${webhook.id} is dead-lettered; not retrying`);
+      logger.warn(`🪦 [WebhookRetry] Webhook ${webhook.id} is dead-lettered; not retrying`);
       return;
     }
 
     // The scheduler's copy of the row can be stale: an operator replay may already own it.
     if (!(await this.claimReplayableRow(webhook.id))) {
-      console.log(`⏭️ [WebhookRetry] Webhook ${webhook.id} is no longer replayable (claimed or finished); skipping`);
+      logger.warn(`⏭️ [WebhookRetry] Webhook ${webhook.id} is no longer replayable (claimed or finished); skipping`);
       return;
     }
 
@@ -313,7 +314,7 @@ export class WebhookRetryService {
   private async attemptWebhook(webhook: PaymentWebhookQueue): Promise<WebhookOutcomeStatus> {
     const attemptCount = (webhook.attemptCount || 0) + 1;
 
-    console.log(`🔄 [WebhookRetry] Processing webhook ${webhook.id} (${webhook.gateway}/${webhook.eventType}) - Attempt ${attemptCount}/${getMaxAttempts()}`);
+    logger.info(`🔄 [WebhookRetry] Processing webhook ${webhook.id} (${webhook.gateway}/${webhook.eventType}) - Attempt ${attemptCount}/${getMaxAttempts()}`);
 
     try {
       await storage.updateWebhookQueueItem(webhook.id, {
@@ -329,7 +330,7 @@ export class WebhookRetryService {
           processedAt: new Date(),
           attemptCount,
         });
-        console.log(`✅ [WebhookRetry] Successfully processed webhook ${webhook.id}`);
+        logger.info(`✅ [WebhookRetry] Successfully processed webhook ${webhook.id}`);
         return 'completed';
       } else {
         throw new Error(result.error || 'Unknown error during reprocessing');
@@ -350,7 +351,7 @@ export class WebhookRetryService {
           lastError: errorMessage,
           errorHistory,
         });
-        console.log(`🪦 [WebhookRetry] Webhook ${webhook.id} dead-lettered after ${getMaxAttempts()} attempts`);
+        logger.info(`🪦 [WebhookRetry] Webhook ${webhook.id} dead-lettered after ${getMaxAttempts()} attempts`);
         return DEAD_LETTER_STATUS;
       } else {
         const nextRetryAt = this.calculateNextRetry(attemptCount);
@@ -361,7 +362,7 @@ export class WebhookRetryService {
           errorHistory,
           nextRetryAt,
         });
-        console.log(`⏳ [WebhookRetry] Webhook ${webhook.id} will retry at ${nextRetryAt.toISOString()}`);
+        logger.info(`⏳ [WebhookRetry] Webhook ${webhook.id} will retry at ${nextRetryAt.toISOString()}`);
         return 'pending';
       }
     }
@@ -411,7 +412,7 @@ export class WebhookRetryService {
         return;
       }
 
-      console.log(`⏰ [WebhookRetry] Marking ${expiredWebhooks.length} webhook(s) as expired`);
+      logger.warn(`⏰ [WebhookRetry] Marking ${expiredWebhooks.length} webhook(s) as expired`);
 
       for (const webhook of expiredWebhooks) {
         await storage.updateWebhookQueueItem(webhook.id, {
@@ -434,7 +435,7 @@ export class WebhookRetryService {
     }
 
     try {
-      console.log(`🔍 [WebhookRetry] Re-processing ${webhook.gateway} event: ${webhook.eventType}`);
+      logger.info(`🔍 [WebhookRetry] Re-processing ${webhook.gateway} event: ${webhook.eventType}`);
 
       const result = await reprocessor(webhook.eventType, webhook.payload);
       if (result?.success) {
@@ -461,7 +462,7 @@ export async function queueFailedWebhook(
   try {
     const existingWebhook = await storage.getWebhookByEventId(gateway, eventId);
     if (existingWebhook) {
-      console.log(`ℹ️ [WebhookRetry] Webhook with eventId ${eventId} already queued, skipping`);
+      logger.info(`ℹ️ [WebhookRetry] Webhook with eventId ${eventId} already queued, skipping`);
       return;
     }
 
@@ -488,7 +489,7 @@ export async function queueFailedWebhook(
     };
 
     await storage.createWebhookQueueItem(queueItem);
-    console.log(`📥 [WebhookRetry] Queued failed ${gateway} webhook: ${eventType} (${eventId})`);
+    logger.info(`📥 [WebhookRetry] Queued failed ${gateway} webhook: ${eventType} (${eventId})`);
   } catch (queueError: any) {
     console.error(`❌ [WebhookRetry] Failed to queue webhook:`, queueError);
   }

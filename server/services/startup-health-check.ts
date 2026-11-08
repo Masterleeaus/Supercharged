@@ -31,10 +31,10 @@ async function logSystemResources(): Promise<void> {
   const freeMemoryGB = freeMemoryBytes / (1024 * 1024 * 1024);
   const usedMemoryGB = totalMemoryGB - freeMemoryGB;
   
-  console.log('💾 [System] Memory Status:');
-  console.log(`   Total RAM: ${totalMemoryGB.toFixed(2)} GB`);
-  console.log(`   Used: ${usedMemoryGB.toFixed(2)} GB | Free: ${freeMemoryGB.toFixed(2)} GB`);
-  console.log(`   Auto-restart limits are admin-configurable via Settings`);
+  logger.info('💾 [System] Memory Status:');
+  logger.info(`   Total RAM: ${totalMemoryGB.toFixed(2)} GB`);
+  logger.info(`   Used: ${usedMemoryGB.toFixed(2)} GB | Free: ${freeMemoryGB.toFixed(2)} GB`);
+  logger.info(`   Auto-restart limits are admin-configurable via Settings`);
 }
 
 export interface HealthCheckResult {
@@ -98,7 +98,7 @@ export async function runStartupHealthCheck(): Promise<HealthCheckResult> {
   };
 
   await logSystemResources();
-  console.log('🔍 [Startup] Running health checks...');
+  logger.info('🔍 [Startup] Running health checks...');
 
   await checkDatabase(result);
   checkEnvironment(result);
@@ -337,36 +337,36 @@ async function checkIntegrations(result: HealthCheckResult): Promise<void> {
 
 function logHealthCheckResults(result: HealthCheckResult): void {
   const status = result.healthy ? '✅' : '❌';
-  console.log(`${status} [Startup] Health check ${result.healthy ? 'PASSED' : 'FAILED'}`);
+  logger.info(`${status} [Startup] Health check ${result.healthy ? 'PASSED' : 'FAILED'}`);
   
-  console.log('   📊 Database:', result.checks.database.status.toUpperCase(), '-', result.checks.database.message);
+  logger.info(`   📊 Database: ${result.checks.database.status.toUpperCase()} - ${result.checks.database.message}`);
   
   if (result.checks.environment.missing.length > 0) {
-    console.log('   ⚠️  Environment: Missing', result.checks.environment.missing.join(', '));
+    logger.warn('   ⚠️  Environment: Missing', result.checks.environment.missing.join(', '));
   } else {
-    console.log('   ✅ Environment: All required variables present');
+    logger.info('   ✅ Environment: All required variables present');
   }
   
   const intDetails = result.checks.integrations.details;
-  console.log('   🔌 Integrations:');
-  console.log(`      - ElevenLabs: ${intDetails.elevenlabs ? '✅' : '❌'}`);
-  console.log(`      - Twilio: ${intDetails.twilio ? '✅' : '❌'}`);
-  console.log(`      - OpenAI: ${intDetails.openai ? '✅' : '❌'}`);
-  console.log(`      - Stripe: ${intDetails.stripe.enabled ? '✅ Enabled' : intDetails.stripe.configured ? '⚠️ Configured (disabled)' : '❌ Not configured'}`);
-  console.log(`      - Razorpay: ${intDetails.razorpay.enabled ? '✅ Enabled' : intDetails.razorpay.configured ? '⚠️ Configured (disabled)' : '❌ Not configured'}`);
-  console.log(`      - SMTP: ${intDetails.smtp ? '✅' : '❌'}`);
+  logger.info('   🔌 Integrations:');
+  logger.info(`      - ElevenLabs: ${intDetails.elevenlabs ? '✅' : '❌'}`);
+  logger.info(`      - Twilio: ${intDetails.twilio ? '✅' : '❌'}`);
+  logger.info(`      - OpenAI: ${intDetails.openai ? '✅' : '❌'}`);
+  logger.warn(`      - Stripe: ${intDetails.stripe.enabled ? '✅ Enabled' : intDetails.stripe.configured ? '⚠️ Configured (disabled)' : '❌ Not configured'}`);
+  logger.warn(`      - Razorpay: ${intDetails.razorpay.enabled ? '✅ Enabled' : intDetails.razorpay.configured ? '⚠️ Configured (disabled)' : '❌ Not configured'}`);
+  logger.info(`      - SMTP: ${intDetails.smtp ? '✅' : '❌'}`);
   
   if (result.warnings.length > 0) {
-    console.log('   ⚠️  Warnings:');
+    logger.warn('   ⚠️  Warnings:');
     for (const warning of result.warnings) {
-      console.log(`      - ${warning}`);
+      logger.warn(`      - ${warning}`);
     }
   }
   
   if (result.errors.length > 0) {
-    console.log('   ❌ Errors:');
+    logger.error('   ❌ Errors:');
     for (const error of result.errors) {
-      console.log(`      - ${error}`);
+      logger.error(`      - ${error}`);
     }
   }
 }

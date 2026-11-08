@@ -1,4 +1,5 @@
 'use strict';
+import { logger } from '../utils/logger';
 import { db } from '../db';
 import { leads, leadStages, contacts, plivoCalls, twilioOpenaiCalls, campaigns, incomingConnections, agents, determineAICategory } from '@shared/schema';
 import { eq, and, or, asc } from 'drizzle-orm';
@@ -43,11 +44,11 @@ export class CRMLeadService {
     try {
       // Guard against missing identifiers
       if (callData.sourceType === 'campaign' && !callData.campaignId) {
-        console.log('[CRM] Skipping lead creation - campaign call missing campaignId');
+        logger.warn('[CRM] Skipping lead creation - campaign call missing campaignId');
         return null;
       }
       if (callData.sourceType === 'incoming' && !callData.incomingConnectionId) {
-        console.log('[CRM] Skipping lead creation - incoming call missing incomingConnectionId');
+        logger.warn('[CRM] Skipping lead creation - incoming call missing incomingConnectionId');
         return null;
       }
 
@@ -115,7 +116,7 @@ export class CRMLeadService {
           await this.updateLeadScore(lead.id, callData.userId, callData.transcript);
         }
 
-        console.log(`[CRM] Updated existing lead ${lead.id} for ${callData.phone}`);
+        logger.info(`[CRM] Updated existing lead ${lead.id} for [redacted]`);
         return { leadId: lead.id };
       }
 
@@ -195,7 +196,7 @@ export class CRMLeadService {
         await this.updateLeadScore(leadId, callData.userId, callData.transcript);
       }
 
-      console.log(`[CRM] Created new lead ${leadId} for ${callData.phone} from ${callData.sourceType}`);
+      logger.info(`[CRM] Created new lead ${leadId} for [redacted] from ${callData.sourceType}`);
       return { leadId };
     } catch (error: any) {
       console.error('[CRM] Error creating lead from call:', error.message);
@@ -207,7 +208,7 @@ export class CRMLeadService {
     try {
       const openaiApiKey = process.env.OPENAI_API_KEY;
       if (!openaiApiKey) {
-        console.log('[CRM] No OpenAI API key for lead scoring');
+        logger.warn('[CRM] No OpenAI API key for lead scoring');
         return;
       }
 
@@ -271,7 +272,7 @@ export class CRMLeadService {
           .set(updateData)
           .where(eq(leads.id, leadId));
 
-        console.log(`[CRM] Updated lead ${leadId} with score ${scoreResult.score} -> ${matchedStageName}`);
+        logger.info(`[CRM] Updated lead ${leadId} with score ${scoreResult.score} -> ${matchedStageName}`);
       }
     } catch (error: any) {
       console.error('[CRM] Error updating lead score:', error.message);
@@ -358,7 +359,7 @@ Return ONLY valid JSON:`;
         .set(updateData)
         .where(eq(leads.id, leadId));
 
-      console.log(`[CRM] Tracked tool execution: ${toolName} for lead ${leadId}`);
+      logger.info(`[CRM] Tracked tool execution: ${toolName} for lead ${leadId}`);
     } catch (error: any) {
       console.error('[CRM] Error tracking tool:', error.message);
     }

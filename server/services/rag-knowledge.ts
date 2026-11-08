@@ -391,7 +391,7 @@ export class RAGKnowledgeService {
     metadata?: Record<string, any>
   ): Promise<{ success: boolean; chunksCreated: number; error?: string }> {
     try {
-      console.log(`[RAG] Processing knowledge item ${knowledgeBaseId} for user ${userId}`);
+      logger.info(`[RAG] Processing knowledge item ${knowledgeBaseId} for user ${userId}`);
       
       // Check storage limit
       const contentSize = Buffer.byteLength(content, 'utf8');
@@ -430,7 +430,7 @@ export class RAGKnowledgeService {
           const jsonData = JSON.parse(content);
           chunks = parseJsonToChunks(jsonData);
           isJson = true;
-          console.log(`[RAG] Successfully parsed JSON content into ${chunks.length} logical chunks`);
+          logger.info(`[RAG] Successfully parsed JSON content into ${chunks.length} logical chunks`);
         } catch (jsonErr: any) {
           console.warn(`[RAG] Failed to parse content as JSON, falling back to text chunking:`, jsonErr.message);
         }
@@ -451,7 +451,7 @@ export class RAGKnowledgeService {
       }
       chunks = finalChunks;
 
-      console.log(`[RAG] Created ${chunks.length} chunks from content`);
+      logger.info(`[RAG] Created ${chunks.length} chunks from content`);
       
       // Update queue with total chunks
       await db
@@ -492,7 +492,7 @@ export class RAGKnowledgeService {
           // If the knowledge base was deleted, foreign key constraint is violated (PG code 23503).
           // Stop processing immediately to avoid log spam and unnecessary API calls.
           if (chunkError.code === '23503' || chunkError.message?.includes('foreign key constraint')) {
-            console.log(`[RAG] Knowledge base ${knowledgeBaseId} was deleted. Stopping chunk processing.`);
+            logger.info(`[RAG] Knowledge base ${knowledgeBaseId} was deleted. Stopping chunk processing.`);
             break;
           }
         }
@@ -512,7 +512,7 @@ export class RAGKnowledgeService {
         .set({ status: 'completed', updatedAt: new Date() })
         .where(eq(knowledgeProcessingQueue.id, queueEntry.id));
       
-      console.log(`[RAG] Successfully processed ${processedCount}/${chunks.length} chunks`);
+      logger.info(`[RAG] Successfully processed ${processedCount}/${chunks.length} chunks`);
       
       return { success: true, chunksCreated: processedCount };
       
@@ -556,7 +556,7 @@ export class RAGKnowledgeService {
       : 5;
 
     try {
-      console.log(`[RAG] Searching knowledge (${ids.length} bases)`);
+      logger.info(`[RAG] Searching knowledge (${ids.length} bases)`);
 
       // Generate embedding for query
       const queryEmbedding = await generateEmbedding(query);
@@ -576,11 +576,11 @@ export class RAGKnowledgeService {
         );
 
       if (rows.length === 0) {
-        console.log(`[RAG] No chunks found for knowledge bases`);
+        logger.warn(`[RAG] No chunks found for knowledge bases`);
         return [];
       }
 
-      console.log(`[RAG] Searching ${rows.length} chunks`);
+      logger.info(`[RAG] Searching ${rows.length} chunks`);
 
       // Calculate similarity scores
       const scoredChunks = rows
@@ -594,7 +594,7 @@ export class RAGKnowledgeService {
         .sort((a, b) => b.score - a.score)
         .slice(0, limit);
 
-      console.log(`[RAG] Found ${scoredChunks.length} relevant chunks (top score: ${scoredChunks[0]?.score.toFixed(3) || 'N/A'})`);
+      logger.info(`[RAG] Found ${scoredChunks.length} relevant chunks (top score: ${scoredChunks[0]?.score.toFixed(3) || 'N/A'})`);
 
       return scoredChunks;
 
@@ -673,7 +673,7 @@ export class RAGKnowledgeService {
       await this.updateUsedStorage(userId, -totalSize);
     }
     
-    console.log(`[RAG] Deleted ${chunks.length} chunks for knowledge base ${knowledgeBaseId}`);
+    logger.info(`[RAG] Deleted ${chunks.length} chunks for knowledge base ${knowledgeBaseId}`);
   }
   
   /**

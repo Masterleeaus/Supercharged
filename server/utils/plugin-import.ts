@@ -1,3 +1,4 @@
+import { logger } from './logger';
 import path from 'path';
 import fs from 'fs';
 import { pathToFileURL } from 'url';
@@ -54,7 +55,7 @@ async function safeImport(filePath: string): Promise<any> {
       for (const ext of ['.js', '.cjs', '.mjs']) {
         const fallback = basePath + ext;
         if (fs.existsSync(fallback)) {
-          console.log(`[Plugin Import] Using fallback: ${path.basename(fallback)}`);
+          logger.warn(`[Plugin Import] Using fallback: ${path.basename(fallback)}`);
           return await import(pathToFileURL(fallback).href);
         }
       }

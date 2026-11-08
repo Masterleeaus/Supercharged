@@ -44,6 +44,7 @@
  * - expression: Complex boolean expressions
  */
 
+import { logger } from '../utils/logger';
 import { FlowNode, FlowEdge } from '@shared/schema';
 import { generateFormCollectionPrompt, FormFieldDefinition } from './form-elevenlabs-tool';
 
@@ -303,8 +304,8 @@ export class EnhancedFlowCompiler {
    * Compile the visual flow into ElevenLabs workflow format
    */
   compile(): EnhancedCompileResult {
-    console.log(`🔧 [EnhancedFlowCompiler] Starting compilation...`);
-    console.log(`   Input: ${this.nodes.length} nodes, ${this.edges.length} edges`);
+    logger.info(`🔧 [EnhancedFlowCompiler] Starting compilation...`);
+    logger.info(`   Input: ${this.nodes.length} nodes, ${this.edges.length} edges`);
 
     // Find the entry node (first node after start or first actionable node)
     const entryNode = this.findEntryNode();
@@ -328,8 +329,8 @@ export class EnhancedFlowCompiler {
         // The actual workflow node will handle the detailed script and data collection.
         firstMessage = msg.includes('{{') ? 'Hello!' : msg;
 
-        console.log(`   📝 First message for API: "${firstMessage}"`);
-        console.log(`   📢 Entry node will speak the greeting/script (scripted mode)`);
+        logger.info(`   📝 First message for API: "${firstMessage}"`);
+        logger.info(`   📢 Entry node will speak the greeting/script (scripted mode)`);
       }
     }
 
@@ -363,15 +364,15 @@ export class EnhancedFlowCompiler {
         forward_condition: { type: 'unconditional' }
       };
       (this.compiledNodes[startNodeId] as ElevenLabsStartNode).edge_order.push(startEdgeId);
-      console.log(`   🔗 Connected start -> ${this.entryNodeId}`);
+      logger.info(`   🔗 Connected start -> ${this.entryNodeId}`);
     }
 
-    console.log(`   ✅ Compiled: ${Object.keys(this.compiledNodes).length} nodes, ${Object.keys(this.compiledEdges).length} edges`);
-    console.log(`   📞 Has transfer nodes: ${this.hasTransferNodes}`);
-    console.log(`   🔧 Tool IDs: ${this.toolIds.length > 0 ? this.toolIds.join(', ') : 'none'}`);
+    logger.info(`   ✅ Compiled: ${Object.keys(this.compiledNodes).length} nodes, ${Object.keys(this.compiledEdges).length} edges`);
+    logger.info(`   📞 Has transfer nodes: ${this.hasTransferNodes}`);
+    logger.info(`   🔧 Tool IDs: ${this.toolIds.length > 0 ? this.toolIds.join(', ') : 'none'}`);
 
     // Debug: Log compiled node types and structure
-    console.log(`\n   📊 Compiled Workflow Structure:`);
+    logger.info(`\n   📊 Compiled Workflow Structure:`);
     for (const [nodeId, node] of Object.entries(this.compiledNodes)) {
       const nodeType = (node as any).type;
       const edgeCount = node.edge_order.length;
@@ -383,16 +384,16 @@ export class EnhancedFlowCompiler {
         detail = ` - label: "${label}"`;
       }
 
-      console.log(`      [${nodeId}] type: ${nodeType}, edges: ${edgeCount}${detail}`);
+      logger.info(`      [${nodeId}] type: ${nodeType}, edges: ${edgeCount}${detail}`);
     }
 
-    console.log(`\n   🔗 Compiled Edges:`);
+    logger.info(`\n   🔗 Compiled Edges:`);
     for (const [edgeId, edge] of Object.entries(this.compiledEdges)) {
       const condType = edge.forward_condition.type;
       const condDetail = condType === 'llm'
         ? ` "${(edge.forward_condition as LLMCondition).condition.substring(0, 30)}..."`
         : '';
-      console.log(`      [${edgeId}] ${edge.source} -> ${edge.target} (${condType}${condDetail})`);
+      logger.info(`      [${edgeId}] ${edge.source} -> ${edge.target} (${condType}${condDetail})`);
     }
 
     return {
@@ -686,7 +687,7 @@ Do not transition until you have confirmed it is sent.`;
 
         const combinedPrompt = `${toolPrompts}${this.createMessagePrompt(messageText, label)}`;
 
-        console.log(`   📢 Compiling Message node: "${messageText.substring(0, 50)}..." (${mergedIds.length} merged tools)`);
+        logger.info(`   📢 Compiling Message node: "${messageText.substring(0, 50)}..." (${mergedIds.length} merged tools)`);
 
         const nodeToolIds = [...additional_tool_ids];
         if (this.hasRagTool && !nodeToolIds.includes('ask_knowledge')) {
@@ -718,7 +719,7 @@ Do not transition until you have confirmed it is sent.`;
         const questionText = config.question || config.message || 'How can I help you?';
         const variableName = config.variableName || config.variable || 'response';
 
-        console.log(`   ❓ Compiling Question node: "${questionText.substring(0, 50)}..."`);
+        logger.info(`   ❓ Compiling Question node: "${questionText.substring(0, 50)}..."`);
 
         const nodeToolIds = [];
         if (this.hasRagTool) {
@@ -748,7 +749,7 @@ Do not transition until you have confirmed it is sent.`;
         // Mark that this flow has appointment nodes (for webhook tool registration)
         this.hasAppointmentNodes = true;
 
-        console.log(`   📅 Compiling Appointment node: "${introMessage.substring(0, 50)}..."`);
+        logger.info(`   📅 Compiling Appointment node: "${introMessage.substring(0, 50)}..."`);
 
         const nodeToolIds = [];
         if (this.hasRagTool) {
@@ -795,8 +796,8 @@ Do not transition until you have confirmed it is sent.`;
           });
         }
 
-        console.log(`   📋 Compiling Form node: "${introMessage.substring(0, 50)}..."`);
-        console.log(`      Form ID: ${formId || 'none'}, Node ID: ${node.id}, Fields: ${fields.length}`);
+        logger.info(`   📋 Compiling Form node: "${introMessage.substring(0, 50)}..."`);
+        logger.warn(`      Form ID: ${formId || 'none'}, Node ID: ${node.id}, Fields: ${fields.length}`);
 
         // Generate tool ID for submit_form webhook (must match what's registered with ElevenLabs)
         // Use node.id (not formId) so each form node in the flow gets its own unique tool,
@@ -831,7 +832,7 @@ Do not transition until you have confirmed it is sent.`;
       case 'pause': {
         const waitMessage = config.message || config.waitMessage || "One moment please...";
 
-        console.log(`   ⏳ Compiling Delay node: "${waitMessage.substring(0, 50)}..."`);
+        logger.info(`   ⏳ Compiling Delay node: "${waitMessage.substring(0, 50)}..."`);
 
         const nodeToolIds = [];
         if (this.hasRagTool) {
@@ -926,7 +927,7 @@ Do not transition until you have confirmed it is sent.`;
             headers: webhookHeaders,
             payload: webhookPayload
           });
-          console.log(`   🔗 Webhook node configured: ${toolId} -> ${webhookMethod} ${webhookUrl}`);
+          logger.info(`   🔗 Webhook node configured: ${toolId} -> ${webhookMethod} ${webhookUrl}`);
         } else {
           console.warn(`   ⚠️ Webhook node ${node.id} has no URL configured`);
         }
@@ -965,7 +966,7 @@ Do not transition until you have confirmed it is sent.`;
           waitForComplete
         });
 
-        console.log(`   🔊 Compiling Play Audio node: ${audioUrl}`);
+        logger.info(`   🔊 Compiling Play Audio node: ${audioUrl}`);
 
         return {
           type: 'tool',
@@ -978,7 +979,7 @@ Do not transition until you have confirmed it is sent.`;
       case 'send_email': {
         const templateName = config.templateName || config.template_name || 'default';
         const toolId = `send_email_${node.id.slice(-8)}`;
-        console.log(`   📧 Compiling Send Email node: template="${templateName}" toolId="${toolId}"`);
+        logger.info(`   📧 Compiling Send Email node: template="${templateName}" toolId="${toolId}"`);
         this.toolIds.push(toolId);
         this.hasWebhookNodes = true;
         this.webhookNodes.push({
@@ -993,7 +994,7 @@ Do not transition until you have confirmed it is sent.`;
           }
         });
 
-        console.log(`   📧 Compiling Send Email node: template="${templateName}"`);
+        logger.info(`   📧 Compiling Send Email node: template="${templateName}"`);
 
         return {
           type: 'override_agent',
@@ -1041,7 +1042,7 @@ Do not transition until you have confirmed it is sent.`;
         });
 
 
-        console.log(`   💬 Compiling Send WhatsApp node: template="${templateName}" lang="${language}"`);
+        logger.info(`   💬 Compiling Send WhatsApp node: template="${templateName}" lang="${language}"`);
 
         return {
           type: 'tool',
@@ -1055,7 +1056,7 @@ Do not transition until you have confirmed it is sent.`;
         // Unknown node types become override_agent (Subagent) with their content
         const message = config.message || config.text || 'How may I assist you?';
 
-        console.log(`   🔄 Compiling unknown node type '${nodeType}' as Subagent`);
+        logger.warn(`   🔄 Compiling unknown node type '${nodeType}' as Subagent`);
 
         const nodeToolIds = [];
         if (this.hasRagTool) {
@@ -1115,9 +1116,9 @@ Do not transition until you have confirmed it is sent.`;
           // drop the edge (compiledNodes[parentId] doesn't exist).
           if (this.compiledNodes[parentId]) {
             effectiveSourceId = parentId;
-            console.log(`   🔗 Re-routing edge from merged node ${edge.source} to parent ${effectiveSourceId}`);
+            logger.info(`   🔗 Re-routing edge from merged node ${edge.source} to parent ${effectiveSourceId}`);
           } else {
-            console.log(`   🔗 Keeping edge source ${edge.source} (parent ${parentId} was removed by NATIVE BYPASS)`);
+            logger.info(`   🔗 Keeping edge source ${edge.source} (parent ${parentId} was removed by NATIVE BYPASS)`);
           }
           break;
         }
@@ -1140,12 +1141,12 @@ Do not transition until you have confirmed it is sent.`;
         const mergeMap = this.getMergeMap();
         const mergedChildren = mergeMap[effectiveSourceId] || [];
         if (mergedChildren.includes(edge.target)) {
-          console.log(`   🔗 Skipping internal merged edge: ${effectiveSourceId} -> ${edge.target}`);
+          logger.warn(`   🔗 Skipping internal merged edge: ${effectiveSourceId} -> ${edge.target}`);
           continue;
         }
 
         if (this.mergedNodeIds.has(edge.target) && edge.source === effectiveSourceId) {
-          console.log(`   🔗 Skipping absorbed edge: ${edge.source} -> ${edge.target}`);
+          logger.warn(`   🔗 Skipping absorbed edge: ${edge.source} -> ${edge.target}`);
           continue;
         }
 
@@ -1511,7 +1512,7 @@ Do not transition until you have confirmed it is sent.`;
         edge.source === source && edge.forward_condition.type === 'unconditional'
       );
       if (existingUnconditional) {
-        console.log(`   ⚠️ ElevenLabs Constraint: Skipping additional unconditional edge from ${source} to ${target}. A node can only have ONE unconditional edge.`);
+        logger.warn(`   ⚠️ ElevenLabs Constraint: Skipping additional unconditional edge from ${source} to ${target}. A node can only have ONE unconditional edge.`);
         return;
       }
     }
@@ -1536,7 +1537,7 @@ Do not transition until you have confirmed it is sent.`;
 
     if (existingEdge) {
       // Exact duplicate edge (same source, target, and condition) - skip to prevent ElevenLabs API rejection
-      console.log(`   ⚠️ Skipping duplicate edge: ${source} -> ${target} (${forwardCondition.type}) - already exists as ${existingEdge[0]}`);
+      logger.warn(`   ⚠️ Skipping duplicate edge: ${source} -> ${target} (${forwardCondition.type}) - already exists as ${existingEdge[0]}`);
       return;
     }
 

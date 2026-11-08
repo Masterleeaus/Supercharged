@@ -16,6 +16,7 @@
  * ============================================================
  */
 
+import { logger } from '../utils/logger';
 import { db } from "../db";
 import { auditLogs } from "@shared/schema";
 import { computeAuditHash } from "./audit-chain.mjs";
@@ -132,17 +133,14 @@ export async function logAuditEvent(entry: AuditLogEntry): Promise<void> {
     critical: "🚨"
   };
 
-  console.log(
-    `${severityEmoji[logEntry.severity]} [Audit] ${logEntry.action}`,
-    JSON.stringify({
+  logger.info(`${severityEmoji[logEntry.severity]} [Audit] ${logEntry.action}`, JSON.stringify({
       userId: logEntry.userId,
       targetUserId: logEntry.targetUserId,
       resourceType: logEntry.resourceType,
       resourceId: logEntry.resourceId,
       ip: logEntry.ipAddress,
       ...logEntry.metadata
-    })
-  );
+    }));
 
   if (auditLogQueue.length >= AUDIT_QUEUE_MAX_EVENTS) {
     recordOverflow();

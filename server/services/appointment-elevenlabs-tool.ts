@@ -25,6 +25,7 @@
  * Security: Uses a shared secret token in header for webhook authentication
  */
 
+import { logger } from '../utils/logger';
 import { getDomain } from "../utils/domain";
 import crypto from "crypto";
 import fs from "fs";
@@ -136,10 +137,10 @@ export function getBookAppointmentWebhookTool(agentId: string, callId?: string):
     day: 'numeric' 
   });
   
-  console.log(`📅 [Appointment Tool] Creating webhook tool config for agent ${agentId}`);
-  console.log(`   Tool name: ${toolName}`);
-  console.log(`   Current date context: ${currentDateStr}`);
-  console.log(`   Webhook URL: ${webhookUrl.replace(secret, '[TOKEN]')}`);
+  logger.info(`📅 [Appointment Tool] Creating webhook tool config for agent ${agentId}`);
+  logger.info(`   Tool name: ${toolName}`);
+  logger.info(`   Current date context: ${currentDateStr}`);
+  logger.info(`   Webhook URL: ${webhookUrl.replace(secret, '[TOKEN]')}`);
   
   return {
     type: "webhook",
@@ -221,10 +222,10 @@ export function getAppointmentToolForAgent(elevenLabsAgentId: string): Appointme
     day: 'numeric' 
   });
   
-  console.log(`📅 [Appointment Tool] Creating webhook tool for ElevenLabs agent ${elevenLabsAgentId}`);
-  console.log(`   Tool name: ${toolName}`);
-  console.log(`   Current date context: ${currentDateStr}`);
-  console.log(`   Webhook URL: ${webhookUrl.replace(secret, '[TOKEN]')}`);
+  logger.info(`📅 [Appointment Tool] Creating webhook tool for ElevenLabs agent ${elevenLabsAgentId}`);
+  logger.info(`   Tool name: ${toolName}`);
+  logger.info(`   Current date context: ${currentDateStr}`);
+  logger.info(`   Webhook URL: ${webhookUrl.replace(secret, '[TOKEN]')}`);
   
   return {
     type: "webhook",

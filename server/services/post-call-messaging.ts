@@ -168,7 +168,7 @@ async function lookupAppointmentData(
       const rows = extractRows(result);
       if (rows.length > 0) {
         const a = rows[0];
-        console.log(`[Post-Call Messaging] Found appointment data by callId/conversationId: date=${a.appointment_date}, time=${a.appointment_time}, service=${a.service_name || 'N/A'}`);
+        logger.info(`[Post-Call Messaging] Found appointment data by callId/conversationId: date=${a.appointment_date}, time=${a.appointment_time}, service=${a.service_name || 'N/A'}`);
         return {
           ...(a.contact_name ? { contact_name: a.contact_name } : {}),
           ...(a.contact_phone ? { contact_phone: a.contact_phone } : {}),
@@ -200,7 +200,7 @@ async function lookupAppointmentData(
         const rows = extractRows(result);
         if (rows.length > 0) {
           const a = rows[0];
-          console.log(`[Post-Call Messaging] Found appointment data by phone fallback: date=${a.appointment_date}, time=${a.appointment_time}, service=${a.service_name || 'N/A'}`);
+          logger.warn(`[Post-Call Messaging] Found appointment data by phone fallback: date=${a.appointment_date}, time=${a.appointment_time}, service=${a.service_name || 'N/A'}`);
           return {
             ...(a.contact_name ? { contact_name: a.contact_name } : {}),
             ...(a.contact_phone ? { contact_phone: a.contact_phone } : {}),
@@ -298,7 +298,7 @@ export async function triggerPostCallMessaging(params: {
 
   const dedupeKey = callId || `${elevenLabsAgentId}:${userId}:${callerPhone}`;
   if (_triggeredCallIds.has(dedupeKey)) {
-    console.log(`[Post-Call Messaging] Skipping duplicate trigger for ${dedupeKey}`);
+    logger.warn(`[Post-Call Messaging] Skipping duplicate trigger for ${dedupeKey}`);
     return;
   }
   _triggeredCallIds.add(dedupeKey);
@@ -312,7 +312,7 @@ export async function triggerPostCallMessaging(params: {
       .limit(1);
 
     if (agentRows.length === 0) {
-      console.log(`[Post-Call Messaging] Agent not found: ${elevenLabsAgentId}`);
+      logger.warn(`[Post-Call Messaging] Agent not found: ${elevenLabsAgentId}`);
       return;
     }
 
@@ -326,7 +326,7 @@ export async function triggerPostCallMessaging(params: {
     const agentName = agent.name || '';
     const userId = agent.userId;
 
-    console.log(`📨 [Post-Call Messaging] Agent ${dbAgentId}: emailEnabled=${emailEnabled}, whatsappEnabled=${whatsappEnabled}, caller=${callerPhone}, userId=${userId}`);
+    logger.info(`📨 [Post-Call Messaging] Agent ${dbAgentId}: emailEnabled=${emailEnabled}, whatsappEnabled=${whatsappEnabled}, caller=[redacted], userId=${userId}`);
 
     if (!emailEnabled && !whatsappEnabled) {
       return;
@@ -336,7 +336,7 @@ export async function triggerPostCallMessaging(params: {
     if (!callerEmail && callId) {
       callerEmail = await readCallerEmailFromMetadata(callId);
       if (callerEmail) {
-        console.log(`[Post-Call Messaging] Resolved callerEmail from call metadata: ${callerEmail}`);
+        logger.info(`[Post-Call Messaging] Resolved callerEmail from call metadata: [redacted]`);
       }
     }
 
@@ -350,7 +350,7 @@ export async function triggerPostCallMessaging(params: {
     const contactInfo = await lookupContactByPhone(callerPhone, userId);
     if (Object.keys(contactInfo).length > 0) {
       contactData = { ...contactData, ...contactInfo };
-      console.log(`[Post-Call Messaging] Enriched with contact data: ${Object.keys(contactInfo).join(', ')}`);
+      logger.info(`[Post-Call Messaging] Enriched with contact data: ${Object.keys(contactInfo).join(', ')}`);
     }
 
     let conversationId = '';
@@ -373,15 +373,15 @@ export async function triggerPostCallMessaging(params: {
       const apptData = await lookupAppointmentData(callId || '', conversationId, userId, callerPhone);
       if (Object.keys(apptData).length > 0) {
         contactData = { ...contactData, ...apptData };
-        console.log(`[Post-Call Messaging] Enriched with appointment fields: ${Object.keys(apptData).join(', ')}`);
+        logger.info(`[Post-Call Messaging] Enriched with appointment fields: ${Object.keys(apptData).join(', ')}`);
       }
     }
 
-    console.log(`[Post-Call Messaging] Final Resolved Contact Data for variable resolution: ${JSON.stringify(contactData)}`);
+    logger.info(`[Post-Call Messaging] Final Resolved Contact Data for variable resolution: [redacted]`);
 
     if (!callerEmail && contactData.contact_email) {
       callerEmail = contactData.contact_email;
-      console.log(`[Post-Call Messaging] Resolved callerEmail from contact data: ${callerEmail}`);
+      logger.info(`[Post-Call Messaging] Resolved callerEmail from contact data: [redacted]`);
     }
 
     if (whatsappEnabled && whatsappTemplate) {
@@ -391,14 +391,14 @@ export async function triggerPostCallMessaging(params: {
           console.warn(`[Post-Call Messaging] Cannot send WhatsApp: invalid caller phone "${callerPhone}"`);
         } else {
 
-          console.log(`[Post-Call Messaging] Initializing WhatsApp services for user ${userId}...`);
+          logger.info(`[Post-Call Messaging] Initializing WhatsApp services for user ${userId}...`);
           const { metaWhatsAppService, MetaWhatsAppService } = await import('../../plugins/messaging/services/meta-whatsapp.service');
           const { whatswayService } = await import('../../plugins/messaging/services/whatsway.service');
-          console.log(`[Post-Call Messaging] Services imported successfully.`);
+          logger.info(`[Post-Call Messaging] Services imported successfully.`);
 
           const metaSettings = await metaWhatsAppService.getSettings(userId);
           const whatswaySettings = await whatswayService.getSettings(userId);
-          console.log(`[Post-Call Messaging] Settings fetched. Meta Active: ${!!metaSettings?.isActive}, WhatsWay Active: ${!!whatswaySettings?.isActive}`);
+          logger.info(`[Post-Call Messaging] Settings fetched. Meta Active: ${!!metaSettings?.isActive}, WhatsWay Active: ${!!whatswaySettings?.isActive}`);
 
           let components: any[] = [];
           const buttonOverrides: Record<number, string> = {};
@@ -429,10 +429,10 @@ export async function triggerPostCallMessaging(params: {
               if (bodyVarEntries.length > 0) {
                 bodyVarEntries.sort((a, b) => a[0] - b[0]);
                 components = [{ type: 'body', parameters: bodyVarEntries.map(([, v]) => ({ type: 'text', text: v || ' ' })) }];
-                console.log(`[Post-Call Messaging] Built ${bodyVarEntries.length} body variable(s) from agent config`);
+                logger.info(`[Post-Call Messaging] Built ${bodyVarEntries.length} body variable(s) from agent config`);
               }
               if (Object.keys(buttonOverrides).length > 0) {
-                console.log(`[Post-Call Messaging] Found ${Object.keys(buttonOverrides).length} button override(s) from agent config`);
+                logger.info(`[Post-Call Messaging] Found ${Object.keys(buttonOverrides).length} button override(s) from agent config`);
               }
             } catch (parseErr: any) {
               console.warn(`[Post-Call Messaging] Failed to parse whatsapp variables: ${parseErr.message}`);
@@ -467,7 +467,7 @@ export async function triggerPostCallMessaging(params: {
                       }
                       components = components.filter((c: any) => c.type !== 'body');
                       components.push({ type: 'body', parameters });
-                      console.log(`[Post-Call Messaging] Padded body variables: ${existingParams.length} saved + ${requiredCount - existingParams.length} auto-populated = ${requiredCount} total`);
+                      logger.info(`[Post-Call Messaging] Padded body variables: ${existingParams.length} saved + ${requiredCount - existingParams.length} auto-populated = ${requiredCount} total`);
                     }
                   }
                 }
@@ -508,7 +508,7 @@ export async function triggerPostCallMessaging(params: {
 
                       // Add as the first component
                       components = [headerComponent, ...components];
-                      console.log(`[Post-Call Messaging] Added Meta HEADER (${mediaTypeLowercase}): ${headerUrl}`);
+                      logger.info(`[Post-Call Messaging] Added Meta HEADER (${mediaTypeLowercase}): ${headerUrl}`);
                     } else {
                       console.warn(`[Post-Call Messaging] Template has ${headerFormat} header but no URL was found in config.`);
                     }
@@ -529,7 +529,7 @@ export async function triggerPostCallMessaging(params: {
                       }
                       if (!headerVal) headerVal = contactData.contact_name || ' ';
                       components = [{ type: 'header', parameters: [{ type: 'text', text: headerVal }] }, ...components];
-                      console.log(`[Post-Call Messaging] Added HEADER text: ${headerVal}`);
+                      logger.info(`[Post-Call Messaging] Added HEADER text: ${headerVal}`);
                     }
                   }
                 }
@@ -540,21 +540,21 @@ export async function triggerPostCallMessaging(params: {
                 );
                 if (buttonComponents.length > 0) {
                   components = [...components, ...buttonComponents];
-                  console.log(`[Post-Call Messaging] Added ${buttonComponents.length} button component(s)`);
+                  logger.info(`[Post-Call Messaging] Added ${buttonComponents.length} button component(s)`);
                 }
               }
             } catch (tmplErr: any) {
               console.warn(`[Post-Call Messaging] Could not fetch Meta template definition: ${tmplErr.message}`);
             }
 
-            console.log(`[Post-Call Messaging] Attempting Meta send for ${callerPhone}...`);
-            console.log(`[Post-Call Messaging] Final Resolved Components for Meta: ${JSON.stringify(components, null, 2)}`);
+            logger.info(`[Post-Call Messaging] Attempting Meta send for [redacted]...`);
+            logger.info(`[Post-Call Messaging] Final Resolved Components for Meta: [redacted]`);
             const result = await metaWhatsAppService.sendTemplate(userId, callerPhone, whatsappTemplate, templateLanguage, components, { callId, agentId: dbAgentId });
-            console.log(`✅ [Post-Call Messaging] WhatsApp sent via Meta. Result: ${JSON.stringify(result)}`);
+            logger.info(`✅ [Post-Call Messaging] WhatsApp sent via Meta`);
           } else if (whatswaySettings?.isActive) {
-            console.log(`[Post-Call Messaging] Final Resolved Components for WhatsWay: ${JSON.stringify(components, null, 2)}`);
+            logger.info(`[Post-Call Messaging] Final Resolved Components for WhatsWay: [redacted]`);
             const result = await whatswayService.sendTemplate(userId, callerPhone, whatsappTemplate, templateLanguage, components, { callId, agentId: dbAgentId });
-            console.log(`✅ [Post-Call Messaging] WhatsApp sent via WhatsWay. Result: ${JSON.stringify(result)}`);
+            logger.info(`✅ [Post-Call Messaging] WhatsApp sent via WhatsWay`);
           } else {
             console.warn(`[Post-Call Messaging] No active WhatsApp provider for user ${userId}`);
           }
@@ -584,7 +584,7 @@ export async function triggerPostCallMessaging(params: {
             ...(contactData.appointment_status ? { appointment_status: contactData.appointment_status } : {}),
           };
           await emailTemplateService.sendEmailByName(userId, emailTemplate, callerEmail, variables, { callId, agentId: dbAgentId });
-          console.log(`✅ [Post-Call Messaging] Email sent to ${callerEmail}`);
+          logger.info(`✅ [Post-Call Messaging] Email sent to [redacted]`);
         }
       } catch (emailErr: any) {
         console.error(`❌ [Post-Call Messaging] Email send error: ${emailErr.message}`);

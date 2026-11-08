@@ -15,6 +15,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
+import { logger } from '../utils/logger';
 import twilio from 'twilio';
 import { storage } from '../storage';
 import { ExternalServiceError } from '../utils/errors';
@@ -34,7 +35,7 @@ async function getCredentials() {
   const dbAuthToken = await storage.getGlobalSetting('twilio_auth_token');
   
   if (dbAccountSid?.value && dbAuthToken?.value) {
-    console.log('📞 Using Twilio credentials from database');
+    logger.info('📞 Using Twilio credentials from database');
     return {
       accountSid: dbAccountSid.value,
       apiKey: dbAccountSid.value,
@@ -45,7 +46,7 @@ async function getCredentials() {
 
   // Fall back to environment variables
   if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
-    console.log('📞 Using Twilio credentials from environment variables');
+    logger.info('📞 Using Twilio credentials from environment variables');
     return {
       accountSid: process.env.TWILIO_ACCOUNT_SID,
       apiKey: process.env.TWILIO_ACCOUNT_SID,
