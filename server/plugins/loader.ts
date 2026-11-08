@@ -158,6 +158,10 @@ export function discoverPlugins(): PluginManifest[] {
     }
     
     try {
+      if (fs.lstatSync(manifestPath).isSymbolicLink()) {
+        console.warn(`[Plugin Loader] Skipping symlinked manifest for '${entry.name}'`);
+        continue;
+      }
       const manifestContent = fs.readFileSync(manifestPath, 'utf-8');
       const manifest = JSON.parse(manifestContent) as PluginManifest;
       // The loader constructs paths from manifest.name, so never trust a
@@ -275,7 +279,14 @@ export async function loadPlugins(app: Express, options: PluginLoaderOptions): P
         }
       }
       
-      const entryPointUrl = pathToFileURL(entryPointPath).href;
+      // Resolve real paths after TS/JS fallback selection: a symlinked entry
+      // must not escape its discovered plugin's directory.
+      const pluginRoot = fs.realpathSync(pluginPath);
+      const resolvedEntryPoint = fs.realpathSync(entryPointPath);
+      if (!resolvedEntryPoint.startsWith(pluginRoot + path.sep)) {
+        throw new Error(`Plugin entrypoint escapes its directory: '${manifest.name}'`);
+      }
+      const entryPointUrl = pathToFileURL(resolvedEntryPoint).href;
       let pluginModule: any;
       try {
         pluginModule = await import(entryPointUrl);
@@ -289,7 +300,11 @@ export async function loadPlugins(app: Express, options: PluginLoaderOptions): P
             const fallbackPath = basePath + ext;
             if (fs.existsSync(fallbackPath)) {
               console.log(`[Plugin Loader] Using fallback: ${path.basename(fallbackPath)} for '${manifest.name}'`);
-              pluginModule = await import(pathToFileURL(fallbackPath).href);
+              const resolvedFallback = fs.realpathSync(fallbackPath);
+              if (!resolvedFallback.startsWith(pluginRoot + path.sep)) {
+                throw new Error(`Plugin fallback escapes its directory: '${manifest.name}'`);
+              }
+              pluginModule = await import(pathToFileURL(resolvedFallback).href);
               fallbackLoaded = true;
               break;
             }
