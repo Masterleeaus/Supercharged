@@ -50,6 +50,7 @@ export function registerBrandingRoutes(router: Router) {
       for (const key of brandingKeys) {
         const setting = await storage.getGlobalSetting(key);
         if (setting) {
+          if (key === 'app_name' && (typeof setting.value !== 'string' || !setting.value.trim())) continue;
           branding[key] = setting.value;
         }
       }
