@@ -33,8 +33,6 @@ import { adminRouter } from "./routes/admin-routes";
 import { maintenanceMiddleware } from "./services/system-update-service";
 import adminTeamAccessRoutes from "./routes/admin-team-access.routes";
 import { createRouteContext } from "./routes/common";
-// Payment Engine v1.0.0 - All payment gateway routers
-import { stripeRouter, razorpayRouter, paypalRouter, paystackRouter, mercadopagoRouter, yookassaRouter } from "./engines/payment";
 // Plivo + OpenAI Realtime Engine
 import { setupPlivoStream } from "./engines/plivo";
 // Plivo-ElevenLabs SIP Trunk Engine (ISOLATED from Twilio+ElevenLabs)
@@ -105,6 +103,7 @@ import { registerContactsToolsRoutes } from "./routes/core/contacts-tools-routes
 import { registerElevenLabsAgentRoutes } from "./routes/core/elevenlabs-agent-routes";
 import { registerElevenLabsVoiceRoutes } from "./routes/core/elevenlabs-voice-routes";
 import { registerProviderWebhookRoutes } from "./routes/core/provider-webhook-routes";
+import { registerPaymentRoutes } from "./routes/core/payment-routes";
 
 const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
@@ -201,23 +200,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Routes: Twilio and ElevenLabs provider webhooks, see server/routes/core/provider-webhook-routes.ts
   registerProviderWebhookRoutes(app);
 
-  // Stripe routes
-  app.use("/api/stripe", stripeRouter);
-
-  // Razorpay routes (alternative payment gateway)
-  app.use("/api/razorpay", razorpayRouter);
-
-  // PayPal routes (global payment gateway)
-  app.use("/api/paypal", paypalRouter);
-
-  // Paystack routes (Africa payment gateway - NGN, GHS, ZAR, KES)
-  app.use("/api/paystack", paystackRouter);
-
-  // MercadoPago routes (Latin America payment gateway - BRL, MXN, ARS, CLP, COP)
-  app.use("/api/mercadopago", mercadopagoRouter);
-
-  // YooKassa routes
-  app.use("/api/yookassa", yookassaRouter);
+  // Routes: payment gateways, see server/routes/core/payment-routes.ts
+  registerPaymentRoutes(app);
 
   // Admin routes accessible by admin team members (read-only analytics)
   // Must be before main admin router to take precedence
