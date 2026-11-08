@@ -1,0 +1,81 @@
+name: PR checks
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+
+  typecheck:
+    name: Typecheck (informational)
+    runs-on: ubuntu-latest
+    # Informational only until the existing type errors are fixed (issue #15).
+    # The job still runs and its output stays visible in the log; it does not
+    # block merges while continue-on-error is true. Remove this line once #15 is done.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit
+
+  migration-inventory:
+    name: Migration inventory
+    runs-on: ubuntu-latest
+    # scripts/run-safe-migration.mjs has no --dry-run flag, so this job checks
+    # that every migration file the script lists exists under migrations/.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check listed migrations exist
+        run: |
+          node -e "
+          const fs = require('fs');
+          const src = fs.readFileSync('scripts/run-safe-migration.mjs', 'utf8');
+          const re = /resolve\(rootDir,\s*'migrations',\s*'([^']+)'\)/g;
+          const names = [];
+          let m;
+          while ((m = re.exec(src))) names.push(m[1]);
+          if (names.length === 0) {
+            console.error('No migration names found in scripts/run-safe-migration.mjs');
+            process.exit(1);
+          }
+          const missing = names.filter((n) => !fs.existsSync('migrations/' + n));
+          console.log('Listed migrations: ' + names.length);
+          if (missing.length) {
+            console.error('Missing under migrations/:\n  ' + missing.join('\n  '));
+            process.exit(1);
+          }
+          console.log('All listed migrations exist.');
+          "
