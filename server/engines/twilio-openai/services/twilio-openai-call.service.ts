@@ -73,6 +73,7 @@ export class TwilioOpenAICallService {
       if (!agent) {
         return { success: false, error: 'Agent not found' };
       }
+      const companyId = agent.companyId ?? null;
 
       const [phoneNumber] = await db
         .select()
@@ -343,7 +344,7 @@ export class TwilioOpenAICallService {
 
       // Trigger call.started webhook event
       try {
-        await webhookDeliveryService.triggerEvent(userId, 'call.started', {
+        await webhookDeliveryService.triggerEvent(companyId, userId, 'call.started', {
           call: {
             id: callId,
             callSid: call.sid,
@@ -374,7 +375,7 @@ export class TwilioOpenAICallService {
             .limit(1);
           
           if (flow) {
-            await webhookDeliveryService.triggerEvent(userId, 'flow.started', {
+            await webhookDeliveryService.triggerEvent(companyId, userId, 'flow.started', {
               flowId: flow.id,
               flowName: flow.name,
               callId: callId,

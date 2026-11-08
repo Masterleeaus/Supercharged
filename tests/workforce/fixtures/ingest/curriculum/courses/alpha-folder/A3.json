@@ -1,0 +1,7 @@
+{
+  "id": "A3",
+  "title": "Alpha lesson with no course pin",
+  "status": "DRAFT",
+  "courseSlugs": [],
+  "instruction": [{ "heading": "Orphan", "body": "This lesson names no course." }]
+}

@@ -7,9 +7,10 @@
  */
 
 import { db } from '../db';
-import { calls, flowExecutions, contacts } from '@shared/schema';
+import { calls, flowExecutions, contacts, campaigns, users } from '@shared/schema';
 import type { InsertCall, InsertContact } from '@shared/schema';
 import { nanoid } from 'nanoid';
+import { inArray } from 'drizzle-orm';
 
 const BATCH_SIZE = 500;
 const LOG_INTERVAL = 1000;
@@ -17,12 +18,56 @@ const LOG_INTERVAL = 1000;
 /** Above this, omit `.returning()` on successful chunks to avoid holding 100k+ rows in memory. */
 export const CONTACT_INSERT_RETAIN_RESULTS_THRESHOLD = 1_500;
 
+export interface BatchCompanyOptions {
+  /** Company from the verified session, if the caller has one. Owner records must agree with it. */
+  companyId?: string;
+}
+
 export interface BatchInsertResult<T> {
   success: boolean;
   inserted: number;
   failed: number;
   results: T[];
   errors: string[];
+}
+
+/**
+ * Company ids of owning records (campaigns, users), read from the database.
+ */
+async function loadOwnerCompanies(
+  campaignIds: Array<string | null | undefined>,
+  userIds: Array<string | null | undefined>
+): Promise<{ campaignCompany: Map<string, string | null>; userCompany: Map<string, string | null> }> {
+  const campaignCompany = new Map<string, string | null>();
+  const userCompany = new Map<string, string | null>();
+  const cIds = Array.from(new Set(campaignIds.filter((v): v is string => typeof v === 'string' && v.length > 0)));
+  const uIds = Array.from(new Set(userIds.filter((v): v is string => typeof v === 'string' && v.length > 0)));
+  if (cIds.length > 0) {
+    const rows = await db.select({ id: campaigns.id, companyId: campaigns.companyId })
+      .from(campaigns).where(inArray(campaigns.id, cIds));
+    for (const row of rows) campaignCompany.set(row.id, row.companyId ?? null);
+  }
+  if (uIds.length > 0) {
+    const rows = await db.select({ id: users.id, companyId: users.companyId })
+      .from(users).where(inArray(users.id, uIds));
+    for (const row of rows) userCompany.set(row.id, row.companyId ?? null);
+  }
+  return { campaignCompany, userCompany };
+}
+
+/**
+ * Resolve one row's company_id. Returns null (refuse the row) when no source has a company,
+ * or when the session company and the owner companies disagree.
+ */
+function resolveRowCompanyId(
+  sessionCompanyId: string | undefined,
+  ownerCompanyIds: Array<string | null | undefined>
+): string | null {
+  const found = new Set<string>();
+  for (const value of [sessionCompanyId, ...ownerCompanyIds]) {
+    if (typeof value === 'string' && value.length > 0) found.add(value);
+  }
+  return found.size === 1 ? Array.from(found)[0] : null;
 }
 
 export interface FlowExecutionInsert {
@@ -50,8 +95,9 @@ export function chunkArray<T>(array: T[], chunkSize: number = BATCH_SIZE): T[][]
  * Returns all successfully created records
  */
 export async function batchInsertCalls(
-  callInserts: InsertCall[],
-  logPrefix: string = '[Batch Insert]'
+  inserts: InsertCall[],
+  logPrefix: string = '[Batch Insert]',
+  options: BatchCompanyOptions = {}
 ): Promise<BatchInsertResult<typeof calls.$inferSelect>> {
   const result: BatchInsertResult<typeof calls.$inferSelect> = {
     success: true,
@@ -61,7 +107,30 @@ export async function batchInsertCalls(
     errors: [],
   };
 
+  if (inserts.length === 0) {
+    return result;
+  }
+
+  const { campaignCompany, userCompany } = await loadOwnerCompanies(
+    inserts.map(c => c.campaignId),
+    inserts.map(c => c.userId)
+  );
+  const callInserts: Array<InsertCall & { companyId: string }> = [];
+  for (const row of inserts) {
+    const companyId = resolveRowCompanyId(options.companyId, [
+      row.campaignId ? campaignCompany.get(row.campaignId) : undefined,
+      row.userId ? userCompany.get(row.userId) : undefined,
+    ]);
+    if (!companyId) {
+      result.failed++;
+      result.errors.push('Call row refused: company scope unavailable');
+      continue;
+    }
+    callInserts.push({ ...row, companyId });
+  }
+
   if (callInserts.length === 0) {
+    result.success = result.failed === 0;
     return result;
   }
 
@@ -73,7 +142,7 @@ export async function batchInsertCalls(
 
   for (let i = 0; i < chunks.length; i++) {
     const chunk = chunks[i];
-    
+
     try {
       const inserted = await db.insert(calls).values(chunk).returning();
       result.results.push(...inserted);
@@ -112,7 +181,8 @@ export async function batchInsertCalls(
  */
 export async function batchInsertFlowExecutions(
   executions: FlowExecutionInsert[],
-  logPrefix: string = '[Batch Insert]'
+  logPrefix: string = '[Batch Insert]',
+  options: BatchCompanyOptions = {}
 ): Promise<BatchInsertResult<typeof flowExecutions.$inferSelect>> {
   const result: BatchInsertResult<typeof flowExecutions.$inferSelect> = {
     success: true,
@@ -126,8 +196,26 @@ export async function batchInsertFlowExecutions(
     return result;
   }
 
-  const insertValues = executions.map(exec => ({
+  const { campaignCompany } = await loadOwnerCompanies(executions.map(e => e.campaignId), []);
+  const scopedExecutions: Array<FlowExecutionInsert & { companyId: string }> = [];
+  for (const exec of executions) {
+    const companyId = resolveRowCompanyId(options.companyId, [campaignCompany.get(exec.campaignId)]);
+    if (!companyId) {
+      result.failed++;
+      result.errors.push('Flow execution row refused: company scope unavailable');
+      continue;
+    }
+    scopedExecutions.push({ ...exec, companyId });
+  }
+
+  if (scopedExecutions.length === 0) {
+    result.success = result.failed === 0;
+    return result;
+  }
+
+  const insertValues = scopedExecutions.map(exec => ({
     id: nanoid(),
+    companyId: exec.companyId,
     callId: exec.callId,
     flowId: exec.flowId,
     currentNodeId: null,
@@ -185,7 +273,7 @@ export async function batchInsertFlowExecutions(
   return result;
 }
 
-export type BatchInsertContactsOptions = {
+export type BatchInsertContactsOptions = BatchCompanyOptions & {
   /**
    * When false, successful multi-row inserts do not use `.returning()` and `results` stays empty.
    * Use for very large CSV uploads (50k+) to keep memory bounded.
@@ -197,7 +285,7 @@ export type BatchInsertContactsOptions = {
  * Batch insert contacts with chunking and progress logging
  */
 export async function batchInsertContacts(
-  contactInserts: InsertContact[],
+  rawContactInserts: InsertContact[],
   logPrefix: string = '[Batch Insert]',
   options: BatchInsertContactsOptions = {}
 ): Promise<BatchInsertResult<typeof contacts.$inferSelect>> {
@@ -211,7 +299,24 @@ export async function batchInsertContacts(
     errors: [],
   };
 
+  if (rawContactInserts.length === 0) {
+    return result;
+  }
+
+  const { campaignCompany } = await loadOwnerCompanies(rawContactInserts.map(c => c.campaignId), []);
+  const contactInserts: Array<InsertContact & { companyId: string }> = [];
+  for (const row of rawContactInserts) {
+    const companyId = resolveRowCompanyId(options.companyId, [campaignCompany.get(row.campaignId)]);
+    if (!companyId) {
+      result.failed++;
+      result.errors.push('Contact row refused: company scope unavailable');
+      continue;
+    }
+    contactInserts.push({ ...row, companyId });
+  }
+
   if (contactInserts.length === 0) {
+    result.success = result.failed === 0;
     return result;
   }
 

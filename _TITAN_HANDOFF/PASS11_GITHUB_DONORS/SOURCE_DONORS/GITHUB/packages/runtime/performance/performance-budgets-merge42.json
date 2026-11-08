@@ -1,0 +1,39 @@
+{
+  "schema": "titan.zero.performance-budgets.v1",
+  "baseline_merge": 42,
+  "source_baseline": "payload-baseline-merge41.json",
+  "budgets": {
+    "package_zip_bytes": {
+      "max": 40500000,
+      "current_reference": 38364031,
+      "reason": "Pass6 reconstructed package plus ~5.6% headroom"
+    },
+    "package_uncompressed_bytes": {
+      "max": 100000000,
+      "current_reference": 93343056,
+      "reason": "Slimmed reconstructed tree plus ~7% headroom"
+    },
+    "service_worker_static_closure_bytes": {
+      "max": 15500000,
+      "baseline_reference": 15179156,
+      "reason": "No growth beyond ~2.1% without explicit review"
+    },
+    "startup_p95_ms": {
+      "max": 40.0,
+      "baseline_reference": 33.214,
+      "reason": "~20% latency headroom over measured Merge41 mocked-Chrome profile"
+    },
+    "startup_positive_heap_delta_bytes": {
+      "max": 300000,
+      "baseline_reference": 206608,
+      "reason": "bounded headroom over measured profile"
+    }
+  },
+  "rules": {
+    "missing_measurement_fails": true,
+    "non_finite_fails": true,
+    "company_id_only": true,
+    "identity_not_authority": true,
+    "measurement_grants_authority": false
+  }
+}

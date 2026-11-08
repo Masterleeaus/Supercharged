@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "titan.authority.decision-lease.v1",
+  "type": "object",
+  "required": [
+    "company_id",
+    "state",
+    "lease_status",
+    "execution_eligible",
+    "authority_ceiling",
+    "local_can_raise_authority"
+  ],
+  "properties": {
+    "company_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "decision_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "capability": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "variant": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "workflow": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "context_ref": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "state": {
+      "enum": [
+        "fresh",
+        "stale",
+        "expired",
+        "revoked",
+        "suspended",
+        "unknown"
+      ]
+    },
+    "lease_status": {
+      "enum": [
+        "active",
+        "expired",
+        "revoked",
+        "suspended",
+        "unknown"
+      ]
+    },
+    "verified_at": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "lease_expires_at": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "evaluated_at": {
+      "type": "string"
+    },
+    "age_ms": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "max_fresh_age_ms": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "execution_eligible": {
+      "type": "boolean"
+    },
+    "authority_ceiling": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "reason_codes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "local_can_raise_authority": {
+      "const": false
+    },
+    "delegation": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "delegation_extinction": {
+      "type": [
+        "object",
+        "null"
+      ]
+    }
+  },
+  "additionalProperties": true
+}

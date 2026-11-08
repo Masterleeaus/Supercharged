@@ -18,6 +18,7 @@
 import express, { Request, Response, Router } from 'express';
 import { storage } from '../storage';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
+import { webhookRateLimiter } from '../middleware/rateLimiter';
 import { NotificationService } from '../services/notification-service';
 import { hasActiveMembership, syncUserWithSubscription } from '../services/membership-service';
 import {
@@ -444,7 +445,7 @@ router.post('/cancel-subscription', authenticateToken, async (req: AuthRequest, 
   }
 });
 
-router.post('/webhook', express.raw({ type: 'application/json' }), async (req: Request, res: Response) => {
+router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/json' }), async (req: Request, res: Response) => {
   try {
     const signature = req.headers['x-paystack-signature'] as string;
     const rawBody = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);

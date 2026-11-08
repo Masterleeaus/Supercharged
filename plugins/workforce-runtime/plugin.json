@@ -1,0 +1,12 @@
+{
+  "name": "workforce-runtime",
+  "displayName": "Workforce Runtime",
+  "version": "0.1.0",
+  "description": "Wraps the existing workforce runtime, role catalogue, AI runtime, booking agent and approvals for the workforce mode. Registers nothing unless its enable flag is set.",
+  "author": "Titan Zero integration",
+  "entryPoint": "index.mjs",
+  "registerFunction": "registerPlugin",
+  "mode": "workforce",
+  "modules": ["workforce-runtime", "workforce-catalogue", "ai-runtime", "booking-agent", "approvals"],
+  "features": ["fail-closed", "env-gated", "no-database-migration", "wraps-existing-modules"]
+}

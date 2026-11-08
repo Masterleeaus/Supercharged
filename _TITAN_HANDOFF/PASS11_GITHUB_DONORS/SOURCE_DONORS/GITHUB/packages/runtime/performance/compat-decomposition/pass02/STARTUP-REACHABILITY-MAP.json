@@ -1,0 +1,64 @@
+{
+  "schema": "titan-zero-startup-reachability-map/v1",
+  "packet_id": "TZ-FIX-COMPAT-RUNTIME-DECOMPOSITION-001",
+  "pass": 2,
+  "surfaces": {
+    "content_document_start": {
+      "path": [
+        "manifest.content_scripts",
+        "titan-zero-chat-content.compat.js"
+      ],
+      "frequency": "EVERY_MATCHED_DOCUMENT_FRAME",
+      "run_at": "document_start",
+      "all_frames": true,
+      "matches": [
+        "http://*/*",
+        "https://*/*",
+        "<all_urls>"
+      ]
+    },
+    "background_service_worker": {
+      "path": [
+        "manifest.background.service_worker",
+        "background-bootstrap.js",
+        "compatibility/monica/background-runtime-boundary.mjs",
+        "titan-zero-chat-background.compat.js"
+      ],
+      "frequency": "SERVICE_WORKER_STARTUP"
+    },
+    "runtime_popup": {
+      "path": [
+        "monicaPopup.html",
+        "titan-zero-chat-runtime.compat.js"
+      ],
+      "frequency": "SURFACE_OPEN"
+    },
+    "runtime_workspace": {
+      "path": [
+        "titan-zero-chat-runtime.html",
+        "titan-zero-chat-runtime.compat.js"
+      ],
+      "frequency": "SURFACE_OPEN"
+    },
+    "content_chat_tab": {
+      "path": [
+        "chatTab.html",
+        "titan-zero-chat-content.compat.js"
+      ],
+      "frequency": "SURFACE_OPEN"
+    },
+    "content_options": {
+      "path": [
+        "monicaOptions.html",
+        "titan-zero-chat-content.compat.js"
+      ],
+      "frequency": "SURFACE_OPEN"
+    }
+  },
+  "risk_order": [
+    "content_document_start",
+    "background_service_worker",
+    "runtime_popup/runtime_workspace"
+  ],
+  "first_extraction_guidance": "Prefer a UI-on-open optional domain after Pass3 source-equivalence mapping; do not begin with document_start shell or background handler wiring."
+}

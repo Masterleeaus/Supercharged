@@ -1,0 +1,10 @@
+{
+  "schema": "titan-zero-semantic-change/v1",
+  "packet_id": "TZ-FIX-COMPAT-RUNTIME-DECOMPOSITION-001",
+  "pass": 1,
+  "production_runtime_changed": false,
+  "ui_changed": false,
+  "feature_removed": false,
+  "change": "Added machine-readable census and startup-reachability evidence for the three oversized compatibility runtimes.",
+  "next_pass": "Build deterministic call-graph/startup-reachability maps and classify code into always-on shell and optional feature domains."
+}

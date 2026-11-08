@@ -594,7 +594,7 @@ export class CampaignScheduler {
         const { webhookDeliveryService } = await import('./webhook-delivery');
         const eventType = status === 'cancelled' ? 'campaign.cancelled' : 'campaign.failed';
         
-        await webhookDeliveryService.triggerEvent(campaign.userId, eventType, {
+        await webhookDeliveryService.triggerEvent(campaign.companyId ?? null, campaign.userId, eventType, {
           campaignId: campaign.id,
           campaignName: campaign.name,
           status: status,
@@ -923,7 +923,7 @@ export class CampaignScheduler {
           status: contact.status,
         }));
 
-        await webhookDeliveryService.triggerEvent(campaign.userId, 'campaign.completed', {
+        await webhookDeliveryService.triggerEvent(campaign.companyId ?? null, campaign.userId, 'campaign.completed', {
           campaign: {
             id: campaign.id,
             name: campaign.name,

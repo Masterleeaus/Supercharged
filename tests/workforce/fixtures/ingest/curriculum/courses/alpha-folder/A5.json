@@ -1,0 +1,7 @@
+{
+  "id": "A5",
+  "title": "Alpha lesson with an unknown course slug",
+  "status": "DRAFT",
+  "courseSlugs": ["alpha-clean", "not-a-course"],
+  "instruction": [{ "heading": "Pins", "body": "Pinned to the known course only." }]
+}

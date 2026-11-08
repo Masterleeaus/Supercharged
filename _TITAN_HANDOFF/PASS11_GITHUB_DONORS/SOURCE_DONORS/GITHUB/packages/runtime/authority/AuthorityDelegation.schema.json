@@ -1,0 +1,26 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"titan.authority.delegation.v1",
+  "type":"object",
+  "required":["company_id","delegation_id","parent_decision_id","child_decision_id","depth","delegated_at","parent_status","extinction_conditions","identity_confers_authority","delegation_confers_authority"],
+  "properties":{
+    "company_id":{"type":"string","minLength":1},
+    "delegation_id":{"type":"string","minLength":1},
+    "parent_decision_id":{"type":"string","minLength":1},
+    "child_decision_id":{"type":"string","minLength":1},
+    "parent_delegation_id":{"type":["string","null"]},
+    "depth":{"type":"integer","minimum":1,"maximum":8},
+    "delegated_by":{"type":["string","null"]},
+    "delegated_to":{"type":["string","null"]},
+    "delegated_at":{"type":"string","minLength":1},
+    "expires_at":{"type":["string","null"]},
+    "capability":{"type":["string","null"]},
+    "workflow":{"type":["string","null"]},
+    "context_ref":{"type":["string","null"]},
+    "parent_status":{"enum":["verified","suspended","revoked","expired"]},
+    "extinction_conditions":{"type":"object"},
+    "identity_confers_authority":{"const":false},
+    "delegation_confers_authority":{"const":false}
+  },
+  "additionalProperties":false
+}

@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "files": {
+    "desk/server/integrations/titan-field/protocol.mjs": {
+      "sha256": "1072f90cee6f638c4959fc18182bb13ed821f07e4dbf55eedfd83c98a41e1445",
+      "bytes": 6278
+    },
+    "desk/server/integrations/titan-field/receiver.mjs": {
+      "sha256": "c7a33b73b94e42eeb3d1b0a4c107fb5c103e88a64652a109f6fbec4b1d46296b",
+      "bytes": 3571
+    },
+    "desk/server/integrations/titan-field/route.ts": {
+      "sha256": "4e903b20ca91dae3a95ea27058bd328ec805ff29a9b68236de1510e23d6aec73",
+      "bytes": 1549
+    },
+    "field/apps/web/lib/titan/desk-bridge/protocol.mjs": {
+      "sha256": "1072f90cee6f638c4959fc18182bb13ed821f07e4dbf55eedfd83c98a41e1445",
+      "bytes": 6278
+    },
+    "field/apps/web/lib/titan/desk-bridge/client.mjs": {
+      "sha256": "e777095dd7031dc346dc000ca86662bfc1974e4d46d5be4098b4d386f1e77dd8",
+      "bytes": 2708
+    },
+    "field/apps/web/app/api/v1/titan/desk-bridge/preview/route.ts": {
+      "sha256": "4ba1f4f2228604bdc1428317a8b552e3dc47c68e3e4e20b6e497417e602eca70",
+      "bytes": 3239
+    },
+    "verification/desk-routes.patch": {
+      "sha256": "ea1ea8d0a3958c6dfa06816d40ca0782f3272fdf79549c1e99a3f7d9bbcb2223",
+      "bytes": 1098
+    },
+    "verification/bridge.integration.test.mjs": {
+      "sha256": "cd5432f048b3d4108d8c67026953018073d1ec7a100c40446a4fbfc7bf769662",
+      "bytes": 10216
+    },
+    "verification/HANDOFF.md": {
+      "sha256": "ac90149c340d059b15a7315034edc49a7fd4593c87da9a6731677cadbd6e55c1",
+      "bytes": 7366
+    }
+  }
+}

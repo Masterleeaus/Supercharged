@@ -1,0 +1,11 @@
+{
+  "schema": "titan.zero.donor-surface-registry.v1",
+  "surfaces": {
+    "chatTab": {"runtime":"titan-zero-chat-content.compat.js","activation":"page_open","startup_required":false,"retained_compatibility":true},
+    "monicaOptions": {"runtime":"titan-zero-chat-content.compat.js","activation":"page_open","startup_required":false,"retained_compatibility":true},
+    "monicaPopup": {"runtime":"titan-zero-chat-runtime.compat.js","stylesheet":"titan-zero-chat-runtime.compat.css","activation":"page_open","startup_required":false,"retained_compatibility":true},
+    "retrieverBackground": {"runtime":"retriever-background.iife.js","activation":"background_boundary","startup_required":true,"retained_compatibility":true,"deferred_retirement_gate":"TZ-FIX-RUNTIME-ADAPTERS-001_MANAGER_MERGED"}
+  },
+  "authority_neutral": true,
+  "identity_confers_authority": false
+}

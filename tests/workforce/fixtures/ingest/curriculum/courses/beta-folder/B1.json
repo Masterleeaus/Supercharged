@@ -1,0 +1,7 @@
+{
+  "id": "B1",
+  "title": "Beta lesson one",
+  "status": "DRAFT",
+  "courseSlugs": ["beta-pool"],
+  "instruction": [{ "heading": "Pool", "body": "Check water clarity before entry." }]
+}

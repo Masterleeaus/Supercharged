@@ -22,12 +22,8 @@ const updateUpload = multer({
 });
 
 function clientIp(req: AdminRequest): string {
-  return (
-    req.ip ||
-    (req.headers['x-forwarded-for']?.toString().split(',')[0]) ||
-    req.socket?.remoteAddress ||
-    'unknown'
-  );
+  // req.ip honours TRUST_PROXY. X-Forwarded-For is client-controlled and is never read here.
+  return req.ip || req.socket?.remoteAddress || 'unknown';
 }
 
 // Per-IP rate limit on destructive operations: max 3 attempts per hour.

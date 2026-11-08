@@ -1,0 +1,2227 @@
+{
+  "schema": "titan-zero-tool-registry/v1",
+  "status": "CANONICAL_REGISTRY_ESTABLISHED",
+  "source_census": "packages/tools/TOOL-CENSUS.json",
+  "tool_count": 39,
+  "canonical_company_boundary": "company_id",
+  "rules": {
+    "preserve_existing_rich_ui": true,
+    "reuse_before_rebuild": true,
+    "identity_does_not_grant_authority": true,
+    "device_first_cost_sovereignty": true,
+    "safety_critical_cleaning_guidance_requires_authoritative_sources": true,
+    "manager_convergence_required_each_pass": true
+  },
+  "tools": [
+    {
+      "tool_id": "write",
+      "name": "Writing assistant",
+      "category": "Writing & language",
+      "cleaning_relevance": "high",
+      "cleaning_use_cases": [
+        "quotes",
+        "scopes",
+        "customer_messages",
+        "job_notes",
+        "policies",
+        "marketing"
+      ],
+      "supported_roles": [
+        "owner",
+        "manager",
+        "reception",
+        "estimator",
+        "supervisor",
+        "cleaner",
+        "marketing"
+      ],
+      "inputs": [
+        "company_context",
+        "user_request"
+      ],
+      "outputs": [
+        "tool_result",
+        "provenance_receipt"
+      ],
+      "launch_surface": "existing_titan_surface",
+      "authority_class": "content_generation",
+      "grants_execution_authority": false,
+      "company_scope": {
+        "canonical_key": "company_id",
+        "required_for_business_data": true,
+        "legacy_keys_authoritative": false
+      },
+      "autonomy_ceiling": "Assist",
+      "cost_route": [
+        "on_device",
+        "local_customer_model",
+        "byo_api",
+        "byo_service",
+        "titan_entitled",
+        "titan_metered_addon"
+      ],
+      "offline": {
+        "suitable": true,
+        "requires_queue_for_effects": false
+      },
+      "retained_status": "runtime_and_ui_evidence",
+      "historical_evidence": [
+        "static/global/src/static/chatBox/chatHomeView/chatHomeViewWrite.png",
+        "static/global/src/static/chatBox/chatHomeView/writingAgent.png",
+        "titan-zero-chat-content.compat.js",
+        "static/writingToolExample.png"
+      ],
+      "current_source_verification": "required"
+    },
+    {
+      "tool_id": "rewrite",
+      "name": "Rewrite text",
+      "category": "Writing & language",
+      "cleaning_relevance": "high",
+      "cleaning_use_cases": [
+        "customer_messages",
+        "quotes",
+        "job_notes",
+        "marketing"
+      ],
+      "supported_roles": [
+        "owner",
+        "manager",
+        "reception",
+        "estimator",
+        "supervisor",
+        "cleaner",
+        "marketing"
+      ],
+      "inputs": [
+        "company_context",
+        "user_request"
+      ],
+      "outputs": [
+        "tool_result",
+        "provenance_receipt"
+      ],
+      "launch_surface": "existing_titan_surface",
+      "authority_class": "content_generation",
+      "grants_execution_authority": false,
+      "company_scope": {
+        "canonical_key": "company_id",
+        "required_for_business_data": true,
+        "legacy_keys_authoritative": false
+      },
+      "autonomy_ceiling": "Assist",
+      "cost_route": [
+        "on_device",
+        "local_customer_model",
+        "byo_api",
+        "byo_service",
+        "titan_entitled",
+        "titan_metered_addon"
+      ],
+      "offline": {
+        "suitable": true,
+        "requires_queue_for_effects": false
+      },
+      "retained_status": "runtime_and_ui_evidence",
+      "historical_evidence": [
+        "titan-zero-chat-content.compat.js",
+        "static/global/src/static/OnboardingDialog/rewriteText.png"
+      ],
+      "current_source_verification": "required"
+    },
+    {
+      "tool_id": "grammar",
+      "name": "Grammar checker",
+      "category": "Writing & language",
+      "cleaning_relevance": "high",
+      "cleaning_use_cases": [
+        "customer_messages",
+        "quotes",
+        "reports"
+      ],
+      "supported_roles": [
+        "owner",
+        "manager",
+        "reception",
+        "estimator",
+        "supervisor",
+        "cleaner",
+        "marketing"
+      ],
+      "inputs": [
+        "company_context",
+        "user_request"
+      ],
+      "outputs": [
+        "tool_result",
+        "provenance_receipt"
+      ],
+      "launch_surface": "existing_titan_surface",
+      "authority_class": "content_generation",
+      "grants_execution_authority": false,
+      "company_scope": {
+        "canonical_key": "company_id",
+        "required_for_business_data": true,
+        "legacy_keys_authoritative": false
+      },
+      "autonomy_ceiling": "Assist",
+      "cost_route": [
+        "on_device",
+        "local_customer_model",
+        "byo_api",
+        "byo_service",
+        "titan_entitled",
+        "titan_metered_addon"
+      ],
+      "offline": {
+        "suitable": true,
+        "requires_queue_for_effects": false
+      },
+      "retained_status": "runtime_and_ui_evidence",
+      "historical_evidence": [
+        "static/global/src/static/chatBox/chatHomeView/grammarly.png",
+        "static/grammarCheck.mp4",
+        "titan-zero-chat-content.compat.js",
+        "static/grammarCheckExample.png"
+      ],
+      "current_source_verification": "required"
+    },
+    {
+      "tool_id": "translate",
+      "name": "Translate",
+      "category": "Writing & language",
+      "cleaning_relevance": "high",
+      "cleaning_use_cases": [
+        "multilingual_customers",
+        "worker_instructions",
+        "safety_information"
+      ],
+      "supported_roles": [
+        "owner",
+        "manager",
+        "reception",
+        "estimator",
+        "supervisor",
+        "cleaner",
+        "marketing"
+      ],
+      "inputs": [
+        "company_context",
+        "user_request"
+      ],
+      "outputs": [
+        "tool_result",
+        "provenance_receipt"
+      ],
+      "launch_surface": "existing_titan_surface",
+      "authority_class": "content_generation",
+      "grants_execution_authority": false,
+      "company_scope": {
+        "canonical_key": "company_id",
+        "required_for_business_data": true,
+        "legacy_keys_authoritative": false
+      },
+      "autonomy_ceiling": "Assist",
+      "cost_route": [
+        "on_device",
+        "local_customer_model",
+        "byo_api",
+        "byo_service",
+        "titan_entitled",
+        "titan_metered_addon"
+      ],
+      "offline": {
+        "suitable": true,
+        "requires_queue_for_effects": false
+      },
+      "retained_status": "runtime_and_ui_evidence",
+      "historical_evidence": [
+        "static/global/src/static/chatBox/chatHomeView/chatHomeViewTranslate.png",
+        "static/global/src/static/discover/discoverTranslate.png",
+        "titan-zero-chat-content.compat.js",
+        "static/global/src/static/OnboardingDialog/webTranslate.png"
+      ],
+      "current_source_verification": "required"
+    },
+    {
+      "tool_id": "summarize",
+      "name": "Summarise content",
+      "category": "Reading & research",
+      "cleaning_relevance": "high",
+      "cleaning_use_cases": [
+        "sops",
+        "manuals",
+        "contracts",
+        "customer_requirements"
+      ],
+      "supported_roles": [
+        "owner",
+        "manager",
+        "estimator",
+        "supervisor",
+        "cleaner"
+      ],
+      "inputs": [
+        "company_context",
+        "user_request"
+      ],
+      "outputs": [
+        "tool_result",
+        "provenance_receipt"
+      ],
+      "launch_surface": "existing_titan_surface",
+      "authority_class": "read_or_analysis",
+      "grants_execution_authority": false,
+      "company_scope": {
+        "canonical_key": "company_id",
+        "required_for_business_data": true,
+        "legacy_keys_authoritative": false
+      },
+      "autonomy_ceiling": "Assist",
+      "cost_route": [
+        "on_device",
+        "local_customer_model",
+        "byo_api",
+        "byo_service",
+        "titan_entitled",
+        "titan_metered_addon"
+      ],
+      "offline": {
+        "suitable": true,
+        "requires_queue_for_effects": false
+      },
+      "retained_status": "static_parity_evidence",
+      "historical_evidence": [
+        "titan-regression/monica-retriever/PASS05-VISUAL-DOM-FEATURE-MATRIX.json",
+        "titan-zero-chat-content.compat.js"
+      ],
+      "current_source_verification": "required"
+    },
+    {
+      "tool_id": "read",
+      "name": "Reading assistant",
+      "category": "Reading & research",
+      "cleaning_relevance": "high",
+      "cleaning_use_cases": [
+        "sops",
+        "manuals",
+        "contracts",
+        "regulatory_guidance"
+      ],
+      "supported_roles": [
+        "owner",
+        "manager",
+        "estimator",
+        "supervisor",
+        "cleaner"
+      ],
+      "inputs": [
+        "company_context",
+        "user_request"
+      ],
+      "outputs": [
+        "tool_result",
+        "provenance_receipt"
+      ],
+      "launch_surface": "existing_titan_surface",
+      "authority_class": "read_or_analysis",
+      "grants_execution_authority": false,
+      "company_scope": {
+        "canonical_key": "company_id",
+        "required_for_business_data": true,
+        "legacy_keys_authoritative": false
+      },
+      "autonomy_ceiling": "Assist",
+      "cost_route": [
+        "on_device",
+        "local_customer_model",
+        "byo_api",
+        "byo_service",
+        "titan_entitled",
+        "titan_metered_addon"
+      ],
+      "offline": {
+        "suitable": true,
+        "requires_queue_for_effects": false
+      },
+      "retained_status": "runtime_and_ui_evidence",
+      "historical_evidence": [
+        "static/global/src/static/chatBox/chatHomeView/read.png",
+        "titan-zero-chat-content.compat.js",
+        "static/readingToolExample.png"
+      ],
+      "current_source_verification": "required"
+    },
+    {
+      "tool_id": "search",
+      "name": "AI search",
+      "category": "Search & web",
+      "cleaning_relevance": "high",
+      "cleaning_use_cases": [
+        "products",
+        "equipment",
+        "surfaces",
+        "suppliers",
+        "regulations",
+        "market_research"
+      ],
+      "supported_roles": [
+        "owner",
+        "manager",
+        "reception",
+        "estimator",
+        "supervisor"
+      ],
+      "inputs": [
+        "company_context",
+        "user_request"
+      ],
+      "outputs": [
+        "tool_result",
+        "provenance_receipt"
+      ],
+      "launch_surface": "existing_titan_surface",
+      "authority_class": "read_or_analysis",
+      "grants_execution_authority": false,
+      "company_scope": {
+        "canonical_key": "company_id",
+        "required_for_business_data": true,
+        "legacy_keys_authoritative": false
+      },
+      "autonomy_ceiling": "Assist",
+      "cost_route": [
+        "on_device",
+        "local_customer_model",
+        "byo_api",
+        "byo_service",
+        "titan_entitled",
+        "titan_metered_addon"
+      ],
+      "offline": {
+        "suitable": false,
+        "requires_queue_for_effects": false
+      },
+      "retained_status": "runtime_and_ui_evidence",
+      "historical_evidence": [
+        "static/global/src/static/chatBox/chatHomeView/aiSearch.png",
+        "titan-zero-chat-content.compat.js",
+        "static/SearchAssistantExample.png",
+        "static/global/src/static/OnboardingDialog/searchAgent.png"
+      ],
+      "current_source_verification": "verified-current",
+      "current_sources": [
+        "apps/web/app/api/v1/search/route.ts",
+        "apps/web/components/GlobalSearch.tsx"
+      ]
+    },
+    {
+      "tool_id": "webpage_assistant",
+      "name": "Webpage assistant",
+      "category": "Search & web",
+      "cleaning_relevance": "high",
+      "cleaning_use_cases": [
+        "supplier_pages",
+        "product_pages",
+        "regulatory_pages"
+      ],
+      "supported_roles": [
+        "owner",
+        "manager",
+        "reception",
+        "estimator",
+        "supervisor"
+      ],
+      "inputs": [
+        "company_context",
+        "user_request"
+      ],
+      "outputs": [
+        "tool_result",
+        "provenance_receipt"
+      ],
+      "launch_surface": "existing_titan_surface",
+      "authority_class": "read_or_analysis",
+      "grants_execution_authority": false,
+      "company_scope": {
+        "canonical_key": "company_id",
+        "required_for_business_data": true,
+        "legacy_keys_authoritative": false
+      },
+      "autonomy_ceiling": "Assist",
+      "cost_route": [
+        "on_device",
+        "local_customer_model",
+        "byo_api",
+        "byo_service",
+        "titan_entitled",
+        "titan_metered_addon"
+      ],
+      "offline": {
+        "suitable": false,
+        "requires_queue_for_effects": false
+      },
+      "retained_status": "runtime_and_ui_evidence",
+      "historical_evidence": [
+        "titan-regression/monica-retriever/fixtures/webpage-assistant.html",
+        "titan-zero-chat-content.compat.js",
+        "static/global/src/static/OnboardingDialog/webAccessV2.png",
+        "static/global/src/static/OnboardingDialog/webSummary.png"
+      ],
+      "current_source_verification": "required"
+    },
+    {
+      "tool_id": "full_page",
+      "name": "Full-page assistant",
+      "category": "Search & web",
+      "cleaning_relevance": "high",
+      "cleaning_use_cases": [
+        "supplier_pages",
+        "manuals",
+        "research"
+      ],
+      "supported_roles": [
+        "owner",
+        "manager",
+        "reception",
+        "estimator",
+        "supervisor"
+      ],
+      "inputs": [
+        "company_context",
+        "user_request"
+      ],
+      "outputs": [
+        "tool_result",
+        "provenance_receipt"
+      ],
+      "launch_surface": "existing_titan_surface",
+      "authority_class": "read_or_analysis",
+      "grants_execution_authority": false,
+      "company_scope": {
+        "canonical_key": "company_id",
+        "required_for_business_data": true,
+        "legacy_keys_authoritative": false
+      },
+      "autonomy_ceiling": "Assist",
+      "cost_route": [
+        "on_device",
+        "local_customer_model",
+        "byo_api",
+        "byo_service",
+        "titan_entitled",
+        "titan_metered_addon"
+      ],
+      "offline": {
+        "suitable": false,
+        "requires_queue_for_effects": false
+      },
+      "retained_status": "ui_asset_evidence",
+      "historical_evidence": [
+        "static/global/src/static/chatBox/chatHomeView/fullPage.png",
+        "chatTab.html"
+      ],
+      "current_source_verification": "required"
+    },
+    {
+      "tool_id": "text_selection",
+      "name": "Text-selection toolbar",
+      "category": "Search & web",
+      "cleaning_relevance": "high",
+      "cleaning_use_cases": [
+        "product_specs",
+        "regulatory_text",
+        "customer_requirements"
+      ],
+      "supported_roles": [
+        "owner",
+        "manager",
+        "reception",
+        "estimator",
+        "supervisor"
+      ],
+      "inputs": [
+        "company_context",
+        "user_request"
+      ],
+      "outputs": [
+        "tool_result",
+        "provenance_receipt"
+      ],
+      "launch_surface": "existing_titan_surface",
+      "authority_class": "read_or_analysis",
+      "grants_execution_authority": false,
+      "company_scope": {
+        "canonical_key": "company_id",
+        "required_for_business_data": true,
+        "legacy_keys_authoritative": false
+      },
+      "autonomy_ceiling": "Assist",
+      "cost_route": [
+        "on_device",
+        "local_customer_model",
+        "byo_api",
+        "byo_service",
+        "titan_entitled",
+        "titan_metered_addon"
+      ],
+      "offline": {
+        "suitable": false,
+        "requires_queue_for_effects": false
+      },
+      "retained_status": "static_parity_evidence",
+      "historical_evidence": [
+        "static/contextual-toolbar-guide.webp",
+        "titan-regression/monica-retriever/PASS05-VISUAL-DOM-FEATURE-MATRIX.json",
+        "titan-zero-chat-content.compat.js"
+      ],
+      "current_source_verification": "required"
+    },
+    {
+      "tool_id": "floating_assistant",
+      "name": "Floating page assistant",
+      "category": "Search & web",
+      "cleaning_relevance": "high",
+      "cleaning_use_cases": [
+        "in_browser_cleaning_research"
+      ],
+      "supported_roles": [
+        "owner",
+        "manager",
+        "reception",
+        "estimator",
+        "supervisor"
+      ],
+      "inputs": [
+        "company_context",
+        "user_request"
+      ],
+      "outputs": [
+        "tool_result",
+        "provenance_receipt"
+      ],
+      "launch_surface": "existing_titan_surface",
+      "authority_class": "read_or_analysis",
+      "grants_execution_authority": false,
+      "company_scope": {
+        "canonical_key": "company_id",
+        "required_for_business_data": true,
+        "legacy_keys_authoritative": false
+      },
+      "autonomy_ceiling": "Assist",
+      "cost_route": [
+        "on_device",
+        "local_customer_model",
+        "byo_api",
+        "byo_service",
+        "titan_entitled",
+        "titan_metered_addon"
+      ],
+      "offline": {
+        "suitable": false,
+        "requires_queue_for_effects": false
+      },
+      "retained_status": "runtime_evidence",
+      "historical_evidence": [
+        "titan-zero-chat-content.compat.js",
+        "content.css",
+        "monica-content.js"
+      ],
+      "current_source_verification": "required"
+    },
+    {
+      "tool_id": "chatpdf",
+      "name": "Chat with PDF / document assistant",
+      "category": "Documents",
+      "cleaning_relevance": "high",
+      "cleaning_use_cases": [
+        "sds",
+        "sops",
+        "manuals",
+        "contracts",
+        "tenders",
+        "training"
+      ],
+      "supported_roles": [
+        "owner",
+        "manager",
+        "reception",
+        "estimator",
+        "supervisor",
+        "accounts"
+      ],
+      "inputs": [
+        "company_context",
+        "user_request"
+      ],
+      "outputs": [
+        "tool_result",
+        "provenance_receipt"
+      ],
+      "launch_surface": "existing_titan_surface",
+      "authority_class": "read_or_analysis",
+      "grants_execution_authority": false,
+      "company_scope": {
+        "canonical_key": "company_id",
+        "required_for_business_data": true,
+        "legacy_keys_authoritative": false
+      },
+      "autonomy_ceiling": "Assist",
+      "cost_route": [
+        "on_device",
+        "local_customer_model",
+        "byo_api",
+        "byo_service",
+        "titan_entitled",
+        "titan_metered_addon"
+      ],
+      "offline": {
+        "suitable": false,
+        "requires_queue_for_effects": false
+      },
+      "retained_status": "runtime_and_ui_evidence",
+      "historical_evidence": [
+        "static/global/src/static/chatBox/chatHomeView/chatHomeViewChatPdf.png",
+        "static/global/src/static/discover/discoverChatPdf.png",
+        "static/pdf.worker.min.mjs",
+        "titan-zero-chat-content.compat.js",
+        "static/global/src/static/OnboardingDialog/chatWithPDF.png"
+      ],
+      "current_source_verification": "required"
+    },
+    {
+      "tool_id": "pdf_generate_fill",
+      "name": "Generate or fill PDFs",
+      "category": "Documents",
+      "cleaning_relevance": "high",
+      "cleaning_use_cases": [
+        "reports",
+        "forms",
+        "customer_documents"
+      ],
+      "supported_roles": [
+        "owner",
+        "manager",
+        "reception",
+        "estimator",
+        "supervisor",
+        "accounts"
+      ],
+      "inputs": [
+        "company_context",
+        "user_request"
+      ],
+      "outputs": [
+        "tool_result",
+        "provenance_receipt"
+      ],
+      "launch_surface": "existing_titan_surface",
+      "authority_class": "protected_execution",
+      "grants_execution_authority": false,
+      "company_scope": {
+        "canonical_key": "company_id",
+        "required_for_business_data": true,
+        "legacy_keys_authoritative": false
+      },
+      "autonomy_ceiling": "Semi-Auto",
+      "cost_route": [
+        "on_device",
+        "local_customer_model",
+        "byo_api",
+        "byo_service",
+        "titan_entitled",
+        "titan_metered_addon"
+      ],
+      "offline": {
+        "suitable": false,
+        "requires_queue_for_effects": true
+      },
+      "retained_status": "runtime_evidence",
+      "historical_evidence": [
+        "retriever-capability-catalog.json"
+      ],
+      "current_source_verification": "verified-current",
+      "current_sources": [
+        "apps/web/lib/pdf/document-pdf.ts",
+        "apps/web/app/api/v1/estimates/[id]/pdf/route.ts",
+        "apps/web/app/api/v1/invoices/[id]/pdf/route.ts"
+      ]
+    },
+    {
+      "tool_id": "youtube_assistant",
+      "name": "YouTube assistant / summariser",
+      "category": "Documents",
+      "cleaning_relevance": "high",
+      "cleaning_use_cases": [
+        "training_videos",
+        "equipment_guides"
+      ],
+      "supported_roles": [
+        "owner",
+        "manager",
+        "reception",
+        "estimator",
+        "supervisor",
+        "accounts"
+      ],
+      "inputs": [
+        "company_context",
+        "user_request"
+      ],
+      "outputs": [
+        "tool_result",
+        "provenance_receipt"
+      ],
+      "launch_surface": "existing_titan_surface",
+      "authority_class": "read_or_analysis",
+      "grants_execution_authority": false,
+      "company_scope": {
+        "canonical_key": "company_id",
+        "required_for_business_data": true,
+        "legacy_keys_authoritative": false
+      },
+      "autonomy_ceiling": "Assist",
+      "cost_route": [
+        "on_device",
+        "local_customer_model",
+        "byo_api",
+        "byo_service",
+        "titan_entitled",
+        "titan_metered_addon"
+      ],
+      "offline": {
+        "suitable": false,
+        "requires_queue_for_effects": false
+      },
+      "retained_status": "static_parity_evidence",
+      "historical_evidence": [
+        "static/youtube-injected-script.js",
+        "titan-regression/monica-retriever/PASS05-VISUAL-DOM-FEATURE-MATRIX.json",
+        "static/global/src/static/OnboardingDialog/youTubeSummary.png"
+      ],
+      "current_source_verification": "required"
+    },
+    {
+      "tool_id": "mindmap",
+      "name": "Mind map",
+      "category": "Analysis",
+      "cleaning_relevance": "high",
+      "cleaning_use_cases": [
+        "process_mapping",
+        "training",
+        "business_investigation"
+      ],
+      "supported_roles": [
+        "owner",
+        "manager",
+        "estimator",
+        "supervisor",
+        "marketing"
+      ],
+      "inputs": [
+        "company_context",
+        "user_request"
+      ],
+      "outputs": [
+        "tool_result",
+        "provenance_receipt"
+      ],
+      "launch_surface": "existing_titan_surface",
+      "authority_class": "read_or_analysis",
+      "grants_execution_authority": false,
+      "company_scope": {
+        "canonical_key": "company_id",
+        "required_for_business_data": true,
+        "legacy_keys_authoritative": false
+      },
+      "autonomy_ceiling": "Assist",
+      "cost_route": [
+        "on_device",
+        "local_customer_model",
+        "byo_api",
+        "byo_service",
+        "titan_entitled",
+        "titan_metered_addon"
+      ],
+      "offline": {
+        "suitable": true,
+        "requires_queue_for_effects": false
+      },
+      "retained_status": "runtime_and_ui_evidence",
+      "historical_evidence": [
+        "static/global/src/static/chatBox/chatHomeView/chatHomeViewMindmap.png",
+        "static/global/src/static/discover/mindmap.png",
+        "titan-zero-chat-content.compat.js",
+        "static/global/src/static/lowCode/mindmapCover.webp"
+      ],
+      "current_source_verification": "required"
+    },
+    {
+      "tool_id": "ai_detector",
+      "name": "AI content detector",
+      "category": "Analysis",
+      "cleaning_relevance": "high",
+      "cleaning_use_cases": [
+        "content_quality",
+        "marketing_review"
+      ],
+      "supported_roles": [
+        "owner",
+        "manager",
+        "estimator",
+        "supervisor",
+        "marketing"
+      ],
+      "inputs": [
+        "company_context",
+        "user_request"
+      ],
+      "outputs": [
+        "tool_result",
+        "provenance_receipt"
+      ],
+      "launch_surface": "existing_titan_surface",
+      "authority_class": "read_or_analysis",
+      "grants_execution_authority": false,
+      "company_scope": {
+        "canonical_key": "company_id",
+        "required_for_business_data": true,
+        "legacy_keys_authoritative": false
+      },
+      "autonomy_ceiling": "Assist",
+      "cost_route": [
+        "on_device",
+        "local_customer_model",
+        "byo_api",
+        "byo_service",
+        "titan_entitled",
+        "titan_metered_addon"
+      ],
+      "offline": {
+        "suitable": false,
+        "requires_queue_for_effects": false
+      },
+      "retained_status": "runtime_and_ui_evidence",
+      "historical_evidence": [
+        "static/global/src/static/chatBox/chatHomeView/chatHomeViewAiDetector.png",
+        "static/global/src/static/discover/aiDetector.png",
+        "titan-zero-chat-content.compat.js",
+        "static/global/src/static/OnboardingDialog/aiContentDetector.webp"
+      ],
+      "current_source_verification": "required"
+    },
+    {
+      "tool_id": "humanize",
+      "name": "Humanise text",
+      "category": "Analysis",
+      "cleaning_relevance": "high",
+      "cleaning_use_cases": [
+        "customer_messages",
+        "marketing"
+      ],
+      "supported_roles": [
+        "owner",
+        "manager",
+        "estimator",
+        "supervisor",
+        "marketing"
+      ],
+      "inputs": [
+        "company_context",
+        "user_request"
+      ],
+      "outputs": [
+        "tool_result",
+        "provenance_receipt"
+      ],
+      "launch_surface": "existing_titan_surface",
+      "authority_class": "read_or_analysis",
+      "grants_execution_authority": false,
+      "company_scope": {
+        "canonical_key": "company_id",
+        "required_for_business_data": true,
+        "legacy_keys_authoritative": false
+      },
+      "autonomy_ceiling": "Assist",
+      "cost_route": [
+        "on_device",
+        "local_customer_model",
+        "byo_api",
+        "byo_service",
+        "titan_entitled",
+        "titan_metered_addon"
+      ],
+      "offline": {
+        "suitable": true,
+        "requires_queue_for_effects": false
+      },
+      "retained_status": "ui_asset_evidence",
+      "historical_evidence": [
+        "static/global/src/static/chatBox/chatHomeView/chatHomeViewHumanize.png",
+        "static/global/src/static/discover/discoverHumanize.png"
+      ],
+      "current_source_verification": "required"
+    },
+    {
+      "tool_id": "podcast",
+      "name": "Podcast tool",
+      "category": "Audio",
+      "cleaning_relevance": "high",
+      "cleaning_use_cases": [
+        "training",
+        "marketing"
+      ],
+      "supported_roles": [
+        "owner",
+        "manager",
+        "reception",
+        "supervisor",
+        "cleaner",
+        "marketing"
+      ],
+      "inputs": [
+        "company_context",
+        "user_request"
+      ],
+      "outputs": [
+        "tool_result",
+        "provenance_receipt"
+      ],
+      "launch_surface": "existing_titan_surface",
+      "authority_class": "content_generation",
+      "grants_execution_authority": false,
+      "company_scope": {
+        "canonical_key": "company_id",
+        "required_for_business_data": true,
+        "legacy_keys_authoritative": false
+      },
+      "autonomy_ceiling": "Assist",
+      "cost_route": [
+        "on_device",
+        "local_customer_model",
+        "byo_api",
+        "byo_service",
+        "titan_entitled",
+        "titan_metered_addon"
+      ],
+      "offline": {
+        "suitable": false,
+        "requires_queue_for_effects": false
+      },
+      "retained_status": "ui_asset_evidence",
+      "historical_evidence": [
+        "static/global/src/static/chatBox/chatHomeView/chatHomeViewPodcast.png",
+        "static/global/src/static/discover/discoverPodcast.png"
+      ],
+      "current_source_verification": "required"
+    },
+    {
+      "tool_id": "audio_to_text",
+      "name": "Audio to text",
+      "category": "Audio",
+      "cleaning_relevance": "high",
+      "cleaning_use_cases": [
+        "calls",
+        "voice_notes",
+        "worker_reports",
+        "inspections"
+      ],
+      "supported_roles": [
+        "owner",
+        "manager",
+        "reception",
+        "supervisor",
+        "cleaner",
+        "marketing"
+      ],
+      "inputs": [
+        "company_context",
+        "user_request"
+      ],
+      "outputs": [
+        "tool_result",
+        "provenance_receipt"
+      ],
+      "launch_surface": "existing_titan_surface",
+      "authority_class": "read_or_analysis",
+      "grants_execution_authority": false,
+      "company_scope": {
+        "canonical_key": "company_id",
+        "required_for_business_data": true,
+        "legacy_keys_authoritative": false
+      },
+      "autonomy_ceiling": "Assist",
+      "cost_route": [
+        "on_device",
+        "local_customer_model",
+        "byo_api",
+        "byo_service",
+        "titan_entitled",
+        "titan_metered_addon"
+      ],
+      "offline": {
+        "suitable": true,
+        "requires_queue_for_effects": false
+      },
+      "retained_status": "runtime_and_ui_evidence",
+      "historical_evidence": [
+        "static/global/src/static/mainNav/fillAudioIcon.png",
+        "titan-zero-chat-content.compat.js",
+        "static/global/src/static/lowCode/audioToTextCover.webp"
+      ],
+      "current_source_verification": "required"
+    },
+    {
+      "tool_id": "image_generate",
+      "name": "Image generator",
+      "category": "Image & media",
+      "cleaning_relevance": "high",
+      "cleaning_use_cases": [
+        "marketing",
+        "training",
+        "service_explanations"
+      ],
+      "supported_roles": [
+        "owner",
+        "manager",
+        "estimator",
+        "supervisor",
+        "cleaner",
+        "marketing"
+      ],
+      "inputs": [
+        "company_context",
+        "user_request"
+      ],
+      "outputs": [
+        "tool_result",
+        "provenance_receipt"
+      ],
+      "launch_surface": "existing_titan_surface",
+      "authority_class": "content_generation",
+      "grants_execution_authority": false,
+      "company_scope": {
+        "canonical_key": "company_id",
+        "required_for_business_data": true,
+        "legacy_keys_authoritative": false
+      },
+      "autonomy_ceiling": "Assist",
+      "cost_route": [
+        "on_device",
+        "local_customer_model",
+        "byo_api",
+        "byo_service",
+        "titan_entitled",
+        "titan_metered_addon"
+      ],
+      "offline": {
+        "suitable": false,
+        "requires_queue_for_effects": false
+      },
+      "retained_status": "runtime_and_ui_evidence",
+      "historical_evidence": [
+        "static/global/src/static/chatBox/chatHomeView/imageGenerator.webp",
+        "static/global/src/static/mainNav/fillAiArt.png",
+        "titan-zero-chat-content.compat.js",
+        "static/global/src/static/OnboardingDialog/imageToolsV2.png"
+      ],
+      "current_source_verification": "required"
+    },
+    {
+      "tool_id": "image_edit",
+      "name": "Image editor",
+      "category": "Image & media",
+      "cleaning_relevance": "high",
+      "cleaning_use_cases": [
+        "before_after_content",
+        "marketing",
+        "training"
+      ],
+      "supported_roles": [
+        "owner",
+        "manager",
+        "estimator",
+        "supervisor",
+        "cleaner",
+        "marketing"
+      ],
+      "inputs": [
+        "company_context",
+        "user_request"
+      ],
+      "outputs": [
+        "tool_result",
+        "provenance_receipt"
+      ],
+      "launch_surface": "existing_titan_surface",
+      "authority_class": "content_generation",
+      "grants_execution_authority": false,
+      "company_scope": {
+        "canonical_key": "company_id",
+        "required_for_business_data": true,
+        "legacy_keys_authoritative": false
+      },
+      "autonomy_ceiling": "Assist",
+      "cost_route": [
+        "on_device",
+        "local_customer_model",
+        "byo_api",
+        "byo_service",
+        "titan_entitled",
+        "titan_metered_addon"
+      ],
+      "offline": {
+        "suitable": false,
+        "requires_queue_for_effects": false
+      },
+      "retained_status": "runtime_evidence",
+      "historical_evidence": [
+        "titan-zero-chat-content.compat.js",
+        "static/imageToolExample.png"
+      ],
+      "current_source_verification": "required"
+    },
+    {
+      "tool_id": "image_realtime",
+      "name": "Realtime image/canvas generation",
+      "category": "Image & media",
+      "cleaning_relevance": "high",
+      "cleaning_use_cases": [
+        "visual_explanations",
+        "marketing"
+      ],
+      "supported_roles": [
+        "owner",
+        "manager",
+        "estimator",
+        "supervisor",
+        "cleaner",
+        "marketing"
+      ],
+      "inputs": [
+        "company_context",
+        "user_request"
+      ],
+      "outputs": [
+        "tool_result",
+        "provenance_receipt"
+      ],
+      "launch_surface": "existing_titan_surface",
+      "authority_class": "content_generation",
+      "grants_execution_authority": false,
+      "company_scope": {
+        "canonical_key": "company_id",
+        "required_for_business_data": true,
+        "legacy_keys_authoritative": false
+      },
+      "autonomy_ceiling": "Assist",
+      "cost_route": [
+        "on_device",
+        "local_customer_model",
+        "byo_api",
+        "byo_service",
+        "titan_entitled",
+        "titan_metered_addon"
+      ],
+      "offline": {
+        "suitable": false,
+        "requires_queue_for_effects": false
+      },
+      "retained_status": "runtime_evidence",
+      "historical_evidence": [
+        "titan-zero-chat-content.compat.js"
+      ],
+      "current_source_verification": "required"
+    },
+    {
+      "tool_id": "image_restore_transform",
+      "name": "Image restoration and creative transforms",
+      "category": "Image & media",
+      "cleaning_relevance": "high",
+      "cleaning_use_cases": [
+        "evidence_cleanup_non_destructive",
+        "marketing"
+      ],
+      "supported_roles": [
+        "owner",
+        "manager",
+        "estimator",
+        "supervisor",
+        "cleaner",
+        "marketing"
+      ],
+      "inputs": [
+        "company_context",
+        "user_request"
+      ],
+      "outputs": [
+        "tool_result",
+        "provenance_receipt"
+      ],
+      "launch_surface": "existing_titan_surface",
+      "authority_class": "content_generation",
+      "grants_execution_authority": false,
+      "company_scope": {
+        "canonical_key": "company_id",
+        "required_for_business_data": true,
+        "legacy_keys_authoritative": false
+      },
+      "autonomy_ceiling": "Assist",
+      "cost_route": [
+        "on_device",
+        "local_customer_model",
+        "byo_api",
+        "byo_service",
+        "titan_entitled",
+        "titan_metered_addon"
+      ],
+      "offline": {
+        "suitable": false,
+        "requires_queue_for_effects": false
+      },
+      "retained_status": "runtime_evidence",
+      "historical_evidence": [
+        "titan-zero-chat-content.compat.js",
+        "static/global/src/static/lowCode/stableDiffusionCover.webp"
+      ],
+      "current_source_verification": "required"
+    },
+    {
+      "tool_id": "video_generate",
+      "name": "Video generator",
+      "category": "Image & media",
+      "cleaning_relevance": "high",
+      "cleaning_use_cases": [
+        "training",
+        "marketing",
+        "service_explanations"
+      ],
+      "supported_roles": [
+        "owner",
+        "manager",
+        "estimator",
+        "supervisor",
+        "cleaner",
+        "marketing"
+      ],
+      "inputs": [
+        "company_context",
+        "user_request"
+      ],
+      "outputs": [
+        "tool_result",
+        "provenance_receipt"
+      ],
+      "launch_surface": "existing_titan_surface",
+      "authority_class": "content_generation",
+      "grants_execution_authority": false,
+      "company_scope": {
+        "canonical_key": "company_id",
+        "required_for_business_data": true,
+        "legacy_keys_authoritative": false
+      },
+      "autonomy_ceiling": "Assist",
+      "cost_route": [
+        "on_device",
+        "local_customer_model",
+        "byo_api",
+        "byo_service",
+        "titan_entitled",
+        "titan_metered_addon"
+      ],
+      "offline": {
+        "suitable": false,
+        "requires_queue_for_effects": false
+      },
+      "retained_status": "runtime_and_ui_evidence",
+      "historical_evidence": [
+        "static/global/src/static/chatBox/chatHomeView/videoGenerator.png",
+        "static/global/src/static/mainNav/fillVideo.png",
+        "static/global/src/static/video/image2VideoCover.webp",
+        "titan-zero-chat-content.compat.js"
+      ],
+      "current_source_verification": "required"
+    },
+    {
+      "tool_id": "text_to_video",
+      "name": "Text to video",
+      "category": "Image & media",
+      "cleaning_relevance": "high",
+      "cleaning_use_cases": [
+        "training",
+        "marketing"
+      ],
+      "supported_roles": [
+        "owner",
+        "manager",
+        "estimator",
+        "supervisor",
+        "cleaner",
+        "marketing"
+      ],
+      "inputs": [
+        "company_context",
+        "user_request"
+      ],
+      "outputs": [
+        "tool_result",
+        "provenance_receipt"
+      ],
+      "launch_surface": "existing_titan_surface",
+      "authority_class": "content_generation",
+      "grants_execution_authority": false,
+      "company_scope": {
+        "canonical_key": "company_id",
+        "required_for_business_data": true,
+        "legacy_keys_authoritative": false
+      },
+      "autonomy_ceiling": "Assist",
+      "cost_route": [
+        "on_device",
+        "local_customer_model",
+        "byo_api",
+        "byo_service",
+        "titan_entitled",
+        "titan_metered_addon"
+      ],
+      "offline": {
+        "suitable": false,
+        "requires_queue_for_effects": false
+      },
+      "retained_status": "runtime_evidence",
+      "historical_evidence": [
+        "titan-zero-chat-content.compat.js"
+      ],
+      "current_source_verification": "required"
+    },
+    {
+      "tool_id": "image_to_video",
+      "name": "Image to video",
+      "category": "Image & media",
+      "cleaning_relevance": "high",
+      "cleaning_use_cases": [
+        "marketing",
+        "before_after_storytelling"
+      ],
+      "supported_roles": [
+        "owner",
+        "manager",
+        "estimator",
+        "supervisor",
+        "cleaner",
+        "marketing"
+      ],
+      "inputs": [
+        "company_context",
+        "user_request"
+      ],
+      "outputs": [
+        "tool_result",
+        "provenance_receipt"
+      ],
+      "launch_surface": "existing_titan_surface",
+      "authority_class": "content_generation",
+      "grants_execution_authority": false,
+      "company_scope": {
+        "canonical_key": "company_id",
+        "required_for_business_data": true,
+        "legacy_keys_authoritative": false
+      },
+      "autonomy_ceiling": "Assist",
+      "cost_route": [
+        "on_device",
+        "local_customer_model",
+        "byo_api",
+        "byo_service",
+        "titan_entitled",
+        "titan_metered_addon"
+      ],
+      "offline": {
+        "suitable": false,
+        "requires_queue_for_effects": false
+      },
+      "retained_status": "runtime_and_ui_evidence",
+      "historical_evidence": [
+        "static/global/src/static/video/image2VideoCover.webp",
+        "titan-zero-chat-content.compat.js"
+      ],
+      "current_source_verification": "required"
+    },
+    {
+      "tool_id": "screenshots",
+      "name": "Screenshot/page capture",
+      "category": "Browser tools",
+      "cleaning_relevance": "high",
+      "cleaning_use_cases": [
+        "process_discovery",
+        "evidence",
+        "support"
+      ],
+      "supported_roles": [
+        "owner",
+        "manager",
+        "reception",
+        "estimator",
+        "supervisor"
+      ],
+      "inputs": [
+        "company_context",
+        "user_request"
+      ],
+      "outputs": [
+        "tool_result",
+        "provenance_receipt"
+      ],
+      "launch_surface": "existing_titan_surface",
+      "authority_class": "read_or_analysis",
+      "grants_execution_authority": false,
+      "company_scope": {
+        "canonical_key": "company_id",
+        "required_for_business_data": true,
+        "legacy_keys_authoritative": false
+      },
+      "autonomy_ceiling": "Assist",
+      "cost_route": [
+        "on_device",
+        "local_customer_model",
+        "byo_api",
+        "byo_service",
+        "titan_entitled",
+        "titan_metered_addon"
+      ],
+      "offline": {
+        "suitable": true,
+        "requires_queue_for_effects": false
+      },
+      "retained_status": "runtime_and_ui_evidence",
+      "historical_evidence": [
+        "static/global/src/static/screenshotGuideVideo.mp4",
+        "titan-zero-chat-content.compat.js"
+      ],
+      "current_source_verification": "verified-current",
+      "current_sources": [
+        "apps/browser/imports/browser-ai-subsystems-2026-09-21/subsystems/auto-browser/src/perception/screenshot.js",
+        "apps/browser/imports/browser-ai-subsystems-2026-09-21/subsystems/auto-browser/src/perception/attach-screenshot.js"
+      ]
+    },
+    {
+      "tool_id": "attachments",
+      "name": "Attachments / file chat",
+      "category": "Conversation tools",
+      "cleaning_relevance": "high",
+      "cleaning_use_cases": [
+        "job_documents",
+        "photos",
+        "customer_files"
+      ],
+      "supported_roles": [
+        "owner",
+        "manager",
+        "reception",
+        "estimator",
+        "supervisor",
+        "cleaner"
+      ],
+      "inputs": [
+        "company_context",
+        "user_request"
+      ],
+      "outputs": [
+        "tool_result",
+        "provenance_receipt"
+      ],
+      "launch_surface": "existing_titan_surface",
+      "authority_class": "read_or_analysis",
+      "grants_execution_authority": false,
+      "company_scope": {
+        "canonical_key": "company_id",
+        "required_for_business_data": true,
+        "legacy_keys_authoritative": false
+      },
+      "autonomy_ceiling": "Assist",
+      "cost_route": [
+        "on_device",
+        "local_customer_model",
+        "byo_api",
+        "byo_service",
+        "titan_entitled",
+        "titan_metered_addon"
+      ],
+      "offline": {
+        "suitable": true,
+        "requires_queue_for_effects": false
+      },
+      "retained_status": "runtime_evidence",
+      "historical_evidence": [
+        "titan-zero-chat-content.compat.js",
+        "titan-capabilities/donors/ai-extensions/catalog.json"
+      ],
+      "current_source_verification": "verified-current",
+      "current_sources": [
+        "apps/web/app/api/v1/captures/files.ts",
+        "apps/web/app/api/v1/captures/route.ts",
+        "apps/browser/tests/test-titan-zero-context-attachment.js"
+      ]
+    },
+    {
+      "tool_id": "model_selection",
+      "name": "Model selection",
+      "category": "Conversation tools",
+      "cleaning_relevance": "high",
+      "cleaning_use_cases": [
+        "cost_control",
+        "privacy",
+        "quality"
+      ],
+      "supported_roles": [
+        "owner",
+        "manager",
+        "reception",
+        "estimator",
+        "supervisor",
+        "cleaner"
+      ],
+      "inputs": [
+        "company_context",
+        "user_request"
+      ],
+      "outputs": [
+        "tool_result",
+        "provenance_receipt"
+      ],
+      "launch_surface": "existing_titan_surface",
+      "authority_class": "read_or_analysis",
+      "grants_execution_authority": false,
+      "company_scope": {
+        "canonical_key": "company_id",
+        "required_for_business_data": true,
+        "legacy_keys_authoritative": false
+      },
+      "autonomy_ceiling": "Assist",
+      "cost_route": [
+        "on_device",
+        "local_customer_model",
+        "byo_api",
+        "byo_service",
+        "titan_entitled",
+        "titan_metered_addon"
+      ],
+      "offline": {
+        "suitable": false,
+        "requires_queue_for_effects": false
+      },
+      "retained_status": "runtime_evidence",
+      "historical_evidence": [
+        "titan-zero-chat-content.compat.js",
+        "side-panel/assets/index-C8c-GDqp.js"
+      ],
+      "current_source_verification": "verified-current",
+      "current_sources": [
+        "apps/browser/src/ai/model-registry.js",
+        "apps/browser/src/ai/ai-provider-registry.js",
+        "apps/browser/src/ai/ai-router.js"
+      ]
+    },
+    {
+      "tool_id": "prompts_skills",
+      "name": "Prompts and reusable skills",
+      "category": "Conversation tools",
+      "cleaning_relevance": "high",
+      "cleaning_use_cases": [
+        "company_sops",
+        "reusable_cleaning_workflows"
+      ],
+      "supported_roles": [
+        "owner",
+        "manager",
+        "reception",
+        "estimator",
+        "supervisor",
+        "cleaner"
+      ],
+      "inputs": [
+        "company_context",
+        "user_request"
+      ],
+      "outputs": [
+        "tool_result",
+        "provenance_receipt"
+      ],
+      "launch_surface": "existing_titan_surface",
+      "authority_class": "read_or_analysis",
+      "grants_execution_authority": false,
+      "company_scope": {
+        "canonical_key": "company_id",
+        "required_for_business_data": true,
+        "legacy_keys_authoritative": false
+      },
+      "autonomy_ceiling": "Assist",
+      "cost_route": [
+        "on_device",
+        "local_customer_model",
+        "byo_api",
+        "byo_service",
+        "titan_entitled",
+        "titan_metered_addon"
+      ],
+      "offline": {
+        "suitable": true,
+        "requires_queue_for_effects": false
+      },
+      "retained_status": "runtime_evidence",
+      "historical_evidence": [
+        "side-panel/assets/skillStorageService-LGvOYmp_.js",
+        "retriever-capability-catalog.json"
+      ],
+      "current_source_verification": "verified-current",
+      "current_sources": [
+        "apps/browser/src/catalog/repository-prompts.js",
+        "apps/browser/src/catalog/repository-skills.js"
+      ]
+    },
+    {
+      "tool_id": "browser_actions",
+      "name": "Browser actions",
+      "category": "Retriever tools",
+      "cleaning_relevance": "high",
+      "cleaning_use_cases": [
+        "research",
+        "admin_workflows"
+      ],
+      "supported_roles": [
+        "owner",
+        "manager",
+        "reception",
+        "estimator",
+        "supervisor",
+        "accounts"
+      ],
+      "inputs": [
+        "company_context",
+        "user_request"
+      ],
+      "outputs": [
+        "tool_result",
+        "provenance_receipt"
+      ],
+      "launch_surface": "existing_titan_surface",
+      "authority_class": "protected_execution",
+      "grants_execution_authority": false,
+      "company_scope": {
+        "canonical_key": "company_id",
+        "required_for_business_data": true,
+        "legacy_keys_authoritative": false
+      },
+      "autonomy_ceiling": "Semi-Auto",
+      "cost_route": [
+        "on_device",
+        "local_customer_model",
+        "byo_api",
+        "byo_service",
+        "titan_entitled",
+        "titan_metered_addon"
+      ],
+      "offline": {
+        "suitable": false,
+        "requires_queue_for_effects": true
+      },
+      "retained_status": "runtime_evidence",
+      "historical_evidence": [
+        "retriever-capability-catalog.json"
+      ],
+      "current_source_verification": "verified-current",
+      "current_sources": [
+        "apps/browser/src/browser/browser-interaction.js",
+        "apps/browser/src/browser/browser-navigation.js",
+        "apps/browser/src/integration/host-capabilities.js"
+      ]
+    },
+    {
+      "tool_id": "crawl_extract",
+      "name": "Crawl, extract and scrape webpages",
+      "category": "Retriever tools",
+      "cleaning_relevance": "high",
+      "cleaning_use_cases": [
+        "supplier_research",
+        "regulatory_research",
+        "lead_research"
+      ],
+      "supported_roles": [
+        "owner",
+        "manager",
+        "reception",
+        "estimator",
+        "supervisor",
+        "accounts"
+      ],
+      "inputs": [
+        "company_context",
+        "user_request"
+      ],
+      "outputs": [
+        "tool_result",
+        "provenance_receipt"
+      ],
+      "launch_surface": "existing_titan_surface",
+      "authority_class": "read_or_analysis",
+      "grants_execution_authority": false,
+      "company_scope": {
+        "canonical_key": "company_id",
+        "required_for_business_data": true,
+        "legacy_keys_authoritative": false
+      },
+      "autonomy_ceiling": "Assist",
+      "cost_route": [
+        "on_device",
+        "local_customer_model",
+        "byo_api",
+        "byo_service",
+        "titan_entitled",
+        "titan_metered_addon"
+      ],
+      "offline": {
+        "suitable": false,
+        "requires_queue_for_effects": false
+      },
+      "retained_status": "runtime_evidence",
+      "historical_evidence": [
+        "retriever-capability-catalog.json"
+      ],
+      "current_source_verification": "required"
+    },
+    {
+      "tool_id": "structured_data",
+      "name": "Structured data discovery and enrichment",
+      "category": "Retriever tools",
+      "cleaning_relevance": "high",
+      "cleaning_use_cases": [
+        "supplier_data",
+        "lead_data",
+        "research"
+      ],
+      "supported_roles": [
+        "owner",
+        "manager",
+        "reception",
+        "estimator",
+        "supervisor",
+        "accounts"
+      ],
+      "inputs": [
+        "company_context",
+        "user_request"
+      ],
+      "outputs": [
+        "tool_result",
+        "provenance_receipt"
+      ],
+      "launch_surface": "existing_titan_surface",
+      "authority_class": "read_or_analysis",
+      "grants_execution_authority": false,
+      "company_scope": {
+        "canonical_key": "company_id",
+        "required_for_business_data": true,
+        "legacy_keys_authoritative": false
+      },
+      "autonomy_ceiling": "Assist",
+      "cost_route": [
+        "on_device",
+        "local_customer_model",
+        "byo_api",
+        "byo_service",
+        "titan_entitled",
+        "titan_metered_addon"
+      ],
+      "offline": {
+        "suitable": false,
+        "requires_queue_for_effects": false
+      },
+      "retained_status": "runtime_evidence",
+      "historical_evidence": [
+        "retriever-capability-catalog.json"
+      ],
+      "current_source_verification": "required"
+    },
+    {
+      "tool_id": "sheets",
+      "name": "Spreadsheet tools",
+      "category": "Retriever tools",
+      "cleaning_relevance": "high",
+      "cleaning_use_cases": [
+        "quotes",
+        "operations",
+        "inventory",
+        "analysis"
+      ],
+      "supported_roles": [
+        "owner",
+        "manager",
+        "reception",
+        "estimator",
+        "supervisor",
+        "accounts"
+      ],
+      "inputs": [
+        "company_context",
+        "user_request"
+      ],
+      "outputs": [
+        "tool_result",
+        "provenance_receipt"
+      ],
+      "launch_surface": "existing_titan_surface",
+      "authority_class": "protected_execution",
+      "grants_execution_authority": false,
+      "company_scope": {
+        "canonical_key": "company_id",
+        "required_for_business_data": true,
+        "legacy_keys_authoritative": false
+      },
+      "autonomy_ceiling": "Semi-Auto",
+      "cost_route": [
+        "on_device",
+        "local_customer_model",
+        "byo_api",
+        "byo_service",
+        "titan_entitled",
+        "titan_metered_addon"
+      ],
+      "offline": {
+        "suitable": false,
+        "requires_queue_for_effects": true
+      },
+      "retained_status": "runtime_evidence",
+      "historical_evidence": [
+        "titan-zero-chat-content.compat.js",
+        "retriever-capability-catalog.json"
+      ],
+      "current_source_verification": "required"
+    },
+    {
+      "tool_id": "docs_slides_web",
+      "name": "Create Docs, Slides and webpages",
+      "category": "Retriever tools",
+      "cleaning_relevance": "high",
+      "cleaning_use_cases": [
+        "reports",
+        "proposals",
+        "training",
+        "marketing"
+      ],
+      "supported_roles": [
+        "owner",
+        "manager",
+        "reception",
+        "estimator",
+        "supervisor",
+        "accounts"
+      ],
+      "inputs": [
+        "company_context",
+        "user_request"
+      ],
+      "outputs": [
+        "tool_result",
+        "provenance_receipt"
+      ],
+      "launch_surface": "existing_titan_surface",
+      "authority_class": "protected_execution",
+      "grants_execution_authority": false,
+      "company_scope": {
+        "canonical_key": "company_id",
+        "required_for_business_data": true,
+        "legacy_keys_authoritative": false
+      },
+      "autonomy_ceiling": "Semi-Auto",
+      "cost_route": [
+        "on_device",
+        "local_customer_model",
+        "byo_api",
+        "byo_service",
+        "titan_entitled",
+        "titan_metered_addon"
+      ],
+      "offline": {
+        "suitable": false,
+        "requires_queue_for_effects": true
+      },
+      "retained_status": "runtime_evidence",
+      "historical_evidence": [
+        "retriever-capability-catalog.json"
+      ],
+      "current_source_verification": "verified-current",
+      "current_sources": [
+        "packages/tools/titan-document-workspace-bridge.js",
+        "apps/web/app/api/v1/documents/route.ts",
+        "apps/web/components/documents/DocumentPanel.tsx"
+      ]
+    },
+    {
+      "tool_id": "custom_tools",
+      "name": "Create and manage custom tools",
+      "category": "Retriever tools",
+      "cleaning_relevance": "high",
+      "cleaning_use_cases": [
+        "company_specific_cleaning_tools"
+      ],
+      "supported_roles": [
+        "owner",
+        "manager",
+        "reception",
+        "estimator",
+        "supervisor",
+        "accounts"
+      ],
+      "inputs": [
+        "company_context",
+        "user_request"
+      ],
+      "outputs": [
+        "tool_result",
+        "provenance_receipt"
+      ],
+      "launch_surface": "existing_titan_surface",
+      "authority_class": "protected_execution",
+      "grants_execution_authority": false,
+      "company_scope": {
+        "canonical_key": "company_id",
+        "required_for_business_data": true,
+        "legacy_keys_authoritative": false
+      },
+      "autonomy_ceiling": "Semi-Auto",
+      "cost_route": [
+        "on_device",
+        "local_customer_model",
+        "byo_api",
+        "byo_service",
+        "titan_entitled",
+        "titan_metered_addon"
+      ],
+      "offline": {
+        "suitable": false,
+        "requires_queue_for_effects": true
+      },
+      "retained_status": "runtime_evidence",
+      "historical_evidence": [
+        "retriever-capability-catalog.json"
+      ],
+      "current_source_verification": "required"
+    },
+    {
+      "tool_id": "multi_tool",
+      "name": "Run coordinated multi-tool workflows",
+      "category": "Retriever tools",
+      "cleaning_relevance": "high",
+      "cleaning_use_cases": [
+        "end_to_end_cleaning_workflows"
+      ],
+      "supported_roles": [
+        "owner",
+        "manager",
+        "reception",
+        "estimator",
+        "supervisor",
+        "accounts"
+      ],
+      "inputs": [
+        "company_context",
+        "user_request"
+      ],
+      "outputs": [
+        "tool_result",
+        "provenance_receipt"
+      ],
+      "launch_surface": "existing_titan_surface",
+      "authority_class": "protected_execution",
+      "grants_execution_authority": false,
+      "company_scope": {
+        "canonical_key": "company_id",
+        "required_for_business_data": true,
+        "legacy_keys_authoritative": false
+      },
+      "autonomy_ceiling": "Semi-Auto",
+      "cost_route": [
+        "on_device",
+        "local_customer_model",
+        "byo_api",
+        "byo_service",
+        "titan_entitled",
+        "titan_metered_addon"
+      ],
+      "offline": {
+        "suitable": false,
+        "requires_queue_for_effects": true
+      },
+      "retained_status": "runtime_evidence",
+      "historical_evidence": [
+        "retriever-capability-catalog.json"
+      ],
+      "current_source_verification": "required"
+    },
+    {
+      "tool_id": "schedules",
+      "name": "Scheduled workflows",
+      "category": "Retriever tools",
+      "cleaning_relevance": "high",
+      "cleaning_use_cases": [
+        "recurring_reviews",
+        "followups",
+        "operations"
+      ],
+      "supported_roles": [
+        "owner",
+        "manager",
+        "reception",
+        "estimator",
+        "supervisor",
+        "accounts"
+      ],
+      "inputs": [
+        "company_context",
+        "user_request"
+      ],
+      "outputs": [
+        "tool_result",
+        "provenance_receipt"
+      ],
+      "launch_surface": "existing_titan_surface",
+      "authority_class": "protected_execution",
+      "grants_execution_authority": false,
+      "company_scope": {
+        "canonical_key": "company_id",
+        "required_for_business_data": true,
+        "legacy_keys_authoritative": false
+      },
+      "autonomy_ceiling": "Semi-Auto",
+      "cost_route": [
+        "on_device",
+        "local_customer_model",
+        "byo_api",
+        "byo_service",
+        "titan_entitled",
+        "titan_metered_addon"
+      ],
+      "offline": {
+        "suitable": false,
+        "requires_queue_for_effects": true
+      },
+      "retained_status": "runtime_evidence",
+      "historical_evidence": [
+        "retriever-capability-catalog.json"
+      ],
+      "current_source_verification": "verified-current",
+      "current_sources": [
+        "packages/titan-platform/src/ported/titan-runtime/scheduled-intelligence/index.ts",
+        "packages/workforce/scheduling/workforce-schedule-recurrence-runtime.mjs",
+        "apps/web/app/app/schedule/page.tsx"
+      ]
+    },
+    {
+      "tool_id": "triggers",
+      "name": "Event-triggered workflows",
+      "category": "Retriever tools",
+      "cleaning_relevance": "high",
+      "cleaning_use_cases": [
+        "event_driven_customer_and_operations_workflows"
+      ],
+      "supported_roles": [
+        "owner",
+        "manager",
+        "reception",
+        "estimator",
+        "supervisor",
+        "accounts"
+      ],
+      "inputs": [
+        "company_context",
+        "user_request"
+      ],
+      "outputs": [
+        "tool_result",
+        "provenance_receipt"
+      ],
+      "launch_surface": "existing_titan_surface",
+      "authority_class": "protected_execution",
+      "grants_execution_authority": false,
+      "company_scope": {
+        "canonical_key": "company_id",
+        "required_for_business_data": true,
+        "legacy_keys_authoritative": false
+      },
+      "autonomy_ceiling": "Semi-Auto",
+      "cost_route": [
+        "on_device",
+        "local_customer_model",
+        "byo_api",
+        "byo_service",
+        "titan_entitled",
+        "titan_metered_addon"
+      ],
+      "offline": {
+        "suitable": false,
+        "requires_queue_for_effects": true
+      },
+      "retained_status": "runtime_evidence",
+      "historical_evidence": [
+        "retriever-capability-catalog.json"
+      ],
+      "current_source_verification": "verified-current",
+      "current_sources": [
+        "packages/workforce/customer-care/post-job-satisfaction-trigger.mjs"
+      ]
+    }
+  ],
+  "action_capabilities": [
+    {
+      "capability_id": "titan.workforce.reassign",
+      "kind": "host_action",
+      "semantic_owner": "packages/workforce",
+      "implementation_owner": "services/workforce",
+      "provider_kind": "NATIVE_TITAN",
+      "host_projection": "directadmin_workforce",
+      "operation": "reassign",
+      "mutates": true,
+      "effect": "write",
+      "risk_class": "medium",
+      "required_permissions": [
+        "titan.workforce.reassign"
+      ],
+      "execution_contract": {
+        "autonomy": "auto",
+        "evidence_required": [
+          "management_authority"
+        ],
+        "approval_required_for": [
+          "work_reassignment"
+        ],
+        "idempotency_required": true,
+        "human_identity_binding_required": true,
+        "current_management_authority_required": true
+      },
+      "default_grants": [],
+      "grants_execution_authority": false,
+      "current_source_verification": "verified-current",
+      "current_sources": [
+        "services/workforce/src/directadmin-workforce-owners.ts",
+        "services/workforce/src/sqlite-store.ts",
+        "packages/runtime/authority/runtime-authority-gateway.mjs"
+      ]
+    }
+  ],
+  "phase3_retirement_migration": {
+    "directive": "TZ-MGR-DONOR-SLIM-M42-003",
+    "tools_changed": 26,
+    "live_runtime_replacement": "titan-zero-chat-content.compat.js",
+    "retired_visual_dependencies": "externalized_evidence"
+  },
+  "provenance": {
+    "canonical_owner": "packages/tools",
+    "authority": "canonical-registry",
+    "historical_programme_metadata_is_authority": false,
+    "versioning": "repository-source-and-schema",
+    "historical_cleaning_programme_metadata_removed": true,
+    "historical_evidence_is_runtime_dependency": false,
+    "active_dependency_paths_verified_against_repository": true,
+    "unresolved_active_dependency_paths": 0,
+    "current_source_verification_method": "repository-tree plus explicit capability mapping"
+  }
+}

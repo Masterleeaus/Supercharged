@@ -18,7 +18,11 @@
 
 import { Router, Response } from "express";
 import { RouteContext, AuthRequest } from "./common";
-import { insertPromptTemplateSchema } from "@shared/schema";
+import { insertPromptTemplateSchema, promptTemplates } from "@shared/schema";
+
+// Table insert shape for createPromptTemplate; the drizzle-zod insert type resolves to {}.
+type PromptTemplateInsertRow = typeof promptTemplates.$inferInsert & { companyId?: string };
+import { getCompanyScope } from "../middleware/company-scope";
 
 export function createTemplateRoutes(ctx: RouteContext): Router {
   const router = Router();
@@ -118,7 +122,15 @@ export function createTemplateRoutes(ctx: RouteContext): Router {
       
       const allVariables = Array.from(new Set([...extractedVars, ...firstMsgVars, ...(variables || [])]));
 
-      const template = await storage.createPromptTemplate({
+      let companyId: string;
+      try {
+        companyId = getCompanyScope(req);
+      } catch {
+        return res.status(403).json({ error: "Company scope required" });
+      }
+
+      // Not a literal: InsertPromptTemplate omits companyId, so a literal would fail the excess-property check.
+      const newTemplateData = {
         userId: req.userId!,
         name,
         description: description || null,
@@ -130,7 +142,9 @@ export function createTemplateRoutes(ctx: RouteContext): Router {
         suggestedPersonality: suggestedPersonality || null,
         isSystemTemplate: false,
         isPublic: isPublic || false,
-      });
+        companyId,
+      };
+      const template = await storage.createPromptTemplate(newTemplateData);
 
       res.json(template);
     } catch (error: any) {
@@ -296,7 +310,7 @@ export function createTemplateRoutes(ctx: RouteContext): Router {
         suggestedPersonality: suggestedPersonality || null,
         isSystemTemplate: true,
         isPublic: true,
-      });
+      } as PromptTemplateInsertRow);
 
       res.json(template);
     } catch (error: any) {

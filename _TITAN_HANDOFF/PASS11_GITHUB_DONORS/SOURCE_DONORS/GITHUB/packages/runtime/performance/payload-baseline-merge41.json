@@ -1,0 +1,574 @@
+{
+  "schema": "titan.zero.payload-performance-baseline.v1",
+  "packet_id": "TZ-FIX-PAYLOAD-PERFORMANCE-001",
+  "pass": 1,
+  "manager_base": {
+    "merge": 41,
+    "artifact": "Titan-Zero-CANONICAL-MASTER-2026-09-08-MERGE-41-LOAD-STABILITY-CONVERGED.zip",
+    "sha256": "dfbd39a0475de73dc00bc1dee82c3969194a45db0ae8fc1fc0a92651641addd2",
+    "file_count": 2989
+  },
+  "package": {
+    "uncompressed_bytes": 185293390,
+    "compressed_bytes": 70934950,
+    "compression_ratio": 0.382825
+  },
+  "top_subsystems": [
+    {
+      "name": "(root files)",
+      "files": 597,
+      "uncompressed_bytes": 150094309,
+      "compressed_bytes": 47691023
+    },
+    {
+      "name": "static",
+      "files": 483,
+      "uncompressed_bytes": 20852877,
+      "compressed_bytes": 18991917
+    },
+    {
+      "name": "side-panel",
+      "files": 24,
+      "uncompressed_bytes": 3927133,
+      "compressed_bytes": 1336527
+    },
+    {
+      "name": "offscreen",
+      "files": 17,
+      "uncompressed_bytes": 2423614,
+      "compressed_bytes": 702674
+    },
+    {
+      "name": "content",
+      "files": 1,
+      "uncompressed_bytes": 1036474,
+      "compressed_bytes": 298989
+    },
+    {
+      "name": "tests",
+      "files": 424,
+      "uncompressed_bytes": 987366,
+      "compressed_bytes": 334784
+    },
+    {
+      "name": "titan-workforce",
+      "files": 250,
+      "uncompressed_bytes": 765323,
+      "compressed_bytes": 223162
+    },
+    {
+      "name": "titan-agent",
+      "files": 322,
+      "uncompressed_bytes": 696028,
+      "compressed_bytes": 284031
+    },
+    {
+      "name": "titan-modules",
+      "files": 45,
+      "uncompressed_bytes": 561896,
+      "compressed_bytes": 96152
+    },
+    {
+      "name": "titan-runtime",
+      "files": 132,
+      "uncompressed_bytes": 480479,
+      "compressed_bytes": 137620
+    },
+    {
+      "name": "titan-regression",
+      "files": 65,
+      "uncompressed_bytes": 466321,
+      "compressed_bytes": 111573
+    },
+    {
+      "name": "titan-intelligence",
+      "files": 74,
+      "uncompressed_bytes": 435809,
+      "compressed_bytes": 128068
+    },
+    {
+      "name": "workforce",
+      "files": 12,
+      "uncompressed_bytes": 364063,
+      "compressed_bytes": 33331
+    },
+    {
+      "name": "titan-settings",
+      "files": 59,
+      "uncompressed_bytes": 286050,
+      "compressed_bytes": 80452
+    },
+    {
+      "name": "titan-builder",
+      "files": 64,
+      "uncompressed_bytes": 283844,
+      "compressed_bytes": 30307
+    },
+    {
+      "name": "titan-capabilities",
+      "files": 36,
+      "uncompressed_bytes": 257891,
+      "compressed_bytes": 60047
+    },
+    {
+      "name": "content-runtime",
+      "files": 5,
+      "uncompressed_bytes": 233154,
+      "compressed_bytes": 69482
+    },
+    {
+      "name": "titan-tools",
+      "files": 17,
+      "uncompressed_bytes": 189646,
+      "compressed_bytes": 34932
+    },
+    {
+      "name": "titan-reliability",
+      "files": 66,
+      "uncompressed_bytes": 164476,
+      "compressed_bytes": 54963
+    },
+    {
+      "name": "runtime",
+      "files": 3,
+      "uncompressed_bytes": 161148,
+      "compressed_bytes": 19267
+    }
+  ],
+  "top_file_types": [
+    {
+      "extension": ".js",
+      "files": 134,
+      "uncompressed_bytes": 135122362,
+      "compressed_bytes": 38451630
+    },
+    {
+      "extension": ".css",
+      "files": 22,
+      "uncompressed_bytes": 12524289,
+      "compressed_bytes": 2109751
+    },
+    {
+      "extension": ".zip",
+      "files": 1,
+      "uncompressed_bytes": 9028387,
+      "compressed_bytes": 8778853
+    },
+    {
+      "extension": ".mp4",
+      "files": 16,
+      "uncompressed_bytes": 8603942,
+      "compressed_bytes": 8054274
+    },
+    {
+      "extension": ".png",
+      "files": 339,
+      "uncompressed_bytes": 6655797,
+      "compressed_bytes": 6618744
+    },
+    {
+      "extension": ".mjs",
+      "files": 840,
+      "uncompressed_bytes": 4400266,
+      "compressed_bytes": 1298392
+    },
+    {
+      "extension": ".webp",
+      "files": 109,
+      "uncompressed_bytes": 4099412,
+      "compressed_bytes": 4041678
+    },
+    {
+      "extension": ".json",
+      "files": 1322,
+      "uncompressed_bytes": 3520353,
+      "compressed_bytes": 861656
+    },
+    {
+      "extension": ".md",
+      "files": 118,
+      "uncompressed_bytes": 324597,
+      "compressed_bytes": 135238
+    },
+    {
+      "extension": ".sha256",
+      "files": 5,
+      "uncompressed_bytes": 315309,
+      "compressed_bytes": 140690
+    },
+    {
+      "extension": ".jpg",
+      "files": 18,
+      "uncompressed_bytes": 239717,
+      "compressed_bytes": 230823
+    },
+    {
+      "extension": ".html",
+      "files": 17,
+      "uncompressed_bytes": 141079,
+      "compressed_bytes": 35626
+    },
+    {
+      "extension": ".jpeg",
+      "files": 2,
+      "uncompressed_bytes": 108707,
+      "compressed_bytes": 106559
+    },
+    {
+      "extension": ".py",
+      "files": 29,
+      "uncompressed_bytes": 62420,
+      "compressed_bytes": 23877
+    },
+    {
+      "extension": ".svg",
+      "files": 6,
+      "uncompressed_bytes": 35627,
+      "compressed_bytes": 11286
+    },
+    {
+      "extension": ".out",
+      "files": 2,
+      "uncompressed_bytes": 26710,
+      "compressed_bytes": 5408
+    },
+    {
+      "extension": ".csv",
+      "files": 1,
+      "uncompressed_bytes": 24401,
+      "compressed_bytes": 6353
+    },
+    {
+      "extension": ".jsonl",
+      "files": 2,
+      "uncompressed_bytes": 22031,
+      "compressed_bytes": 3411
+    },
+    {
+      "extension": ".gif",
+      "files": 1,
+      "uncompressed_bytes": 19057,
+      "compressed_bytes": 15773
+    },
+    {
+      "extension": ".log",
+      "files": 1,
+      "uncompressed_bytes": 15451,
+      "compressed_bytes": 2795
+    }
+  ],
+  "largest_files": [
+    {
+      "path": "titan-zero-chat-content.compat.js",
+      "uncompressed_bytes": 28593109,
+      "compressed_bytes": 7957745
+    },
+    {
+      "path": "content.js",
+      "uncompressed_bytes": 28593053,
+      "compressed_bytes": 7957639
+    },
+    {
+      "path": "monica-content.js",
+      "uncompressed_bytes": 28593053,
+      "compressed_bytes": 7957639
+    },
+    {
+      "path": "monica-background.js",
+      "uncompressed_bytes": 11561375,
+      "compressed_bytes": 3441609
+    },
+    {
+      "path": "titan-zero-chat-background.compat.js",
+      "uncompressed_bytes": 11561297,
+      "compressed_bytes": 3441602
+    },
+    {
+      "path": "TITAN-ZERO-LINEAGE-EVIDENCE.zip",
+      "uncompressed_bytes": 9028387,
+      "compressed_bytes": 8778853
+    },
+    {
+      "path": "titan-zero-chat-runtime.compat.js",
+      "uncompressed_bytes": 7778613,
+      "compressed_bytes": 2304260
+    },
+    {
+      "path": "monica-popup.js",
+      "uncompressed_bytes": 7778594,
+      "compressed_bytes": 2304226
+    },
+    {
+      "path": "retriever-background.iife.js",
+      "uncompressed_bytes": 2731404,
+      "compressed_bytes": 797323
+    },
+    {
+      "path": "content.css",
+      "uncompressed_bytes": 2543371,
+      "compressed_bytes": 425374
+    },
+    {
+      "path": "monica-content.css",
+      "uncompressed_bytes": 2543371,
+      "compressed_bytes": 425374
+    },
+    {
+      "path": "titan-zero-chat-content.compat.css",
+      "uncompressed_bytes": 2543371,
+      "compressed_bytes": 425374
+    },
+    {
+      "path": "monica-popup.css",
+      "uncompressed_bytes": 2223230,
+      "compressed_bytes": 378514
+    },
+    {
+      "path": "titan-zero-chat-runtime.compat.css",
+      "uncompressed_bytes": 2223230,
+      "compressed_bytes": 378514
+    },
+    {
+      "path": "side-panel/assets/index-C8c-GDqp.js",
+      "uncompressed_bytes": 1525040,
+      "compressed_bytes": 431590
+    },
+    {
+      "path": "static/pdf.worker.min.mjs",
+      "uncompressed_bytes": 1360964,
+      "compressed_bytes": 397301
+    },
+    {
+      "path": "static/global/src/static/globalSidebar.mp4",
+      "uncompressed_bytes": 1162330,
+      "compressed_bytes": 1162041
+    },
+    {
+      "path": "static/global/src/static/video/venom.mp4",
+      "uncompressed_bytes": 1131193,
+      "compressed_bytes": 1126924
+    },
+    {
+      "path": "offscreen/assets/index-B1QDSbwU.js",
+      "uncompressed_bytes": 1063709,
+      "compressed_bytes": 301742
+    },
+    {
+      "path": "content/all.iife.js",
+      "uncompressed_bytes": 1036474,
+      "compressed_bytes": 298989
+    },
+    {
+      "path": "offscreen/assets/unifiedFunctionExecutor-4UtoSB3u.js",
+      "uncompressed_bytes": 1008801,
+      "compressed_bytes": 290280
+    },
+    {
+      "path": "static/global/src/static/realtime/realtime.mp4",
+      "uncompressed_bytes": 948972,
+      "compressed_bytes": 865693
+    },
+    {
+      "path": "side-panel/assets/vendor-CRCSbEcK.js",
+      "uncompressed_bytes": 935795,
+      "compressed_bytes": 276955
+    },
+    {
+      "path": "static/global/src/static/chatBox/modelBg.png",
+      "uncompressed_bytes": 894447,
+      "compressed_bytes": 893583
+    },
+    {
+      "path": "static/monicaSearchGuide.mp4",
+      "uncompressed_bytes": 797681,
+      "compressed_bytes": 610216
+    }
+  ],
+  "manifest_startup_entries": {
+    "background_service_worker": {
+      "files": [
+        {
+          "path": "background-bootstrap.js",
+          "uncompressed_bytes": 8033,
+          "compressed_bytes": 2709
+        }
+      ],
+      "uncompressed_bytes": 8033,
+      "compressed_bytes": 2709
+    },
+    "content_scripts": {
+      "files": [
+        {
+          "path": "content/all.iife.js",
+          "uncompressed_bytes": 1036474,
+          "compressed_bytes": 298989
+        },
+        {
+          "path": "content-main/all.iife.js",
+          "uncompressed_bytes": 65567,
+          "compressed_bytes": 19764
+        },
+        {
+          "path": "titan-zero-chat-content.compat.js",
+          "uncompressed_bytes": 28593109,
+          "compressed_bytes": 7957745
+        },
+        {
+          "path": "titan-diagnostics-content.js",
+          "uncompressed_bytes": 895,
+          "compressed_bytes": 501
+        },
+        {
+          "path": "titan-launcher-overlay.js",
+          "uncompressed_bytes": 5024,
+          "compressed_bytes": 1954
+        }
+      ],
+      "uncompressed_bytes": 29701069,
+      "compressed_bytes": 8278953
+    },
+    "content_css": {
+      "files": [
+        {
+          "path": "titan-zero-chat-content.compat.css",
+          "uncompressed_bytes": 2543371,
+          "compressed_bytes": 425374
+        },
+        {
+          "path": "titan-launcher-overlay.css",
+          "uncompressed_bytes": 96,
+          "compressed_bytes": 87
+        }
+      ],
+      "uncompressed_bytes": 2543467,
+      "compressed_bytes": 425461
+    },
+    "popup": {
+      "files": [
+        {
+          "path": "titan-popup.html",
+          "uncompressed_bytes": 2179,
+          "compressed_bytes": 836
+        }
+      ],
+      "uncompressed_bytes": 2179,
+      "compressed_bytes": 836
+    },
+    "side_panel": {
+      "files": [
+        {
+          "path": "sidePanel.html",
+          "uncompressed_bytes": 28657,
+          "compressed_bytes": 6856
+        }
+      ],
+      "uncompressed_bytes": 28657,
+      "compressed_bytes": 6856
+    }
+  },
+  "service_worker_static_import_closure": {
+    "entry": "background-bootstrap.js",
+    "files": 78,
+    "uncompressed_bytes": 15179156,
+    "compressed_bytes": 4435495,
+    "paths": [
+      "background-bootstrap.js",
+      "compatibility/monica/background-runtime-boundary.mjs",
+      "retriever-background.iife.js",
+      "runtime/native-runtime-background.mjs",
+      "runtime/native-runtime-contracts.mjs",
+      "runtime/workforce-runtime-background.mjs",
+      "titan-capabilities/capability-registry.mjs",
+      "titan-capabilities/intent-capability-router.mjs",
+      "titan-local/kernel/company-context.mjs",
+      "titan-local/storage/bootstrap.mjs",
+      "titan-local/storage/business-database.mjs",
+      "titan-local/storage/business-history-reconciliation.mjs",
+      "titan-local/storage/business-state-authority.mjs",
+      "titan-local/storage/indexed-db.mjs",
+      "titan-local/storage/legacy-storage-bridge.mjs",
+      "titan-local/storage/legacy-storage-migration.mjs",
+      "titan-local/storage/schema.mjs",
+      "titan-modules/authority.mjs",
+      "titan-modules/builtin/business-services/index.mjs",
+      "titan-modules/builtin/module-health/index.mjs",
+      "titan-modules/builtin/workforce-verticals/index.mjs",
+      "titan-modules/bundle-runtime.mjs",
+      "titan-modules/dependency-resolver.mjs",
+      "titan-modules/event-bus.mjs",
+      "titan-modules/governance-grants.mjs",
+      "titan-modules/lifecycle-access.mjs",
+      "titan-modules/lifecycle-history.mjs",
+      "titan-modules/marketplace-runtime.mjs",
+      "titan-modules/module-host.mjs",
+      "titan-modules/module-manager.mjs",
+      "titan-modules/module-registry.mjs",
+      "titan-modules/package-runtime.mjs",
+      "titan-modules/packaged-catalog.mjs",
+      "titan-modules/runtime-policy.mjs",
+      "titan-modules/semver.mjs",
+      "titan-modules/workflow-runtime.mjs",
+      "titan-observability/background.mjs",
+      "titan-observability/contracts.mjs",
+      "titan-observability/health-registry.mjs",
+      "titan-observability/runtime.mjs",
+      "titan-offline/checkpoint-integrity.mjs",
+      "titan-offline/checkpoint-storage.mjs",
+      "titan-offline/conflict-retry-policy.mjs",
+      "titan-offline/continuation-guard.mjs",
+      "titan-offline/production-hardening.mjs",
+      "titan-offline/recovery-state-machine.mjs",
+      "titan-offline/restart-checkpoint.mjs",
+      "titan-offline/restart-evidence-ledger.mjs",
+      "titan-offline/service-worker-lifecycle.mjs",
+      "titan-reliability/bounded-work-queue.mjs",
+      "titan-runtime/authority/authority-evaluator.mjs",
+      "titan-runtime/authority/authority-lease.mjs",
+      "titan-runtime/authority/autonomy.mjs",
+      "titan-runtime/authority/company-boundary.mjs",
+      "titan-runtime/authority/delegation.mjs",
+      "titan-runtime/authority/execution-boundary.mjs",
+      "titan-runtime/authority/history-integrity.mjs",
+      "titan-runtime/authority/index.mjs",
+      "titan-runtime/authority/lease-control.mjs",
+      "titan-runtime/authority/protected-actions.mjs",
+      "titan-runtime/authority/worker-authority.mjs",
+      "titan-runtime/feed/feed-delivery-replay-guard.mjs",
+      "titan-runtime/feed/feed-presentation-state.mjs",
+      "titan-runtime/page-context-rehydration.mjs",
+      "titan-workforce/capability/skill-capability-registry.mjs",
+      "titan-workforce/capacity/workload-capacity-runtime.mjs",
+      "titan-workforce/coordination/chief-of-staff-runtime.mjs",
+      "titan-workforce/decision/decision-rights-runtime.mjs",
+      "titan-workforce/gateway/failure-retry.mjs",
+      "titan-workforce/graph/workforce-graph.mjs",
+      "titan-workforce/handover/investigation-installation-handover.mjs",
+      "titan-workforce/investigation-participation-manager.mjs",
+      "titan-workforce/learning/improvement-proposal-runtime.mjs",
+      "titan-workforce/mission/mission-team-runtime.mjs",
+      "titan-workforce/performance/performance-outcome-runtime.mjs",
+      "titan-workforce/staffing/dynamic-staffing-runtime.mjs",
+      "titan-workforce/supervision/supervisor-runtime.mjs",
+      "titan-zero-chat-background.compat.js"
+    ]
+  },
+  "inherited_startup_profile": {
+    "source": "diagnostics/startup/pass08-bootstrap-profile.json",
+    "measured_environment": "node-mocked-chrome-api",
+    "sample_count": 15,
+    "p50_duration_ms": 31.083,
+    "p95_duration_ms": 33.214,
+    "p95_heap_delta_bytes": 206608,
+    "max_candidate_tabs": 12,
+    "max_peak_concurrency": 4,
+    "ok": true
+  },
+  "measurement_limits": {
+    "live_chrome_memory": "NOT_MEASURED_PASS01",
+    "reason": "No live unpacked Chrome instrumentation available in this execution environment; inherited node-mocked startup profile retained as the current reproducible memory/timing baseline."
+  },
+  "authority_effect": false,
+  "grants_authority": false,
+  "identity_not_authority": true,
+  "company_boundary": "company_id_only"
+}

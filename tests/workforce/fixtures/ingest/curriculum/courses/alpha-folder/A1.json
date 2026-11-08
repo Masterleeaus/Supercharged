@@ -1,0 +1,8 @@
+{
+  "id": "A1",
+  "title": "Alpha lesson one",
+  "status": "DRAFT",
+  "courseSlugs": ["alpha-clean"],
+  "instruction": [{ "heading": "Scope", "body": "Confirm the scope before starting." }],
+  "knowledgeChecks": [{ "id": "A1-K1", "answer": "B" }]
+}

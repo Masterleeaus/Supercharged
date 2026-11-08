@@ -130,7 +130,8 @@ export class OpenAIAgentFactory {
   static addKnowledgeBaseTool(
     config: AgentConfigWithContext, 
     knowledgeBaseIds: string[],
-    userId: string
+    userId: string,
+    companyId: string
   ): AgentConfigWithContext {
     if (!knowledgeBaseIds || knowledgeBaseIds.length === 0) {
       console.log(`[Agent Factory] No knowledge bases to add`);
@@ -158,9 +159,9 @@ export class OpenAIAgentFactory {
           console.log(`[KB Tool] Searching: "${query.substring(0, 50)}..."`);
           
           const results = await RAGKnowledgeService.searchKnowledge(
+            { companyId, userId },
             query,
             knowledgeBaseIds,
-            userId,
             5 // max results
           );
           
@@ -285,7 +286,7 @@ export class OpenAIAgentFactory {
           
           // Get agent's flowId if available
           const [agent] = await db
-            .select({ flowId: agents.flowId })
+            .select({ flowId: agents.flowId, companyId: agents.companyId })
             .from(agents)
             .where(eq(agents.id, agentId))
             .limit(1);
@@ -430,12 +431,23 @@ export class OpenAIAgentFactory {
             }
           }
           
+          // Company comes from the owning agent record (tool calls carry no session). Fail closed.
+          const companyId: string | null = agent?.companyId ?? null;
+          if (!companyId) {
+            console.warn(`[Appointment Tool] Refusing insert: agent ${agentId} has no company_id`);
+            return {
+              success: false,
+              message: 'Unable to book appointment at this time. Please try again.'
+            };
+          }
+
           const appointmentId = nanoid();
           const [newAppointment] = await db
             .insert(appointments)
             .values({
               id: appointmentId,
               userId,
+              companyId,
               callId: callId || null,
               flowId: agent?.flowId || null,
               contactName: params.contactName as string,
@@ -564,11 +576,27 @@ export class OpenAIAgentFactory {
             }
           }
           
+          // Company comes from the owning form record (tool calls carry no session). Fail closed.
+          const [ownerForm] = await db
+            .select({ companyId: forms.companyId })
+            .from(forms)
+            .where(and(eq(forms.id, formId), eq(forms.userId, userId)))
+            .limit(1);
+          const companyId: string | null = ownerForm?.companyId ?? null;
+          if (!companyId) {
+            console.warn(`[Form Tool] Refusing insert: form ${formId} has no company_id`);
+            return {
+              success: false,
+              message: 'Unable to save information at this time. Please try again.'
+            };
+          }
+
           const submissionId = nanoid();
           const [submission] = await db
             .insert(formSubmissions)
             .values({
               id: submissionId,
+              companyId,
               formId,
               callId: callId || null,
               contactName: (params.contactName as string) || null,
@@ -1052,6 +1080,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
     compiledTools: Array<{ type: string; function: { name: string; description: string; parameters: any } }>,
     context: {
       userId: string;
+      companyId: string;
       agentId: string;
       callId?: string;
       knowledgeBaseIds?: string[];
@@ -1103,9 +1132,9 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
               }
               
               const results = await RAGKnowledgeService.searchKnowledge(
+                { companyId: context.companyId, userId: context.userId },
                 query,
                 context.knowledgeBaseIds,
-                context.userId,
                 5
               );
               
@@ -1137,11 +1166,19 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
                 };
               }
               
+              // Company comes from the hydrate context (the owning agent's company, set by the caller). Fail closed.
+              const companyId: string | null = context.companyId || null;
+              if (!companyId) {
+                console.warn(`[Appointment Tool] Refusing hydrated insert: agent ${context.agentId} has no company_id`);
+                return { success: false, message: 'Unable to book appointment at this time.' };
+              }
+
               const appointmentId = nanoid();
               const [appointment] = await db
                 .insert(appointments)
                 .values({
                   id: appointmentId,
+                  companyId,
                   userId: context.userId,
                   callId: context.callId,
                   contactName: params.contactName as string,
@@ -1200,11 +1237,24 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
                 const contactPhone = (params.contactPhone || params.contact_phone || params.phone || params.phoneNumber) as string | undefined;
                 const contactEmail = (params.contactEmail || params.contact_email || params.email) as string | undefined;
                 
+                // Company comes from the owning form record (hydrated tools carry no session). Fail closed.
+                const [ownerForm] = await db
+                  .select({ companyId: forms.companyId })
+                  .from(forms)
+                  .where(and(eq(forms.id, formId), eq(forms.userId, context.userId)))
+                  .limit(1);
+                const companyId: string | null = ownerForm?.companyId ?? null;
+                if (!companyId) {
+                  console.warn(`[Form Tool Hydrated] Refusing insert: form ${formId} has no company_id`);
+                  return { success: false, message: 'Unable to save information at this time.' };
+                }
+
                 const submissionId = nanoid();
                 const [submission] = await db
                   .insert(formSubmissions)
                   .values({
                     id: submissionId,
+                    companyId,
                     formId,
                     callId: context.callId || null,
                     contactName: contactName || null,
@@ -1217,7 +1267,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
                 
                 // Trigger form.submitted webhook event
                 try {
-                  await webhookDeliveryService.triggerEvent(context.userId, 'form.submitted', {
+                  await webhookDeliveryService.triggerEvent(context.companyId, context.userId, 'form.submitted', {
                     submission: {
                       id: submissionId,
                       formId: formId,
@@ -2035,6 +2085,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
     agent: {
       id: string;
       userId: string;
+      companyId?: string | null;
       type: string;
       systemPrompt: string;
       firstMessage?: string | null;
@@ -2095,7 +2146,12 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
 
     // Add knowledge base tool if configured
     if (agent.knowledgeBaseIds && agent.knowledgeBaseIds.length > 0) {
-      config = this.addKnowledgeBaseTool(config, agent.knowledgeBaseIds, agent.userId);
+      if (!agent.companyId) {
+        // Fail closed: no company, no knowledge tool.
+        console.warn(`[Agent Factory] Agent ${agent.id} has no company scope, knowledge tool not added`);
+      } else {
+        config = this.addKnowledgeBaseTool(config, agent.knowledgeBaseIds, agent.userId, agent.companyId);
+      }
     }
 
     // Add transfer tool if enabled

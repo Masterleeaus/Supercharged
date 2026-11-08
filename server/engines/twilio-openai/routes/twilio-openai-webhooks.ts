@@ -85,7 +85,7 @@ router.post('/voice/incoming', async (req: Request, res: Response) => {
     // Trigger inbound_call.received as soon as we have the phone record
     if (phoneRecord?.userId) {
       try {
-        await webhookDeliveryService.triggerEvent(phoneRecord.userId, 'inbound_call.received', {
+        await webhookDeliveryService.triggerEvent(phoneRecord.companyId ?? null, phoneRecord.userId, 'inbound_call.received', {
           callId: null,
           callSid: CallSid,
           direction: 'inbound',
@@ -251,7 +251,7 @@ router.post('/voice/incoming', async (req: Request, res: Response) => {
 
     // Trigger call.started webhook event for incoming calls
     try {
-      await webhookDeliveryService.triggerEvent(phoneRecord.userId!, 'call.started', {
+      await webhookDeliveryService.triggerEvent(phoneRecord.companyId ?? null, phoneRecord.userId!, 'call.started', {
         call: {
           id: callId,
           callSid: CallSid,
@@ -274,7 +274,7 @@ router.post('/voice/incoming', async (req: Request, res: Response) => {
 
     // Trigger inbound_call.answered webhook - the call has been answered by the AI agent
     try {
-      await webhookDeliveryService.triggerEvent(phoneRecord.userId!, 'inbound_call.answered', {
+      await webhookDeliveryService.triggerEvent(phoneRecord.companyId ?? null, phoneRecord.userId!, 'inbound_call.answered', {
         callId: callId,
         callSid: CallSid,
         direction: 'inbound',
@@ -420,25 +420,25 @@ router.post('/voice/status', async (req: Request, res: Response) => {
         };
 
         if (CallStatus === 'ringing') {
-          await webhookDeliveryService.triggerEvent(callRecord.userId, 'call.ringing', webhookPayload, callRecord.campaignId);
+          await webhookDeliveryService.triggerEvent(callRecord.companyId ?? null, callRecord.userId, 'call.ringing', webhookPayload, callRecord.campaignId);
           logger.info(`Triggered call.ringing webhook for call ${callRecord.id}`, undefined, 'TwilioOpenAI');
         } else if (CallStatus === 'in-progress') {
-          await webhookDeliveryService.triggerEvent(callRecord.userId, 'call.answered', webhookPayload, callRecord.campaignId);
+          await webhookDeliveryService.triggerEvent(callRecord.companyId ?? null, callRecord.userId, 'call.answered', webhookPayload, callRecord.campaignId);
           logger.info(`Triggered call.answered webhook for call ${callRecord.id}`, undefined, 'TwilioOpenAI');
           // Recording is now started in the WebSocket stream 'start' event handler
           // (twilio-openai-stream.ts), not here, so no recordings.create() call needed.
         } else if (CallStatus === 'no-answer') {
-          await webhookDeliveryService.triggerEvent(callRecord.userId, 'call.no_answer', webhookPayload, callRecord.campaignId);
+          await webhookDeliveryService.triggerEvent(callRecord.companyId ?? null, callRecord.userId, 'call.no_answer', webhookPayload, callRecord.campaignId);
           logger.info(`Triggered call.no_answer webhook for call ${callRecord.id}`, undefined, 'TwilioOpenAI');
         } else if (CallStatus === 'busy') {
-          await webhookDeliveryService.triggerEvent(callRecord.userId, 'call.busy', webhookPayload, callRecord.campaignId);
+          await webhookDeliveryService.triggerEvent(callRecord.companyId ?? null, callRecord.userId, 'call.busy', webhookPayload, callRecord.campaignId);
           logger.info(`Triggered call.busy webhook for call ${callRecord.id}`, undefined, 'TwilioOpenAI');
         }
 
         // Check for voicemail detection from Twilio AMD (Answering Machine Detection)
         const AnsweredBy = (params as any).AnsweredBy;
         if (AnsweredBy === 'machine_start' || AnsweredBy === 'machine_end_beep' || AnsweredBy === 'machine_end_silence') {
-          await webhookDeliveryService.triggerEvent(callRecord.userId, 'call.voicemail', webhookPayload, callRecord.campaignId);
+          await webhookDeliveryService.triggerEvent(callRecord.companyId ?? null, callRecord.userId, 'call.voicemail', webhookPayload, callRecord.campaignId);
           logger.info(`Triggered call.voicemail webhook for call ${callRecord.id}`, undefined, 'TwilioOpenAI');
         }
       } catch (webhookError: any) {
@@ -541,7 +541,7 @@ router.post('/voice/status', async (req: Request, res: Response) => {
       // Trigger call.completed webhook event
       if (callRecord.userId && (CallStatus === 'completed' || CallStatus === 'failed' || CallStatus === 'busy' || CallStatus === 'no-answer')) {
         try {
-          await webhookDeliveryService.triggerEvent(callRecord.userId, 'call.completed', {
+          await webhookDeliveryService.triggerEvent(callRecord.companyId ?? null, callRecord.userId, 'call.completed', {
             call: {
               id: callRecord.id,
               callSid: CallSid,
@@ -580,10 +580,10 @@ router.post('/voice/status', async (req: Request, res: Response) => {
           };
 
           if (CallStatus === 'completed') {
-            await webhookDeliveryService.triggerEvent(callRecord.userId, 'inbound_call.completed', inboundPayload);
+            await webhookDeliveryService.triggerEvent(callRecord.companyId ?? null, callRecord.userId, 'inbound_call.completed', inboundPayload);
             logger.info(`Triggered inbound_call.completed webhook for call ${callRecord.id}`, undefined, 'TwilioOpenAI');
           } else if (CallStatus === 'no-answer' || CallStatus === 'canceled') {
-            await webhookDeliveryService.triggerEvent(callRecord.userId, 'inbound_call.missed', inboundPayload);
+            await webhookDeliveryService.triggerEvent(callRecord.companyId ?? null, callRecord.userId, 'inbound_call.missed', inboundPayload);
             logger.info(`Triggered inbound_call.missed webhook for call ${callRecord.id}`, undefined, 'TwilioOpenAI');
           }
         } catch (webhookError: any) {
@@ -618,13 +618,13 @@ router.post('/voice/status', async (req: Request, res: Response) => {
             };
 
             if (CallStatus === 'completed') {
-              await webhookDeliveryService.triggerEvent(callRecord.userId, 'flow.completed', {
+              await webhookDeliveryService.triggerEvent(callRecord.companyId ?? null, callRecord.userId, 'flow.completed', {
                 ...flowPayload,
                 nodesExecuted: flow?.nodes ? (flow.nodes as any[]).length : 0,
               });
               logger.info(`Triggered flow.completed webhook for call ${callRecord.id}`, undefined, 'TwilioOpenAI');
             } else if (CallStatus === 'failed' || CallStatus === 'busy' || CallStatus === 'no-answer') {
-              await webhookDeliveryService.triggerEvent(callRecord.userId, 'flow.failed', {
+              await webhookDeliveryService.triggerEvent(callRecord.companyId ?? null, callRecord.userId, 'flow.failed', {
                 ...flowPayload,
                 error: {
                   code: 'CALL_ENDED',

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Titan accepted factual evidence",
+  "type": "object",
+  "required": ["schema", "evidence_id", "company_id", "sequence", "factual"],
+  "properties": {
+    "schema": { "const": "titan.business.accepted-evidence/v1" },
+    "evidence_id": { "type": "string", "minLength": 1 },
+    "company_id": { "type": "string", "minLength": 1 },
+    "sequence": { "type": "integer", "minimum": 1 },
+    "factual": { "const": true },
+    "supersedes_evidence_id": { "type": ["string", "null"] },
+    "final_outcome": { "type": ["string", "null"] }
+  },
+  "additionalProperties": true
+}
+

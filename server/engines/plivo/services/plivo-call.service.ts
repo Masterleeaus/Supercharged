@@ -123,6 +123,7 @@ export class PlivoCallService {
     if (!user) {
       throw new Error('User not found');
     }
+    const companyId = user.companyId ?? null;
 
     if (user.credits < 1) {
       throw new Error('Insufficient credits to make a call');
@@ -293,7 +294,7 @@ export class PlivoCallService {
           }
         }
 
-        await webhookDeliveryService.triggerEvent(params.userId, 'call.started', {
+        await webhookDeliveryService.triggerEvent(companyId, params.userId, 'call.started', {
           campaign: campaignInfo,
           contact: contactInfo || { phone: params.toNumber },
           agent: agentInfo,
@@ -319,7 +320,7 @@ export class PlivoCallService {
               .limit(1);
             
             if (flow) {
-              await webhookDeliveryService.triggerEvent(params.userId, 'flow.started', {
+              await webhookDeliveryService.triggerEvent(companyId, params.userId, 'flow.started', {
                 flowId: flow.id,
                 flowName: flow.name,
                 callId: updatedCall.id,
@@ -401,16 +402,16 @@ export class PlivoCallService {
         };
 
         if (status === 'ringing') {
-          await webhookDeliveryService.triggerEvent(call.userId, 'call.ringing', webhookPayload, call.campaignId);
+          await webhookDeliveryService.triggerEvent(call.companyId ?? null, call.userId, 'call.ringing', webhookPayload, call.campaignId);
           logger.info(`Triggered call.ringing webhook for call ${callId}`, undefined, 'PlivoCall');
         } else if (status === 'in-progress') {
-          await webhookDeliveryService.triggerEvent(call.userId, 'call.answered', webhookPayload, call.campaignId);
+          await webhookDeliveryService.triggerEvent(call.companyId ?? null, call.userId, 'call.answered', webhookPayload, call.campaignId);
           logger.info(`Triggered call.answered webhook for call ${callId}`, undefined, 'PlivoCall');
         } else if (status === 'no-answer') {
-          await webhookDeliveryService.triggerEvent(call.userId, 'call.no_answer', webhookPayload, call.campaignId);
+          await webhookDeliveryService.triggerEvent(call.companyId ?? null, call.userId, 'call.no_answer', webhookPayload, call.campaignId);
           logger.info(`Triggered call.no_answer webhook for call ${callId}`, undefined, 'PlivoCall');
         } else if (status === 'busy') {
-          await webhookDeliveryService.triggerEvent(call.userId, 'call.busy', webhookPayload, call.campaignId);
+          await webhookDeliveryService.triggerEvent(call.companyId ?? null, call.userId, 'call.busy', webhookPayload, call.campaignId);
           logger.info(`Triggered call.busy webhook for call ${callId}`, undefined, 'PlivoCall');
         }
         
@@ -419,7 +420,7 @@ export class PlivoCallService {
                                    metadata?.hangupCause === 'MACHINE_DETECTED' ||
                                    (metadata as any)?.amd_status === 'machine';
         if (voicemailDetected) {
-          await webhookDeliveryService.triggerEvent(call.userId, 'call.voicemail', webhookPayload, call.campaignId);
+          await webhookDeliveryService.triggerEvent(call.companyId ?? null, call.userId, 'call.voicemail', webhookPayload, call.campaignId);
           logger.info(`Triggered call.voicemail webhook for call ${callId}`, undefined, 'PlivoCall');
         }
       } catch (webhookError: any) {
@@ -667,7 +668,7 @@ export class PlivoCallService {
 
         const eventType = status === 'completed' ? 'call.completed' : 'call.failed';
 
-        await webhookDeliveryService.triggerEvent(call.userId, eventType, {
+        await webhookDeliveryService.triggerEvent(call.companyId ?? null, call.userId, eventType, {
           campaign: campaignInfo,
           contact: contactInfo || { phone: updatedCall.toNumber },
           agent: agentInfo,
@@ -738,7 +739,7 @@ export class PlivoCallService {
                   };
                 }
 
-                await webhookDeliveryService.triggerEvent(call.userId, flowEventType, flowPayload, call.campaignId);
+                await webhookDeliveryService.triggerEvent(call.companyId ?? null, call.userId, flowEventType, flowPayload, call.campaignId);
                 logger.info(`Triggered ${flowEventType} webhook for call ${callId}, flow ${flow.name}`, undefined, 'PlivoCall');
               }
             }
@@ -763,10 +764,10 @@ export class PlivoCallService {
             };
 
             if (status === 'completed') {
-              await webhookDeliveryService.triggerEvent(call.userId, 'inbound_call.completed', inboundPayload);
+              await webhookDeliveryService.triggerEvent(call.companyId ?? null, call.userId, 'inbound_call.completed', inboundPayload);
               logger.info(`Triggered inbound_call.completed webhook for call ${callId}`, undefined, 'PlivoCall');
             } else if (status === 'no-answer' || status === 'canceled') {
-              await webhookDeliveryService.triggerEvent(call.userId, 'inbound_call.missed', inboundPayload);
+              await webhookDeliveryService.triggerEvent(call.companyId ?? null, call.userId, 'inbound_call.missed', inboundPayload);
               logger.info(`Triggered inbound_call.missed webhook for call ${callId}`, undefined, 'PlivoCall');
             }
           } catch (inboundWebhookError: any) {
@@ -1053,7 +1054,7 @@ export class PlivoCallService {
           ? Math.floor((new Date().getTime() - new Date(updatedCall.startedAt).getTime()) / 1000)
           : 0;
 
-        await webhookDeliveryService.triggerEvent(updatedCall.userId, 'call.transferred', {
+        await webhookDeliveryService.triggerEvent(updatedCall.companyId ?? null, updatedCall.userId, 'call.transferred', {
           call: {
             id: updatedCall.id,
             callUuid: updatedCall.plivoCallUuid,

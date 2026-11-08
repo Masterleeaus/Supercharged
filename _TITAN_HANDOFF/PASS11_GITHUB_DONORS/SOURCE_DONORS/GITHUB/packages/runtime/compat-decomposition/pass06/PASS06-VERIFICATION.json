@@ -1,0 +1,25 @@
+{
+  "schema": "titan-zero-pass-verification/v1",
+  "packet_id": "TZ-FIX-COMPAT-RUNTIME-DECOMPOSITION-001",
+  "pass": 6,
+  "result": "PASS",
+  "manager_baseline": {
+    "merge": 46,
+    "sha256": "2bef6fd90116796c76fa1ba7cb0e59841b0788c7657dc59077dd0a9ba440f949"
+  },
+  "checks": {
+    "pass01": "PASS",
+    "pass02": "PASS",
+    "pass03": "5/5 PASS",
+    "pass04": "5/5 PASS",
+    "pass05": "5/5 PASS",
+    "pass06": "6/6 PASS",
+    "compat_bootstrap_syntax": "PASS",
+    "translation_chunk_syntax": "PASS",
+    "document_evidence_chunk_syntax": "PASS",
+    "browser_session_chunk_syntax": "PASS",
+    "temporary_merge46_reconstruction": "PASS"
+  },
+  "live_chrome": "NOT_RUN_EXTERNAL_GATE",
+  "monolith_retirement": false
+}

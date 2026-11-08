@@ -1,0 +1,110 @@
+diff --git a/server/routes/webhook-routes.ts b/server/routes/webhook-routes.ts
+index bd62e46..0fc086e 100644
+--- a/server/routes/webhook-routes.ts
++++ b/server/routes/webhook-routes.ts
+@@ -29,6 +29,9 @@ import { ElevenLabsPoolService } from '../services/elevenlabs-pool';
+ import twilio from 'twilio';
+ import crypto from 'crypto';
+ import { verifyElevenLabsWebhookAgainstSecrets } from '../services/elevenlabs-webhook-signature';
++
++// Header carrying `t=<unix>,v0=<hmac>` over `${t}.${rawBody}`, keyed with ELEVENLABS_TOOL_HMAC_SECRET.
++const PLAY_AUDIO_SIGNATURE_HEADER = 'x-titan-tool-signature';
+ import { storage } from '../storage';
+ import { webhookDeliveryService } from '../services/webhook-delivery';
+ import {
+@@ -6091,6 +6094,21 @@ export async function handleRAGToolWebhook(req: Request, res: Response) {
+ export async function handlePlayAudioToolWebhook(req: Request, res: Response): Promise<void> {
+   const { agentId: elevenLabsAgentId } = req.params;
+ 
++  // Authenticate before reading or logging the body. Fail closed: with no tool secret
++  // configured, or with a missing or invalid HMAC, nothing is played.
++  const rawBody = req.rawBody ? Buffer.from(req.rawBody as Uint8Array).toString() : JSON.stringify(req.body ?? {});
++  const toolSecret = process.env.ELEVENLABS_TOOL_HMAC_SECRET ?? '';
++  const toolCheck = verifyElevenLabsWebhookAgainstSecrets(
++    rawBody,
++    req.headers[PLAY_AUDIO_SIGNATURE_HEADER] as string | undefined,
++    [toolSecret]
++  );
++  if (!toolCheck.verified) {
++    console.warn(`[PlayAudio Webhook] Rejected request for agent ${elevenLabsAgentId}: ${toolCheck.error}`);
++    res.status(401).json({ error: 'Invalid tool signature' });
++    return;
++  }
++
+   try {
+     console.log('[PlayAudio Webhook] Received request for agent:', elevenLabsAgentId);
+     console.log('[PlayAudio Webhook] Request body:', JSON.stringify(req.body));
+@@ -6103,6 +6121,11 @@ export async function handlePlayAudioToolWebhook(req: Request, res: Response): P
+       return;
+     }
+ 
++    if (typeof audioUrl !== 'string' || !/^https:\/\//i.test(audioUrl)) {
++      res.status(400).json({ error: 'audioUrl must be an https URL' });
++      return;
++    }
++
+     // Look up the agent by ElevenLabs agent ID to find the active call
+     const agent = await db
+       .select({ id: agents.id, userId: agents.userId })
+diff --git a/tests/security/play-audio-hmac.test.mjs b/tests/security/play-audio-hmac.test.mjs
+new file mode 100644
+index 0000000..403199c
+--- /dev/null
++++ b/tests/security/play-audio-hmac.test.mjs
+@@ -0,0 +1,56 @@
++// Security regression test: play-audio tool webhook must require an HMAC before acting.
++// Run: node --test tests/security/play-audio-hmac.test.mjs   (apply SEC-02 first; this uses its helper)
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import crypto from 'node:crypto';
++import fs from 'node:fs';
++import { verifyElevenLabsWebhookAgainstSecrets } from '../../server/services/elevenlabs-webhook-signature.ts';
++
++const src = fs
++  .readFileSync(new URL('../../server/routes/webhook-routes.ts', import.meta.url), 'utf8')
++  .replace(/\r\n/g, '\n');
++const start = src.indexOf('export async function handlePlayAudioToolWebhook(');
++const handler = src.slice(start, src.indexOf('\n}\n', start) + 2);
++
++test('play-audio handler verifies an HMAC with a configured tool secret', () => {
++  assert.ok(start >= 0, 'handler not found');
++  assert.match(handler, /verifyElevenLabsWebhookAgainstSecrets\(/);
++  assert.match(handler, /process\.env\.ELEVENLABS_TOOL_HMAC_SECRET/);
++  assert.match(handler, /PLAY_AUDIO_SIGNATURE_HEADER/);
++});
++
++test('play-audio authenticates before it logs or reads the body', () => {
++  const authAt = handler.indexOf('verifyElevenLabsWebhookAgainstSecrets(');
++  const logAt = handler.indexOf("console.log('[PlayAudio Webhook] Received request");
++  assert.ok(authAt > 0 && logAt > authAt, 'auth must come before the body is logged');
++  assert.ok(!/console\.log\([^)]*req\.body/.test(handler.slice(0, authAt)), 'body logged before auth');
++});
++
++test('play-audio rejects with 401 when auth fails and only accepts https audio', () => {
++  assert.match(handler, /res\.status\(401\)/);
++  assert.match(handler, /\^https:/);
++});
++
++// Behaviour of the HMAC rule the handler depends on. Header is `t=<unix>,v0=<hmac of t.body>`.
++const SECRET = 'test-tool-secret-not-real';
++const NOW = 1_800_000_000;
++const body = JSON.stringify({ audioUrl: 'https://example.com/a.mp3', interruptible: false });
++const sign = (payload, secret, ts = NOW) =>
++  `t=${ts},v0=` + crypto.createHmac('sha256', secret).update(`${ts}.${payload}`).digest('hex');
++
++test('accepts a request whose HMAC matches the tool secret', () => {
++  assert.equal(verifyElevenLabsWebhookAgainstSecrets(body, sign(body, SECRET, NOW), [SECRET], NOW).verified, true);
++});
++
++test('rejects an unsigned request (no header)', () => {
++  assert.equal(verifyElevenLabsWebhookAgainstSecrets(body, undefined, [SECRET], NOW).verified, false);
++});
++
++test('rejects when ELEVENLABS_TOOL_HMAC_SECRET is unset (empty secret)', () => {
++  assert.equal(verifyElevenLabsWebhookAgainstSecrets(body, sign(body, '', NOW), [''], NOW).verified, false);
++});
++
++test('rejects a body changed after signing (for example a swapped audioUrl)', () => {
++  const swapped = body.replace('example.com', 'attacker.example');
++  assert.equal(verifyElevenLabsWebhookAgainstSecrets(swapped, sign(body, SECRET, NOW), [SECRET], NOW).verified, false);
++});

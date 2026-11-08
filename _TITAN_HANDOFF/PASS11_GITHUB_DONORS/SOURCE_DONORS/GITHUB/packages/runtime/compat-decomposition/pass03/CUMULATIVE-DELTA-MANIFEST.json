@@ -1,0 +1,142 @@
+{
+  "schema": "titan-zero-cumulative-delta-manifest/v1",
+  "packet_id": "TZ-FIX-COMPAT-RUNTIME-DECOMPOSITION-001",
+  "pass": 3,
+  "files": [
+    {
+      "path": "Agent Mesh/Builder 5/STATUS.json",
+      "sha256": "0c9f514c7f045da465f0dd3c0b07d669c38b285443d6d6fd93401429057db920",
+      "bytes": 358
+    },
+    {
+      "path": "Agent Mesh/Builder 5/WORK/TZ-FIX-COMPAT-RUNTIME-DECOMPOSITION-001.json",
+      "sha256": "a8d30b4631db3289465a10cf4de9a1167d59cb79dc576107e68a060d31fe4a70",
+      "bytes": 6042
+    },
+    {
+      "path": "tests/compat_runtime_decomposition_pass01.test.mjs",
+      "sha256": "06a6a2e60834cad7280e57c2c32ec5d3dfef3ed68f1adb942f50bbaabcb29b2e",
+      "bytes": 1437
+    },
+    {
+      "path": "tests/compat_runtime_decomposition_pass02.test.mjs",
+      "sha256": "be56d8ceaa8d61950ec1cdf7878d19ac5b2c8f83d0a282ffb6a8c8aa3bb5484f",
+      "bytes": 1829
+    },
+    {
+      "path": "tests/compat_runtime_decomposition_pass03.test.mjs",
+      "sha256": "9cb9d25622f202cd2af48e354489813e475b8440eac6faafd755455ac30b9396",
+      "bytes": 1813
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass03/EQUIVALENCE-MAP.json",
+      "sha256": "3f52b63da91cd803fa89b2f0244893b2b60397bbf04e90b1774fe59d843d19d6",
+      "bytes": 14848
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass03/PASS03-CHANGE-IMPACT.json",
+      "sha256": "198d3fc117f46ad7c0fcca2492b1ad3aae773b70baab5580f50ff19540af5f6f",
+      "bytes": 323
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass03/PASS03-COLLISION-RECORD.json",
+      "sha256": "a2822c7bd58ea727f8ce6ec75d79227e0ae9f37999a3c4f801dde5cdbfcfbbd7",
+      "bytes": 217
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass03/PASS03-HANDOFF.json",
+      "sha256": "cc1e4a227e2553452f5f6fa78e26aa5be71bdd10b6280e882e98dcb327d7f5c5",
+      "bytes": 607
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass03/PASS03-SEMANTIC-CHANGE.json",
+      "sha256": "c6617db494b5429f0551d7c548a96141b28763a4e4aacc7d1aabfd0ceebfc424",
+      "bytes": 179
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass03/PASS03-SUMMARY.json",
+      "sha256": "e33b72d0715419b11d0c9a8c0b3236719a428458b585d46bbbfad2557dc53b41",
+      "bytes": 540
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass03/PASS03-TOUCHED-FILES.json",
+      "sha256": "b0d85dfcec0ae233ee800c0d09b35d7ec9a0ddc366f385f872ecb2b2f420f444",
+      "bytes": 445
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass03/PASS03-VERIFICATION.json",
+      "sha256": "1b9ab4a69969514256450a8dc2ae5dfb3b313f8914a377b54ca3f89fb551ee94",
+      "bytes": 218
+    },
+    {
+      "path": "titan-runtime/performance/compat-decomposition/pass01/COLLISION.json",
+      "sha256": "f6c834d424504adfc7427b63817e829e6ca573a58525ed9d6edf97b3f4b42d47",
+      "bytes": 412
+    },
+    {
+      "path": "titan-runtime/performance/compat-decomposition/pass01/COMPAT-RUNTIME-CENSUS.json",
+      "sha256": "11bcc7db2a53b93e9f3f247e85448d2f4bf3c28a250d9d658902c5a1ed45f4e4",
+      "bytes": 5067
+    },
+    {
+      "path": "titan-runtime/performance/compat-decomposition/pass01/RAW-SIGNAL-CENSUS.json",
+      "sha256": "24a215370b018a422cca42762e3db603ac79bfb4a3e8ad99c076425872a2bd83",
+      "bytes": 12822
+    },
+    {
+      "path": "titan-runtime/performance/compat-decomposition/pass01/SEMANTIC-CHANGE.json",
+      "sha256": "a2f991769233c20762e048798e5e08b4eb8f64aad68862db0780bfede5367aa0",
+      "bytes": 479
+    },
+    {
+      "path": "titan-runtime/performance/compat-decomposition/pass01/STARTUP-REACHABILITY.json",
+      "sha256": "488181dc60181f88244e237fd9b7fe82d5fd37df3b13bf16e054aeac65814c21",
+      "bytes": 1080
+    },
+    {
+      "path": "titan-runtime/performance/compat-decomposition/pass01/TOUCHED-FILES.json",
+      "sha256": "4e8371cf26e2fa3566188cf287d8009252a05b7c5cc0b5dd4dcfb485d3815b76",
+      "bytes": 608
+    },
+    {
+      "path": "titan-runtime/performance/compat-decomposition/pass01/VERIFICATION.json",
+      "sha256": "59a1b78953946d178895aeebe06e4dd0ba4208e4959ccf9153973d73a436bff8",
+      "bytes": 582
+    },
+    {
+      "path": "titan-runtime/performance/compat-decomposition/pass02/COLLISION.json",
+      "sha256": "51edbb1526451663ca01f5eb8ff7e3979c5182c9381ea294bbc48eb87f70fa35",
+      "bytes": 466
+    },
+    {
+      "path": "titan-runtime/performance/compat-decomposition/pass02/DOMAIN-CLASSIFICATION.json",
+      "sha256": "56bdf6cf5d77838f453cab985f0ec1cdd621af51969836a9a339d77c3a82fbd0",
+      "bytes": 10542
+    },
+    {
+      "path": "titan-runtime/performance/compat-decomposition/pass02/SEMANTIC-CHANGE.json",
+      "sha256": "f91582357a8f761a9cacd9afebb3ae306b8fcf9523d96eea761ae674a610e792",
+      "bytes": 508
+    },
+    {
+      "path": "titan-runtime/performance/compat-decomposition/pass02/STARTUP-CALL-GRAPH.json",
+      "sha256": "60ef9b16859bb14e589ba9ce638827cb2b4d78c837f32a0a108b1841f3f5b3ca",
+      "bytes": 2717
+    },
+    {
+      "path": "titan-runtime/performance/compat-decomposition/pass02/STARTUP-REACHABILITY-MAP.json",
+      "sha256": "96c18c367d884ac0279965353028c2ab250ec1b67c022f5343abe7ba106310f5",
+      "bytes": 1764
+    },
+    {
+      "path": "titan-runtime/performance/compat-decomposition/pass02/TOUCHED-FILES.json",
+      "sha256": "a7455d68315c1c8fcbf0e340f9bf14d3650991bdcde567a6f20d3c9c8d9ec061",
+      "bytes": 692
+    },
+    {
+      "path": "titan-runtime/performance/compat-decomposition/pass02/VERIFICATION.json",
+      "sha256": "7112d9709893bcf3885e351131cdc1772254a51568819580628a07fe5c7322f7",
+      "bytes": 691
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "schema": "titan-zero-collision-record/v1",
+  "builder3_retriever_native_active": true,
+  "collision": false,
+  "decision": "No Retriever/native, manifest, HTML, CSS, or compat monolith edits in Pass4."
+}

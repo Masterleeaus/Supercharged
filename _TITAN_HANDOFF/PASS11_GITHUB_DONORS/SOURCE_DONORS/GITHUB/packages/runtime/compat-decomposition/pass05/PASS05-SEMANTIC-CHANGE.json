@@ -1,0 +1,5 @@
+{
+  "change": "translation default feature now resolves to dedicated compat translation chunk; chunk delegates locale semantics to existing locale-on-demand-loader",
+  "feature_removed": false,
+  "eager_load_added": false
+}

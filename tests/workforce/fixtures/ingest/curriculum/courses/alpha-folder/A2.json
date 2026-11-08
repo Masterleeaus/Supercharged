@@ -1,0 +1,7 @@
+{
+  "id": "A2",
+  "title": "Alpha lesson two",
+  "status": "PUBLISHED",
+  "courseSlugs": ["alpha-clean"],
+  "instruction": [{ "heading": "Access", "body": "Record access arrangements." }]
+}

@@ -80,6 +80,16 @@ import FeaturesPage from "@/pages/FeaturesPage";
 import PricingPage from "@/pages/PricingPage";
 import UseCasesPage from "@/pages/UseCasesPage";
 import IntegrationsPage from "@/pages/IntegrationsPage";
+import Approvals from "@/pages/Approvals";
+import ChatbotBuilder from "@/pages/ChatbotBuilder";
+import ChatbotWizard from "@/pages/chatbot-builder/wizard-shell";
+import ChatbotInboxPage from "@/pages/chatbot-inbox/inbox-page";
+import {
+  AnalyticsPage as ChatbotAnalyticsPage,
+  CannedResponsesPage as ChatbotCannedResponsesPage,
+  ContactsPage as ChatbotContactsPage,
+  KnowledgeBasePage as ChatbotKnowledgeBasePage,
+} from "@/pages/chatbot-admin";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { NotificationBell } from "@/components/NotificationBell";
 import { HeaderBannerNotifications } from "@/components/HeaderBannerNotifications";
@@ -348,9 +358,33 @@ function UserRouter() {
                 </Route>
                 <Route path="/app/flows/:id" component={FlowBuilderPage} />
                 <Route path="/app/flows" component={FlowsPage} />
-                <Route path="/app/outbound" component={() => <div className="text-center py-16 text-muted-foreground">Outbound page coming soon</div>} />
+                <Route path="/app/approvals" component={Approvals} />
+                <Route path="/app/chatbot-builder" component={ChatbotBuilder} />
+                <Route
+                  path="/app/chatbot-builder/wizard/:id?"
+                  component={chatbotBuilderFlagOn ? ChatbotWizard : ChatbotBuilder}
+                />
+                <Route
+                  path="/app/chatbot-inbox"
+                  component={chatbotInboxFlagOn ? ChatbotInboxPage : NotFound}
+                />
+                <Route
+                  path="/app/chatbot-admin/knowledge-base"
+                  component={chatbotAdminFlagOn ? ChatbotKnowledgeBasePage : NotFound}
+                />
+                <Route
+                  path="/app/chatbot-admin/canned-responses"
+                  component={chatbotAdminFlagOn ? ChatbotCannedResponsesPage : NotFound}
+                />
+                <Route
+                  path="/app/chatbot-admin/analytics"
+                  component={chatbotAdminFlagOn ? ChatbotAnalyticsPage : NotFound}
+                />
+                <Route
+                  path="/app/chatbot-admin/contacts"
+                  component={chatbotAdminFlagOn ? ChatbotContactsPage : NotFound}
+                />
                 <Route path="/app/settings" component={Settings} />
-                <Route path="/app/developers" component={() => <div className="text-center py-16 text-muted-foreground">Developers page coming soon</div>} />
                 <Route component={NotFound} />
               </Switch>
             </div>
@@ -816,6 +850,12 @@ function Router() {
   console.log("Router - Rendering PublicRouter");
   return <PublicRouter />;
 }
+
+// Same name and value as the server flag ENABLE_CHATBOT_BUILDER_ROUTES. Read at build time, so set both together.
+const chatbotBuilderFlagOn = import.meta.env.VITE_ENABLE_CHATBOT_BUILDER_ROUTES === "true";
+// Client-only flags. Read at build time. Off unless the env value is exactly "true".
+const chatbotInboxFlagOn = import.meta.env.VITE_ENABLE_CHATBOT_INBOX === "true";
+const chatbotAdminFlagOn = import.meta.env.VITE_ENABLE_CHATBOT_ADMIN === "true";
 
 export default function App() {
   return (

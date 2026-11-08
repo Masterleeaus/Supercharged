@@ -17,6 +17,7 @@
 import { Router, Response } from "express";
 import { db } from "../db";
 import { type AuthRequest } from "../middleware/auth";
+import { getCompanyScope } from "../middleware/company-scope";
 import {
   flows, createFlowSchema,
   webhooks, createWebhookSchema,
@@ -32,7 +33,7 @@ import {
   plivoPhoneNumbers, plivoCalls,
   sipPhoneNumbers, sipCalls, twilioOpenaiCalls
 } from "@shared/schema";
-import { eq, and, gte, lte, desc, sql, inArray, isNull, ne } from "drizzle-orm";
+import { eq, and, or, gte, lte, desc, sql, inArray, isNull, ne } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { webhookDeliveryService } from "../services/webhook-delivery";
 import { checkDemoCallLimit, logDemoCall } from "../demo-mode";
@@ -57,6 +58,49 @@ import { OpenAIVoiceAgentCompiler } from "../services/openai-voice-agent";
 import type { FlowNode, FlowEdge } from "../services/openai-voice-agent";
 import { getPluginStatus } from "../plugins/loader";
 import { consumePendingFailure } from "./webhook-routes";
+
+/**
+ * Company for read and list scoping. Company comes only from the verified session.
+ * Sends 403 and returns null when the session has no company (fail closed).
+ */
+function companyForRead(req: AuthRequest, res: Response): string | null {
+  try {
+    return getCompanyScope(req);
+  } catch {
+    res.status(403).json({ error: "Company scope required" });
+    return null;
+  }
+}
+
+// Write-side allowlists for PATCH handlers. Only these keys are copied from the request body into
+// .set(). Ownership and key fields (companyId, userId, id, ...) are never editable by the client.
+const FLOW_EDITABLE_FIELDS = [
+  "name", "description", "nodes", "edges", "agentId", "voiceSettings", "executionConfig", "isActive",
+] as const;
+const WEBHOOK_EDITABLE_FIELDS = [
+  "name", "description", "url", "method", "headers", "secret", "authType", "authCredentials",
+  "events", "campaignIds", "isActive",
+] as const;
+const APPOINTMENT_EDITABLE_FIELDS = [
+  "contactName", "contactPhone", "contactEmail", "appointmentDate", "appointmentTime", "duration",
+  "serviceName", "notes", "status", "statusReason", "metadata",
+] as const;
+
+/**
+ * Copies only the allowlisted keys present in the body. Returns null when the body is not an object
+ * or holds no editable key, so the caller can answer 400.
+ */
+function pickEditableFields(body: unknown, allowed: readonly string[]): Record<string, any> | null {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return null;
+  const source = body as Record<string, unknown>;
+  const picked: Record<string, any> = {};
+  for (const key of allowed) {
+    if (Object.prototype.hasOwnProperty.call(source, key) && source[key] !== undefined) {
+      picked[key] = source[key];
+    }
+  }
+  return Object.keys(picked).length > 0 ? picked : null;
+}
 
 const strictWorkflowPrompt = `You are a call agent that must strictly follow a predefined workflow.
 
@@ -107,6 +151,7 @@ const DEFAULT_WORKING_HOURS: Record<string, { start: string; end: string; enable
  */
 async function validateWorkingHours(
   userId: string,
+  companyId: string,
   appointmentDate: string,
   appointmentTime: string,
   duration: number = 30
@@ -115,7 +160,7 @@ async function validateWorkingHours(
     const [userSettings] = await db
       .select()
       .from(appointmentSettings)
-      .where(eq(appointmentSettings.userId, userId));
+      .where(and(eq(appointmentSettings.userId, userId), eq(appointmentSettings.companyId, companyId)));
 
     // Parse the date to get day of week
     const parsedDate = new Date(appointmentDate + 'T12:00:00');
@@ -191,11 +236,13 @@ router.get("/flows", async (req: AuthRequest, res: Response) => {
     }
 
     const userId = req.userId!;
+    const companyId = companyForRead(req, res);
+    if (!companyId) return;
 
     const userFlows = await db
       .select()
       .from(flows)
-      .where(eq(flows.userId, userId))
+      .where(and(eq(flows.userId, userId), eq(flows.companyId, companyId)))
       .orderBy(desc(flows.updatedAt));
 
     res.json(userFlows);
@@ -212,12 +259,14 @@ router.get("/flows/:id", async (req: AuthRequest, res: Response) => {
     }
 
     const userId = req.userId!;
+    const companyId = companyForRead(req, res);
+    if (!companyId) return;
     const { id } = req.params;
 
     const [flow] = await db
       .select()
       .from(flows)
-      .where(and(eq(flows.id, id), eq(flows.userId, userId)));
+      .where(and(eq(flows.id, id), eq(flows.userId, userId), eq(flows.companyId, companyId)));
 
     if (!flow) {
       return res.status(404).json({ error: "Flow not found" });
@@ -237,13 +286,15 @@ router.post("/flows", async (req: AuthRequest, res: Response) => {
     }
 
     const userId = req.userId!;
+    const companyId = companyForRead(req, res);
+    if (!companyId) return;
 
     // Check flow limit (999 or -1 means unlimited)
     const effectiveLimits = await storage.getUserEffectiveLimits(userId);
     const currentFlowCount = await db
       .select({ count: sql<number>`count(*)` })
       .from(flows)
-      .where(eq(flows.userId, userId));
+      .where(and(eq(flows.userId, userId), eq(flows.companyId, companyId)));
 
     const flowCount = Number(currentFlowCount[0]?.count || 0);
     // Ensure maxFlows is a concrete number (default to 3 if somehow undefined)
@@ -269,6 +320,7 @@ router.post("/flows", async (req: AuthRequest, res: Response) => {
         id: flowId,
         userId,
         ...validatedData,
+        companyId,
       } as typeof flows.$inferInsert)
       .returning();
 
@@ -308,12 +360,19 @@ router.patch("/flows/:id", async (req: AuthRequest, res: Response) => {
     }
 
     const userId = req.userId!;
+    const companyId = companyForRead(req, res);
+    if (!companyId) return;
     const { id } = req.params;
+
+    const editable = pickEditableFields(req.body, FLOW_EDITABLE_FIELDS);
+    if (!editable) {
+      return res.status(400).json({ error: "No editable fields in request body" });
+    }
 
     const [existingFlow] = await db
       .select()
       .from(flows)
-      .where(and(eq(flows.id, id), eq(flows.userId, userId)));
+      .where(and(eq(flows.id, id), eq(flows.userId, userId), eq(flows.companyId, companyId)));
 
     if (!existingFlow) {
       return res.status(404).json({ error: "Flow not found" });
@@ -322,7 +381,7 @@ router.patch("/flows/:id", async (req: AuthRequest, res: Response) => {
     const [updatedFlow] = await db
       .update(flows)
       .set({
-        ...req.body,
+        ...editable,
         updatedAt: new Date(),
       })
       .where(eq(flows.id, id))
@@ -365,7 +424,7 @@ router.patch("/flows/:id", async (req: AuthRequest, res: Response) => {
             const fields = await db
               .select()
               .from(formFields)
-              .where(eq(formFields.formId, formId))
+              .where(and(eq(formFields.formId, formId), eq(formFields.companyId, companyId)))
               .orderBy(formFields.order);
 
             const headerRow = [
@@ -388,7 +447,7 @@ router.patch("/flows/:id", async (req: AuthRequest, res: Response) => {
     })();
     // ──────────────────────────────────────────────────────────────────────────
 
-    const flowAgentId = updatedFlow.agentId || req.body.agentId;
+    const flowAgentId = updatedFlow.agentId || editable.agentId;
     if (flowAgentId) {
       try {
         // Enforce 1-to-1 flow mapping: clear this agent from any other flows first
@@ -414,7 +473,7 @@ router.patch("/flows/:id", async (req: AuthRequest, res: Response) => {
         let agent = (await db
           .select()
           .from(agents)
-          .where(eq(agents.id, flowAgentId)))[0];
+          .where(and(eq(agents.id, flowAgentId), eq(agents.companyId, companyId))))[0];
 
         if (!agent) {
           const veAgentResult = await db.execute(sql`
@@ -818,13 +877,15 @@ router.delete("/flows/:id", async (req: AuthRequest, res: Response) => {
     }
 
     const userId = req.userId!;
+    const companyId = companyForRead(req, res);
+    if (!companyId) return;
     const { id } = req.params;
 
-    // Verify the flow belongs to this user before touching related records
+    // Verify the flow belongs to this user and company before touching related records
     const [existingFlow] = await db
       .select({ id: flows.id })
       .from(flows)
-      .where(and(eq(flows.id, id), eq(flows.userId, userId)))
+      .where(and(eq(flows.id, id), eq(flows.userId, userId), eq(flows.companyId, companyId)))
       .limit(1);
 
     if (!existingFlow) {
@@ -858,12 +919,15 @@ router.post("/flows/:id/resync-first-message", async (req: AuthRequest, res: Res
       return res.status(401).json({ error: "Unauthorized" });
     }
 
+    const userId = req.userId!;
+    const companyId = companyForRead(req, res);
+    if (!companyId) return;
     const { id } = req.params;
 
     const [flow] = await db
       .select()
       .from(flows)
-      .where(eq(flows.id, id))
+      .where(and(eq(flows.id, id), eq(flows.userId, userId), eq(flows.companyId, companyId)))
       .limit(1);
 
     if (!flow) {
@@ -873,7 +937,7 @@ router.post("/flows/:id/resync-first-message", async (req: AuthRequest, res: Res
     const [agent] = await db
       .select()
       .from(agents)
-      .where(eq(agents.id, flow.agentId as string))
+      .where(and(eq(agents.id, flow.agentId as string), eq(agents.companyId, companyId)))
       .limit(1);
 
     if (!agent?.elevenLabsAgentId) {
@@ -937,12 +1001,14 @@ class FlowTestHttpError extends Error {
 
 async function placeFlowTestCall({
   userId,
+  companyId,
   flowId,
   toPhone,
   queueEntryId,
   clientIp,
 }: {
   userId: string;
+  companyId: string;
   flowId: string;
   toPhone: string;
   queueEntryId?: string;
@@ -984,7 +1050,7 @@ async function placeFlowTestCall({
     const [flow] = await db
       .select()
       .from(flows)
-      .where(and(eq(flows.id, id), eq(flows.userId, userId)));
+      .where(and(eq(flows.id, id), eq(flows.userId, userId), eq(flows.companyId, companyId)));
 
     if (!flow) {
       throw new FlowTestHttpError(404, { error: "Flow not found" });
@@ -1004,7 +1070,7 @@ async function placeFlowTestCall({
     let agent = (await db
       .select()
       .from(agents)
-      .where(eq(agents.id, flow.agentId)))[0];
+      .where(and(eq(agents.id, flow.agentId), eq(agents.companyId, companyId))))[0];
 
     if (!agent) {
       const veAgentResult = await db.execute(sql`
@@ -1064,6 +1130,7 @@ async function placeFlowTestCall({
         .from(sipPhoneNumbers)
         .where(and(
           eq(sipPhoneNumbers.userId, userId),
+          eq(sipPhoneNumbers.companyId, companyId),
           eq(sipPhoneNumbers.engine, 'elevenlabs-sip'),
           eq(sipPhoneNumbers.isActive, true),
           eq(sipPhoneNumbers.outboundEnabled, true)
@@ -1197,7 +1264,7 @@ async function placeFlowTestCall({
           const [foundContact] = await db
             .select()
             .from(contacts)
-            .where(sql`${contacts.phone} LIKE ${'%' + last10}`)
+            .where(and(sql`${contacts.phone} LIKE ${'%' + last10}`, eq(contacts.companyId, companyId)))
             .limit(1);
           if (foundContact) {
             sipContactRecord = foundContact;
@@ -1339,6 +1406,7 @@ async function placeFlowTestCall({
         // Create flow execution record
         await db.insert(flowExecutions).values({
           id: nanoid(),
+          companyId,
           callId: insertedSipCall.id,
           flowId: flow.id,
           currentNodeId: null,
@@ -1388,7 +1456,8 @@ async function placeFlowTestCall({
     // Get all phone numbers connected to incoming agents (to exclude them)
     const incomingConnectedPhoneIds = await db
       .select({ phoneNumberId: incomingConnections.phoneNumberId })
-      .from(incomingConnections);
+      .from(incomingConnections)
+      .where(eq(incomingConnections.companyId, companyId));
     const connectedPhoneIdSet = new Set(incomingConnectedPhoneIds.map(ic => ic.phoneNumberId));
 
     // Helper to get connected agent names for error messages
@@ -1398,7 +1467,7 @@ async function placeFlowTestCall({
         .select({ name: agents.name })
         .from(agents)
         .innerJoin(incomingConnections, eq(incomingConnections.agentId, agents.id))
-        .where(inArray(incomingConnections.phoneNumberId, phoneIds));
+        .where(and(inArray(incomingConnections.phoneNumberId, phoneIds), eq(incomingConnections.companyId, companyId), eq(agents.companyId, companyId)));
       return connectedAgents.map(a => a.name).join(", ");
     };
 
@@ -1444,7 +1513,7 @@ async function placeFlowTestCall({
             .select()
             .from(plivoPhoneNumbers)
             .where(and(
-              eq(plivoPhoneNumbers.userId, userId),
+              and(eq(plivoPhoneNumbers.userId, userId), eq(plivoPhoneNumbers.companyId, companyId)),
               eq(plivoPhoneNumbers.status, 'active')
             ));
           if (userPlivoPhones.length > 0) {
@@ -1457,7 +1526,7 @@ async function placeFlowTestCall({
             .select()
             .from(phoneNumbers)
             .where(and(
-              eq(phoneNumbers.userId, userId),
+              and(eq(phoneNumbers.userId, userId), eq(phoneNumbers.companyId, companyId)),
               inArray(phoneNumbers.status, ["active", "assigned"])
             ));
 
@@ -1468,7 +1537,7 @@ async function placeFlowTestCall({
               .select()
               .from(phoneNumbers)
               .where(and(
-                eq(phoneNumbers.isSystemPool, true),
+                and(eq(phoneNumbers.isSystemPool, true), or(isNull(phoneNumbers.companyId), eq(phoneNumbers.companyId, companyId))),
                 eq(phoneNumbers.status, "available"),
                 isNull(phoneNumbers.userId)
               ))
@@ -1494,7 +1563,7 @@ async function placeFlowTestCall({
         .select()
         .from(plivoPhoneNumbers)
         .where(and(
-          eq(plivoPhoneNumbers.userId, userId),
+          and(eq(plivoPhoneNumbers.userId, userId), eq(plivoPhoneNumbers.companyId, companyId)),
           eq(plivoPhoneNumbers.status, 'active')
         ));
 
@@ -1522,7 +1591,7 @@ async function placeFlowTestCall({
         .select()
         .from(phoneNumbers)
         .where(and(
-          eq(phoneNumbers.userId, userId),
+          and(eq(phoneNumbers.userId, userId), eq(phoneNumbers.companyId, companyId)),
           inArray(phoneNumbers.status, ["active", "assigned"])
         ));
 
@@ -1532,7 +1601,7 @@ async function placeFlowTestCall({
           .select()
           .from(phoneNumbers)
           .where(and(
-            eq(phoneNumbers.isSystemPool, true),
+            and(eq(phoneNumbers.isSystemPool, true), or(isNull(phoneNumbers.companyId), eq(phoneNumbers.companyId, companyId))),
             eq(phoneNumbers.status, "available"),
             isNull(phoneNumbers.userId)
           ))
@@ -1545,7 +1614,7 @@ async function placeFlowTestCall({
           const activeCallRows = await db
             .select({ fromNumber: calls.fromNumber })
             .from(calls)
-            .where(inArray(calls.status, ['pending', 'initiated', 'ringing', 'in-progress']));
+            .where(and(inArray(calls.status, ['pending', 'initiated', 'ringing', 'in-progress']), eq(calls.companyId, companyId)));
           const busyNumbers = new Set(activeCallRows.map(r => r.fromNumber).filter(Boolean));
           const freeSystemPhones = availableSystemPhones.filter(p => !busyNumbers.has(p.phoneNumber));
 
@@ -1559,6 +1628,7 @@ async function placeFlowTestCall({
             }
             const [queueEntry] = await db.insert(flowTestQueue).values({
               userId,
+              companyId,
               flowId: flow.id,
               toPhone: phoneNumber,
               status: 'waiting',
@@ -1566,7 +1636,7 @@ async function placeFlowTestCall({
             const [{ count }] = await db
               .select({ count: sql<number>`count(*)::int` })
               .from(flowTestQueue)
-              .where(eq(flowTestQueue.status, 'waiting'));
+              .where(and(eq(flowTestQueue.status, 'waiting'), eq(flowTestQueue.companyId, companyId)));
             console.log(`⏳ [Flow Test] All pool numbers busy, queued as entry ${queueEntry.id} (position ${count})`);
             throw new FlowTestHttpError(202, {
               queued: true,
@@ -1612,7 +1682,7 @@ async function placeFlowTestCall({
         .select()
         .from(phoneNumbers)
         .where(and(
-          eq(phoneNumbers.userId, userId),
+          and(eq(phoneNumbers.userId, userId), eq(phoneNumbers.companyId, companyId)),
           inArray(phoneNumbers.status, ["active", "assigned"])
         ));
 
@@ -1622,7 +1692,7 @@ async function placeFlowTestCall({
           .select()
           .from(phoneNumbers)
           .where(and(
-            eq(phoneNumbers.isSystemPool, true),
+            and(eq(phoneNumbers.isSystemPool, true), or(isNull(phoneNumbers.companyId), eq(phoneNumbers.companyId, companyId))),
             eq(phoneNumbers.status, "available"),
             isNull(phoneNumbers.userId)
           ))
@@ -1635,7 +1705,7 @@ async function placeFlowTestCall({
           const activeCallRows = await db
             .select({ fromNumber: calls.fromNumber })
             .from(calls)
-            .where(inArray(calls.status, ['pending', 'initiated', 'ringing', 'in-progress']));
+            .where(and(inArray(calls.status, ['pending', 'initiated', 'ringing', 'in-progress']), eq(calls.companyId, companyId)));
           const busyNumbers = new Set(activeCallRows.map(r => r.fromNumber).filter(Boolean));
           const freeSystemPhones = availableSystemPhones.filter(p => !busyNumbers.has(p.phoneNumber));
 
@@ -1649,6 +1719,7 @@ async function placeFlowTestCall({
             }
             const [queueEntry] = await db.insert(flowTestQueue).values({
               userId,
+              companyId,
               flowId: flow.id,
               toPhone: phoneNumber,
               status: 'waiting',
@@ -1656,7 +1727,7 @@ async function placeFlowTestCall({
             const [{ count }] = await db
               .select({ count: sql<number>`count(*)::int` })
               .from(flowTestQueue)
-              .where(eq(flowTestQueue.status, 'waiting'));
+              .where(and(eq(flowTestQueue.status, 'waiting'), eq(flowTestQueue.companyId, companyId)));
             console.log(`⏳ [Flow Test] All pool numbers busy, queued as entry ${queueEntry.id} (position ${count})`);
             throw new FlowTestHttpError(202, {
               queued: true,
@@ -1706,6 +1777,7 @@ async function placeFlowTestCall({
       .where(
         and(
           eq(campaigns.phoneNumberId, fromPhone.id),
+          eq(campaigns.companyId, companyId),
           inArray(campaigns.status, ["running", "active", "in_progress"])
         )
       );
@@ -1768,6 +1840,7 @@ async function placeFlowTestCall({
         try {
           await db.insert(flowExecutions).values({
             id: nanoid(),
+            companyId,
             callId: sessionUuid,
             flowId: flow.id,
             currentNodeId: null,
@@ -1915,6 +1988,7 @@ async function placeFlowTestCall({
         .values({
           id: callId,
           userId: userId,
+          companyId,
           agentId: agent.id,
           campaignId: null,
           contactId: null,
@@ -1942,6 +2016,7 @@ async function placeFlowTestCall({
       const executionId = nanoid();
       await db.insert(flowExecutions).values({
         id: executionId,
+        companyId,
         callId: callRecord.id,
         flowId: flow.id,
         currentNodeId: null,
@@ -2016,7 +2091,7 @@ async function placeFlowTestCall({
           .select()
           .from(plivoPhoneNumbers)
           .where(and(
-            eq(plivoPhoneNumbers.userId, userId),
+            and(eq(plivoPhoneNumbers.userId, userId), eq(plivoPhoneNumbers.companyId, companyId)),
             eq(plivoPhoneNumbers.status, 'active')
           ))
           .limit(1);
@@ -2108,6 +2183,7 @@ async function placeFlowTestCall({
         try {
           await db.insert(flowExecutions).values({
             id: nanoid(),
+            companyId,
             callId: plivoCall.id,
             flowId: flow.id,
             currentNodeId: null,
@@ -2196,6 +2272,7 @@ async function placeFlowTestCall({
           try {
             await db.insert(flowExecutions).values({
               id: nanoid(),
+              companyId,
               callId: callResult.callId,
               flowId: flow.id,
               currentNodeId: null,
@@ -2304,7 +2381,7 @@ async function placeFlowTestCall({
           const [updatedPhone] = await db
             .select()
             .from(phoneNumbers)
-            .where(eq(phoneNumbers.id, fromPhone.id))
+            .where(and(eq(phoneNumbers.id, fromPhone.id), eq(phoneNumbers.companyId, companyId)))
             .limit(1);
           if (updatedPhone) {
             fromPhone = updatedPhone;
@@ -2475,7 +2552,7 @@ async function placeFlowTestCall({
         const [foundContact] = await db
           .select()
           .from(contacts)
-          .where(sql`${contacts.phone} LIKE ${'%' + last10}`)
+          .where(and(sql`${contacts.phone} LIKE ${'%' + last10}`, eq(contacts.companyId, companyId)))
           .limit(1);
         if (foundContact) {
           contactRecord = foundContact;
@@ -2674,6 +2751,7 @@ async function placeFlowTestCall({
         try {
           await db.insert(flowExecutions).values({
             id: nanoid(),
+            companyId,
             callId: callId,
             flowId: flow.id,
             currentNodeId: null,
@@ -2763,6 +2841,8 @@ async function placeFlowTestCall({
 // ── POST /flows/:id/test ──────────────────────────────────────────────────────
 router.post("/flows/:id/test", async (req: AuthRequest, res: Response) => {
   if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
+  const companyId = companyForRead(req, res);
+  if (!companyId) return;
   const { phoneNumber, queueEntryId } = req.body;
   if (!phoneNumber) return res.status(400).json({ error: "Phone number is required" });
   if (!phoneNumber.startsWith("+") || phoneNumber.length < 11) {
@@ -2771,7 +2851,7 @@ router.post("/flows/:id/test", async (req: AuthRequest, res: Response) => {
     });
   }
 
-  const clientIp = String(req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown');
+  const clientIp = String(req.ip || req.socket.remoteAddress || 'unknown');
   const limitCheck = await checkDemoCallLimit(req.userId, clientIp);
   if (!limitCheck.allowed) {
     return res.status(429).json({
@@ -2783,6 +2863,7 @@ router.post("/flows/:id/test", async (req: AuthRequest, res: Response) => {
   try {
     const result = await placeFlowTestCall({
       userId: req.userId,
+      companyId,
       flowId: req.params.id,
       toPhone: phoneNumber,
       queueEntryId,
@@ -2817,13 +2898,15 @@ router.get("/queue/:entryId", async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId;
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
+    const companyId = companyForRead(req, res);
+    if (!companyId) return;
 
     const { entryId } = req.params;
 
     const [entry] = await db
       .select()
       .from(flowTestQueue)
-      .where(and(eq(flowTestQueue.id, entryId), eq(flowTestQueue.userId, userId)));
+      .where(and(eq(flowTestQueue.id, entryId), eq(flowTestQueue.userId, userId), eq(flowTestQueue.companyId, companyId)));
 
     if (!entry) return res.status(404).json({ error: "Queue entry not found" });
 
@@ -2860,6 +2943,7 @@ router.get("/queue/:entryId", async (req: AuthRequest, res: Response) => {
       .set({ status: 'failed', errorMessage: 'Queue timeout: abandoned (15 minutes).' })
       .where(and(
         eq(flowTestQueue.status, 'waiting'),
+        eq(flowTestQueue.companyId, companyId),
         sql`${flowTestQueue.createdAt} < ${fifteenMinsAgo}`
       ));
 
@@ -2877,6 +2961,7 @@ router.get("/queue/:entryId", async (req: AuthRequest, res: Response) => {
       .from(flowTestQueue)
       .where(and(
         eq(flowTestQueue.status, 'waiting'),
+        eq(flowTestQueue.companyId, companyId),
         sql`${flowTestQueue.createdAt} < ${entry.createdAt}`
       ));
     const position = (ahead ?? 0) + 1;
@@ -2890,14 +2975,15 @@ router.get("/queue/:entryId", async (req: AuthRequest, res: Response) => {
     // Exclude phones connected to incoming agents (same filter the test endpoint applies)
     const connectedPhoneIds = await db
       .select({ id: incomingConnections.phoneNumberId })
-      .from(incomingConnections);
+      .from(incomingConnections)
+      .where(eq(incomingConnections.companyId, companyId));
     const connectedIdSet = new Set(connectedPhoneIds.map(ic => ic.id).filter(Boolean));
 
     const poolPhones = await db
       .select()
       .from(phoneNumbers)
       .where(and(
-        eq(phoneNumbers.isSystemPool, true),
+        and(eq(phoneNumbers.isSystemPool, true), or(isNull(phoneNumbers.companyId), eq(phoneNumbers.companyId, companyId))),
         eq(phoneNumbers.status, 'available'),
         isNull(phoneNumbers.userId)
       ));
@@ -2906,7 +2992,7 @@ router.get("/queue/:entryId", async (req: AuthRequest, res: Response) => {
     const activeCallRows = await db
       .select({ fromNumber: calls.fromNumber })
       .from(calls)
-      .where(inArray(calls.status, ['pending', 'initiated', 'ringing', 'in-progress']));
+      .where(and(inArray(calls.status, ['pending', 'initiated', 'ringing', 'in-progress']), eq(calls.companyId, companyId)));
     const busySet = new Set(activeCallRows.map(r => r.fromNumber).filter(Boolean));
     const freePhones = availablePoolPhones.filter(p => !busySet.has(p.phoneNumber));
 
@@ -2933,6 +3019,7 @@ router.get("/queue/:entryId", async (req: AuthRequest, res: Response) => {
     setImmediate(() =>
       placeFlowTestCall({
         userId: claimed.userId,
+        companyId,
         flowId: claimed.flowId,
         toPhone: claimed.toPhone,
         queueEntryId: claimed.id,
@@ -2958,6 +3045,8 @@ router.delete("/queue/:entryId", async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId;
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
+    const companyId = companyForRead(req, res);
+    if (!companyId) return;
 
     const { entryId } = req.params;
 
@@ -2969,6 +3058,7 @@ router.delete("/queue/:entryId", async (req: AuthRequest, res: Response) => {
         and(
           eq(flowTestQueue.id, entryId),
           eq(flowTestQueue.userId, userId),
+          eq(flowTestQueue.companyId, companyId),
           inArray(flowTestQueue.status, ['waiting', 'processing'])
         )
       )
@@ -3011,6 +3101,8 @@ router.post("/flow-templates/:templateId/clone", async (req: AuthRequest, res: R
     }
 
     const userId = req.userId!;
+    const companyId = companyForRead(req, res);
+    if (!companyId) return;
     const { templateId } = req.params;
     const { name } = req.body;
 
@@ -3019,7 +3111,7 @@ router.post("/flow-templates/:templateId/clone", async (req: AuthRequest, res: R
     const currentFlowCount = await db
       .select({ count: sql<number>`count(*)` })
       .from(flows)
-      .where(eq(flows.userId, userId));
+      .where(and(eq(flows.userId, userId), eq(flows.companyId, companyId)));
     const flowCount = Number(currentFlowCount[0]?.count || 0);
     const maxFlows = typeof effectiveLimits.maxFlows === 'number' ? effectiveLimits.maxFlows : 3;
     if (maxFlows !== 999 && maxFlows !== -1 && flowCount >= maxFlows) {
@@ -3044,6 +3136,7 @@ router.post("/flow-templates/:templateId/clone", async (req: AuthRequest, res: R
       .values({
         id: newFlowId,
         userId,
+        companyId,
         name: name || template.name,
         description: template.description || null,
         nodes: template.nodes,
@@ -3069,6 +3162,8 @@ router.post("/flows/:id/clone", async (req: AuthRequest, res: Response) => {
     }
 
     const userId = req.userId!;
+    const companyId = companyForRead(req, res);
+    if (!companyId) return;
     const { id } = req.params;
 
     // Enforce flow limit before cloning
@@ -3076,7 +3171,7 @@ router.post("/flows/:id/clone", async (req: AuthRequest, res: Response) => {
     const currentFlowCount = await db
       .select({ count: sql<number>`count(*)` })
       .from(flows)
-      .where(eq(flows.userId, userId));
+      .where(and(eq(flows.userId, userId), eq(flows.companyId, companyId)));
     const flowCount = Number(currentFlowCount[0]?.count || 0);
     const maxFlows = typeof effectiveLimits.maxFlows === 'number' ? effectiveLimits.maxFlows : 3;
     if (maxFlows !== 999 && maxFlows !== -1 && flowCount >= maxFlows) {
@@ -3093,7 +3188,10 @@ router.post("/flows/:id/clone", async (req: AuthRequest, res: Response) => {
       .from(flows)
       .where(and(
         eq(flows.id, id),
-        sql`(${flows.userId} = ${userId} OR ${flows.isTemplate} = true)`
+        or(
+          and(eq(flows.userId, userId), eq(flows.companyId, companyId)),
+          and(eq(flows.isTemplate, true), or(isNull(flows.companyId), eq(flows.companyId, companyId)))
+        )
       ));
 
     if (!originalFlow) {
@@ -3107,6 +3205,7 @@ router.post("/flows/:id/clone", async (req: AuthRequest, res: Response) => {
       .values({
         id: newFlowId,
         userId,
+        companyId,
         name: `${originalFlow.name} (Copy)`,
         description: originalFlow.description,
         nodes: originalFlow.nodes,
@@ -3131,10 +3230,13 @@ router.get("/webhooks", async (req: AuthRequest, res: Response) => {
 
     const userId = req.userId!;
 
+    const companyId = companyForRead(req, res);
+    if (!companyId) return;
+
     const userWebhooks = await db
       .select()
       .from(webhooks)
-      .where(eq(webhooks.userId, userId))
+      .where(and(eq(webhooks.userId, userId), eq(webhooks.companyId, companyId)))
       .orderBy(desc(webhooks.createdAt));
 
     res.json(userWebhooks);
@@ -3153,6 +3255,13 @@ router.post("/webhooks", async (req: AuthRequest, res: Response) => {
     const userId = req.userId!;
     const validatedData = createWebhookSchema.parse(req.body);
 
+    let companyId: string;
+    try {
+      companyId = getCompanyScope(req);
+    } catch {
+      return res.status(403).json({ error: "Company scope required" });
+    }
+
     const webhookId = nanoid();
     // TODO: Drizzle type inference - Zod validated data doesn't perfectly match insert type
     const [newWebhook] = await db
@@ -3161,6 +3270,7 @@ router.post("/webhooks", async (req: AuthRequest, res: Response) => {
         id: webhookId,
         userId,
         ...validatedData,
+        companyId,
       } as typeof webhooks.$inferInsert)
       .returning();
 
@@ -3180,10 +3290,15 @@ router.patch("/webhooks/:id", async (req: AuthRequest, res: Response) => {
     const userId = req.userId!;
     const { id } = req.params;
 
+    const editable = pickEditableFields(req.body, WEBHOOK_EDITABLE_FIELDS);
+    if (!editable) {
+      return res.status(400).json({ error: "No editable fields in request body" });
+    }
+
     const [updatedWebhook] = await db
       .update(webhooks)
       .set({
-        ...req.body,
+        ...editable,
         updatedAt: new Date(),
       })
       .where(and(eq(webhooks.id, id), eq(webhooks.userId, userId)))
@@ -3227,13 +3342,15 @@ router.get("/webhooks/:id/logs", async (req: AuthRequest, res: Response) => {
     }
 
     const userId = req.userId!;
+    const companyId = companyForRead(req, res);
+    if (!companyId) return;
     const { id } = req.params;
     const limit = parseInt(req.query.limit as string, 10) || 50;
 
     const [webhook] = await db
       .select()
       .from(webhooks)
-      .where(and(eq(webhooks.id, id), eq(webhooks.userId, userId)));
+      .where(and(eq(webhooks.id, id), eq(webhooks.userId, userId), eq(webhooks.companyId, companyId)));
 
     if (!webhook) {
       return res.status(404).json({ error: "Webhook not found" });
@@ -3242,7 +3359,7 @@ router.get("/webhooks/:id/logs", async (req: AuthRequest, res: Response) => {
     const logs = await db
       .select()
       .from(webhookLogs)
-      .where(eq(webhookLogs.webhookId, id))
+      .where(and(eq(webhookLogs.webhookId, id), eq(webhookLogs.companyId, companyId)))
       .orderBy(desc(webhookLogs.createdAt))
       .limit(limit);
 
@@ -3260,9 +3377,19 @@ router.post("/webhooks/:id/test", async (req: AuthRequest, res: Response) => {
     }
 
     const userId = req.userId!;
+    const companyId = companyForRead(req, res);
+    if (!companyId) return;
     const { id } = req.params;
 
-    const result = await webhookDeliveryService.testWebhook(id, userId);
+    const [owned] = await db
+      .select({ id: webhooks.id })
+      .from(webhooks)
+      .where(and(eq(webhooks.id, id), eq(webhooks.userId, userId), eq(webhooks.companyId, companyId)));
+    if (!owned) {
+      return res.status(404).json({ error: "Webhook not found" });
+    }
+
+    const result = await webhookDeliveryService.testWebhook(companyId, id, userId);
 
     res.json(result);
   } catch (error: any) {
@@ -3278,9 +3405,19 @@ router.post("/webhooks/logs/:logId/retry", async (req: AuthRequest, res: Respons
     }
 
     const userId = req.userId!;
+    const companyId = companyForRead(req, res);
+    if (!companyId) return;
     const { logId } = req.params;
 
-    const result = await webhookDeliveryService.retryWebhook(parseInt(logId, 10), userId);
+    const [ownedLog] = await db
+      .select({ id: webhookLogs.id })
+      .from(webhookLogs)
+      .where(and(eq(webhookLogs.id, parseInt(logId, 10)), eq(webhookLogs.companyId, companyId)));
+    if (!ownedLog) {
+      return res.status(404).json({ error: "Webhook log not found" });
+    }
+
+    const result = await webhookDeliveryService.retryWebhook(companyId, parseInt(logId, 10), userId);
 
     res.json(result);
   } catch (error: any) {
@@ -3296,9 +3433,11 @@ router.get("/appointments", async (req: AuthRequest, res: Response) => {
     }
 
     const userId = req.userId!;
+    const companyId = companyForRead(req, res);
+    if (!companyId) return;
     const { startDate, endDate, status } = req.query;
 
-    const conditions: any[] = [eq(appointments.userId, userId)];
+    const conditions: any[] = [eq(appointments.userId, userId), eq(appointments.companyId, companyId)];
 
     if (startDate && typeof startDate === 'string') {
       const parsedStartDate = new Date(startDate);
@@ -3343,9 +3482,17 @@ router.post("/appointments", async (req: AuthRequest, res: Response) => {
     const userId = req.userId!;
     const validatedData = createAppointmentSchema.parse(req.body);
 
+    let companyId: string;
+    try {
+      companyId = getCompanyScope(req);
+    } catch {
+      return res.status(403).json({ error: "Company scope required" });
+    }
+
     // Validate working hours
     const workingHoursResult = await validateWorkingHours(
       userId,
+      companyId,
       validatedData.appointmentDate,
       validatedData.appointmentTime,
       validatedData.duration || 30
@@ -3358,7 +3505,7 @@ router.post("/appointments", async (req: AuthRequest, res: Response) => {
     const [settings] = await db
       .select()
       .from(appointmentSettings)
-      .where(eq(appointmentSettings.userId, userId));
+      .where(and(eq(appointmentSettings.userId, userId), eq(appointmentSettings.companyId, companyId)));
 
     if (settings && !settings.allowOverlapping) {
       const existing = await db
@@ -3367,6 +3514,7 @@ router.post("/appointments", async (req: AuthRequest, res: Response) => {
         .where(
           and(
             eq(appointments.userId, userId),
+            eq(appointments.companyId, companyId),
             eq(appointments.appointmentDate, validatedData.appointmentDate),
             eq(appointments.appointmentTime, validatedData.appointmentTime),
             eq(appointments.status, "scheduled")
@@ -3388,6 +3536,7 @@ router.post("/appointments", async (req: AuthRequest, res: Response) => {
         id: appointmentId,
         userId,
         ...validatedData,
+        companyId,
       })
       .returning();
 
@@ -3407,11 +3556,19 @@ router.patch("/appointments/:id", async (req: AuthRequest, res: Response) => {
     const userId = req.userId!;
     const { id } = req.params;
 
+    const companyId = companyForRead(req, res);
+    if (!companyId) return;
+
+    const editable = pickEditableFields(req.body, APPOINTMENT_EDITABLE_FIELDS);
+    if (!editable) {
+      return res.status(400).json({ error: "No editable fields in request body" });
+    }
+
     // Fetch the original appointment to detect changes
     const [originalAppointment] = await db
       .select()
       .from(appointments)
-      .where(and(eq(appointments.id, id), eq(appointments.userId, userId)));
+      .where(and(eq(appointments.id, id), eq(appointments.userId, userId), eq(appointments.companyId, companyId)));
 
     if (!originalAppointment) {
       return res.status(404).json({ error: "Appointment not found" });
@@ -3420,7 +3577,7 @@ router.patch("/appointments/:id", async (req: AuthRequest, res: Response) => {
     const [updatedAppointment] = await db
       .update(appointments)
       .set({
-        ...req.body,
+        ...editable,
         updatedAt: new Date(),
       })
       .where(and(eq(appointments.id, id), eq(appointments.userId, userId)))
@@ -3457,7 +3614,7 @@ router.patch("/appointments/:id", async (req: AuthRequest, res: Response) => {
     // Check for reschedule (date or time changed)
     if ((oldDate !== newDate || oldTime !== newTime) && newStatus !== 'cancelled') {
       try {
-        await webhookDeliveryService.triggerEvent(userId, 'appointment.rescheduled', {
+        await webhookDeliveryService.triggerEvent(companyId, userId, 'appointment.rescheduled', {
           appointment: buildAppointmentPayload(updatedAppointment),
           previousDate: oldDate,
           previousTime: oldTime,
@@ -3476,7 +3633,7 @@ router.patch("/appointments/:id", async (req: AuthRequest, res: Response) => {
       try {
         switch (newStatus) {
           case 'confirmed':
-            await webhookDeliveryService.triggerEvent(userId, 'appointment.confirmed', {
+            await webhookDeliveryService.triggerEvent(companyId, userId, 'appointment.confirmed', {
               appointment: buildAppointmentPayload(updatedAppointment),
               confirmedAt: new Date().toISOString(),
             });
@@ -3484,7 +3641,7 @@ router.patch("/appointments/:id", async (req: AuthRequest, res: Response) => {
             break;
 
           case 'cancelled':
-            await webhookDeliveryService.triggerEvent(userId, 'appointment.cancelled', {
+            await webhookDeliveryService.triggerEvent(companyId, userId, 'appointment.cancelled', {
               appointment: buildAppointmentPayload(updatedAppointment),
               cancelReason: req.body.cancelReason || null,
               cancelledAt: new Date().toISOString(),
@@ -3493,7 +3650,7 @@ router.patch("/appointments/:id", async (req: AuthRequest, res: Response) => {
             break;
 
           case 'completed':
-            await webhookDeliveryService.triggerEvent(userId, 'appointment.completed', {
+            await webhookDeliveryService.triggerEvent(companyId, userId, 'appointment.completed', {
               appointment: buildAppointmentPayload(updatedAppointment),
               completedAt: new Date().toISOString(),
             });
@@ -3503,7 +3660,7 @@ router.patch("/appointments/:id", async (req: AuthRequest, res: Response) => {
           case 'no_show':
           case 'noshow':
           case 'no-show':
-            await webhookDeliveryService.triggerEvent(userId, 'appointment.no_show', {
+            await webhookDeliveryService.triggerEvent(companyId, userId, 'appointment.no_show', {
               appointment: buildAppointmentPayload(updatedAppointment),
               markedNoShowAt: new Date().toISOString(),
             });
@@ -3561,10 +3718,12 @@ router.post("/appointments/:id/sync-calendar", async (req: AuthRequest, res: Res
   try {
     if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
     const userId = req.userId!;
+    const companyId = companyForRead(req, res);
+    if (!companyId) return;
     const { id } = req.params;
 
     const [apt] = await db.select().from(appointments)
-      .where(and(eq(appointments.id, id), eq(appointments.userId, userId)));
+      .where(and(eq(appointments.id, id), eq(appointments.userId, userId), eq(appointments.companyId, companyId)));
     if (!apt) return res.status(404).json({ error: "Appointment not found" });
 
     const calendarApt = {
@@ -3596,7 +3755,7 @@ router.post("/appointments/:id/sync-calendar", async (req: AuthRequest, res: Res
       return res.status(502).json({ error: "Failed to sync to Google Calendar. Please check your connection." });
     }
 
-    const [updated] = await db.select().from(appointments).where(eq(appointments.id, id));
+    const [updated] = await db.select().from(appointments).where(and(eq(appointments.id, id), eq(appointments.userId, userId), eq(appointments.companyId, companyId)));
     res.json({
       ...updated,
       scheduledFor: `${updated.appointmentDate}T${updated.appointmentTime}`,
@@ -3616,11 +3775,14 @@ router.delete("/appointments/:id", async (req: AuthRequest, res: Response) => {
     const userId = req.userId!;
     const { id } = req.params;
 
+    const companyId = companyForRead(req, res);
+    if (!companyId) return;
+
     // Fetch the appointment before deletion to trigger webhook
     const [appointmentToDelete] = await db
       .select()
       .from(appointments)
-      .where(and(eq(appointments.id, id), eq(appointments.userId, userId)));
+      .where(and(eq(appointments.id, id), eq(appointments.userId, userId), eq(appointments.companyId, companyId)));
 
     if (!appointmentToDelete) {
       return res.status(404).json({ error: "Appointment not found" });
@@ -3628,7 +3790,7 @@ router.delete("/appointments/:id", async (req: AuthRequest, res: Response) => {
 
     // Trigger appointment.cancelled webhook before deletion
     try {
-      await webhookDeliveryService.triggerEvent(userId, 'appointment.cancelled', {
+      await webhookDeliveryService.triggerEvent(companyId, userId, 'appointment.cancelled', {
         appointment: {
           appointmentId: appointmentToDelete.id,
           contactName: appointmentToDelete.contactName || null,
@@ -3673,7 +3835,7 @@ router.delete("/appointments/:id", async (req: AuthRequest, res: Response) => {
 //   
 //   // Trigger appointment.reminder_sent webhook
 //   try {
-//     await webhookDeliveryService.triggerEvent(userId, 'appointment.reminder_sent', {
+//     await webhookDeliveryService.triggerEvent(companyId, userId, 'appointment.reminder_sent', {
 //       appointment: {
 //         appointmentId: appointment.id,
 //         contactName: appointment.contactName || null,
@@ -3705,11 +3867,13 @@ router.get("/appointment-settings", async (req: AuthRequest, res: Response) => {
     }
 
     const userId = req.userId!;
+    const companyId = companyForRead(req, res);
+    if (!companyId) return;
 
     const [settings] = await db
       .select()
       .from(appointmentSettings)
-      .where(eq(appointmentSettings.userId, userId));
+      .where(and(eq(appointmentSettings.userId, userId), eq(appointmentSettings.companyId, companyId)));
 
     // Convert database format to frontend format
     const convertToFrontendFormat = (workingHours: any) => {
@@ -3783,6 +3947,8 @@ router.put("/appointment-settings", async (req: AuthRequest, res: Response) => {
     }
 
     const userId = req.userId!;
+    const companyId = companyForRead(req, res);
+    if (!companyId) return;
 
     // Accept frontend format and convert to database format
     const {
@@ -3835,7 +4001,7 @@ router.put("/appointment-settings", async (req: AuthRequest, res: Response) => {
     const [existing] = await db
       .select()
       .from(appointmentSettings)
-      .where(eq(appointmentSettings.userId, userId));
+      .where(and(eq(appointmentSettings.userId, userId), eq(appointmentSettings.companyId, companyId)));
 
     if (existing) {
       const [updated] = await db
@@ -3847,7 +4013,7 @@ router.put("/appointment-settings", async (req: AuthRequest, res: Response) => {
           workingHours: dbWorkingHours,
           updatedAt: new Date(),
         })
-        .where(eq(appointmentSettings.userId, userId))
+        .where(and(eq(appointmentSettings.userId, userId), eq(appointmentSettings.companyId, companyId)))
         .returning();
 
       // Convert back to frontend format for response
@@ -3872,6 +4038,7 @@ router.put("/appointment-settings", async (req: AuthRequest, res: Response) => {
         .values({
           id: settingsId,
           userId,
+          companyId,
           allowOverlapping: dbAllowOverlapping,
           bufferMinutes: dbBufferMinutes,
           syncToGoogleCalendar: dbSyncToGoogleCalendar,
@@ -3917,6 +4084,9 @@ router.post("/appointments/sync", async (req: AuthRequest, res: Response) => {
       metadata
     } = req.body;
 
+    const companyId = companyForRead(req, res);
+    if (!companyId) return;
+
     if (!agentId) {
       return res.status(400).json({ error: "agentId is required" });
     }
@@ -3930,7 +4100,7 @@ router.post("/appointments/sync", async (req: AuthRequest, res: Response) => {
     const agent = await db
       .select({ userId: agents.userId, flowId: agents.flowId })
       .from(agents)
-      .where(eq(agents.id, agentId))
+      .where(and(eq(agents.id, agentId), eq(agents.companyId, companyId)))
       .limit(1);
 
     if (agent.length === 0) {
@@ -3943,6 +4113,7 @@ router.post("/appointments/sync", async (req: AuthRequest, res: Response) => {
     // Validate working hours
     const workingHoursResult = await validateWorkingHours(
       userId,
+      companyId,
       appointmentDate,
       appointmentTime,
       duration || 30
@@ -3962,6 +4133,7 @@ router.post("/appointments/sync", async (req: AuthRequest, res: Response) => {
       .values({
         id: appointmentId,
         userId,
+        companyId,
         callId: callId || null,
         flowId: flowId || null,
         contactName,
@@ -3999,10 +4171,13 @@ router.get("/forms", async (req: AuthRequest, res: Response) => {
 
     const userId = req.userId!;
 
+    const companyId = companyForRead(req, res);
+    if (!companyId) return;
+
     const userForms = await db
       .select()
       .from(forms)
-      .where(eq(forms.userId, userId))
+      .where(and(eq(forms.userId, userId), eq(forms.companyId, companyId)))
       .orderBy(desc(forms.createdAt));
 
     // Include fields and submission count for each form
@@ -4011,14 +4186,14 @@ router.get("/forms", async (req: AuthRequest, res: Response) => {
         const fields = await db
           .select()
           .from(formFields)
-          .where(eq(formFields.formId, form.id))
+          .where(and(eq(formFields.formId, form.id), eq(formFields.companyId, companyId)))
           .orderBy(formFields.order);
 
         // Get submission count
         const [submissionResult] = await db
           .select({ count: sql<number>`count(*)` })
           .from(formSubmissions)
-          .where(eq(formSubmissions.formId, form.id));
+          .where(and(eq(formSubmissions.formId, form.id), eq(formSubmissions.companyId, companyId)));
 
         return {
           ...form,
@@ -4042,12 +4217,14 @@ router.get("/forms/:id", async (req: AuthRequest, res: Response) => {
     }
 
     const userId = req.userId!;
+    const companyId = companyForRead(req, res);
+    if (!companyId) return;
     const { id } = req.params;
 
     const [form] = await db
       .select()
       .from(forms)
-      .where(and(eq(forms.id, id), eq(forms.userId, userId)));
+      .where(and(eq(forms.id, id), eq(forms.userId, userId), eq(forms.companyId, companyId)));
 
     if (!form) {
       return res.status(404).json({ error: "Form not found" });
@@ -4056,7 +4233,7 @@ router.get("/forms/:id", async (req: AuthRequest, res: Response) => {
     const fields = await db
       .select()
       .from(formFields)
-      .where(eq(formFields.formId, id))
+      .where(and(eq(formFields.formId, id), eq(formFields.companyId, companyId)))
       .orderBy(formFields.order);
 
     res.json({ ...form, fields });
@@ -4073,6 +4250,8 @@ router.post("/forms", async (req: AuthRequest, res: Response) => {
     }
 
     const userId = req.userId!;
+    const companyId = companyForRead(req, res);
+    if (!companyId) return;
     const { name, description, fields } = req.body;
 
     const formId = nanoid();
@@ -4081,6 +4260,7 @@ router.post("/forms", async (req: AuthRequest, res: Response) => {
       .values({
         id: formId,
         userId,
+        companyId,
         name,
         description,
       })
@@ -4090,6 +4270,7 @@ router.post("/forms", async (req: AuthRequest, res: Response) => {
       const fieldValues = fields.map((field: any, index: number) => ({
         id: nanoid(),
         formId,
+        companyId,
         question: field.question,
         fieldType: field.fieldType,
         options: field.options,
@@ -4103,7 +4284,7 @@ router.post("/forms", async (req: AuthRequest, res: Response) => {
     const createdFields = await db
       .select()
       .from(formFields)
-      .where(eq(formFields.formId, formId))
+      .where(and(eq(formFields.formId, formId), eq(formFields.companyId, companyId)))
       .orderBy(formFields.order);
 
     res.json({ ...newForm, fields: createdFields });
@@ -4120,6 +4301,8 @@ router.patch("/forms/:id", async (req: AuthRequest, res: Response) => {
     }
 
     const userId = req.userId!;
+    const companyId = companyForRead(req, res);
+    if (!companyId) return;
     const { id } = req.params;
     const { name, description, fields } = req.body;
 
@@ -4130,7 +4313,7 @@ router.patch("/forms/:id", async (req: AuthRequest, res: Response) => {
         description,
         updatedAt: new Date(),
       })
-      .where(and(eq(forms.id, id), eq(forms.userId, userId)))
+      .where(and(eq(forms.id, id), eq(forms.userId, userId), eq(forms.companyId, companyId)))
       .returning();
 
     if (!updatedForm) {
@@ -4144,6 +4327,7 @@ router.patch("/forms/:id", async (req: AuthRequest, res: Response) => {
         const fieldValues = fields.map((field: any, index: number) => ({
           id: nanoid(),
           formId: id,
+          companyId,
           question: field.question,
           fieldType: field.fieldType,
           options: field.options,
@@ -4158,7 +4342,7 @@ router.patch("/forms/:id", async (req: AuthRequest, res: Response) => {
     const updatedFields = await db
       .select()
       .from(formFields)
-      .where(eq(formFields.formId, id))
+      .where(and(eq(formFields.formId, id), eq(formFields.companyId, companyId)))
       .orderBy(formFields.order);
 
     res.json({ ...updatedForm, fields: updatedFields });
@@ -4195,12 +4379,14 @@ router.get("/forms/:id/submissions", async (req: AuthRequest, res: Response) => 
     }
 
     const userId = req.userId!;
+    const companyId = companyForRead(req, res);
+    if (!companyId) return;
     const { id } = req.params;
 
     const [form] = await db
       .select()
       .from(forms)
-      .where(and(eq(forms.id, id), eq(forms.userId, userId)));
+      .where(and(eq(forms.id, id), eq(forms.userId, userId), eq(forms.companyId, companyId)));
 
     if (!form) {
       return res.status(404).json({ error: "Form not found" });
@@ -4209,7 +4395,7 @@ router.get("/forms/:id/submissions", async (req: AuthRequest, res: Response) => 
     const submissions = await db
       .select()
       .from(formSubmissions)
-      .where(eq(formSubmissions.formId, id))
+      .where(and(eq(formSubmissions.formId, id), eq(formSubmissions.companyId, companyId)))
       .orderBy(desc(formSubmissions.submittedAt));
 
     res.json(submissions);
@@ -4226,12 +4412,14 @@ router.get("/executions", async (req: AuthRequest, res: Response) => {
     }
 
     const userId = req.userId!;
+    const companyId = companyForRead(req, res);
+    if (!companyId) return;
     const { flowId, callId, status } = req.query;
 
     const userFlows = await db
       .select({ id: flows.id, nodes: flows.nodes })
       .from(flows)
-      .where(eq(flows.userId, userId));
+      .where(and(eq(flows.userId, userId), eq(flows.companyId, companyId)));
 
     const userFlowIds = userFlows.map(f => f.id);
 
@@ -4244,7 +4432,7 @@ router.get("/executions", async (req: AuthRequest, res: Response) => {
       flowNodesMap[flow.id] = (flow.nodes || []) as import('@shared/schema').FlowNode[];
     }
 
-    const conditions: any[] = [inArray(flowExecutions.flowId, userFlowIds)];
+    const conditions: any[] = [inArray(flowExecutions.flowId, userFlowIds), eq(flowExecutions.companyId, companyId)];
 
     if (flowId) conditions.push(eq(flowExecutions.flowId, flowId as string));
     if (callId) conditions.push(eq(flowExecutions.callId, callId as string));
@@ -4275,7 +4463,7 @@ router.get("/executions", async (req: AuthRequest, res: Response) => {
       })
       .from(flowExecutions)
       .leftJoin(flows, eq(flowExecutions.flowId, flows.id))
-      .leftJoin(calls, eq(flowExecutions.callId, calls.id))
+      .leftJoin(calls, and(eq(flowExecutions.callId, calls.id), eq(calls.companyId, companyId)))
       .where(and(...conditions))
       .orderBy(desc(flowExecutions.startedAt))
       .limit(100);
@@ -4348,7 +4536,7 @@ router.get("/executions", async (req: AuthRequest, res: Response) => {
       const plivoCallStatuses = await db
         .select({ id: plivoCalls.id, status: plivoCalls.status, endedAt: plivoCalls.endedAt })
         .from(plivoCalls)
-        .where(inArray(plivoCalls.id, stillRunningCallIds));
+        .where(and(inArray(plivoCalls.id, stillRunningCallIds), eq(plivoCalls.companyId, companyId)));
 
       const plivoCallMap = new Map(plivoCallStatuses.map(c => [c.id, c]));
 
@@ -4356,7 +4544,7 @@ router.get("/executions", async (req: AuthRequest, res: Response) => {
       const twilioOpenaiStatuses = await db
         .select({ id: twilioOpenaiCalls.id, status: twilioOpenaiCalls.status, endedAt: twilioOpenaiCalls.endedAt })
         .from(twilioOpenaiCalls)
-        .where(inArray(twilioOpenaiCalls.id, stillRunningCallIds));
+        .where(and(inArray(twilioOpenaiCalls.id, stillRunningCallIds), eq(twilioOpenaiCalls.companyId, companyId)));
 
       const twilioOpenaiMap = new Map(twilioOpenaiStatuses.map(c => [c.id, c]));
 
@@ -4364,7 +4552,7 @@ router.get("/executions", async (req: AuthRequest, res: Response) => {
       const sipCallStatuses = await db
         .select({ id: sipCalls.id, status: sipCalls.status, endedAt: sipCalls.endedAt })
         .from(sipCalls)
-        .where(inArray(sipCalls.id, stillRunningCallIds));
+        .where(and(inArray(sipCalls.id, stillRunningCallIds), eq(sipCalls.companyId, companyId)));
 
       const sipCallMap = new Map(sipCallStatuses.map(c => [c.id, c]));
 
@@ -4437,7 +4625,7 @@ router.get("/executions", async (req: AuthRequest, res: Response) => {
       const contactRecords = await db
         .select({ id: contacts.id, firstName: contacts.firstName, lastName: contacts.lastName, phone: contacts.phone })
         .from(contacts)
-        .where(inArray(contacts.id, contactIds));
+        .where(and(inArray(contacts.id, contactIds), eq(contacts.companyId, companyId)));
 
       for (const c of contactRecords) {
         const fullName = c.lastName ? `${c.firstName} ${c.lastName}` : c.firstName;

@@ -1,0 +1,605 @@
+#!/usr/bin/env node
+import { dbosConfigFilePath, getDbosConfig, getRuntimeConfig, getSystemDatabaseUrl, readConfigFile } from '../config';
+import { Command } from 'commander';
+import { DBOSConfigInternal } from '../dbos-executor';
+import { migrate } from './migrate';
+import { runSchemaPrintMode } from './schema';
+import { GlobalLogger } from '../telemetry/logs';
+import { TelemetryCollector } from '../telemetry/collector';
+import { TelemetryExporter } from '../telemetry/exporters';
+import * as readline from 'node:readline/promises';
+import { stdin as input, stdout as output } from 'node:process';
+import { DBOSClient, GetWorkflowsInput, StatusString } from '..';
+import { DEFAULT_RENAME_BATCH_SIZE, holdsShardedSchema, migrateSystemDatabase } from '../system_database';
+import { DBOS } from '../dbos';
+import { exit } from 'node:process';
+import { inspect } from 'node:util';
+import { runCommand } from './commands';
+import { startDockerPg, stopDockerPg } from './docker_pg_helper';
+import { dropPGDatabase, getDatabaseNameFromUrl } from '../database_utils';
+import { existsSync } from 'node:fs';
+import { globalParams } from '../utils';
+
+const program = new Command();
+
+////////////////////////
+/* LOCAL DEVELOPMENT  */
+////////////////////////
+
+program.version(globalParams.dbosVersion);
+
+program
+  .command('start')
+  .description('Start the server')
+  .option('-l, --loglevel <string>', 'Specify log level')
+  .action(async (options: { loglevel?: string }) => {
+    const config = await readConfigFile();
+    const dbosConfig = getDbosConfig(config, { logLevel: options.loglevel });
+    const runtimeConfig = getRuntimeConfig(config);
+
+    // If no start commands are provided, start the DBOS runtime
+    if (runtimeConfig.start.length === 0) {
+      console.error('No start commands provided in the configuration file.');
+      exit(1);
+    } else {
+      const logger = new GlobalLogger(
+        new TelemetryCollector(new TelemetryExporter(dbosConfig.telemetry.OTLPExporter)),
+        dbosConfig.telemetry.logs,
+      );
+      for (const command of runtimeConfig.start) {
+        try {
+          const ret = await runCommand(command, logger);
+          if (ret !== 0) {
+            process.exit(ret);
+          }
+        } catch (e) {
+          // We always reject the command with a return code
+          process.exit(e as number);
+        }
+      }
+    }
+  });
+
+program
+  .command('migrate')
+  .description('Perform a database migration')
+  .action(async () => {
+    const configFile = await readConfigFile();
+    const config = getDbosConfig(configFile);
+    const schemaName = configFile.system_database_schema_name ?? 'dbos';
+    if (await isSharded(config.systemDatabaseUrl, schemaName)) {
+      console.error(SHARDED_REFUSAL);
+      exit(1);
+    }
+
+    await runAndLog(configFile.database?.migrate ?? [], config, (cmds, url, logger) =>
+      migrate(cmds, url, logger, schemaName),
+    );
+  });
+
+program
+  .command('schema')
+  .description('Create the DBOS system database and its internal tables')
+  .argument('[systemDatabaseUrl]', 'System database URL')
+  .option('-r, --app-role <string>', 'The role with which you will run your DBOS application')
+  .option('-s, --schema <string>', 'The schema name for DBOS system tables (default: dbos)')
+  .option(
+    '--print-migrations <all|N>',
+    "Print the SQL of all migrations ('--print-migrations all') or of migrations from a number onward ('--print-migrations 3') instead of running them",
+  )
+  .option(
+    '--print-user-role',
+    'Print the SQL granting the application role (--app-role) access to DBOS system tables instead of executing it',
+  )
+  .option('--sharding', 'Create or migrate a sharded system database (requires @dbos-inc/dbos-enterprise)', false)
+  .action(
+    async (
+      systemDatabaseUrl: string | undefined,
+      options: {
+        appRole?: string;
+        schema?: string;
+        printMigrations?: string;
+        printUserRole?: boolean;
+        sharding: boolean;
+      },
+    ) => {
+      const logger = new GlobalLogger();
+
+      if (options.printMigrations !== undefined && options.sharding) {
+        // Sharded migrations also distribute tables (on Citus), which only a live run does.
+        console.error(
+          '--print-migrations is not supported with --sharding; run `dbos schema --sharding` against the database instead',
+        );
+        process.exit(1);
+      }
+
+      // Get schema name from CLI option first, then config, then default
+      let schemaName = options.schema ?? 'dbos';
+      if (!options.schema) {
+        try {
+          if (existsSync(dbosConfigFilePath)) {
+            const configFile = await readConfigFile(dbosConfigFilePath);
+            schemaName = configFile.system_database_schema_name ?? 'dbos';
+          }
+        } catch (e) {
+          // If config file doesn't exist or can't be read, use default
+        }
+      }
+
+      if (options.printMigrations !== undefined || options.printUserRole) {
+        // Print modes never connect, so a missing database URL is fine.
+        if (!systemDatabaseUrl) {
+          try {
+            systemDatabaseUrl = (await getDatabaseURLs(undefined, { allowSharded: true })).systemDatabaseURL;
+          } catch (e) {}
+        }
+        process.exit(
+          await runSchemaPrintMode(systemDatabaseUrl, {
+            schemaName,
+            printMigrations: options.printMigrations,
+            printUserRole: options.printUserRole,
+            appRole: options.appRole,
+          }),
+        );
+      }
+
+      // Determine system database URL from argument or config
+      const databaseURLs = await getDatabaseURLs(systemDatabaseUrl, { allowSharded: true });
+      systemDatabaseUrl = databaseURLs.systemDatabaseURL;
+
+      if (!options.sharding && (await configEnablesSharding())) {
+        console.error(
+          'Error: dbos-config.yaml enables sharding; create or migrate the system schema with `dbos schema --sharding`.',
+        );
+        process.exit(1);
+      }
+      if (!options.sharding && (await holdsShardedSchema(systemDatabaseUrl, schemaName))) {
+        console.error(
+          `Error: the system schema ${schemaName} is sharded; create or migrate it with \`dbos schema --sharding\`.`,
+        );
+        process.exit(1);
+      }
+
+      try {
+        // Load the DBOS system schema.
+        logger.info(`Creating DBOS system database and schema: ${schemaName}`);
+        if (options.sharding) {
+          await DBOS.migrate(systemDatabaseUrl, { schemaName, applicationRole: options.appRole, sharding: true });
+        } else {
+          await migrateSystemDatabase(systemDatabaseUrl, logger, schemaName, options.appRole);
+        }
+      } catch (e) {
+        logger.error(e);
+        process.exit(1);
+      }
+    },
+  );
+
+program
+  .command('postgres')
+  .alias('pg')
+  .description('Helps you setting up a local Postgres database with Docker')
+  .addCommand(
+    new Command('start').description('Start a local Postgres database with Docker').action(async () => {
+      await startDockerPg();
+    }),
+  )
+  .addCommand(
+    new Command('stop').description('Stop the local Postgres database with Docker').action(async () => {
+      await stopDockerPg();
+    }),
+  );
+
+program
+  .command('reset')
+  .description('reset the system database')
+  .option('-y, --yes', 'Skip confirmation prompt', false)
+  .option('-s, --sys-db-url <string>', 'Your DBOS system database URL')
+  .action(async (options: { yes: boolean; sysDbUrl?: string }) => {
+    const urls = await getDatabaseURLs(options.sysDbUrl);
+    if (!options.yes) {
+      const rl = readline.createInterface({ input, output });
+      try {
+        const answer = await rl.question(
+          'This command resets your DBOS system database, deleting metadata about past workflows and steps. Are you sure you want to proceed? (y/N) ',
+        );
+        const userConfirmed = answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes';
+
+        if (!userConfirmed) {
+          console.log('Operation cancelled.');
+          process.exit(0); // Exit the process if the user cancels
+        }
+      } finally {
+        rl.close();
+      }
+    }
+
+    const sysDbName = getDatabaseNameFromUrl(urls.systemDatabaseURL);
+    try {
+      await dropPGDatabase(urls.systemDatabaseURL, { warn: (msg: string) => console.error(msg) });
+      console.log(`Dropped '${sysDbName}'.  To use DBOS in the future, you will need to create a new system database.`);
+    } catch (e) {
+      console.log(`Could not drop '${sysDbName}': ${(e as Error).message}`);
+    }
+  });
+
+program
+  .command('rename-application')
+  .description("Re-own a system database's rows after an application is renamed")
+  .option('-y, --yes', 'Skip confirmation prompt', false)
+  .option('-s, --sys-db-url <string>', 'Your DBOS system database URL')
+  .option('-f, --from <string>', "The application's previous name. Omit to only adopt unclaimed rows.")
+  .requiredOption('-t, --to <string>', 'The application that ends up owning the rows')
+  .option('--adopt-unclaimed-rows', 'Also take rows no application owns', false)
+  .option('--batch-size <number>', 'Workflows and steps re-owned per transaction', String(DEFAULT_RENAME_BATCH_SIZE))
+  .option('--schema <string>', 'The schema name for DBOS system tables (default: dbos)')
+  .action(
+    async (options: {
+      yes: boolean;
+      sysDbUrl?: string;
+      from?: string;
+      to: string;
+      adoptUnclaimedRows: boolean;
+      batchSize?: string;
+      schema?: string;
+    }) => {
+      const sources: string[] = [];
+      if (options.from) sources.push(`'${options.from}'s rows`);
+      if (options.adoptUnclaimedRows) sources.push('rows no application owns');
+      if (sources.length === 0) {
+        console.error('Nothing to re-own: pass --from, --adopt-unclaimed-rows, or both.');
+        exit(1);
+      }
+      // Reject here rather than let a NaN reach SQL after the first transaction commits.
+      const batchSize = Number(options.batchSize);
+      if (!Number.isInteger(batchSize) || batchSize < 1) {
+        console.error(`Invalid --batch-size '${options.batchSize}': expected a positive integer.`);
+        exit(1);
+      }
+
+      const urls = await getDatabaseURLs(options.sysDbUrl);
+      if (!options.yes) {
+        const rl = readline.createInterface({ input, output });
+        try {
+          const answer = await rl.question(
+            `This command re-owns ${sources.join(' and ')} in your DBOS system database as '${options.to}'. ` +
+              'Stop the application being renamed before running this. Are you sure you want to proceed? (y/N) ',
+          );
+          if (!['y', 'yes'].includes(answer.toLowerCase())) {
+            console.log('Operation cancelled.');
+            process.exit(0);
+          }
+        } finally {
+          rl.close();
+        }
+      }
+
+      const client = await DBOSClient.create({
+        systemDatabaseUrl: urls.systemDatabaseURL,
+        systemDatabaseSchemaName: options.schema,
+      });
+      try {
+        const moved = await client.renameApplication(options.from, options.to, {
+          batchSize,
+          adoptUnclaimedRows: options.adoptUnclaimedRows,
+        });
+        console.log(JSON.stringify(moved, null, 2));
+      } catch (e) {
+        console.error(`Error renaming application: ${(e as Error).message}`);
+        exit(1);
+      } finally {
+        await client.destroy();
+      }
+    },
+  );
+
+/////////////////////////
+/* WORKFLOW MANAGEMENT */
+/////////////////////////
+
+const workflowCommands = program
+  .command('workflow')
+  .alias('workflows')
+  .alias('wf')
+  .description('Manage DBOS workflows');
+
+workflowCommands
+  .command('list')
+  .description('List workflows from your application')
+  .option('-n, --name <string>', 'Retrieve functions with this name')
+  .option('-l, --limit <number>', 'Limit the results returned', '10')
+  .option('-u, --user <string>', 'Retrieve workflows run by this user')
+  .option('-t, --start-time <string>', 'Retrieve workflows starting after this timestamp (ISO 8601 format)')
+  .option('-e, --end-time <string>', 'Retrieve workflows starting before this timestamp (ISO 8601 format)')
+  .option(
+    '-S, --status <string>',
+    'Retrieve workflows with this status (PENDING, SUCCESS, ERROR, ENQUEUED, DELAYED, CANCELLED, or MAX_RECOVERY_ATTEMPTS_EXCEEDED)',
+  )
+  .option('-v, --application-version <string>', 'Retrieve workflows with this application version')
+  .option('-a, --application-name <string>', 'Retrieve workflows owned by this application')
+  .option('-s, --sys-db-url <string>', 'Your DBOS system database URL')
+  .action(
+    async (options: {
+      name?: string;
+      limit?: string;
+      user?: string;
+      startTime?: string;
+      endTime?: string;
+      status?: string;
+      applicationVersion?: string;
+      applicationName?: string;
+      sysDbUrl?: string;
+    }) => {
+      const validStatuses = Object.values(StatusString) as readonly string[];
+
+      if (options.status && !validStatuses.includes(options.status)) {
+        console.error('Invalid status: ', options.status);
+        exit(1);
+      }
+
+      const input: GetWorkflowsInput = {
+        workflowName: options.name,
+        limit: Number(options.limit),
+        authenticatedUser: options.user,
+        startTime: options.startTime,
+        endTime: options.endTime,
+        status: options.status as GetWorkflowsInput['status'],
+        applicationVersion: options.applicationVersion,
+        applicationName: options.applicationName,
+      };
+      const urls = await getDatabaseURLs(options.sysDbUrl);
+      const client = await DBOSClient.create({
+        systemDatabaseUrl: urls.systemDatabaseURL,
+      });
+      try {
+        const output = await client.listWorkflows(input);
+        console.log(JSON.stringify(output.map((wf) => inspectUnsafeFields(wf, ['input', 'output', 'error']))));
+      } finally {
+        await client.destroy();
+      }
+    },
+  );
+
+workflowCommands
+  .command('get')
+  .description('Retrieve the status of a workflow')
+  .argument('<workflowID>', 'Target workflow ID')
+  .option('-s, --sys-db-url <string>', 'Your DBOS system database URL')
+  .action(async (workflowID: string, options: { sysDbUrl?: string }) => {
+    const urls = await getDatabaseURLs(options.sysDbUrl);
+    const client = await DBOSClient.create({
+      systemDatabaseUrl: urls.systemDatabaseURL,
+    });
+    try {
+      const output = await client.getWorkflow(workflowID);
+      console.log(JSON.stringify(output ? inspectUnsafeFields(output, ['input', 'output', 'error']) : output));
+    } finally {
+      await client.destroy();
+    }
+  });
+
+workflowCommands
+  .command('steps')
+  .description('List the steps of a workflow')
+  .argument('<workflowID>', 'Target workflow ID')
+  .option('-s, --sys-db-url <string>', 'Your DBOS system database URL')
+  .action(async (workflowID: string, options: { sysDbUrl?: string }) => {
+    const urls = await getDatabaseURLs(options.sysDbUrl);
+    const client = await DBOSClient.create({
+      systemDatabaseUrl: urls.systemDatabaseURL,
+    });
+    try {
+      const output = await client.listWorkflowSteps(workflowID);
+      console.log(JSON.stringify(output?.map((step) => inspectUnsafeFields(step, ['output', 'error']))));
+    } finally {
+      await client.destroy();
+    }
+  });
+
+workflowCommands
+  .command('cancel')
+  .description('Cancel a workflow so it is no longer automatically retried or restarted')
+  .argument('<workflowID>', 'Target workflow ID')
+  .option('-s, --sys-db-url <string>', 'Your DBOS system database URL')
+  .action(async (workflowID: string, options: { sysDbUrl?: string }) => {
+    const urls = await getDatabaseURLs(options.sysDbUrl);
+    const client = await DBOSClient.create({
+      systemDatabaseUrl: urls.systemDatabaseURL,
+    });
+    try {
+      await client.cancelWorkflow(workflowID);
+    } finally {
+      await client.destroy();
+    }
+  });
+
+workflowCommands
+  .command('resume')
+  .description('Resume a workflow from the last step it executed, keeping its workflow ID')
+  .argument('<workflowID>', 'Target workflow ID')
+  .option('-s, --sys-db-url <string>', 'Your DBOS system database URL')
+  .action(async (workflowID: string, options: { sysDbUrl?: string }) => {
+    const urls = await getDatabaseURLs(options.sysDbUrl);
+    const client = await DBOSClient.create({
+      systemDatabaseUrl: urls.systemDatabaseURL,
+    });
+    try {
+      await client.resumeWorkflow(workflowID);
+    } finally {
+      await client.destroy();
+    }
+  });
+
+workflowCommands
+  .command('fork')
+  .description('Fork a workflow from a step with a new ID')
+  .argument('<workflowID>', 'Target workflow ID')
+  .requiredOption('-S, --step <number>', 'Restart from this step')
+  .option('-f, --forked-workflow-id <string>', 'Custom ID for the forked workflow')
+  .option('-v, --application-version <string>', 'Custom application version for the forked workflow')
+  .option('-s, --sys-db-url <string>', 'Your DBOS system database URL')
+  .action(
+    async (
+      workflowID: string,
+      options: { step: number; forkedWorkflowId?: string; applicationVersion?: string; sysDbUrl?: string },
+    ) => {
+      const urls = await getDatabaseURLs(options.sysDbUrl);
+      const client = await DBOSClient.create({
+        systemDatabaseUrl: urls.systemDatabaseURL,
+      });
+      try {
+        await client.forkWorkflow(workflowID, options.step, {
+          newWorkflowID: options.forkedWorkflowId,
+          applicationVersion: options.applicationVersion,
+        });
+      } finally {
+        await client.destroy();
+      }
+    },
+  );
+
+const queueCommands = workflowCommands.command('queue').alias('queues').alias('q').description('Manage DBOS queues');
+queueCommands
+  .command('list')
+  .description('List enqueued functions from your application')
+  .option('-n, --name <string>', 'Retrieve functions with this name')
+  .option('-t, --start-time <string>', 'Retrieve functions starting after this timestamp (ISO 8601 format)')
+  .option('-e, --end-time <string>', 'Retrieve functions starting before this timestamp (ISO 8601 format)')
+  .option(
+    '-S, --status <string>',
+    'Retrieve functions with this status (PENDING, SUCCESS, ERROR, ENQUEUED, DELAYED, CANCELLED, or MAX_RECOVERY_ATTEMPTS_EXCEEDED)',
+  )
+  .option('-l, --limit <number>', 'Limit the results returned')
+  .option('-q, --queue <string>', 'Retrieve functions run on this queue')
+  .option('-a, --application-name <string>', 'Retrieve functions owned by this application')
+  .option('-s, --sys-db-url <string>', 'Your DBOS system database URL')
+  .action(
+    async (options: {
+      name?: string;
+      startTime?: string;
+      endTime?: string;
+      status?: string;
+      limit?: string;
+      queue?: string;
+      applicationName?: string;
+      sysDbUrl?: string;
+    }) => {
+      const validStatuses = Object.values(StatusString) as readonly string[];
+      if (options.status && !validStatuses.includes(options.status)) {
+        console.error('Invalid status: ', options.status);
+        exit(1);
+      }
+
+      const input: GetWorkflowsInput = {
+        limit: Number(options.limit),
+        startTime: options.startTime,
+        endTime: options.endTime,
+        status: options.status as GetWorkflowsInput['status'],
+        workflowName: options.name,
+        queueName: options.queue,
+        applicationName: options.applicationName,
+      };
+      const urls = await getDatabaseURLs(options.sysDbUrl);
+      const client = await DBOSClient.create({
+        systemDatabaseUrl: urls.systemDatabaseURL,
+      });
+      try {
+        const output = await client.listQueuedWorkflows(input);
+        console.log(JSON.stringify(output.map((wf) => inspectUnsafeFields(wf, ['input', 'output', 'error']))));
+      } finally {
+        await client.destroy();
+      }
+    },
+  );
+
+/////////////
+/* PARSING */
+/////////////
+
+function inspectUnsafeFields<T extends object>(obj: T, fields: (keyof T & string)[]) {
+  const result = { ...obj } as Record<string, unknown>;
+  for (const field of fields) {
+    if (result[field] !== undefined && result[field] !== null) {
+      result[field] = inspect(result[field]);
+    }
+  }
+  return result;
+}
+
+program.parse(process.argv);
+
+// If no arguments provided, display help by default
+if (!process.argv.slice(2).length) {
+  program.outputHelp();
+}
+
+const SHARDED_REFUSAL =
+  'Error: this command does not support a sharded system database; only `dbos schema --sharding` does.';
+
+// Resolves the system database URL, and exits when it names a sharded system database the command doesn't support.
+async function getDatabaseURLs(
+  systemDatabaseURL: string | undefined,
+  options: { allowSharded?: boolean } = {},
+): Promise<{
+  systemDatabaseURL: string;
+}> {
+  const url = await resolveDatabaseURL(systemDatabaseURL);
+  if (!options.allowSharded && (await isSharded(url))) {
+    console.error(SHARDED_REFUSAL);
+    exit(1);
+  }
+  return { systemDatabaseURL: url };
+}
+
+async function resolveDatabaseURL(systemDatabaseURL: string | undefined): Promise<string> {
+  if (globalParams.dbosCloud) {
+    return process.env.DBOS_SYSTEM_DATABASE_URL!;
+  }
+  if (systemDatabaseURL) {
+    return systemDatabaseURL;
+  }
+  if (existsSync(dbosConfigFilePath)) {
+    const config = await readConfigFile();
+    return getSystemDatabaseUrl(config);
+  } else {
+    throw new Error('Error: Missing database URL: please set it using CLI flags or your dbos-config.yaml file.');
+  }
+}
+
+// Whether the configuration enables sharding or the database holds a sharded schema.
+async function isSharded(systemDatabaseURL: string, schemaName?: string): Promise<boolean> {
+  return (await configEnablesSharding()) || (await holdsShardedSchema(systemDatabaseURL, schemaName));
+}
+
+// Whether dbos-config.yaml enables sharding; a missing or unreadable file doesn't.
+async function configEnablesSharding(): Promise<boolean> {
+  try {
+    return existsSync(dbosConfigFilePath) && (await readConfigFile()).sharding === true;
+  } catch (e) {
+    return false;
+  }
+}
+
+//Runs action(migrationCommands, systemDatabaseUrl, logger), which returns a numeric exit code.
+//Logs through the configured OTLP exporter and flushes it after.
+//If action throws, logs the exception and sets the exit code to 1.
+//Finally, terminates the program with the exit code.
+async function runAndLog(
+  migrationCommands: string[],
+  config: DBOSConfigInternal,
+  action: (migrationCommands: string[], systemDatabaseUrl: string, logger: GlobalLogger) => Promise<number> | number,
+) {
+  const logger = new GlobalLogger(
+    new TelemetryCollector(new TelemetryExporter(config.telemetry.OTLPExporter)),
+    config.telemetry.logs,
+  );
+  let returnCode = 1;
+  try {
+    returnCode = await action(migrationCommands, config.systemDatabaseUrl, logger);
+  } catch (e) {
+    logger.error(e);
+  }
+  void logger.destroy().finally(() => {
+    process.exit(returnCode);
+  });
+}

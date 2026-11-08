@@ -1,0 +1,30 @@
+-- DRAFT GUARD - DO NOT RUN. Owner only. Not part of the numbered migration sequence and not in the journal.
+DO $$ BEGIN RAISE EXCEPTION 'DRAFT_credential_encryption_backfill.sql is a draft: owner runs the application-side backfill, not this file'; END $$;
+
+-- DRAFT - NOT APPLIED. Describes the backfill for eleven_labs_credentials. This file is not SQL to run.
+--
+-- Why this is not SQL: v1 ciphertext is AES-256-GCM with the key in CREDENTIAL_ENCRYPTION_KEY, which the
+-- database cannot read. Encryption must happen in application code, using the helpers the app already has:
+--   server/utils/credential-crypto.ts   (encryptCredentialValue / decryptCredentialValue / loadCredentialKey)
+--   server/services/credential-crypto.ts (v1 wire format)
+--
+-- Scope: eleven_labs_credentials.api_key (NOT NULL) and eleven_labs_credentials.webhook_secret (nullable).
+-- Not covered here: openai_credentials.api_key, plivo_credentials.auth_token, sip_trunks and any other
+-- credential column. Those are still plaintext (see the report that accompanies this draft).
+--
+-- Procedure (owner):
+--   1. Plan one maintenance window covering the code deploy and step 3. The new code (server/services/elevenlabs-pool.ts)
+--      refuses to open plaintext rows, and the old code reads ciphertext as a key, so neither order is safe alone.
+--      Pause outbound ElevenLabs calls and pool writes for the window. Deploy the new code, then run step 3, then resume.
+--   2. Confirm CREDENTIAL_ENCRYPTION_KEY is set in the target environment (base64 of exactly 32 random bytes).
+--      Generate it outside the repo and store it in the secret manager. Never commit it or paste it into logs.
+--   3. Run an application-side script (not written yet) that, for each row:
+--        - if api_key does not start with 'v1:', replace it with encryptCredentialValue(api_key)
+--        - if webhook_secret is non-empty and does not start with 'v1:', replace it with encryptCredentialValue(webhook_secret)
+--        - update in a single transaction per row, and skip rows already starting with 'v1:' (idempotent)
+--      The script must fail closed: stop on the first error and print row ids only, never values.
+--   4. Verify with a read-only check in the owner's session: count rows where api_key NOT LIKE 'v1:%'
+--      and rows where webhook_secret IS NOT NULL AND webhook_secret NOT LIKE 'v1:%'. Both must be 0.
+--   5. Keep a database snapshot taken before step 3 until verification passes.
+--
+-- Rollback: restore the snapshot from before step 3. Do not reverse the cipher by hand.

@@ -1,0 +1,11 @@
+{
+  "schema": "titan-zero-change-impact/v1",
+  "production_added": [
+    "titan-runtime/compat-decomposition/compat-bootstrap.mjs"
+  ],
+  "production_modified": [],
+  "production_deleted": [],
+  "shared_hotspots_modified": [],
+  "risk": "LOW_ADDITIVE",
+  "deploy_note": "Manager must regenerate deploy subset after canonical convergence; deploy ZIP is not a patch base."
+}

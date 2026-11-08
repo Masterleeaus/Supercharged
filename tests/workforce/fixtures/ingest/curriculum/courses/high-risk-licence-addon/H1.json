@@ -1,0 +1,7 @@
+{
+  "id": "H1",
+  "title": "Licence add-on lesson (excluded until approved)",
+  "status": "DRAFT",
+  "courseSlugs": ["alpha-clean"],
+  "instruction": [{ "heading": "Licence", "body": "Must not be loaded." }]
+}

@@ -1,0 +1,3 @@
+import type { CompanyId, WorkId, WorkItem, WorkforceEvent, WorkforceStore } from "./index.js";
+/** Test/reference adapter only. Production persistence must use canonical SQLite storage. */
+export class MemoryWorkforceStore implements WorkforceStore { readonly events: WorkforceEvent[]=[]; private rows=new Map<string,WorkItem>(); private key(c:CompanyId,w:WorkId){return `${c}\u0000${w}`} async get(c:CompanyId,w:WorkId){const r=this.rows.get(this.key(c,w));return r?structuredClone(r):undefined} async put(i:WorkItem){this.rows.set(this.key(i.company_id,i.work_id),structuredClone(i))} async list(c:CompanyId){return [...this.rows.values()].filter(x=>x.company_id===c).map(x=>structuredClone(x))} async appendEvent(e:WorkforceEvent){this.events.push(structuredClone(e))} }

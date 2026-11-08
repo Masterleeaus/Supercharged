@@ -1,0 +1,604 @@
+{
+  "schema": "titan-tool-launch-map/v1",
+  "packet_id": "TZ-TOOLS-ABSORB-001",
+  "pass": 9,
+  "rules": {
+    "owner": "titan-zero",
+    "donor_page_navigation": false,
+    "identity_grants_authority": false,
+    "company_boundary": "company_id"
+  },
+  "routes": {
+    "write": {
+      "tool_id": "write",
+      "owner": "titan-zero",
+      "surface": "ai_workspace",
+      "entrypoint": "chatTab.html",
+      "action": "open:write",
+      "launch_contract": "titan-tool-launch/v1",
+      "donor_navigation": false,
+      "workspace_tab": "write",
+      "workspace_action": "write",
+      "launch_url": "chatTab.html?tab=write&action=write&source=titan-tools"
+    },
+    "rewrite": {
+      "tool_id": "rewrite",
+      "owner": "titan-zero",
+      "surface": "ai_workspace",
+      "entrypoint": "chatTab.html",
+      "action": "open:rewrite",
+      "launch_contract": "titan-tool-launch/v1",
+      "donor_navigation": false,
+      "workspace_tab": "write",
+      "workspace_action": "rewrite",
+      "launch_url": "chatTab.html?tab=write&action=rewrite&source=titan-tools"
+    },
+    "grammar": {
+      "tool_id": "grammar",
+      "owner": "titan-zero",
+      "surface": "ai_workspace",
+      "entrypoint": "chatTab.html",
+      "action": "open:grammar",
+      "launch_contract": "titan-tool-launch/v1",
+      "donor_navigation": false,
+      "workspace_tab": "write",
+      "workspace_action": "grammar",
+      "launch_url": "chatTab.html?tab=write&action=grammar&source=titan-tools"
+    },
+    "translate": {
+      "tool_id": "translate",
+      "owner": "titan-zero",
+      "surface": "ai_workspace",
+      "entrypoint": "chatTab.html",
+      "action": "open:translate",
+      "launch_contract": "titan-tool-launch/v1",
+      "donor_navigation": false,
+      "workspace_tab": "translate",
+      "workspace_action": "translate",
+      "launch_url": "chatTab.html?tab=translate&action=translate&source=titan-tools"
+    },
+    "summarize": {
+      "tool_id": "summarize",
+      "owner": "titan-zero",
+      "surface": "ai_workspace",
+      "entrypoint": "chatTab.html",
+      "action": "open:summarize",
+      "launch_contract": "titan-tool-launch/v1",
+      "donor_navigation": false,
+      "workspace_tab": "reading",
+      "workspace_action": "summarize",
+      "launch_url": "chatTab.html?tab=reading&action=summarize&source=titan-tools"
+    },
+    "read": {
+      "tool_id": "read",
+      "owner": "titan-zero",
+      "surface": "ai_workspace",
+      "entrypoint": "chatTab.html",
+      "action": "open:read",
+      "launch_contract": "titan-tool-launch/v1",
+      "donor_navigation": false,
+      "workspace_tab": "reading",
+      "workspace_action": "read",
+      "launch_url": "chatTab.html?tab=reading&action=read&source=titan-tools"
+    },
+    "search": {
+      "tool_id": "search",
+      "owner": "titan-zero",
+      "surface": "ai_workspace",
+      "entrypoint": "chatTab.html",
+      "action": "open:search",
+      "launch_contract": "titan-tool-launch/v1",
+      "donor_navigation": false,
+      "workspace_tab": "search",
+      "workspace_action": "search",
+      "launch_url": "chatTab.html?tab=search&action=search&source=titan-tools"
+    },
+    "webpage_assistant": {
+      "tool_id": "webpage_assistant",
+      "owner": "titan-zero",
+      "surface": "page_context",
+      "entrypoint": "content-runtime/page-tool.iife.js",
+      "action": "page:assist",
+      "launch_contract": "titan-tool-launch/v1",
+      "donor_navigation": false
+    },
+    "full_page": {
+      "tool_id": "full_page",
+      "owner": "titan-zero",
+      "surface": "page_context",
+      "entrypoint": "content-runtime/page-tool.iife.js",
+      "action": "page:full-assist",
+      "launch_contract": "titan-tool-launch/v1",
+      "donor_navigation": false
+    },
+    "text_selection": {
+      "tool_id": "text_selection",
+      "owner": "titan-zero",
+      "surface": "page_context",
+      "entrypoint": "content-runtime/page-tool.iife.js",
+      "action": "selection:assist",
+      "launch_contract": "titan-tool-launch/v1",
+      "donor_navigation": false
+    },
+    "floating_assistant": {
+      "tool_id": "floating_assistant",
+      "owner": "titan-zero",
+      "surface": "page_context",
+      "entrypoint": "content-runtime/page-tool.iife.js",
+      "action": "page:floating-assist",
+      "launch_contract": "titan-tool-launch/v1",
+      "donor_navigation": false
+    },
+    "chatpdf": {
+      "tool_id": "chatpdf",
+      "owner": "titan-zero",
+      "surface": "ai_workspace",
+      "entrypoint": "chatTab.html",
+      "action": "open:chatpdf",
+      "launch_contract": "titan-tool-launch/v1",
+      "donor_navigation": false,
+      "workspace_tab": "chat",
+      "workspace_action": "document-chat",
+      "document_mode": "chatpdf",
+      "accepted_extensions": [
+        "pdf",
+        "doc",
+        "docx",
+        "xls",
+        "xlsx",
+        "txt",
+        "csv",
+        "ppt",
+        "pptx",
+        "png",
+        "jpg",
+        "jpeg",
+        "webp"
+      ],
+      "launch_url": "chatTab.html?tab=chat&action=document-chat&document=chatpdf&source=titan-tools&accept=pdf%2Cdoc%2Cdocx%2Cxls%2Cxlsx%2Ctxt%2Ccsv%2Cppt%2Cpptx%2Cpng%2Cjpg%2Cjpeg%2Cwebp"
+    },
+    "pdf_generate_fill": {
+      "tool_id": "pdf_generate_fill",
+      "owner": "titan-zero",
+      "surface": "retriever_runtime",
+      "entrypoint": "side-panel/index.html",
+      "action": "retriever:capability",
+      "capability_id": "pdf",
+      "launch_contract": "titan-tool-launch/v1",
+      "donor_navigation": false,
+      "grants_execution_authority": false
+    },
+    "youtube_assistant": {
+      "tool_id": "youtube_assistant",
+      "owner": "titan-zero",
+      "surface": "ai_workspace",
+      "entrypoint": "chatTab.html",
+      "action": "open:youtube",
+      "launch_contract": "titan-tool-launch/v1",
+      "donor_navigation": false,
+      "workspace_tab": "reading",
+      "workspace_action": "youtube",
+      "launch_url": "chatTab.html?tab=reading&action=youtube&source=titan-tools"
+    },
+    "mindmap": {
+      "tool_id": "mindmap",
+      "owner": "titan-zero",
+      "surface": "ai_workspace",
+      "entrypoint": "chatTab.html",
+      "action": "open:mindmap",
+      "launch_contract": "titan-tool-launch/v1",
+      "donor_navigation": false,
+      "workspace_tab": "tools",
+      "workspace_action": "mindmap",
+      "analysis_mode": "mindmap",
+      "launch_url": "chatTab.html?tab=tools&action=mindmap&analysis=mindmap&source=titan-tools"
+    },
+    "ai_detector": {
+      "tool_id": "ai_detector",
+      "owner": "titan-zero",
+      "surface": "ai_workspace",
+      "entrypoint": "chatTab.html",
+      "action": "open:ai-detector",
+      "launch_contract": "titan-tool-launch/v1",
+      "donor_navigation": false,
+      "workspace_tab": "tools",
+      "workspace_action": "ai-detector",
+      "analysis_mode": "ai-detector",
+      "launch_url": "chatTab.html?tab=tools&action=ai-detector&analysis=ai-detector&source=titan-tools"
+    },
+    "humanize": {
+      "tool_id": "humanize",
+      "owner": "titan-zero",
+      "surface": "ai_workspace",
+      "entrypoint": "chatTab.html",
+      "action": "open:humanize",
+      "launch_contract": "titan-tool-launch/v1",
+      "donor_navigation": false,
+      "workspace_tab": "tools",
+      "workspace_action": "humanize",
+      "analysis_mode": "humanize",
+      "launch_url": "chatTab.html?tab=tools&action=humanize&analysis=humanize&source=titan-tools"
+    },
+    "podcast": {
+      "tool_id": "podcast",
+      "owner": "titan-zero",
+      "surface": "ai_workspace",
+      "entrypoint": "chatTab.html",
+      "action": "open:podcast",
+      "launch_contract": "titan-tool-launch/v1",
+      "donor_navigation": false,
+      "workspace_tab": "audio",
+      "workspace_action": "podcast",
+      "media_mode": "podcast",
+      "launch_url": "chatTab.html?tab=audio&action=podcast&media=podcast&source=titan-tools"
+    },
+    "audio_to_text": {
+      "tool_id": "audio_to_text",
+      "owner": "titan-zero",
+      "surface": "ai_workspace",
+      "entrypoint": "chatTab.html",
+      "action": "open:audio-to-text",
+      "launch_contract": "titan-tool-launch/v1",
+      "donor_navigation": false,
+      "workspace_tab": "audio",
+      "workspace_action": "audio-to-text",
+      "media_mode": "audio-to-text",
+      "launch_url": "chatTab.html?tab=audio&action=audio-to-text&media=audio-to-text&source=titan-tools"
+    },
+    "image_generate": {
+      "tool_id": "image_generate",
+      "owner": "titan-zero",
+      "surface": "ai_workspace",
+      "entrypoint": "chatTab.html",
+      "action": "open:image-generate",
+      "launch_contract": "titan-tool-launch/v1",
+      "donor_navigation": false,
+      "workspace_tab": "image",
+      "workspace_action": "image-generate",
+      "media_mode": "image-generate",
+      "launch_url": "chatTab.html?tab=image&action=image-generate&media=image-generate&source=titan-tools"
+    },
+    "image_edit": {
+      "tool_id": "image_edit",
+      "owner": "titan-zero",
+      "surface": "ai_workspace",
+      "entrypoint": "chatTab.html",
+      "action": "open:image-edit",
+      "launch_contract": "titan-tool-launch/v1",
+      "donor_navigation": false,
+      "workspace_tab": "image",
+      "workspace_action": "image-edit",
+      "media_mode": "image-edit",
+      "launch_url": "chatTab.html?tab=image&action=image-edit&media=image-edit&source=titan-tools"
+    },
+    "image_realtime": {
+      "tool_id": "image_realtime",
+      "owner": "titan-zero",
+      "surface": "ai_workspace",
+      "entrypoint": "chatTab.html",
+      "action": "open:image-realtime",
+      "launch_contract": "titan-tool-launch/v1",
+      "donor_navigation": false,
+      "workspace_tab": "image",
+      "workspace_action": "image-realtime",
+      "media_mode": "image-realtime",
+      "launch_url": "chatTab.html?tab=image&action=image-realtime&media=image-realtime&source=titan-tools"
+    },
+    "image_restore_transform": {
+      "tool_id": "image_restore_transform",
+      "owner": "titan-zero",
+      "surface": "ai_workspace",
+      "entrypoint": "chatTab.html",
+      "action": "open:image-transform",
+      "launch_contract": "titan-tool-launch/v1",
+      "donor_navigation": false,
+      "workspace_tab": "image",
+      "workspace_action": "image-transform",
+      "media_mode": "image-transform",
+      "launch_url": "chatTab.html?tab=image&action=image-transform&media=image-transform&source=titan-tools"
+    },
+    "video_generate": {
+      "tool_id": "video_generate",
+      "owner": "titan-zero",
+      "surface": "ai_workspace",
+      "entrypoint": "chatTab.html",
+      "action": "open:video-generate",
+      "launch_contract": "titan-tool-launch/v1",
+      "donor_navigation": false,
+      "workspace_tab": "video",
+      "workspace_action": "video-generate",
+      "media_mode": "video-generate",
+      "launch_url": "chatTab.html?tab=video&action=video-generate&media=video-generate&source=titan-tools"
+    },
+    "text_to_video": {
+      "tool_id": "text_to_video",
+      "owner": "titan-zero",
+      "surface": "ai_workspace",
+      "entrypoint": "chatTab.html",
+      "action": "open:text-to-video",
+      "launch_contract": "titan-tool-launch/v1",
+      "donor_navigation": false,
+      "workspace_tab": "video",
+      "workspace_action": "text-to-video",
+      "media_mode": "text-to-video",
+      "launch_url": "chatTab.html?tab=video&action=text-to-video&media=text-to-video&source=titan-tools"
+    },
+    "image_to_video": {
+      "tool_id": "image_to_video",
+      "owner": "titan-zero",
+      "surface": "ai_workspace",
+      "entrypoint": "chatTab.html",
+      "action": "open:image-to-video",
+      "launch_contract": "titan-tool-launch/v1",
+      "donor_navigation": false,
+      "workspace_tab": "video",
+      "workspace_action": "image-to-video",
+      "media_mode": "image-to-video",
+      "launch_url": "chatTab.html?tab=video&action=image-to-video&media=image-to-video&source=titan-tools"
+    },
+    "screenshots": {
+      "tool_id": "screenshots",
+      "owner": "titan-zero",
+      "surface": "page_context",
+      "entrypoint": "content-runtime/page-tool.iife.js",
+      "action": "page:capture",
+      "launch_contract": "titan-tool-launch/v1",
+      "donor_navigation": false
+    },
+    "attachments": {
+      "tool_id": "attachments",
+      "owner": "titan-zero",
+      "surface": "ai_workspace",
+      "entrypoint": "chatTab.html",
+      "action": "open:attachments",
+      "launch_contract": "titan-tool-launch/v1",
+      "donor_navigation": false,
+      "workspace_tab": "chat",
+      "workspace_action": "attachments",
+      "document_mode": "files",
+      "accepted_extensions": [
+        "pdf",
+        "doc",
+        "docx",
+        "xls",
+        "xlsx",
+        "txt",
+        "csv",
+        "ppt",
+        "pptx",
+        "png",
+        "jpg",
+        "jpeg",
+        "webp"
+      ],
+      "launch_url": "chatTab.html?tab=chat&action=attachments&document=files&source=titan-tools&accept=pdf%2Cdoc%2Cdocx%2Cxls%2Cxlsx%2Ctxt%2Ccsv%2Cppt%2Cpptx%2Cpng%2Cjpg%2Cjpeg%2Cwebp"
+    },
+    "model_selection": {
+      "tool_id": "model_selection",
+      "owner": "titan-zero",
+      "surface": "ai_workspace",
+      "entrypoint": "chatTab.html",
+      "action": "open:models",
+      "launch_contract": "titan-tool-launch/v1",
+      "donor_navigation": false,
+      "workspace_tab": "chat",
+      "workspace_action": "models",
+      "launch_url": "chatTab.html?tab=chat&action=models&source=titan-tools"
+    },
+    "prompts_skills": {
+      "tool_id": "prompts_skills",
+      "owner": "titan-zero",
+      "surface": "ai_workspace",
+      "entrypoint": "chatTab.html",
+      "action": "open:prompts-skills",
+      "launch_contract": "titan-tool-launch/v1",
+      "donor_navigation": false,
+      "workspace_tab": "toolkit",
+      "workspace_action": "prompts-skills",
+      "launch_url": "chatTab.html?tab=toolkit&action=prompts-skills&source=titan-tools"
+    },
+    "browser_actions": {
+      "tool_id": "browser_actions",
+      "owner": "titan-zero",
+      "surface": "retriever_runtime",
+      "entrypoint": "side-panel/index.html",
+      "action": "retriever:capability",
+      "capability_id": "browser_actions",
+      "launch_contract": "titan-tool-launch/v1",
+      "donor_navigation": false,
+      "grants_execution_authority": false
+    },
+    "crawl_extract": {
+      "tool_id": "crawl_extract",
+      "owner": "titan-zero",
+      "surface": "retriever_runtime",
+      "entrypoint": "side-panel/index.html",
+      "action": "retriever:capability",
+      "capability_id": "crawl_extract",
+      "launch_contract": "titan-tool-launch/v1",
+      "donor_navigation": false,
+      "grants_execution_authority": false
+    },
+    "structured_data": {
+      "tool_id": "structured_data",
+      "owner": "titan-zero",
+      "surface": "retriever_runtime",
+      "entrypoint": "side-panel/index.html",
+      "action": "retriever:capability",
+      "capability_id": "structured_data",
+      "launch_contract": "titan-tool-launch/v1",
+      "donor_navigation": false,
+      "grants_execution_authority": false
+    },
+    "sheets": {
+      "tool_id": "sheets",
+      "owner": "titan-zero",
+      "surface": "retriever_runtime",
+      "entrypoint": "side-panel/index.html",
+      "action": "retriever:capability",
+      "capability_id": "sheets",
+      "launch_contract": "titan-tool-launch/v1",
+      "donor_navigation": false,
+      "grants_execution_authority": false
+    },
+    "docs_slides_web": {
+      "tool_id": "docs_slides_web",
+      "owner": "titan-zero",
+      "surface": "retriever_runtime",
+      "entrypoint": "side-panel/index.html",
+      "action": "retriever:capability",
+      "capability_id": "docs_slides_web",
+      "launch_contract": "titan-tool-launch/v1",
+      "donor_navigation": false,
+      "grants_execution_authority": false
+    },
+    "custom_tools": {
+      "tool_id": "custom_tools",
+      "owner": "titan-zero",
+      "surface": "retriever_runtime",
+      "entrypoint": "side-panel/index.html",
+      "action": "retriever:capability",
+      "capability_id": "custom_tools",
+      "launch_contract": "titan-tool-launch/v1",
+      "donor_navigation": false,
+      "grants_execution_authority": false
+    },
+    "multi_tool": {
+      "tool_id": "multi_tool",
+      "owner": "titan-zero",
+      "surface": "retriever_runtime",
+      "entrypoint": "side-panel/index.html",
+      "action": "retriever:capability",
+      "capability_id": "multi_tool",
+      "launch_contract": "titan-tool-launch/v1",
+      "donor_navigation": false,
+      "grants_execution_authority": false
+    },
+    "schedules": {
+      "tool_id": "schedules",
+      "owner": "titan-zero",
+      "surface": "retriever_runtime",
+      "entrypoint": "side-panel/index.html",
+      "action": "retriever:capability",
+      "capability_id": "schedules",
+      "launch_contract": "titan-tool-launch/v1",
+      "donor_navigation": false,
+      "grants_execution_authority": false
+    },
+    "triggers": {
+      "tool_id": "triggers",
+      "owner": "titan-zero",
+      "surface": "retriever_runtime",
+      "entrypoint": "side-panel/index.html",
+      "action": "retriever:capability",
+      "capability_id": "triggers",
+      "launch_contract": "titan-tool-launch/v1",
+      "donor_navigation": false,
+      "grants_execution_authority": false
+    }
+  },
+  "language_workspace": {
+    "status": "WIRED_TO_RETAINED_RICH_UI",
+    "tools": [
+      "write",
+      "rewrite",
+      "grammar",
+      "translate",
+      "summarize",
+      "read"
+    ],
+    "note": "Uses chatTab native tabs/action parsing; no donor-page navigation and no thin replacement surface."
+  },
+  "document_workspace": {
+    "chatpdf": {
+      "workspace_tab": "chat",
+      "workspace_action": "document-chat",
+      "document_mode": "chatpdf"
+    },
+    "attachments": {
+      "workspace_tab": "chat",
+      "workspace_action": "attachments",
+      "document_mode": "files"
+    },
+    "accepted_extensions": [
+      "pdf",
+      "doc",
+      "docx",
+      "xls",
+      "xlsx",
+      "txt",
+      "csv",
+      "ppt",
+      "pptx",
+      "png",
+      "jpg",
+      "jpeg",
+      "webp"
+    ]
+  },
+  "analysis_workspace": {
+    "mindmap": {
+      "tab": "tools",
+      "action": "mindmap",
+      "mode": "mindmap"
+    },
+    "ai_detector": {
+      "tab": "tools",
+      "action": "ai-detector",
+      "mode": "ai-detector"
+    },
+    "humanize": {
+      "tab": "tools",
+      "action": "humanize",
+      "mode": "humanize"
+    }
+  },
+  "media_workspace": {
+    "entrypoint": "chatTab.html",
+    "bridge": "titan-tools/titan-media-workspace-bridge.js",
+    "tabs": [
+      "image",
+      "video",
+      "audio"
+    ],
+    "modes": [
+      "podcast",
+      "audio-to-text",
+      "image-generate",
+      "image-edit",
+      "image-realtime",
+      "image-transform",
+      "video-generate",
+      "text-to-video",
+      "image-to-video"
+    ],
+    "reuse_retained_rich_runtime": true,
+    "donor_navigation": false,
+    "grants_execution_authority": false
+  },
+  "discovery_workspace": {
+    "entrypoint": "chatTab.html",
+    "workspace_tab": "discover",
+    "launch_url": "chatTab.html?tab=discover&action=browse-tools&source=titan-tools",
+    "registry": "titan-tools/TOOL-REGISTRY.json",
+    "favourites": "company_scoped",
+    "recent": "company_scoped",
+    "donor_navigation": false,
+    "grants_execution_authority": false
+  },
+  "parity_repair": {
+    "pass": 9,
+    "repaired_tools": [
+      "youtube_assistant",
+      "model_selection",
+      "prompts_skills",
+      "screenshots"
+    ],
+    "live_chrome_certification": "PENDING_PASS10_OR_MANAGER_LIVE_GATE"
+  },
+  "provenance": {
+    "canonical_owner": "packages/tools",
+    "generated_projection": true,
+    "historical_merge_metadata_is_authority": false
+  }
+}

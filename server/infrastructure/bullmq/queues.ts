@@ -13,6 +13,7 @@ export const QUEUE_NAMES = {
   CAMPAIGN_CALLS: 'campaign-calls',
   CAMPAIGN_SCHEDULER: 'campaign-scheduler',
   CAMPAIGN_RECOVERY: 'campaign-recovery',
+  GENERIC_JOBS: 'desk-generic-jobs',
 } as const;
 
 export type QueueName = typeof QUEUE_NAMES[keyof typeof QUEUE_NAMES];
@@ -44,6 +45,7 @@ export interface RecoveryJob {
 let campaignCallsQueue: Queue<CampaignCallJob> | null = null;
 let campaignSchedulerQueue: Queue<SchedulerJob> | null = null;
 let campaignRecoveryQueue: Queue<RecoveryJob> | null = null;
+let genericJobsQueue: Queue<unknown> | null = null;
 
 const defaultQueueOptions = {
   defaultJobOptions: {
@@ -111,6 +113,36 @@ export function getCampaignRecoveryQueue(): Queue<RecoveryJob> {
   return campaignRecoveryQueue;
 }
 
+/**
+ * Shared queue for the generic typed-job layer (generic-jobs.ts).
+ * Per-type retry options are passed on each add, so these are fallbacks.
+ * Completed jobs are kept 24h (or up to 10000 records), which sets how long a jobId stays
+ * reserved for dedupe. The count cap can release a jobId earlier under heavy load.
+ */
+export function getGenericJobsQueue(): Queue<unknown> {
+  if (!genericJobsQueue) {
+    genericJobsQueue = new Queue<unknown>(QUEUE_NAMES.GENERIC_JOBS, {
+      connection: getRedisConnection() as any,
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: {
+          type: 'exponential' as const,
+          delay: 5000,
+        },
+        removeOnComplete: {
+          age: 86400,
+          count: 10000,
+        },
+        removeOnFail: {
+          age: 604800,
+          count: 5000,
+        },
+      },
+    });
+  }
+  return genericJobsQueue;
+}
+
 export async function closeAllQueues(): Promise<void> {
   const closePromises: Promise<void>[] = [];
   
@@ -126,7 +158,11 @@ export async function closeAllQueues(): Promise<void> {
     closePromises.push(campaignRecoveryQueue.close());
     campaignRecoveryQueue = null;
   }
-  
+  if (genericJobsQueue) {
+    closePromises.push(genericJobsQueue.close());
+    genericJobsQueue = null;
+  }
+
   await Promise.all(closePromises);
   console.log('[BullMQ] All queues closed');
 }
@@ -163,6 +199,9 @@ export async function getQueueStats(queueName: QueueName): Promise<{
       break;
     case QUEUE_NAMES.CAMPAIGN_RECOVERY:
       queue = getCampaignRecoveryQueue();
+      break;
+    case QUEUE_NAMES.GENERIC_JOBS:
+      queue = getGenericJobsQueue();
       break;
     default:
       throw new Error(`Unknown queue: ${queueName}`);

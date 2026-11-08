@@ -1,0 +1,12 @@
+{
+  "schema":"titan-zero-compat-decomposition-pass/v1",
+  "packet_id":"TZ-FIX-COMPAT-RUNTIME-DECOMPOSITION-001",
+  "pass":8,
+  "status":"COMPLETE",
+  "manager_base":{"merge":46,"sha256":"2bef6fd90116796c76fa1ba7cb0e59841b0788c7657dc59077dd0a9ba440f949"},
+  "summary":"Certified cold/warm startup, real default chunk resolution, offline retry, concurrent lazy-load dedupe, listener idempotency/cleanup, authority/company fail-closed behavior, and preservation of key side-panel/popup/content-script compatibility surfaces. Corrected chunk descriptor paths so the shared lazy loader resolves extracted modules from compat-decomposition rather than nonexistent performance/chunks paths.",
+  "compat_monoliths_modified":false,
+  "compat_monoliths_retired":false,
+  "live_chrome":"NOT_CERTIFIED",
+  "next_pass":9
+}

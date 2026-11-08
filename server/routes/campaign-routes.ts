@@ -940,7 +940,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
 
       const result = await campaignExecutor.executeCampaign(id);
       
-      webhookDeliveryService.triggerEvent(req.userId!, 'campaign.started', {
+      webhookDeliveryService.triggerEvent(campaign.companyId ?? null, req.userId!, 'campaign.started', {
         campaign: { 
           id: campaign.id, 
           name: campaign.name, 
@@ -1090,7 +1090,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
           status: "paused",
         });
         
-        webhookDeliveryService.triggerEvent(req.userId!, 'campaign.paused', {
+        webhookDeliveryService.triggerEvent(campaign.companyId ?? null, req.userId!, 'campaign.paused', {
           campaign: { 
             id: campaign.id, 
             name: campaign.name,
@@ -1197,7 +1197,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
           });
         }
         
-        webhookDeliveryService.triggerEvent(req.userId!, 'campaign.started', {
+        webhookDeliveryService.triggerEvent(campaign.companyId ?? null, req.userId!, 'campaign.started', {
           campaign: { 
             id: campaign.id, 
             name: campaign.name,
@@ -1377,9 +1377,18 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
       console.log(`   Agent: ${agent.name} (ElevenLabs ID: ${agent.elevenLabsAgentId})`);
       console.log(`   Credential: ${credential.name}`);
 
+      // company_id from the owning campaign and the verified session; refuse if missing or conflicting
+      const testCallCompanyIds = [campaign.companyId, res.locals.companyId].filter(
+        (v): v is string => typeof v === 'string' && v.length > 0
+      );
+      if (new Set(testCallCompanyIds).size !== 1) {
+        return res.status(403).json({ error: "Company scope could not be verified for this campaign" });
+      }
+
       const [callRecord] = await db
         .insert(calls)
         .values({
+          companyId: testCallCompanyIds[0],
           userId: campaign.userId,
           campaignId: campaign.id,
           contactId: null,
@@ -1425,7 +1434,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
 
         // Trigger call.started webhook event
         try {
-          await webhookDeliveryService.triggerEvent(campaign.userId, 'call.started', {
+          await webhookDeliveryService.triggerEvent(testCallCompanyIds[0], campaign.userId, 'call.started', {
             campaign: { id: campaign.id, name: campaign.name, type: campaign.type },
             contact: { phone: phoneNumber },
             agent: { id: agent.id, name: agent.name },

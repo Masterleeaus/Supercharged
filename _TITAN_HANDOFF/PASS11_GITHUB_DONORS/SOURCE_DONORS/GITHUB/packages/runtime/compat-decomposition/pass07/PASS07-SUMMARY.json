@@ -1,0 +1,6 @@
+{
+  "schema": "titan-zero-pass-summary/v1",
+  "packet_id": "TZ-FIX-COMPAT-RUNTIME-DECOMPOSITION-001",
+  "pass": 7,
+  "summary": "Added lazy typed-adapter compatibility chunk reusing Manager-converged adapter negotiation and session-recovery contracts. Background Retriever boundary was deliberately left untouched because Builder 3 owns that hotspot; no donor/background monolith was edited or retired. Full Pass1-7 reconstruction verification: 28/28 tests PASS."
+}

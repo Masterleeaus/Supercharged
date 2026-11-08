@@ -1,0 +1,164 @@
+{
+  "schema": "titan-zero-compat-runtime-census/v1",
+  "packet_id": "TZ-FIX-COMPAT-RUNTIME-DECOMPOSITION-001",
+  "pass": 1,
+  "manager_base": {
+    "merge": 46,
+    "artifact": "Titan-Zero-CANONICAL-MASTER-2026-09-09-MERGE-46-BULK-AGENT-ANALYTICS-CONVERGED.zip",
+    "sha256": "2bef6fd90116796c76fa1ba7cb0e59841b0788c7657dc59077dd0a9ba440f949"
+  },
+  "target_total_bytes": 47933157,
+  "targets": {
+    "titan-zero-chat-content.compat.js": {
+      "bytes": 28593247,
+      "sha256": "7823c16665d37581e460b70d3e888db7d45786b6a5c5ca868214d5b3088ff441",
+      "function_decl_count": 24937,
+      "arrow_count": 20893,
+      "class_decl_count": 2231,
+      "iife_markers": 8623,
+      "chrome_apis": {
+        "runtime": 19,
+        "sidePanel": 5,
+        "storage": 4,
+        "action": 3,
+        "tabs": 2,
+        "png": 2,
+        "google": 1,
+        "com": 1
+      },
+      "side_effect_signals": {
+        "chrome_runtime_onMessage": 6,
+        "chrome_runtime_onConnect": 1,
+        "chrome_storage": 4,
+        "document_addEventListener": 85,
+        "window_addEventListener": 124,
+        "setInterval": 61,
+        "setTimeout": 669,
+        "MutationObserver": 127,
+        "customElements_define": 2,
+        "serviceWorker": 0
+      },
+      "feature_term_counts": {
+        "chat": 12735,
+        "document_pdf": 4621,
+        "search": 5504,
+        "media": 5158,
+        "translation": 5784,
+        "auth": 4045,
+        "settings": 15985,
+        "page_overlay": 1957
+      },
+      "load_surfaces": [
+        "manifest.json content_scripts document_start all_frames <all_urls>",
+        "chatTab.html",
+        "monicaOptions.html"
+      ],
+      "startup_class": "ALWAYS_ON_ALL_WEB_PAGES",
+      "entry_evidence": [
+        "manifest.json"
+      ]
+    },
+    "titan-zero-chat-background.compat.js": {
+      "bytes": 11561297,
+      "sha256": "ebbd0843eb12d0413af6aa13603be2b365aa702304df2f74b87e4951a3f9a805",
+      "function_decl_count": 1069,
+      "arrow_count": 1982,
+      "class_decl_count": 434,
+      "iife_markers": 626,
+      "chrome_apis": {
+        "runtime": 41,
+        "tabs": 30,
+        "windows": 22,
+        "sidePanel": 6,
+        "tabGroups": 5,
+        "action": 3,
+        "scripting": 3,
+        "storage": 2,
+        "permissions": 2,
+        "google": 1
+      },
+      "side_effect_signals": {
+        "chrome_runtime_onMessage": 7,
+        "chrome_runtime_onConnect": 1,
+        "chrome_storage": 2,
+        "document_addEventListener": 2,
+        "window_addEventListener": 1,
+        "setInterval": 3,
+        "setTimeout": 57,
+        "MutationObserver": 1,
+        "customElements_define": 0,
+        "serviceWorker": 0
+      },
+      "feature_term_counts": {
+        "chat": 16757,
+        "document_pdf": 5992,
+        "search": 6394,
+        "media": 6451,
+        "translation": 5775,
+        "auth": 2333,
+        "settings": 3960,
+        "page_overlay": 1306
+      },
+      "load_surfaces": [
+        "background-bootstrap.js -> compatibility/monica/background-runtime-boundary.mjs"
+      ],
+      "startup_class": "BACKGROUND_STARTUP_IMPORT",
+      "entry_evidence": [
+        "background-bootstrap.js",
+        "compatibility/monica/background-runtime-boundary.mjs"
+      ]
+    },
+    "titan-zero-chat-runtime.compat.js": {
+      "bytes": 7778613,
+      "sha256": "195e1860346583b62c518881837d72b90aa51bb12f177ee8994e76b026cd7533",
+      "function_decl_count": 11356,
+      "arrow_count": 3913,
+      "class_decl_count": 474,
+      "iife_markers": 1896,
+      "chrome_apis": {
+        "runtime": 12,
+        "action": 3,
+        "google": 2,
+        "tabs": 2,
+        "sidePanel": 1
+      },
+      "side_effect_signals": {
+        "chrome_runtime_onMessage": 5,
+        "chrome_runtime_onConnect": 0,
+        "chrome_storage": 0,
+        "document_addEventListener": 4,
+        "window_addEventListener": 7,
+        "setInterval": 4,
+        "setTimeout": 76,
+        "MutationObserver": 5,
+        "customElements_define": 0,
+        "serviceWorker": 0
+      },
+      "feature_term_counts": {
+        "chat": 2852,
+        "document_pdf": 979,
+        "search": 1194,
+        "media": 938,
+        "translation": 1419,
+        "auth": 1394,
+        "settings": 2277,
+        "page_overlay": 374
+      },
+      "load_surfaces": [
+        "monicaPopup.html",
+        "titan-zero-chat-runtime.html"
+      ],
+      "startup_class": "UI_SURFACE_ON_OPEN",
+      "entry_evidence": [
+        "monicaPopup.html",
+        "titan-zero-chat-runtime.html"
+      ]
+    }
+  },
+  "conclusions": [
+    "content compat is an always-on document_start all-frame payload and therefore highest startup-cost decomposition target",
+    "background compat is synchronously imported through the canonical background runtime boundary and owns live Chrome API handlers",
+    "runtime compat is UI-surface loaded by popup/runtime HTML and is a lower-risk candidate for first optional-domain extraction after call-graph classification",
+    "Pass 1 changes evidence only; no production runtime or UI file is modified or retired"
+  ]
+}

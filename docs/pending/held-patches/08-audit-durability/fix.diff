@@ -1,0 +1,264 @@
+diff --git a/migrations/DRAFT_audit_logs_soft_delete.sql b/migrations/DRAFT_audit_logs_soft_delete.sql
+new file mode 100644
+index 0000000..7ef6f46
+--- /dev/null
++++ b/migrations/DRAFT_audit_logs_soft_delete.sql
+@@ -0,0 +1,11 @@
++-- ============================================================
++-- DRAFT - NOT FOR EXECUTION
++-- This file is a draft for review only. It is NOT applied by any
++-- migration runner, has NOT been run against any database, and must
++-- not be added to the automatic migration sequence without review.
++-- ============================================================
++-- Adds the soft-delete marker used when a user is deleted. Audit rows are kept
++-- as evidence and are marked here instead of being removed. Existing rows keep NULL.
++
++ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "deleted_at" timestamp;
++CREATE INDEX IF NOT EXISTS "audit_logs_user_deleted_idx" ON "audit_logs" ("user_id", "deleted_at");
+diff --git a/server/routes/admin/users-routes.ts b/server/routes/admin/users-routes.ts
+index 594b9d2..9f3fcba 100644
+--- a/server/routes/admin/users-routes.ts
++++ b/server/routes/admin/users-routes.ts
+@@ -4,7 +4,7 @@ import { storage } from '../../storage';
+ import { AdminRequest, requireAdminPermission } from '../../middleware/admin-auth';
+ import { z } from 'zod';
+ import { db } from '../../db';
+-import { eq } from 'drizzle-orm';
++import { eq, and, isNull } from 'drizzle-orm';
+ import { emailService } from '../../services/email-service';
+ 
+ export function registerUsersRoutes(router: Router) {
+@@ -348,7 +348,7 @@ export function registerUsersRoutes(router: Router) {
+       await db.delete(schema.knowledgeChunks).where(eq(schema.knowledgeChunks.userId, userId));
+       await db.delete(schema.userKnowledgeStorageLimits).where(eq(schema.userKnowledgeStorageLimits.userId, userId));
+       
+-      await db.delete(schema.auditLogs).where(eq(schema.auditLogs.userId, userId));
++      await db.update(schema.auditLogs).set({ deletedAt: new Date() }).where(and(eq(schema.auditLogs.userId, userId), isNull(schema.auditLogs.deletedAt))); // soft-delete marker: audit rows are kept as evidence
+       await db.delete(schema.promptTemplates).where(eq(schema.promptTemplates.userId, userId));
+       await db.delete(schema.notifications).where(eq(schema.notifications.userId, userId));
+       await db.delete(schema.legacyWebhooks).where(eq(schema.legacyWebhooks.userId, userId));
+diff --git a/server/services/audit-log.ts b/server/services/audit-log.ts
+index 874f318..56d2da9 100644
+--- a/server/services/audit-log.ts
++++ b/server/services/audit-log.ts
+@@ -20,6 +20,7 @@ import { db } from "../db";
+ import { auditLogs } from "@shared/schema";
+ import { computeAuditHash } from "./audit-chain.mjs";
+ import { redactArguments, redactString } from "./redaction";
++import { createAuditBuffer } from "./audit-queue.mjs";
+ 
+ export { computeAuditHash };
+ 
+@@ -73,8 +74,17 @@ export interface AuditLogEntry {
+   severity?: "info" | "warning" | "error" | "critical";
+ }
+ 
+-const auditLogQueue: AuditLogEntry[] = [];
+-let flushTimer: NodeJS.Timeout | null = null;
++// Rows are kept until the insert succeeds. Failed inserts are retried with backoff
++// and rows are never dropped silently (see services/audit-queue.mjs).
++const auditBuffer = createAuditBuffer({
++  insert: (rows: Record<string, unknown>[]) => db.insert(auditLogs).values(rows as any),
++  onLoss: reportLostAuditRows,
++  schedule: (fn: () => void, ms: number) => {
++    const timer = setTimeout(fn, ms);
++    if (timer.unref) timer.unref();
++    return timer;
++  },
++});
+ 
+ const USER_AGENT_MAX_LENGTH = 500;
+ 
+@@ -119,17 +129,31 @@ export async function logAuditEvent(entry: AuditLogEntry): Promise<void> {
+     })
+   );
+ 
+-  auditLogQueue.push(logEntry);
+-  
+-  if (!flushTimer) {
+-    flushTimer = setTimeout(() => {
+-      flushAuditLogs();
+-    }, 5000);
+-    
+-    if (flushTimer.unref) {
+-      flushTimer.unref();
+-    }
+-  }
++  auditBuffer.push(toInsertRow(logEntry));
++}
++
++function toInsertRow(log: AuditLogEntry & { severity: string }): Record<string, unknown> {
++  return {
++    action: log.action,
++    userId: log.userId || null,
++    targetUserId: log.targetUserId || null,
++    resourceType: log.resourceType || null,
++    resourceId: log.resourceId || null,
++    ipAddress: log.ipAddress || null,
++    userAgent: log.userAgent || null, // already redacted and truncated in logAuditEvent
++    metadata: log.metadata || {},
++    severity: log.severity || "info",
++  };
++}
++
++// Last resort for rows the buffer gives up on. They are already redacted, so the
++// error log holds a replayable copy instead of losing them.
++function reportLostAuditRows(rows: unknown[], reason: string, error?: unknown): void {
++  console.error(
++    `[Audit] ${rows.length} row(s) not written (${reason}). Replay from this log:`,
++    error ?? "",
++    JSON.stringify(rows)
++  );
+ }
+ 
+ function getSeverityForAction(action: AuditAction): "info" | "warning" | "error" | "critical" {
+@@ -155,32 +179,6 @@ function getSeverityForAction(action: AuditAction): "info" | "warning" | "error"
+   return severityMap[action] || "info";
+ }
+ 
+-async function flushAuditLogs(): Promise<void> {
+-  flushTimer = null;
+-  
+-  if (auditLogQueue.length === 0) return;
+-  
+-  const logsToFlush = auditLogQueue.splice(0, auditLogQueue.length);
+-  
+-  try {
+-    const insertValues = logsToFlush.map(log => ({
+-      action: log.action,
+-      userId: log.userId || null,
+-      targetUserId: log.targetUserId || null,
+-      resourceType: log.resourceType || null,
+-      resourceId: log.resourceId || null,
+-      ipAddress: log.ipAddress || null,
+-      userAgent: log.userAgent || null, // already redacted and truncated in logAuditEvent
+-      metadata: log.metadata || {},
+-      severity: log.severity || "info"
+-    }));
+-    
+-    await db.insert(auditLogs).values(insertValues);
+-  } catch (error: unknown) {
+-    console.error("[Audit] Failed to flush logs:", error);
+-  }
+-}
+-
+ export function extractRequestInfo(req: any): { ipAddress: string; userAgent: string } {
+   const ipAddress = req.ip || 
+     req.headers?.["x-forwarded-for"]?.split(",")[0] || 
+diff --git a/server/services/audit-queue.mjs b/server/services/audit-queue.mjs
+new file mode 100644
+index 0000000..d634c49
+--- /dev/null
++++ b/server/services/audit-queue.mjs
+@@ -0,0 +1,99 @@
++/**
++ * Database-free audit buffer with retry.
++ *
++ * Rows stay in memory until an insert succeeds. A failed insert puts the rows
++ * back at the front of the queue (order preserved) and schedules a retry with
++ * exponential backoff. A row is reported as lost only in two cases, and both
++ * are reported through onLoss, never silently:
++ *   - it failed maxAttempts times in a row ("max_attempts"), or
++ *   - the queue is over maxQueue rows and the oldest rows are shed
++ *     ("queue_overflow"), which bounds memory during a long outage.
++ *
++ * Kept as a plain .mjs module (no db or config imports) so it can be unit-tested
++ * with `node --test` without connecting to anything.
++ */
++
++export const DEFAULT_MAX_ATTEMPTS = 5;
++export const DEFAULT_MAX_QUEUE = 10000;
++export const DEFAULT_FLUSH_DELAY_MS = 5000;
++export const DEFAULT_BASE_RETRY_MS = 5000;
++export const DEFAULT_MAX_RETRY_MS = 60000;
++
++export function createAuditBuffer({
++  insert,
++  onLoss = () => {},
++  schedule = (fn, ms) => setTimeout(fn, ms),
++  maxAttempts = DEFAULT_MAX_ATTEMPTS,
++  maxQueue = DEFAULT_MAX_QUEUE,
++  flushDelayMs = DEFAULT_FLUSH_DELAY_MS,
++  baseRetryMs = DEFAULT_BASE_RETRY_MS,
++  maxRetryMs = DEFAULT_MAX_RETRY_MS,
++}) {
++  if (typeof insert !== 'function') throw new TypeError('createAuditBuffer: insert must be a function');
++
++  let queue = []; // { row, attempts }
++  let timer = null;
++  let consecutiveFailures = 0;
++  const stats = { written: 0, retried: 0, lost: 0 };
++
++  function scheduleFlush(ms) {
++    if (timer) return;
++    timer = schedule(() => {
++      timer = null;
++      return flush();
++    }, ms);
++  }
++
++  function shedOverflow() {
++    if (queue.length <= maxQueue) return;
++    const shed = queue.splice(0, queue.length - maxQueue);
++    stats.lost += shed.length;
++    onLoss(shed.map((item) => item.row), 'queue_overflow');
++  }
++
++  function push(row) {
++    queue.push({ row, attempts: 0 });
++    shedOverflow();
++    scheduleFlush(flushDelayMs);
++  }
++
++  async function flush() {
++    if (queue.length === 0) return { written: 0, pending: 0 };
++
++    const batch = queue;
++    queue = [];
++
++    try {
++      await insert(batch.map((item) => item.row));
++      stats.written += batch.length;
++      consecutiveFailures = 0;
++      return { written: batch.length, pending: queue.length };
++    } catch (error) {
++      consecutiveFailures += 1;
++      const retry = [];
++      const exhausted = [];
++      for (const item of batch) {
++        item.attempts += 1;
++        (item.attempts < maxAttempts ? retry : exhausted).push(item);
++      }
++      if (exhausted.length > 0) {
++        stats.lost += exhausted.length;
++        onLoss(exhausted.map((item) => item.row), 'max_attempts', error);
++      }
++      stats.retried += retry.length;
++      queue = [...retry, ...queue];
++      shedOverflow();
++      if (queue.length > 0) {
++        const delay = Math.min(maxRetryMs, baseRetryMs * 2 ** (consecutiveFailures - 1));
++        scheduleFlush(delay);
++      }
++      return { written: 0, pending: queue.length, error };
++    }
++  }
++
++  return {
++    push,
++    flush,
++    stats: () => ({ ...stats, pending: queue.length }),
++  };
++}
+diff --git a/shared/schema.ts b/shared/schema.ts
+index 5d4a0e9..a6e46ef 100644
+--- a/shared/schema.ts
++++ b/shared/schema.ts
+@@ -800,6 +800,7 @@ export const auditLogs = pgTable("audit_logs", {
+   metadata: jsonb("metadata").$type<Record<string, unknown>>(), // Additional context
+   severity: text("severity").notNull().default("info"), // 'info', 'warning', 'error', 'critical'
+   createdAt: timestamp("created_at").notNull().defaultNow(),
++  deletedAt: timestamp("deleted_at"), // Soft-delete marker: set when the subject user is deleted; the row is kept
+ });
+ 
+ // Platform Languages - UI languages with translations (admin-managed)

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "titan.zero.revenue-journey.correlation.v1",
+  "type": "object",
+  "required": ["schema", "company_id", "revenue_journey_id", "entities", "provenance", "governance"],
+  "properties": {
+    "schema": { "const": "titan.zero.revenue-journey.correlation.v1" },
+    "company_id": { "type": "string", "minLength": 1 },
+    "revenue_journey_id": { "type": "string", "minLength": 1 },
+    "revenue_journey_id_source": { "type": "string", "minLength": 1 },
+    "correlation_id": { "type": ["string", "null"] },
+    "entities": { "type": "object", "additionalProperties": { "type": "string", "minLength": 1 } },
+    "provenance": {
+      "type": "object",
+      "required": ["producer"],
+      "properties": {
+        "producer": { "type": "string", "minLength": 1 },
+        "source_event_id": { "type": ["string", "null"] },
+        "observed_at": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "governance": {
+      "type": "object",
+      "required": ["company_boundary", "owns_domain_truth", "identity_is_authority", "authority_granted", "execution_permitted", "may_create_entities", "may_mutate_entities"],
+      "properties": {
+        "company_boundary": { "const": "company_id" },
+        "owns_domain_truth": { "const": false },
+        "identity_is_authority": { "const": false },
+        "authority_granted": { "const": false },
+        "execution_permitted": { "const": false },
+        "may_create_entities": { "const": false },
+        "may_mutate_entities": { "const": false },
+        "generic_journey_id_is_not_implicitly_revenue_journey_id": { "const": true }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,60 @@
+import type { RoleInput } from "../role.schema.ts";
+
+export const role: RoleInput = {
+  id: "payment-reminder",
+  name: "Payment Reminder",
+  description:
+    "Follows up on invoices past due for {{company_name}} with a gentle reminder and an offer to talk, with a person approving each step.",
+  verticals: ["cross_vertical"],
+  category: "billing",
+  systemPrompt: [
+    "You prepare payment reminders for overdue invoices from {{company_name}}, a {{vertical}} business.",
+    "Use the early stage only: a friendly note that an invoice is past due, with the invoice reference and the payment options the business has published.",
+    "Ask whether anything is stopping payment and whether the customer would like to talk to someone at the business.",
+    "Never threaten, shame or pressure the customer. Keep a calm, respectful tone even if the customer is upset.",
+    "A person approves every message. Only contact within the contact hours the business has configured for this role, and do not contact more often than the approved reminder schedule.",
+    "If the customer disputes the amount, the work or the debt, stop reminders at once and hand it to dispute intake. If the customer asks for more time or a plan, hand it to collections follow-up.",
+  ].join("\n"),
+  channels: ["email", "sms"],
+  autonomy: "auto",
+  tools: [
+    "invoices.list",
+    "invoices.get",
+    "payments.list",
+    "clients.get",
+    "customer_messages.draft",
+    "customer_messages.send",
+    "collection_notes.create",
+  ],
+  toolRisk: {
+    "invoices.list": "low",
+    "invoices.get": "low",
+    "payments.list": "low",
+    "clients.get": "low",
+    "customer_messages.draft": "low",
+    "customer_messages.send": "critical",
+    "collection_notes.create": "low",
+  },
+  toolAccess: {
+    "invoices.list": "read",
+    "invoices.get": "read",
+    "payments.list": "read",
+    "clients.get": "read",
+    "customer_messages.draft": "write",
+    "customer_messages.send": "write",
+    "collection_notes.create": "write",
+  },
+  guardrails: [
+    "Stop all reminders the moment a dispute is raised, and do not resume without a person's approval.",
+    "Do not threaten legal action, service suspension, debt listing or any other consequence.",
+    "Do not contact outside the contact hours the business has configured.",
+    "Do not offer a payment plan, discount or write-off; route those requests to a person.",
+  ],
+  handoffTo: ["collections-follow-up", "dispute-intake"],
+  kpis: [
+    "Share of past-due invoices paid within two weeks of the first reminder",
+    "Share of reminders that led to a dispute or complaint",
+  ],
+  sourceRef: "Debt Collection Agent",
+  companyScope: "required",
+};

@@ -1,0 +1,107 @@
+{
+  "schema": "titan-zero-compat-call-graph/v1",
+  "packet_id": "TZ-FIX-COMPAT-RUNTIME-DECOMPOSITION-001",
+  "pass": 2,
+  "manager_merge": 46,
+  "nodes": [
+    {
+      "id": "manifest.content_scripts",
+      "kind": "startup_root",
+      "surface": "all matched web pages"
+    },
+    {
+      "id": "manifest.background.service_worker",
+      "kind": "startup_root",
+      "surface": "extension service worker"
+    },
+    {
+      "id": "chatTab.html",
+      "kind": "html_surface"
+    },
+    {
+      "id": "monicaOptions.html",
+      "kind": "html_surface"
+    },
+    {
+      "id": "monicaPopup.html",
+      "kind": "html_surface"
+    },
+    {
+      "id": "titan-zero-chat-runtime.html",
+      "kind": "html_surface"
+    },
+    {
+      "id": "background-bootstrap.js",
+      "kind": "module"
+    },
+    {
+      "id": "compatibility/monica/background-runtime-boundary.mjs",
+      "kind": "module"
+    },
+    {
+      "id": "titan-zero-chat-content.compat.js",
+      "kind": "compat_bundle"
+    },
+    {
+      "id": "titan-zero-chat-background.compat.js",
+      "kind": "compat_bundle"
+    },
+    {
+      "id": "titan-zero-chat-runtime.compat.js",
+      "kind": "compat_bundle"
+    }
+  ],
+  "edges": [
+    {
+      "from": "manifest.content_scripts",
+      "to": "titan-zero-chat-content.compat.js",
+      "type": "manifest_js",
+      "when": "document_start",
+      "all_frames": true
+    },
+    {
+      "from": "manifest.background.service_worker",
+      "to": "background-bootstrap.js",
+      "type": "service_worker"
+    },
+    {
+      "from": "background-bootstrap.js",
+      "to": "compatibility/monica/background-runtime-boundary.mjs",
+      "type": "static_import"
+    },
+    {
+      "from": "compatibility/monica/background-runtime-boundary.mjs",
+      "to": "titan-zero-chat-background.compat.js",
+      "type": "static_import"
+    },
+    {
+      "from": "chatTab.html",
+      "to": "titan-zero-chat-content.compat.js",
+      "type": "script"
+    },
+    {
+      "from": "monicaOptions.html",
+      "to": "titan-zero-chat-content.compat.js",
+      "type": "script"
+    },
+    {
+      "from": "monicaPopup.html",
+      "to": "titan-zero-chat-runtime.compat.js",
+      "type": "script"
+    },
+    {
+      "from": "titan-zero-chat-runtime.html",
+      "to": "titan-zero-chat-runtime.compat.js",
+      "type": "script"
+    }
+  ],
+  "roots": {
+    "content": "manifest.content_scripts",
+    "background": "manifest.background.service_worker",
+    "runtime_ui": [
+      "monicaPopup.html",
+      "titan-zero-chat-runtime.html"
+    ]
+  },
+  "determinism_note": "Edges are derived only from manifest.json, static import statements, and literal HTML script tags in Merge46; no inferred dynamic edge is promoted to fact."
+}

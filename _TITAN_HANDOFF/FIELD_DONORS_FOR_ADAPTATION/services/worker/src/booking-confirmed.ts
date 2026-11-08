@@ -1,0 +1,177 @@
+import type { Client } from "pg";
+import { logger } from "./logger.js";
+import { bookingConfirmedEmailHtml } from "@ai-fsm/email-templates";
+import type { AutomationRow, RunResult } from "./automations/types.js";
+import { enqueueNotification } from "./notification/enqueue.js";
+import { PRIORITY } from "./notification/priority.js";
+
+/**
+ * Booking Confirmation Automation
+ *
+ * When a visit is newly scheduled, sends the client a confirmation email with
+ * the appointment details. Fires once per visit — idempotency via audit_log.
+ *
+ * A visit is eligible if:
+ * 1. Status is 'scheduled' (not yet started/completed/cancelled)
+ * 2. scheduled_start is in the future
+ * 3. Created within the last 48 hours (so we don't spam old unconfirmed visits)
+ * 4. No 'booking_confirmed' audit entry exists for this visit yet
+ */
+
+interface EligibleBooking {
+  id: string;
+  account_id: string;
+  job_id: string;
+  client_id: string;
+  scheduled_start: string;
+  scheduled_end: string;
+  job_title: string | null;
+  client_name: string | null;
+  client_email: string | null;
+  property_address: string | null;
+  tech_name: string | null;
+}
+
+export async function findDueBookingConfirmations(client: Client): Promise<AutomationRow[]> {
+  const { rows } = await client.query<AutomationRow>(
+    `SELECT id, account_id, type, config, enabled, next_run_at::text
+     FROM automations
+     WHERE type = 'booking_confirmed'
+       AND enabled = true
+       AND next_run_at <= now()`
+  );
+  return rows;
+}
+
+export async function findEligibleBookings(
+  client: Client,
+  automation: AutomationRow
+): Promise<EligibleBooking[]> {
+  const hoursWindow = (automation.config as { hours_window?: number }).hours_window ?? 48;
+
+  const { rows } = await client.query<EligibleBooking>(
+    `SELECT v.id, v.account_id, v.job_id, c.id AS client_id,
+            v.scheduled_start::text, v.scheduled_end::text,
+            j.title AS job_title,
+            c.name AS client_name, c.email AS client_email,
+            p.address AS property_address,
+            u.full_name AS tech_name
+     FROM visits v
+     JOIN jobs j ON j.id = v.job_id
+     JOIN clients c ON c.id = j.client_id
+     LEFT JOIN properties p ON p.id = j.property_id
+     LEFT JOIN users u ON u.id = v.assigned_user_id
+     WHERE v.account_id = $1
+       AND v.status = 'scheduled'
+       AND v.scheduled_start > now()
+       AND v.created_at >= now() - ($2 || ' hours')::interval
+       AND NOT EXISTS (
+         SELECT 1 FROM audit_log al
+         WHERE al.entity_type = 'booking_confirmed'
+           AND al.entity_id = v.id
+           AND al.account_id = v.account_id
+       )
+     ORDER BY v.created_at ASC`,
+    [automation.account_id, hoursWindow]
+  );
+
+  return rows;
+}
+
+async function emitBookingConfirmation(
+  client: Client,
+  booking: EligibleBooking,
+  automationId: string
+): Promise<boolean> {
+  const { rowCount } = await client.query(
+    `SELECT 1 FROM audit_log
+     WHERE entity_type = 'booking_confirmed'
+       AND entity_id = $1
+       AND account_id = $2
+     LIMIT 1`,
+    [booking.id, booking.account_id]
+  );
+
+  if (rowCount && rowCount > 0) {
+    return false;
+  }
+
+  if (booking.client_email && booking.client_name && booking.job_title) {
+    const enqueueResult = await enqueueNotification(client, {
+      accountId: booking.account_id,
+      clientId: booking.client_id,
+      automationType: "booking_confirmed",
+      priority: PRIORITY.MEDIUM,
+      toAddress: booking.client_email,
+      subject: `Appointment Confirmed — ${booking.job_title}`,
+      htmlBody: bookingConfirmedEmailHtml({
+        clientName: booking.client_name,
+        jobTitle: booking.job_title,
+        scheduledStart: booking.scheduled_start,
+        scheduledEnd: booking.scheduled_end,
+        propertyAddress: booking.property_address,
+        techName: booking.tech_name,
+      }),
+      idempotencyKey: `booking_confirmed:${booking.id}`,
+      entityType: "visit",
+      entityId: booking.id,
+      cancelOnEvents: ["visit.cancelled"],
+      metadata: { automationId, jobId: booking.job_id },
+    });
+    if (enqueueResult === "suppressed") {
+      logger.debug("booking-confirmed: suppressed by governor", { visitId: booking.id });
+      return false;
+    }
+  }
+
+  await client.query(
+    `INSERT INTO audit_log
+       (account_id, entity_type, entity_id, action, actor_id, old_value, new_value)
+     VALUES ($1, 'booking_confirmed', $2, 'insert', $3, NULL, $4)`,
+    [
+      booking.account_id,
+      booking.id,
+      automationId,
+      JSON.stringify({
+        automation_id: automationId,
+        scheduled_start: booking.scheduled_start,
+        job_title: booking.job_title,
+        client_name: booking.client_name,
+        queued_at: new Date().toISOString(),
+      }),
+    ]
+  );
+
+  return true;
+}
+
+export async function processBookingConfirmation(
+  client: Client,
+  automation: AutomationRow
+): Promise<RunResult> {
+  const result: RunResult = {
+    automationId: automation.id,
+    accountId: automation.account_id,
+    sent: 0,
+    skipped: 0,
+    errors: 0,
+  };
+
+  const bookings = await findEligibleBookings(client, automation);
+
+  for (const booking of bookings) {
+    try {
+      const emitted = await emitBookingConfirmation(client, booking, automation.id);
+      if (emitted) {
+        result.sent++;
+      } else {
+        result.skipped++;
+      }
+    } catch (error) {
+      result.errors++;
+      logger.error("booking-confirmed: failed to emit", error, { visitId: booking.id });
+    }
+  }
+
+  return result;
+}

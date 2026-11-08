@@ -1,0 +1,7 @@
+{
+  "ui_change": false,
+  "storage_change": false,
+  "permission_change": false,
+  "authority_change": false,
+  "startup_change": "no eager translation load; first-use path gains one dedicated module boundary"
+}

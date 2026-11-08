@@ -1,0 +1,460 @@
+TAP version 13
+# Subtest: wire protocol is byte-for-byte identical in both deployment directories
+ok 1 - wire protocol is byte-for-byte identical in both deployment directories
+  ---
+  duration_ms: 3.590972
+  type: 'test'
+  ...
+# Subtest: intents are strictly validated and contain no contact address/message
+ok 2 - intents are strictly validated and contain no contact address/message
+  ---
+  duration_ms: 1.918
+  type: 'test'
+  ...
+# Subtest: valid HMAC authorises exactly signed bytes
+ok 3 - valid HMAC authorises exactly signed bytes
+  ---
+  duration_ms: 1.568544
+  type: 'test'
+  ...
+# Subtest: old HMAC timestamps fail regardless of signature validity
+ok 4 - old HMAC timestamps fail regardless of signature validity
+  ---
+  duration_ms: 0.688398
+  type: 'test'
+  ...
+# Subtest: no configured persistence/mapping ports means 503 and no acceptance
+ok 5 - no configured persistence/mapping ports means 503 and no acceptance
+  ---
+  duration_ms: 0.240362
+  type: 'test'
+  ...
+# Subtest: invalid/mismatched tenant is rejected before event claim
+ok 6 - invalid/mismatched tenant is rejected before event claim
+  ---
+  duration_ms: 0.694697
+  type: 'test'
+  ...
+# Subtest: consent rejection means no claim, no dispatch and no receipt
+ok 7 - consent rejection means no claim, no dispatch and no receipt
+  ---
+  duration_ms: 0.475787
+  type: 'test'
+  ...
+# Subtest: durable ledger failure fails closed
+ok 8 - durable ledger failure fails closed
+  ---
+  duration_ms: 0.680585
+  type: 'test'
+  ...
+# Subtest: accepted request is simulated only and replay produces no second receipt
+ok 9 - accepted request is simulated only and replay produces no second receipt
+  ---
+  duration_ms: 0.943262
+  type: 'test'
+  ...
+# Subtest: concurrent duplicate requests share one durable ledger event
+ok 10 - concurrent duplicate requests share one durable ledger event
+  ---
+  duration_ms: 0.985746
+  type: 'test'
+  ...
+# Subtest: Field-to-Desk transport + Desk receiver produces correlated shadow receipt
+ok 11 - Field-to-Desk transport + Desk receiver produces correlated shadow receipt
+  ---
+  duration_ms: 1.032436
+  type: 'test'
+  ...
+# Subtest: Field client refuses insecure external HTTP URL without making a call
+ok 12 - Field client refuses insecure external HTTP URL without making a call
+  ---
+  duration_ms: 0.400213
+  type: 'test'
+  ...
+# Subtest: Field client rejects misleading sent/delivered receipts
+ok 13 - Field client rejects misleading sent/delivered receipts
+  ---
+  duration_ms: 0.448666
+  type: 'test'
+  ...
+# Subtest: reusing an event id with a different signed payload is rejected
+ok 14 - reusing an event id with a different signed payload is rejected
+  ---
+  duration_ms: 0.697381
+  type: 'test'
+  ...
+# Subtest: a replay pending its durable result cannot claim simulated acceptance
+ok 15 - a replay pending its durable result cannot claim simulated acceptance
+  ---
+  duration_ms: 0.529338
+  type: 'test'
+  ...
+# Subtest: real local HTTP round-trip passes signed bytes and returns no-send receipt
+ok 16 - real local HTTP round-trip passes signed bytes and returns no-send receipt
+  ---
+  duration_ms: 65.261231
+  type: 'test'
+  ...
+# Subtest: source-derived SQL scopes the real Field queue, visits, job and client by account
+ok 17 - source-derived SQL scopes the real Field queue, visits, job and client by account
+  ---
+  duration_ms: 1.535885
+  type: 'test'
+  ...
+# Subtest: plans stable, PII-free, SMS shadow intent for pending visit reminder
+ok 18 - plans stable, PII-free, SMS shadow intent for pending visit reminder
+  ---
+  duration_ms: 2.901422
+  type: 'test'
+  ...
+# Subtest: event identity changes with reschedule or source queue item
+ok 19 - event identity changes with reschedule or source queue item
+  ---
+  duration_ms: 1.12172
+  type: 'test'
+  ...
+# Subtest: cross-company row rejected even if SQL port returns it
+ok 20 - cross-company row rejected even if SQL port returns it
+  ---
+  duration_ms: 0.636049
+  type: 'test'
+  ...
+# Subtest: cancelled, completed and active visits are not modeled as reminders
+ok 21 - cancelled, completed and active visits are not modeled as reminders
+  ---
+  duration_ms: 0.25176
+  type: 'test'
+  ...
+# Subtest: rejects past visits and visits outside 24h reminder window
+ok 22 - rejects past visits and visits outside 24h reminder window
+  ---
+  duration_ms: 0.320703
+  type: 'test'
+  ...
+# Subtest: explicit SMS opt-in required; revocation and opt-out sources reject
+ok 23 - explicit SMS opt-in required; revocation and opt-out sources reject
+  ---
+  duration_ms: 0.43092
+  type: 'test'
+  ...
+# Subtest: rejects missing phone or missing/future consent evidence
+ok 24 - rejects missing phone or missing/future consent evidence
+  ---
+  duration_ms: 0.294754
+  type: 'test'
+  ...
+# Subtest: rejects malformed source IDs rather than inventing recipients
+ok 25 - rejects malformed source IDs rather than inventing recipients
+  ---
+  duration_ms: 0.516248
+  type: 'test'
+  ...
+# Subtest: read-only dry run lists eligibility without calling Desk
+ok 26 - read-only dry run lists eligibility without calling Desk
+  ---
+  duration_ms: 1.079507
+  type: 'test'
+  ...
+# Subtest: no Desk submit port means non-preview fails closed
+ok 27 - no Desk submit port means non-preview fails closed
+  ---
+  duration_ms: 0.384729
+  type: 'test'
+  ...
+# Subtest: invalid request limits rejected; no query executed
+ok 28 - invalid request limits rejected; no query executed
+  ---
+  duration_ms: 0.561426
+  type: 'test'
+  ...
+# Subtest: malicious query returns too many rows; fail closed
+ok 29 - malicious query returns too many rows; fail closed
+  ---
+  duration_ms: 0.248334
+  type: 'test'
+  ...
+# Subtest: duplicate queue row in one batch is projected at most once
+ok 30 - duplicate queue row in one batch is projected at most once
+  ---
+  duration_ms: 0.51783
+  type: 'test'
+  ...
+# Subtest: untruthful delivered receipt rejected; no success
+ok 31 - untruthful delivered receipt rejected; no success
+  ---
+  duration_ms: 0.424009
+  type: 'test'
+  ...
+# Subtest: partial transport outage does not abort unrelated reminders
+ok 32 - partial transport outage does not abort unrelated reminders
+  ---
+  duration_ms: 0.568157
+  type: 'test'
+  ...
+# Subtest: real local HTTP round-trip from pending Field visit queue to Desk fake ledger
+ok 33 - real local HTTP round-trip from pending Field visit queue to Desk fake ledger
+  ---
+  duration_ms: 98.708728
+  type: 'test'
+  ...
+# Subtest: Desk can revoke consent after Field plans but before shadow claim
+ok 34 - Desk can revoke consent after Field plans but before shadow claim
+  ---
+  duration_ms: 0.679054
+  type: 'test'
+  ...
+# Subtest: Field query failure does not invoke Desk or emit false results
+ok 35 - Field query failure does not invoke Desk or emit false results
+  ---
+  duration_ms: 0.229215
+  type: 'test'
+  ...
+# Subtest: activity projection removes unexpected customer fields
+ok 36 - activity projection removes unexpected customer fields
+  ---
+  duration_ms: 1.601734
+  type: 'test'
+  ...
+# Subtest: activity projection rejects falsely delivered events
+ok 37 - activity projection rejects falsely delivered events
+  ---
+  duration_ms: 0.664631
+  type: 'test'
+  ...
+# Subtest: activity projection rejects inconsistent counters
+ok 38 - activity projection rejects inconsistent counters
+  ---
+  duration_ms: 0.342146
+  type: 'test'
+  ...
+# Subtest: activity projection rejects weird workflow names
+ok 39 - activity projection rejects weird workflow names
+  ---
+  duration_ms: 0.281474
+  type: 'test'
+  ...
+# Subtest: activity projection never includes unexpected event id
+ok 40 - activity projection never includes unexpected event id
+  ---
+  duration_ms: 0.252601
+  type: 'test'
+  ...
+# Subtest: read-only booking SQL independently scopes jobs and clients by company
+ok 41 - read-only booking SQL independently scopes jobs and clients by company
+  ---
+  duration_ms: 1.691149
+  type: 'test'
+  ...
+# Subtest: read-only estimate SQL enforces sent status and company join
+ok 42 - read-only estimate SQL enforces sent status and company join
+  ---
+  duration_ms: 0.123546
+  type: 'test'
+  ...
+# Subtest: read-only invoice SQL scopes invoice/client/job joins and positive balance
+ok 43 - read-only invoice SQL scopes invoice/client/job joins and positive balance
+  ---
+  duration_ms: 0.272371
+  type: 'test'
+  ...
+# Subtest: booking projection: correct correlation, no PII, stable across retries
+ok 44 - booking projection: correct correlation, no PII, stable across retries
+  ---
+  duration_ms: 2.623574
+  type: 'test'
+  ...
+# Subtest: booking denies cancelled visits
+ok 45 - booking denies cancelled visits
+  ---
+  duration_ms: 0.79618
+  type: 'test'
+  ...
+# Subtest: booking denies cross-company record
+ok 46 - booking denies cross-company record
+  ---
+  duration_ms: 0.176596
+  type: 'test'
+  ...
+# Subtest: booking denies stale booking creation
+ok 47 - booking denies stale booking creation
+  ---
+  duration_ms: 0.256817
+  type: 'test'
+  ...
+# Subtest: booking denies future booking-created time
+ok 48 - booking denies future booking-created time
+  ---
+  duration_ms: 0.157427
+  type: 'test'
+  ...
+# Subtest: booking denies past visit
+ok 49 - booking denies past visit
+  ---
+  duration_ms: 0.289506
+  type: 'test'
+  ...
+# Subtest: booking denies visit more than 30 days away
+ok 50 - booking denies visit more than 30 days away
+  ---
+  duration_ms: 0.645563
+  type: 'test'
+  ...
+# Subtest: booking rejects invalid and missing SMS consent
+ok 51 - booking rejects invalid and missing SMS consent
+  ---
+  duration_ms: 0.538502
+  type: 'test'
+  ...
+# Subtest: estimate projection uses stable due timestamp and includes no price or address
+ok 52 - estimate projection uses stable due timestamp and includes no price or address
+  ---
+  duration_ms: 0.262585
+  type: 'test'
+  ...
+# Subtest: estimate denies approved/declined and old followup window
+ok 53 - estimate denies approved/declined and old followup window
+  ---
+  duration_ms: 0.137788
+  type: 'test'
+  ...
+# Subtest: invoice refuses unapproved billing date
+ok 54 - invoice refuses unapproved billing date
+  ---
+  duration_ms: 0.372321
+  type: 'test'
+  ...
+# Subtest: invoice shadow requires same-day explicitly approved billing date
+ok 55 - invoice shadow requires same-day explicitly approved billing date
+  ---
+  duration_ms: 0.513645
+  type: 'test'
+  ...
+# Subtest: invoice denies not outstanding or fully paid
+ok 56 - invoice denies not outstanding or fully paid
+  ---
+  duration_ms: 0.299992
+  type: 'test'
+  ...
+# Subtest: invoice honors deposit exception but refuses open whole-job invoice
+ok 57 - invoice honors deposit exception but refuses open whole-job invoice
+  ---
+  duration_ms: 0.417209
+  type: 'test'
+  ...
+# Subtest: invoice fails closed when job state not verified
+ok 58 - invoice fails closed when job state not verified
+  ---
+  duration_ms: 0.369116
+  type: 'test'
+  ...
+# Subtest: invoice rejects invalid approved calendar date and previous day
+ok 59 - invoice rejects invalid approved calendar date and previous day
+  ---
+  duration_ms: 0.326502
+  type: 'test'
+  ...
+# Subtest: invoice refuses invoices whose due date is in the future
+ok 60 - invoice refuses invoices whose due date is in the future
+  ---
+  duration_ms: 0.129976
+  type: 'test'
+  ...
+# Subtest: dry-run booking batch neither submits nor exposes recipient or source rows
+ok 61 - dry-run booking batch neither submits nor exposes recipient or source rows
+  ---
+  duration_ms: 1.292137
+  type: 'test'
+  ...
+# Subtest: estimate shadow requires valid Desk simulated receipt, not delivered
+ok 62 - estimate shadow requires valid Desk simulated receipt, not delivered
+  ---
+  duration_ms: 0.561837
+  type: 'test'
+  ...
+# Subtest: invalid Desk receipt counted as failed not successful
+ok 63 - invalid Desk receipt counted as failed not successful
+  ---
+  duration_ms: 0.310928
+  type: 'test'
+  ...
+# Subtest: replay receives duplicate only with exact correlated receipt
+ok 64 - replay receives duplicate only with exact correlated receipt
+  ---
+  duration_ms: 0.490469
+  type: 'test'
+  ...
+# Subtest: queryRows failure propagates; cannot claim successful scan
+ok 65 - queryRows failure propagates; cannot claim successful scan
+  ---
+  duration_ms: 0.574166
+  type: 'test'
+  ...
+# Subtest: bounded batch rejects large / malformed query results
+ok 66 - bounded batch rejects large / malformed query results
+  ---
+  duration_ms: 0.689328
+  type: 'test'
+  ...
+# Subtest: job/client ids malformed: row never becomes eligible
+ok 67 - job/client ids malformed: row never becomes eligible
+  ---
+  duration_ms: 0.163907
+  type: 'test'
+  ...
+# Subtest: workflow dispatcher allows exactly three revenue workflows
+ok 68 - workflow dispatcher allows exactly three revenue workflows
+  ---
+  duration_ms: 0.15951
+  type: 'test'
+  ...
+# Subtest: wrong company in batch query is rejected per-row; no dispatch
+ok 69 - wrong company in batch query is rejected per-row; no dispatch
+  ---
+  duration_ms: 0.186261
+  type: 'test'
+  ...
+# Subtest: invoice job/money-sensitive workflow can be previewed without sending
+ok 70 - invoice job/money-sensitive workflow can be previewed without sending
+  ---
+  duration_ms: 0.246842
+  type: 'test'
+  ...
+# Subtest: Desk has explicit approved template catalogue
+ok 71 - Desk has explicit approved template catalogue
+  ---
+  duration_ms: 1.303535
+  type: 'test'
+  ...
+# Subtest: operational booking confirmation maps exclusively to visit SMS
+ok 72 - operational booking confirmation maps exclusively to visit SMS
+  ---
+  duration_ms: 1.233739
+  type: 'test'
+  ...
+# Subtest: unknown template forbidden even when protocol would parse
+ok 73 - unknown template forbidden even when protocol would parse
+  ---
+  duration_ms: 1.103894
+  type: 'test'
+  ...
+# Subtest: unapproved resource/channel pair denied before company lookup
+ok 74 - unapproved resource/channel pair denied before company lookup
+  ---
+  duration_ms: 1.212778
+  type: 'test'
+  ...
+# Subtest: valid invoice template still never dispatches a provider message
+ok 75 - valid invoice template still never dispatches a provider message
+  ---
+  duration_ms: 0.798944
+  type: 'test'
+  ...
+1..75
+# tests 75
+# suites 0
+# pass 75
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 319.217982

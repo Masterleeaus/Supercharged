@@ -1,0 +1,275 @@
+{
+  "schema": "titan-shared-platform-service-owners-v2",
+  "tenant_boundary": "company_id-logical-plus-provider-physical-isolation",
+  "rules": {
+    "newest_version_wins": false,
+    "no_duplicate_domain_authority": true,
+    "donors_do_not_become_authority_automatically": true,
+    "adapters_and_workforce_do_not_own_domain_truth": true,
+    "business_engine_provider": "#1051 Frappe/ERPNext for mapped operational domains",
+    "legacy_zip_products_are_donors": true
+  },
+  "services": [
+    {
+      "service": "crm",
+      "canonical_owner": "#183 canonical CRM/service lifecycle",
+      "provider": "#1051 Frappe Business Engine",
+      "authority": [
+        "customers",
+        "contacts",
+        "leads",
+        "opportunities",
+        "sales pipeline",
+        "revenue journey correlation",
+        "customer-facing sales documents"
+      ],
+      "legacy_owner": "Titan CRM",
+      "legacy_provider": "Titan-CRM-v1.3.0-alpha.42-Pass6-DEEP-SCAN-FIXED-Cumulative.zip",
+      "status": "CURRENT_ARCHITECTURE_ALIGNED",
+      "notes": "Legacy ZIP/product names are donor lineage evidence only; they do not define current runtime authority."
+    },
+    {
+      "service": "bookings",
+      "canonical_owner": "#183 service lifecycle + #353 scheduling",
+      "provider": "#1051 Frappe Business Engine",
+      "authority": [
+        "booking lifecycle",
+        "booking windows",
+        "booking events"
+      ],
+      "notes": "Lifecycle contribution only; no second CRM/customer authority. Legacy ZIP/product names are donor lineage evidence only; they do not define current runtime authority.",
+      "legacy_owner": "CRM revenue journey + Titan Bookings/Quotes lifecycle engine",
+      "legacy_provider": "Titan-Bookings-Quotes-v0.1.0-alpha.2-Pass2-Booking-Engine-Cumulative.zip",
+      "status": "CURRENT_ARCHITECTURE_ALIGNED"
+    },
+    {
+      "service": "quotes",
+      "canonical_owner": "#183 CRM/service lifecycle + #263 finance",
+      "provider": "#1051 Frappe/ERPNext",
+      "contributors": [
+        "Titan-Bookings-Quotes-v0.1.0-alpha.2-Pass2-Booking-Engine-Cumulative.zip",
+        "Titan-Financial-Engine-v0.4.0-Pass5-Executable-Workforce-Contract-Cumulative.zip"
+      ],
+      "authority": [
+        "quote/estimate customer and revenue truth"
+      ],
+      "legacy_owner": "Titan CRM",
+      "legacy_provider": "Titan-CRM-v1.3.0-alpha.42-Pass6-DEEP-SCAN-FIXED-Cumulative.zip",
+      "status": "CURRENT_ARCHITECTURE_ALIGNED",
+      "notes": "Legacy ZIP/product names are donor lineage evidence only; they do not define current runtime authority."
+    },
+    {
+      "service": "jobs_work_orders",
+      "canonical_owner": "#183 canonical field-service lifecycle",
+      "provider": "#1051 Frappe Business Engine",
+      "authority": [
+        "service requests",
+        "work orders",
+        "job execution",
+        "dispatch operational state",
+        "forms/evidence"
+      ],
+      "legacy_owner": "Titan Field",
+      "legacy_provider": "Titan-Field-v1.0.12-Pass6-DEEP-SCAN-FIXED-Cumulative.zip",
+      "status": "CURRENT_ARCHITECTURE_ALIGNED",
+      "notes": "Legacy ZIP/product names are donor lineage evidence only; they do not define current runtime authority."
+    },
+    {
+      "service": "invoicing",
+      "canonical_owner": "#263 Evidence-to-Cash",
+      "provider": "#1051 Frappe/ERPNext",
+      "contributors": [
+        "Titan-Financial-Engine-v0.4.0-Pass5-Executable-Workforce-Contract-Cumulative.zip",
+        "Titan-Ledger-v1.20.0-rc.5-Pass5-Executable-Workforce-Contract-Cumulative.zip"
+      ],
+      "legacy_owner": "Titan CRM revenue document authority",
+      "legacy_provider": "Titan-CRM-v1.3.0-alpha.42-Pass6-DEEP-SCAN-FIXED-Cumulative.zip",
+      "status": "CURRENT_ARCHITECTURE_ALIGNED",
+      "notes": "Legacy ZIP/product names are donor lineage evidence only; they do not define current runtime authority."
+    },
+    {
+      "service": "payments",
+      "canonical_owner": "#263 Evidence-to-Cash/provider-neutral payments",
+      "provider": "#1051 operational finance projection where mapped",
+      "contributors": [
+        "Titan-Ledger-v1.20.0-rc.5-Pass5-Executable-Workforce-Contract-Cumulative.zip",
+        "Titan-Financial-Engine-v0.4.0-Pass5-Executable-Workforce-Contract-Cumulative.zip"
+      ],
+      "legacy_owner": "Titan CRM receivable/payment lifecycle pending dedicated Titan Pay master",
+      "legacy_provider": "Titan-CRM-v1.3.0-alpha.42-Pass6-DEEP-SCAN-FIXED-Cumulative.zip",
+      "status": "CURRENT_ARCHITECTURE_ALIGNED",
+      "notes": "Legacy ZIP/product names are donor lineage evidence only; they do not define current runtime authority."
+    },
+    {
+      "service": "communications",
+      "canonical_owner": "#1053 Communications + #1060 Channels",
+      "provider": "provider-neutral channel/connectors",
+      "authority": [
+        "inbox",
+        "messaging",
+        "voice/channel execution",
+        "conversation handoff"
+      ],
+      "legacy_owner": "Titan Connect",
+      "legacy_provider": "Titan-Connect-v0.10.6-Pass5-Executable-Workforce-Contract-Cumulative.zip",
+      "status": "CURRENT_ARCHITECTURE_ALIGNED",
+      "notes": "Legacy ZIP/product names are donor lineage evidence only; they do not define current runtime authority."
+    },
+    {
+      "service": "human_workforce",
+      "canonical_owner": "#183/#353 business workforce records + #1050 Workforce cockpit",
+      "provider": "#1051 Frappe/ERPNext where mapped",
+      "contributors": [
+        "Titan-Payroll-v0.1.0-rc.2-Workforce31-Converged-Cumulative.zip",
+        "Titan-Time-Attendance-v0.1.7-Pass6-DEEP-SCAN-FIXED-Cumulative.zip"
+      ],
+      "legacy_owner": "Titan People + Payroll + Time Attendance",
+      "legacy_provider": "Titan-People-v1.0.0-rc.1-Workforce31-Converged-Cumulative.zip",
+      "status": "CURRENT_ARCHITECTURE_ALIGNED",
+      "notes": "Legacy ZIP/product names are donor lineage evidence only; they do not define current runtime authority."
+    },
+    {
+      "service": "advanced_intelligence_workforce",
+      "canonical_owner": "#639 canonical Workforce identity/runtime + #1050 cockpit",
+      "provider": "Titan TypeScript Workforce runtime",
+      "authority": [
+        "digital organisation",
+        "AI worker definitions",
+        "goals",
+        "tasks",
+        "handoffs",
+        "evidence",
+        "delegation"
+      ],
+      "legacy_owner": "Titan AI Workforce",
+      "legacy_provider": "Titan-AI-Workforce-v0.72.0-alpha.45-31-Provider-Full-Platform-Converged-Cumulative.zip",
+      "status": "CURRENT_ARCHITECTURE_ALIGNED",
+      "notes": "Legacy ZIP/product names are donor lineage evidence only; they do not define current runtime authority."
+    },
+    {
+      "service": "knowledge",
+      "canonical_owner": "#153 Business Memory/Knowledge + #1055 Intelligence",
+      "provider": "canonical TypeScript knowledge/intelligence runtime",
+      "legacy_owner": "Titan Knowledge Authority",
+      "legacy_provider": "TitanKnowledgeAuthority-Production-Orchestration-Operations-v1.7-DeepScan-CompanyID-Cumulative.zip",
+      "status": "CURRENT_ARCHITECTURE_ALIGNED",
+      "notes": "Legacy ZIP/product names are donor lineage evidence only; they do not define current runtime authority."
+    },
+    {
+      "service": "governance",
+      "canonical_owner": "#914 Constitution + #640 Trust/Autonomy + #14 Execution + #1056 cockpit",
+      "provider": "canonical TypeScript governance/authority runtime",
+      "contributors": [
+        "Titan-Risk-Engine-v1.0.0-rc.3-Pass5-Durable-Execution-Cumulative.zip",
+        "Titan-AI-Assurance-Engine-v2.3.0-Pass6-Namespace-Isolation-Cumulative.zip",
+        "Titan-Autonomy-v1.7.5-Agent06-Pass7-DeepScan-CompanyID-Cumulative.zip",
+        "Titan-Command-Bus-v0.2.0-alpha.7-Pass5-Executable-Workforce-Contract-Cumulative.zip",
+        "TitanRewind-Production-Orchestration-Operations-v1.7-DeepScan-CompanyID-Cumulative.zip"
+      ],
+      "legacy_owner": "Titan Governance",
+      "legacy_provider": "Titan-Governance-v1.0.0-rc.2-Pass5-Durable-Execution-Cumulative.zip",
+      "status": "CURRENT_ARCHITECTURE_ALIGNED",
+      "notes": "Legacy ZIP/product names are donor lineage evidence only; they do not define current runtime authority."
+    },
+    {
+      "service": "providers_capabilities",
+      "canonical_owner": "#7 capability graph + #403 provider SDK + #14 execution",
+      "provider": "replaceable providers",
+      "contributors": [
+        "Titan-AI-Vision-v1.12.6-Agent06-Pass7-DeepScan-CompanyID-Cumulative.zip",
+        "Titan-MCP-v1.5.14-Agent06-Pass7-DeepScan-CompanyID-Cumulative.zip",
+        "Titan-Interaction-Engine-v10.3.2-Pass5-Executable-Workforce-Contract-Cumulative.zip"
+      ],
+      "legacy_owner": "Provider contracts + Command Bus",
+      "legacy_provider": "Titan-Command-Bus-v0.2.0-alpha.7-Pass5-Executable-Workforce-Contract-Cumulative.zip",
+      "status": "CURRENT_ARCHITECTURE_ALIGNED",
+      "notes": "Legacy ZIP/product names are donor lineage evidence only; they do not define current runtime authority."
+    },
+    {
+      "service": "reporting",
+      "canonical_owner": "#913 Business Reality/evidence projections",
+      "provider": "projection/reporting providers",
+      "contributors": [
+        "recovered-donors/quality-compliance/report_builder",
+        "Titan-CRM-v1.3.0-alpha.42-Pass6-DEEP-SCAN-FIXED-Cumulative.zip",
+        "Titan-Ledger-v1.20.0-rc.5-Pass5-Executable-Workforce-Contract-Cumulative.zip",
+        "TitanSignalEngine-Production-Orchestration-Operations-v1.7-DeepScan-CompanyID-Cumulative.zip"
+      ],
+      "notes": "Reporting is projection-only. Legacy ZIP/product names are donor lineage evidence only; they do not define current runtime authority.",
+      "legacy_owner": "projection/reporting layer over authoritative providers",
+      "legacy_provider": null,
+      "status": "CURRENT_ARCHITECTURE_ALIGNED"
+    },
+    {
+      "service": "quality_compliance",
+      "canonical_owner": "#423 compliance + #1056 Governance & Assurance",
+      "provider": "canonical assurance/governance runtime",
+      "contributors": [
+        "Titan-Shield-v1.0.0-rc.2-Pass5-Durable-Execution-Cumulative.zip",
+        "recovered-donors/quality-compliance/ComplianceIQ",
+        "recovered-donors/quality-compliance/QualityControl",
+        "recovered-donors/quality-compliance/TitanZeroAssurance"
+      ],
+      "legacy_owner": "Assurance/Shield + compliance domain contributions",
+      "legacy_provider": "Titan-AI-Assurance-Engine-v2.3.0-Pass6-Namespace-Isolation-Cumulative.zip",
+      "status": "CURRENT_ARCHITECTURE_ALIGNED",
+      "notes": "Legacy ZIP/product names are donor lineage evidence only; they do not define current runtime authority."
+    },
+    {
+      "service": "environmental_systems",
+      "canonical_owner": "#769 Environmental Intelligence vertical pack",
+      "provider": "vertical capability providers",
+      "contributors": [
+        "Titan Knowledge Authority",
+        "Titan Assurance",
+        "Titan Governance",
+        "Titan Signal Engine"
+      ],
+      "status": "CURRENT_ARCHITECTURE_ALIGNED",
+      "notes": "No distinct environmental runtime archive found; no fake runtime created. Legacy ZIP/product names are donor lineage evidence only; they do not define current runtime authority.",
+      "legacy_owner": "Titan Environmental Intelligence",
+      "legacy_provider": null
+    },
+    {
+      "service": "assets_inventory",
+      "canonical_owner": "#383 inventory/assets continuity",
+      "provider": "#1051 Frappe/ERPNext where mapped",
+      "contributors": [
+        "Titan-Locker-v1.1.0-alpha.6-Pass6-Command-Bus-Convergence-Cumulative.zip"
+      ],
+      "legacy_owner": "Titan Assets + Titan Locker",
+      "legacy_provider": "Titan-Assets-v0.2.0-alpha.7-Pass6-DEEP-SCAN-FIXED-Cumulative.zip",
+      "status": "CURRENT_ARCHITECTURE_ALIGNED",
+      "notes": "Legacy ZIP/product names are donor lineage evidence only; they do not define current runtime authority."
+    },
+    {
+      "service": "maps_spatial",
+      "canonical_owner": "#7/#403 capability/provider contracts",
+      "provider": "Titan Maps Intelligence donor/provider adapter",
+      "legacy_owner": "Titan Maps Intelligence",
+      "legacy_provider": "Titan-Maps-Intelligence-v2.0.7-Pass6-DEEP-SCAN-FIXED-Cumulative.zip",
+      "status": "CURRENT_ARCHITECTURE_ALIGNED",
+      "notes": "Legacy ZIP/product names are donor lineage evidence only; they do not define current runtime authority."
+    },
+    {
+      "service": "audit_rewind_signals",
+      "canonical_owner": "#913 Evidence + #14 Rewind/execution",
+      "provider": "canonical evidence/recovery runtime",
+      "contributors": [
+        "TitanSignalEngine-Production-Orchestration-Operations-v1.7-DeepScan-CompanyID-Cumulative.zip"
+      ],
+      "legacy_owner": "Titan Rewind + Titan Signal Engine",
+      "legacy_provider": "TitanRewind-Production-Orchestration-Operations-v1.7-DeepScan-CompanyID-Cumulative.zip",
+      "status": "CURRENT_ARCHITECTURE_ALIGNED",
+      "notes": "Legacy ZIP/product names are donor lineage evidence only; they do not define current runtime authority."
+    }
+  ],
+  "_titan_provenance": {
+    "source_product": "Titan Shared Platform Services",
+    "source_step": 14,
+    "source_file": "registry/canonical-service-owners.json",
+    "company_boundary": "company_id",
+    "purpose": "Semantic ownership and provider-routing metadata. Legacy provider filenames are donor lineage evidence only.",
+    "current_architecture": "Blueprint v3 + #1051 Business Engine + canonical mission owners"
+  }
+}

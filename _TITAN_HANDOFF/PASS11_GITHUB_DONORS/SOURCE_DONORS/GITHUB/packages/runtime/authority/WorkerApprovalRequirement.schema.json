@@ -1,0 +1,14 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"titan.worker.approval-requirement.v1",
+  "type":"object",
+  "required":["company_id","status"],
+  "properties":{
+    "company_id":{"type":"string","minLength":1},
+    "approval_id":{"type":["string","null"]},
+    "status":{"enum":["not_required","required","pending","approved","denied","expired","revoked"]},
+    "approver_id":{"type":["string","null"]},
+    "approval_scope":{"type":["string","null"]}
+  },
+  "additionalProperties":true
+}

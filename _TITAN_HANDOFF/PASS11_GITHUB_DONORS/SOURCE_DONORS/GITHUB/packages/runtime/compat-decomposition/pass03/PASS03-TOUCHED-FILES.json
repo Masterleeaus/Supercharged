@@ -1,0 +1,10 @@
+{
+  "files": [
+    "titan-runtime/compat-decomposition/pass03/EQUIVALENCE-MAP.json",
+    "titan-runtime/compat-decomposition/pass03/PASS03-SUMMARY.json",
+    "titan-runtime/compat-decomposition/pass03/PASS03-SEMANTIC-CHANGE.json",
+    "titan-runtime/compat-decomposition/pass03/PASS03-COLLISION-RECORD.json",
+    "titan-runtime/compat-decomposition/pass03/PASS03-VERIFICATION.json",
+    "tests/compat_runtime_decomposition_pass03.test.mjs"
+  ]
+}

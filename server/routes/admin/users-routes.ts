@@ -316,7 +316,7 @@ export function registerUsersRoutes(router: Router) {
     }
   });
 
-  router.delete('/users/:userId', async (req: AdminRequest, res: Response) => {
+  router.delete('/users/:userId', requireAdminPermission('users', 'delete_users', 'delete'), async (req: AdminRequest, res: Response) => {
     try {
       const { userId } = req.params;
       const schema = await import('@shared/schema');
@@ -390,7 +390,7 @@ export function registerUsersRoutes(router: Router) {
     }
   });
 
-  router.post('/users/:userId/recover', async (req: AdminRequest, res: Response) => {
+  router.post('/users/:userId/recover', requireAdminPermission('users', 'edit_users', 'update'), async (req: AdminRequest, res: Response) => {
     try {
       const { userId } = req.params;
       const { users } = await import('@shared/schema');
@@ -416,7 +416,7 @@ export function registerUsersRoutes(router: Router) {
     }
   });
 
-  router.get('/contacts', async (req: AdminRequest, res: Response) => {
+  router.get('/contacts', requireAdminPermission('contacts', 'view_contacts', 'read'), async (req: AdminRequest, res: Response) => {
     try {
       const { contacts, campaigns, users: usersTable } = await import('@shared/schema');
       const { desc } = await import('drizzle-orm');
@@ -480,7 +480,7 @@ export function registerUsersRoutes(router: Router) {
     }
   });
 
-  router.get('/users/:userId/webhooks', async (req: AdminRequest, res: Response) => {
+  router.get('/users/:userId/webhooks', requireAdminPermission('users', 'view_users', 'read'), async (req: AdminRequest, res: Response) => {
     try {
       const { userId } = req.params;
       const webhooks = await storage.getUserWebhooks(userId);
@@ -491,7 +491,7 @@ export function registerUsersRoutes(router: Router) {
     }
   });
 
-  router.delete('/users/:userId/webhooks/:webhookId', async (req: AdminRequest, res: Response) => {
+  router.delete('/users/:userId/webhooks/:webhookId', requireAdminPermission('users', 'edit_users', 'update'), async (req: AdminRequest, res: Response) => {
     try {
       const { userId, webhookId } = req.params;
       
@@ -508,7 +508,7 @@ export function registerUsersRoutes(router: Router) {
     }
   });
 
-  router.post('/users/:id/block', async (req: AdminRequest, res: Response) => {
+  router.post('/users/:id/block', requireAdminPermission('users', 'suspend_users', 'update'), async (req: AdminRequest, res: Response) => {
     try {
       const { id } = req.params;
       const { reason } = req.body;
@@ -530,7 +530,7 @@ export function registerUsersRoutes(router: Router) {
     }
   });
 
-  router.post('/users/:id/unblock', async (req: AdminRequest, res: Response) => {
+  router.post('/users/:id/unblock', requireAdminPermission('users', 'suspend_users', 'update'), async (req: AdminRequest, res: Response) => {
     try {
       const { id } = req.params;
       

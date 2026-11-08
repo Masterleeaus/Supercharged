@@ -15,9 +15,10 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
-import { Request, Response, NextFunction } from "express";
+import type { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
+import { isCompanyId } from "../infrastructure/database/tenant-context";
 
 const JWT_SECRET = process.env.JWT_SECRET || (() => {
   if (process.env.NODE_ENV === "production") {
@@ -26,6 +27,19 @@ const JWT_SECRET = process.env.JWT_SECRET || (() => {
   console.warn("⚠️  WARNING: Using insecure default JWT_SECRET in development. Set JWT_SECRET environment variable for production!");
   return "insecure-dev-secret-CHANGE-ME";
 })();
+
+/**
+ * Company claim. Written into tokens only when it is a valid UUID, and read back
+ * only from a verified token. Anything else is left out, so req.user.companyId
+ * stays undefined and requireCompanyScope() fails closed.
+ */
+function companyClaim(value: unknown): { companyId?: string } {
+  return isCompanyId(value) ? { companyId: value } : {};
+}
+
+export function companyIdFromClaims(value: unknown): string | undefined {
+  return isCompanyId(value) ? value : undefined;
+}
 
 // Refresh token settings
 const REFRESH_TOKEN_EXPIRY_DAYS = 30;
@@ -45,14 +59,15 @@ export function authenticateToken(req: AuthRequest, res: Response, next: NextFun
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; role: string };
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; role: string; companyId?: unknown };
     req.userId = decoded.userId;
     req.userRole = decoded.role;
     
     // Also set req.user for backward compatibility with routes expecting req.user
     (req as any).user = {
       id: decoded.userId,
-      role: decoded.role
+      role: decoded.role,
+      companyId: companyIdFromClaims(decoded.companyId)
     };
     
     next();
@@ -78,12 +93,13 @@ export async function authenticateAnyToken(req: AuthRequest, res: Response, next
 
   // First try user JWT token
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; role: string };
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; role: string; companyId?: unknown };
     req.userId = decoded.userId;
     req.userRole = decoded.role;
     (req as any).user = {
       id: decoded.userId,
-      role: decoded.role
+      role: decoded.role,
+      companyId: companyIdFromClaims(decoded.companyId)
     };
     return next();
   } catch (jwtError) {
@@ -193,9 +209,9 @@ async function getJwtExpiry(storage: any): Promise<string> {
   }
 }
 
-export async function generateTokenAsync(userId: string, role: string, storage: any): Promise<string> {
+export async function generateTokenAsync(userId: string, role: string, storage: any, companyId?: string | null): Promise<string> {
   const expiry = await getJwtExpiry(storage);
-  return jwt.sign({ userId, role }, JWT_SECRET, { expiresIn: expiry as any });
+  return jwt.sign({ userId, role, ...companyClaim(companyId) }, JWT_SECRET, { expiresIn: expiry as any });
 }
 
 /**
@@ -322,8 +338,8 @@ export function createRefreshTokenData(
 /**
  * Generate short-lived access token (15 minutes)
  */
-export function generateShortAccessToken(userId: string, role: string): string {
-  return jwt.sign({ userId, role }, JWT_SECRET, { expiresIn: '15m' });
+export function generateShortAccessToken(userId: string, role: string, companyId?: string | null): string {
+  return jwt.sign({ userId, role, ...companyClaim(companyId) }, JWT_SECRET, { expiresIn: '15m' });
 }
 
 /**

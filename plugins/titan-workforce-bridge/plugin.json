@@ -1,0 +1,10 @@
+{
+  "name": "titan-workforce-bridge",
+  "displayName": "Titan Workforce Adapter",
+  "version": "0.1.0",
+  "description": "Fail-closed, preview-only interface to the canonical Titan Workforce service; never runs an agent or sends a message.",
+  "author": "Titan Zero integration",
+  "entryPoint": "index.mjs",
+  "registerFunction": "registerPlugin",
+  "features": ["workforce-review-preview", "company-boundary", "no-database-migration"]
+}

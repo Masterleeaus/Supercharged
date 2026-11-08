@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Titan verified job Business Reality projection",
+  "type": "object",
+  "required": ["schema", "company_id", "job_id", "status", "projection_version", "projection_revision", "provenance"],
+  "properties": {
+    "schema": { "const": "titan.business-reality.job/v1" },
+    "company_id": { "type": "string", "minLength": 1 },
+    "job_id": { "type": "string", "minLength": 1 },
+    "status": { "enum": ["UNKNOWN", "VERIFIED"] },
+    "projection_version": { "const": "job-completion/v1" },
+    "projection_revision": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "provenance": {
+      "type": "object",
+      "required": ["source_of_truth", "evidence_ids", "terminal_evidence_id"],
+      "properties": {
+        "source_of_truth": { "const": "accepted-evidence" },
+        "evidence_ids": { "type": "array", "items": { "type": "string" } },
+        "terminal_evidence_id": { "type": ["string", "null"] }
+      }
+    }
+  },
+  "additionalProperties": true
+}
+

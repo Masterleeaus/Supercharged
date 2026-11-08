@@ -270,8 +270,8 @@ export async function verifyWebhookSignature(
 ): Promise<boolean> {
   const webhookSecret = await getSetting('razorpay_webhook_secret');
   if (!webhookSecret) {
-    console.warn('⚠️ [Razorpay] Webhook secret not configured, skipping signature verification');
-    return true;
+    console.warn('⚠️ [Razorpay] Webhook secret not configured, rejecting webhook');
+    return false;
   }
   
   const expectedSignature = crypto

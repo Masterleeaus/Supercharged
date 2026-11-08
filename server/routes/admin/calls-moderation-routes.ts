@@ -7,6 +7,7 @@ import { eq, desc, isNotNull, and, or, isNull, sql } from 'drizzle-orm';
 import { calls, users, bannedWords, contentViolations, agents, campaigns, elevenLabsCredentials } from '@shared/schema';
 import { ElevenLabsPoolService } from '../../services/elevenlabs-pool';
 import { z } from 'zod';
+import { migrateCallUserIdsNotWired } from './calls-user-id-migration-stub';
 
 export function registerCallsModerationRoutes(router: Router) {
   router.get('/calls', requireAdminPermission('call_monitoring', 'all_calls', 'read'), async (req: AdminRequest, res: Response) => {
@@ -419,14 +420,8 @@ export function registerCallsModerationRoutes(router: Router) {
     }
   });
 
-  router.post('/migrate-call-user-ids', requireAdminPermission('call_monitoring', 'all_calls', 'update'), async (req: AdminRequest, res: Response) => {
-    try {
-      res.json({ success: true, message: 'Call user IDs migration initiated' });
-    } catch (error) {
-      console.error('Error migrating call user IDs:', error);
-      res.status(500).json({ error: 'Failed to migrate call user IDs' });
-    }
-  });
+  // E5: refuse until the real migration (server/routes.ts) is wired here. Never report success.
+  router.post('/migrate-call-user-ids', requireAdminPermission('call_monitoring', 'all_calls', 'update'), migrateCallUserIdsNotWired);
 
   router.post('/sync-incoming-webhooks', requireAdminPermission('call_monitoring', 'all_calls', 'update'), async (req: AdminRequest, res: Response) => {
     try {

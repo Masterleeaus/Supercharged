@@ -22,16 +22,48 @@ import type { InsertElevenLabsCredential, ElevenLabsCredential } from "@shared/s
 import { ElevenLabsService } from "./elevenlabs";
 import { NotificationService } from "./notification-service";
 import { getCorrelationHeaders } from "../middleware/correlation-id";
+import { loadCredentialKey, encryptCredentialValue, decryptCredentialValue } from "../utils/credential-crypto";
 
 // Track last notification sent for each threshold to prevent flooding
 const lastNotificationThreshold = new Map<number, number>();
+
+/**
+ * Credential secrets (api_key, webhook_secret) are stored as v1 AES-256-GCM ciphertext.
+ * Every write goes through sealSecrets and every read through openSecrets. Both throw when
+ * CREDENTIAL_ENCRYPTION_KEY is missing or malformed, and decryption throws on any value that
+ * is not v1 ciphertext (no plaintext passthrough).
+ */
+function sealSecrets(data: InsertElevenLabsCredential): InsertElevenLabsCredential {
+  return {
+    ...data,
+    apiKey: encryptCredentialValue(data.apiKey),
+    webhookSecret:
+      typeof data.webhookSecret === "string" && data.webhookSecret.length > 0
+        ? encryptCredentialValue(data.webhookSecret)
+        : data.webhookSecret,
+  };
+}
+
+function openSecrets(row: ElevenLabsCredential): ElevenLabsCredential {
+  return {
+    ...row,
+    apiKey: decryptCredentialValue(row.apiKey),
+    webhookSecret:
+      typeof row.webhookSecret === "string" && row.webhookSecret.length > 0
+        ? decryptCredentialValue(row.webhookSecret)
+        : row.webhookSecret,
+  };
+}
 
 export class ElevenLabsPoolService {
   /**
    * Add a new ElevenLabs API key to the pool
    */
   static async addCredential(data: InsertElevenLabsCredential): Promise<ElevenLabsCredential> {
-    // Test the API key first
+    // Fail closed before any provider call when the encryption key is missing or malformed
+    loadCredentialKey();
+
+    // Test the API key first (plaintext, before sealing)
     const isValid = await this.testCredential(data.apiKey);
     if (!isValid) {
       throw new Error("Invalid ElevenLabs API key");
@@ -40,14 +72,14 @@ export class ElevenLabsPoolService {
     const [credential] = await db
       .insert(elevenLabsCredentials)
       .values({
-        ...data,
+        ...sealSecrets(data),
         healthStatus: "healthy",
         lastHealthCheck: new Date(),
       })
       .returning();
 
     console.log(`✅ Added ElevenLabs credential: ${credential.name}`);
-    return credential;
+    return openSecrets(credential);
   }
 
   /**
@@ -132,7 +164,7 @@ export class ElevenLabsPoolService {
         return a.agentDensity - b.agentDensity;
       });
 
-    return sorted[0];
+    return openSecrets(sorted[0]);
   }
 
   /**
@@ -161,7 +193,7 @@ export class ElevenLabsPoolService {
     
     // Map the raw row to the credential type
     const row = result.rows[0] as any;
-    return {
+    return openSecrets({
       id: row.id,
       name: row.name,
       apiKey: row.api_key,
@@ -177,7 +209,7 @@ export class ElevenLabsPoolService {
       metadata: row.metadata,
       createdAt: row.created_at ? new Date(row.created_at) : new Date(),
       updatedAt: row.updated_at ? new Date(row.updated_at) : new Date(),
-    };
+    });
   }
 
   /**
@@ -190,7 +222,7 @@ export class ElevenLabsPoolService {
       .where(eq(elevenLabsCredentials.id, credentialId))
       .limit(1);
 
-    return credential || null;
+    return credential ? openSecrets(credential) : null;
   }
 
   /**
@@ -217,7 +249,7 @@ export class ElevenLabsPoolService {
         .limit(1);
 
       if (credential) {
-        return credential;
+        return openSecrets(credential);
       }
     }
 
@@ -242,7 +274,7 @@ export class ElevenLabsPoolService {
     // Find first credential with available capacity
     for (const credential of credentials) {
       if (credential.currentLoad < credential.maxConcurrency) {
-        return credential;
+        return openSecrets(credential);
       }
     }
 
@@ -285,7 +317,7 @@ export class ElevenLabsPoolService {
         console.log(`🔒 [Pool] Reserved slot on credential ${row.name} (load: ${row.current_load}/${row.max_concurrency})`);
         
         // Map snake_case DB columns to camelCase for TypeScript
-        return {
+        const shape = {
           id: row.id,
           name: row.name,
           apiKey: row.api_key,
@@ -300,6 +332,13 @@ export class ElevenLabsPoolService {
           createdAt: row.created_at ? new Date(row.created_at) : new Date(),
           updatedAt: row.updated_at ? new Date(row.updated_at) : new Date(),
         } as ElevenLabsCredential;
+        try {
+          return openSecrets(shape);
+        } catch (decryptError) {
+          // The slot is already reserved; give it back before failing closed
+          await this.releaseSlot(row.id);
+          throw decryptError;
+        }
       }
 
       console.log(`⚠️ [Pool] No available capacity - all credentials at max load`);
@@ -333,7 +372,7 @@ export class ElevenLabsPoolService {
         const row = result.rows[0] as any;
         console.log(`🔒 [Pool] Reserved slot on credential ${row.name} (load: ${row.current_load}/${row.max_concurrency})`);
         
-        return {
+        const shape = {
           id: row.id,
           name: row.name,
           apiKey: row.api_key,
@@ -348,6 +387,13 @@ export class ElevenLabsPoolService {
           createdAt: row.created_at ? new Date(row.created_at) : new Date(),
           updatedAt: row.updated_at ? new Date(row.updated_at) : new Date(),
         } as ElevenLabsCredential;
+        try {
+          return openSecrets(shape);
+        } catch (decryptError) {
+          // The slot is already reserved; give it back before failing closed
+          await this.releaseSlot(row.id);
+          throw decryptError;
+        }
       }
 
       console.log(`⚠️ [Pool] Credential ${credentialId} has no capacity or is inactive`);
@@ -650,8 +696,15 @@ export class ElevenLabsPoolService {
   static async performHealthChecks(): Promise<void> {
     const credentials = await db.select().from(elevenLabsCredentials);
 
-    for (const credential of credentials) {
-      const isHealthy = await this.testCredential(credential.apiKey);
+    for (const sealedCredential of credentials) {
+      let isHealthy = false;
+      try {
+        const credential = openSecrets(sealedCredential);
+        isHealthy = await this.testCredential(credential.apiKey);
+      } catch {
+        // Undecryptable or no key: mark unhealthy and keep checking the rest
+        console.error(`❌ [Pool] Cannot open credential ${sealedCredential.id} for health check`);
+      }
       await db
         .update(elevenLabsCredentials)
         .set({
@@ -659,7 +712,7 @@ export class ElevenLabsPoolService {
           lastHealthCheck: new Date(),
           updatedAt: new Date(),
         })
-        .where(eq(elevenLabsCredentials.id, credential.id));
+        .where(eq(elevenLabsCredentials.id, sealedCredential.id));
     }
   }
 
@@ -672,10 +725,13 @@ export class ElevenLabsPoolService {
    * Also syncs incoming agents the same way.
    */
   static async syncExistingAgents(): Promise<{ synced: number; reassigned: number; rebalanced: number; total: number; credentialId: string | null }> {
-    const activeCredentials = await db
-      .select()
-      .from(elevenLabsCredentials)
-      .where(eq(elevenLabsCredentials.isActive, true));
+    // Opening every row throws (fail closed) if the key is missing or a value is not decryptable
+    const activeCredentials = (
+      await db
+        .select()
+        .from(elevenLabsCredentials)
+        .where(eq(elevenLabsCredentials.isActive, true))
+    ).map((c) => openSecrets(c));
 
     if (activeCredentials.length === 0) {
       throw new Error("No active ElevenLabs credentials available. Please add at least one API key to the pool.");
@@ -963,7 +1019,7 @@ export class ElevenLabsPoolService {
 
       if (existingCredential) {
         console.log(`🔑 [User Affinity] User ${userId} using existing credential: ${existingCredential.name}`);
-        return existingCredential;
+        return openSecrets(existingCredential);
       }
       // Credential is inactive/deleted - need to reassign
       console.log(`⚠️ [User Affinity] User ${userId}'s credential is inactive, reassigning...`);
@@ -997,7 +1053,7 @@ export class ElevenLabsPoolService {
         // Adopt this credential for the user
         await this.assignUserToCredential(userId, agentCredential.id);
         console.log(`🔑 [User Affinity] User ${userId} adopted credential from existing agent: ${agentCredential.name}`);
-        return agentCredential;
+        return openSecrets(agentCredential);
       }
     }
 
@@ -1011,7 +1067,7 @@ export class ElevenLabsPoolService {
     // Assign user to this credential
     await this.assignUserToCredential(userId, credential.id);
     console.log(`🔑 [User Affinity] User ${userId} assigned to credential: ${credential.name} (${credential.totalAssignedAgents}/${credential.maxAgentsThreshold} agents)`);
-    return credential;
+    return openSecrets(credential);
   }
 
   /**
@@ -1154,6 +1210,7 @@ export class ElevenLabsPoolService {
       .limit(1);
 
     if (!credential) return null;
+    const opened = openSecrets(credential);
 
     // Get users assigned to this credential
     const assignedUsers = await db
@@ -1162,7 +1219,7 @@ export class ElevenLabsPoolService {
       .where(eq(users.elevenLabsCredentialId, credentialId));
 
     return {
-      ...credential,
+      ...opened,
       assignedUsers,
     };
   }

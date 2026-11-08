@@ -39,10 +39,64 @@ import {
   knowledgeProcessingQueue,
   userKnowledgeStorageLimits,
   globalSettings,
+  users,
   type KnowledgeChunk,
   type KnowledgeBase
 } from "@shared/schema";
 import { eq, and, inArray, sql } from "drizzle-orm";
+
+/**
+ * Tenant scope required by every knowledge search. Both values must come from the verified session
+ * (res.locals.companyId and the authenticated user), never from a request body, query or params.
+ */
+export interface KnowledgeSearchScope {
+  companyId: string;
+  userId: string;
+}
+
+export type KnowledgeScopeErrorCode = 'company_scope_required' | 'user_scope_required' | 'scope_mismatch';
+
+/** Thrown before any database or embedding call when the scope is missing or does not match the user. */
+export class KnowledgeScopeError extends Error {
+  readonly code: KnowledgeScopeErrorCode;
+
+  constructor(code: KnowledgeScopeErrorCode) {
+    super('Knowledge search refused.');
+    this.name = 'KnowledgeScopeError';
+    this.code = code;
+  }
+}
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const MAX_SEARCH_RESULTS = 20;
+
+/**
+ * Refuse unless the scope names a company and the user belongs to that company.
+ * Fails closed: a user with no company, or a company that differs from the user's, gets nothing.
+ */
+async function assertKnowledgeScope(scope: unknown): Promise<KnowledgeSearchScope> {
+  const candidate = scope as Partial<KnowledgeSearchScope> | null | undefined;
+  if (!candidate || typeof candidate !== 'object') {
+    throw new KnowledgeScopeError('company_scope_required');
+  }
+  if (typeof candidate.companyId !== 'string' || !UUID_PATTERN.test(candidate.companyId)) {
+    throw new KnowledgeScopeError('company_scope_required');
+  }
+  if (typeof candidate.userId !== 'string' || candidate.userId.length === 0 || candidate.userId.length > 255) {
+    throw new KnowledgeScopeError('user_scope_required');
+  }
+
+  const [member] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(and(eq(users.id, candidate.userId), eq(users.companyId, candidate.companyId)))
+    .limit(1);
+  if (!member) {
+    throw new KnowledgeScopeError('scope_mismatch');
+  }
+
+  return { companyId: candidate.companyId, userId: candidate.userId };
+}
 
 // the newest OpenAI model is "gpt-5" which was released August 7, 2025
 // Using text-embedding-3-small for cost-effective embeddings
@@ -474,41 +528,58 @@ export class RAGKnowledgeService {
    * Search knowledge base using semantic similarity
    */
   static async searchKnowledge(
+    scope: KnowledgeSearchScope,
     query: string,
     knowledgeBaseIds: string[],
-    userId: string,
     maxResults: number = 5
   ): Promise<Array<{ chunk: KnowledgeChunk; score: number; source: string }>> {
+    // Refuse before any database or embedding call when the company scope is missing or mismatched.
+    const { companyId, userId } = await assertKnowledgeScope(scope);
+
+    if (typeof query !== 'string' || query.trim().length === 0) {
+      return [];
+    }
+    if (!Array.isArray(knowledgeBaseIds)) {
+      return [];
+    }
+    const ids = knowledgeBaseIds.filter((id): id is string => typeof id === 'string' && id.length > 0);
+    if (ids.length === 0) {
+      return [];
+    }
+    const limit = Number.isFinite(maxResults)
+      ? Math.min(Math.max(1, Math.floor(maxResults)), MAX_SEARCH_RESULTS)
+      : 5;
+
     try {
-      console.log(`[RAG] Searching knowledge for: "${query.substring(0, 50)}..."`);
-      
-      if (knowledgeBaseIds.length === 0) {
-        return [];
-      }
-      
+      console.log(`[RAG] Searching knowledge (${ids.length} bases)`);
+
       // Generate embedding for query
       const queryEmbedding = await generateEmbedding(query);
-      
-      // Fetch all chunks for the specified knowledge bases
-      const chunks = await db
-        .select()
+
+      // Only chunks of knowledge bases owned by the caller's company, uploaded by this user.
+      // Chunks are not stamped with a company on write, so the company is read from the knowledge base row.
+      const rows = await db
+        .select({ chunk: knowledgeChunks })
         .from(knowledgeChunks)
+        .innerJoin(knowledgeBase, eq(knowledgeBase.id, knowledgeChunks.knowledgeBaseId))
         .where(
           and(
-            inArray(knowledgeChunks.knowledgeBaseId, knowledgeBaseIds),
-            eq(knowledgeChunks.userId, userId)
+            inArray(knowledgeChunks.knowledgeBaseId, ids),
+            eq(knowledgeChunks.userId, userId),
+            eq(knowledgeBase.companyId, companyId)
           )
         );
-      
-      if (chunks.length === 0) {
+
+      if (rows.length === 0) {
         console.log(`[RAG] No chunks found for knowledge bases`);
         return [];
       }
-      
-      console.log(`[RAG] Searching ${chunks.length} chunks`);
-      
+
+      console.log(`[RAG] Searching ${rows.length} chunks`);
+
       // Calculate similarity scores
-      const scoredChunks = chunks
+      const scoredChunks = rows
+        .map(({ chunk }) => chunk)
         .filter(chunk => chunk.embedding && Array.isArray(chunk.embedding))
         .map(chunk => ({
           chunk,
@@ -516,15 +587,16 @@ export class RAGKnowledgeService {
           source: chunk.knowledgeBaseId
         }))
         .sort((a, b) => b.score - a.score)
-        .slice(0, maxResults);
-      
+        .slice(0, limit);
+
       console.log(`[RAG] Found ${scoredChunks.length} relevant chunks (top score: ${scoredChunks[0]?.score.toFixed(3) || 'N/A'})`);
-      
+
       return scoredChunks;
-      
+
     } catch (error: any) {
+      // Surface a failure as a failure, not as "no results". The provider message is not returned.
       console.error(`[RAG] Search error:`, error.message);
-      return [];
+      throw new Error('Knowledge search failed.');
     }
   }
   

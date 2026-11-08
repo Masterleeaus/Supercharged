@@ -327,7 +327,7 @@ export async function updateCampaignStats(callId: string, callStatus: string): P
         const campaign = await storage.getCampaign(call.campaignId);
         
         if (callStatus === 'completed') {
-          webhookDeliveryService.triggerEvent(call.userId, 'call.completed', {
+          webhookDeliveryService.triggerEvent(call.companyId ?? null, call.userId, 'call.completed', {
             campaign: campaign ? { id: campaign.id, name: campaign.name, type: campaign.type } : null,
             contact: contact ? {
               id: contact.id,
@@ -397,7 +397,7 @@ export async function updateCampaignStats(callId: string, callStatus: string): P
                   };
                 }
 
-                await webhookDeliveryService.triggerEvent(call.userId, flowEventType, flowPayload, call.campaignId);
+                await webhookDeliveryService.triggerEvent(call.companyId ?? null, call.userId, flowEventType, flowPayload, call.campaignId);
                 console.log(`✅ [Webhook] Triggered ${flowEventType} for call ${call.id}, flow ${flow.name}`);
               }
             }
@@ -707,6 +707,7 @@ export async function deductCallCreditsForSip(
 
 export async function triggerCallCompletedWebhook(params: {
   userId: string;
+  companyId?: string | null;
   callId: string;
   callDirection: 'incoming' | 'outgoing' | 'inbound' | 'outbound' | string;
   duration: number;
@@ -834,7 +835,7 @@ export async function triggerCallCompletedWebhook(params: {
       }
     };
 
-    await webhookDeliveryService.triggerEvent(params.userId, eventType, payload, params.campaignId);
+    await webhookDeliveryService.triggerEvent(params.companyId ?? null, params.userId, eventType, payload, params.campaignId);
     console.log(`✅ [Webhook] Successfully triggered ${eventType} for call ${params.callId}`);
   } catch (error: any) {
     console.error(`❌ [Webhook] Error triggering completed call webhook:`, error.message);

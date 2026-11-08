@@ -84,8 +84,12 @@ import { twilioOpenaiWebhookRoutes, setupTwilioOpenAIStreamHandler, twilioOpenai
 // KYC Engine
 import { registerKycRoutes } from "./engines/kyc";
 import { checkAdmin, checkAdminOrTeamMember, requireAdminPermission, AdminRequest } from "./middleware/admin-auth";
+import { hybridGateUnlessExempt } from "./middleware/hybrid-gate-exemptions";
 import flowAutomationRouter from "./routes/flow-automation-routes";
-import { flows, FlowNode, FlowEdge, insertPromptTemplateSchema } from "@shared/schema";
+import { flows, FlowNode, FlowEdge, insertPromptTemplateSchema, promptTemplates } from "@shared/schema";
+
+// Table insert shape for createPromptTemplate; the drizzle-zod insert type resolves to {}.
+type PromptTemplateInsertRow = typeof promptTemplates.$inferInsert & { companyId?: string };
 import { ElevenLabsFlowCompiler } from "./services/elevenlabs-flow-compiler";
 import incomingConnectionsRouter from "./routes/incoming-connections-routes";
 import llmModelsRouter from "./routes/llm-models-routes";
@@ -98,6 +102,8 @@ import emailSettingsRouter from "./routes/email-settings-routes";
 import audioRoutes from "./routes/audio-routes";
 import { createRAGKnowledgeRoutes } from "./routes/rag-knowledge-routes";
 import { createNotificationRoutes } from "./routes/notification-routes";
+import { createTitanFieldBridgeRouter } from "./integrations/titan-field/route";
+import { createTitanLocalLinkRouter } from "./integrations/titan-field/local-link-route";
 import { createUserWebhookRoutes } from "./routes/user-webhook-routes";
 import { createTemplateRoutes } from "./routes/template-routes";
 import { createUserSipGatewaysRoutes } from "./routes/user-sip-gateways.routes";
@@ -112,6 +118,7 @@ import Papa from "papaparse";
 // Uses adapter for optional plugin loading
 import { getTeamContextMiddleware, isTeamManagementInstalled, initializeAdapter as initTeamAdapter } from "./plugins/team-management-adapter";
 import crypto from "crypto";
+import { validateAppointmentWebhookToken } from "./services/appointment-elevenlabs-tool";
 import { NotificationService } from "./services/notification-service";
 import { IncomingAgentService } from "./services/incoming-agent";
 import { FlowAgentService } from "./services/flow-agent";
@@ -126,6 +133,33 @@ import { emailService } from "./services/email-service";
 import { generateRefundNoteForRefund, refundNoteService } from "./services/refund-note-service";
 import { safeErrorMessage } from "./utils/safe-error";
 import { markPluginAsRegistered } from "./plugins/loader";
+import { registerChatbotModule } from "./modules/chatbot/index.ts";
+import { mountChatbotModule, WIRING_FLAGS } from "./modules/chatbot/wiring/mount.ts";
+import { readFlag } from "./modules/chatbot/contracts/flags.ts";
+import { createSecretBox } from "./modules/chatbot/secrets/secret-box.ts";
+import { captureChatbotWebhookRawBody } from "./middleware/raw-body.ts";
+import { workforceHealthHandler } from "./workforce/runtime/health.ts";
+import { agentRunsFromRecords, createWorkforceAdminRouter, workforceControls } from "./workforce/runtime/workforce-admin-routes.ts";
+import { createPgRoster } from "./workforce/pg-roster.ts";
+import { createTaskBoardRouter } from "./workforce/runtime/task-board-routes.ts";
+import { createPgRunStore, type SqlExecutor } from "./workforce/runtime/pg-store.ts";
+import { createCompanyControlsRouter } from "./workforce/runtime/company-controls-routes.ts";
+import { loadCatalogueAtStartup, getActiveCatalogue } from "./workforce/catalogue/startup.ts";
+import { createRoster, listAgents as listRosterAgents } from "./workforce/roster.ts";
+import { createWorkforceRosterRouter } from "./routes/workforce-roster-routes.ts";
+import { createDeadLetterRouter } from "./routes/dead-letter-routes.ts";
+import { createCampaignRouterForProduction, createDrizzleCampaignStore, type ApprovalPort, type SendTransport } from "./modules/campaigns/index.ts";
+import { createCompanySettingsStore } from "./modules/settings/company-settings.ts";
+import { createSuppressionList } from "./modules/comms/suppression.ts";
+import { createCommsAuditSink } from "./modules/comms/audit-sink.ts";
+import { logAuditEvent } from "./services/audit-log";
+const commsAudit = createCommsAuditSink({ write: logAuditEvent as unknown as Parameters<typeof createCommsAuditSink>[0]["write"] });
+import { deskModeMiddleware } from "./modules/desk-modes/index.ts";
+import { featureEnabled } from "./lib/feature-flags";
+import { registerApprovalModule } from "./modules/approvals/index.ts";
+import { requireCompanyScope } from "./middleware/company-scope";
+import { createCockpitRouter, DEFAULT_MODE_CONFIG } from "./routes/cockpit-routes";
+import { createProviderWebhookRateLimit, readTwilioAccountSid, TWILIO_ACCOUNT_SID_PATTERN } from "./middleware/provider-webhook-rate-limit";
 
 const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
@@ -219,8 +253,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const notificationRoutes = createNotificationRoutes(routeContext);
   app.use(notificationRoutes);
 
+  // TITAN: signed simulation-only Field communication intent bridge.
+  // Deliberately unconfigured: the separate database integration owner must
+  // supply company mapping, consent verification and an atomic event ledger.
+  // No provider sending is performed; route returns 503 unless enabled.
+  app.use(createTitanFieldBridgeRouter());
+  // Read-only signed same-host Field/Desk capability handshake.
+  app.use(createTitanLocalLinkRouter());
+
   // Register user webhook routes (subscription management)
-  const userWebhookRoutes = createUserWebhookRoutes(routeContext);
+  const userWebhookRoutes = createUserWebhookRoutes(routeContext, { requireCompanyScope: requireCompanyScope() as unknown as import('express').RequestHandler });
   app.use(userWebhookRoutes);
 
   // Register user SIP gateway routes (per-user SIP management from /app/phone-numbers)
@@ -363,10 +405,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // This allows installing new plugins by just copying the folder and restarting
   try {
     const { loadPlugins } = await import('./plugins/loader');
+    const { workforceLoaderOptions } = await import('./integrations/workforce-runtime/titan-ports');
     const loadedPlugins = await loadPlugins(app, {
       sessionAuthMiddleware: authenticateToken as unknown as import('express').RequestHandler,
       adminAuthMiddleware: checkAdminOrTeamMember as unknown as import('express').RequestHandler,
+      // Workforce previews require a named permission. Team membership alone is not enough (D2).
+      workforceAdminMiddleware: [
+        checkAdminOrTeamMember as unknown as import('express').RequestHandler,
+        requireAdminPermission('workforce', 'previews', 'create') as unknown as import('express').RequestHandler,
+      ],
       httpServer,
+      ...workforceLoaderOptions(),
     });
     if (loadedPlugins.filter(p => p.registered).length > 0) {
       console.log(`✅ Auto-loaded ${loadedPlugins.filter(p => p.registered).length} plugin(s) from /plugins directory`);
@@ -1503,21 +1552,37 @@ When using a tool:
 
   // Phone Numbers routes are now in server/routes/phone-routes.ts
 
-  // Twilio webhook endpoints (validated with Twilio signature verification)
-  app.post("/api/webhooks/twilio/voice", validateTwilioWebhook, handleTwilioVoiceWebhook); // Outbound campaign calls
-  app.post("/api/webhooks/twilio/incoming", validateTwilioWebhook, handleIncomingCallWebhook); // Incoming calls to purchased numbers
-  app.post("/api/webhooks/twilio/status", validateTwilioWebhook, handleTwilioStatusWebhook);
-  app.post("/api/webhooks/twilio/recording", validateTwilioWebhook, handleTwilioRecordingWebhook);
+  // Per-account rate limits for provider webhooks. Twilio is keyed on the verified AccountSid,
+  // which is only read after validateTwilioWebhook has checked the signature. ElevenLabs is
+  // keyed on IP, since its signature check runs inside the handler.
+  const twilioWebhookRateLimit = createProviderWebhookRateLimit({
+    provider: "twilio",
+    windowMs: 60_000,
+    maxRequests: 160,
+    readAccountId: readTwilioAccountSid,
+    accountIdPattern: TWILIO_ACCOUNT_SID_PATTERN,
+  });
+  const elevenLabsWebhookRateLimit = createProviderWebhookRateLimit({
+    provider: "elevenlabs",
+    windowMs: 60_000,
+    maxRequests: 160,
+  });
 
-  // Flow-based execution webhooks (validated with Twilio signature verification)
-  app.post("/api/webhooks/twilio/flow/answer", validateTwilioWebhook, handleFlowVoiceAnswer);
-  app.post("/api/webhooks/twilio/flow/node", validateTwilioWebhook, handleFlowNode);
-  app.post("/api/webhooks/twilio/flow/gather", validateTwilioWebhook, handleFlowGather);
-  app.post("/api/webhooks/twilio/flow/continue", validateTwilioWebhook, handleFlowContinue);
-  app.post("/api/webhooks/twilio/flow/status", validateTwilioWebhook, handleFlowStatus);
+  // Twilio webhook endpoints (validated with Twilio signature verification, then rate limited)
+  app.post("/api/webhooks/twilio/voice", validateTwilioWebhook, twilioWebhookRateLimit, handleTwilioVoiceWebhook); // Outbound campaign calls
+  app.post("/api/webhooks/twilio/incoming", validateTwilioWebhook, twilioWebhookRateLimit, handleIncomingCallWebhook); // Incoming calls to purchased numbers
+  app.post("/api/webhooks/twilio/status", validateTwilioWebhook, twilioWebhookRateLimit, handleTwilioStatusWebhook);
+  app.post("/api/webhooks/twilio/recording", validateTwilioWebhook, twilioWebhookRateLimit, handleTwilioRecordingWebhook);
+
+  // Flow-based execution webhooks (validated with Twilio signature verification, then rate limited)
+  app.post("/api/webhooks/twilio/flow/answer", validateTwilioWebhook, twilioWebhookRateLimit, handleFlowVoiceAnswer);
+  app.post("/api/webhooks/twilio/flow/node", validateTwilioWebhook, twilioWebhookRateLimit, handleFlowNode);
+  app.post("/api/webhooks/twilio/flow/gather", validateTwilioWebhook, twilioWebhookRateLimit, handleFlowGather);
+  app.post("/api/webhooks/twilio/flow/continue", validateTwilioWebhook, twilioWebhookRateLimit, handleFlowContinue);
+  app.post("/api/webhooks/twilio/flow/status", validateTwilioWebhook, twilioWebhookRateLimit, handleFlowStatus);
 
   // ElevenLabs webhook endpoints (no authentication - called by ElevenLabs)
-  app.post("/api/webhooks/elevenlabs", handleElevenLabsWebhook); // Call completion notifications
+  app.post("/api/webhooks/elevenlabs", elevenLabsWebhookRateLimit, handleElevenLabsWebhook); // Call completion notifications
   // RAG knowledge base tool - supports both URL-based token (primary) and header token (fallback)
   app.post("/api/webhooks/elevenlabs/rag-tool/:token/:agentId", handleRAGToolWebhook); // New: token in URL
   app.post("/api/webhooks/elevenlabs/rag-tool/:agentId", handleRAGToolWebhook); // Legacy: header auth
@@ -1526,7 +1591,53 @@ When using a tool:
   // Form submission tool webhook - called by ElevenLabs when form node executes
   app.post("/api/webhooks/elevenlabs/form/:token/:formId/:agentId", handleFormSubmissionWebhook);
   // Play audio tool webhook - called by ElevenLabs when play_audio node executes
-  app.post("/api/elevenlabs/tools/play-audio/:agentId", handlePlayAudioToolWebhook);
+  // audioUrl is validated before the handler runs: https only, parsed with URL, host must be this app's own
+  // domain (no external or private/loopback hosts). Relative paths resolve against the own domain.
+  // Protected by the same URL-token mechanism as the appointment tool (validateAppointmentWebhookToken).
+  app.post("/api/elevenlabs/tools/play-audio/:token/:agentId", (req: Request, res: Response, next: () => void) => {
+    if (!validateAppointmentWebhookToken(req.params.token)) {
+      res.status(401).json({ success: false, error: "Unauthorized: Invalid authentication token" });
+      return;
+    }
+    const rawDomain = getDomain();
+    let ownHost: string | undefined;
+    try {
+      ownHost = new URL(rawDomain.includes("://") ? rawDomain : `https://${rawDomain}`).host;
+    } catch {
+      ownHost = undefined;
+    }
+    if (!ownHost) {
+      res.status(500).json({ error: "Audio host not configured" });
+      return;
+    }
+    const rawAudioUrl = req.body?.audioUrl;
+    if (typeof rawAudioUrl !== "string" || rawAudioUrl.length === 0 || rawAudioUrl.length > 2048) {
+      res.status(400).json({ error: "Invalid audioUrl" });
+      return;
+    }
+    let parsedAudio: URL;
+    try {
+      parsedAudio = new URL(rawAudioUrl, `https://${ownHost}`);
+    } catch {
+      res.status(400).json({ error: "Invalid audioUrl" });
+      return;
+    }
+    const audioHost = parsedAudio.hostname.toLowerCase();
+    const isPrivateHost =
+      audioHost === "localhost" ||
+      audioHost === "0.0.0.0" ||
+      audioHost === "[::1]" ||
+      audioHost.startsWith("127.") ||
+      audioHost.startsWith("10.") ||
+      audioHost.startsWith("192.168.") ||
+      audioHost.startsWith("169.254.") ||
+      /^172\.(1[6-9]|2\d|3[01])\./.test(audioHost);
+    if (parsedAudio.protocol !== "https:" || isPrivateHost || parsedAudio.host !== ownHost) {
+      res.status(400).json({ error: "audioUrl must be an https URL on this application's domain" });
+      return;
+    }
+    next();
+  }, handlePlayAudioToolWebhook);
 
   // Stripe routes
   app.use("/api/stripe", stripeRouter);
@@ -1631,6 +1742,36 @@ When using a tool:
   // Incoming Connections routes (links agents to phone numbers)
   app.use("/api/incoming-connections", incomingConnectionsRouter);
 
+  // Channel webhooks need the raw bytes. Only POST channel webhook paths are touched; other paths pass through.
+  // Mounted before the core chatbot route so it runs ahead of the core auth on those paths.
+  app.use(captureChatbotWebhookRawBody());
+  // Chatbot wiring (channels, admin, commerce). Mounted BEFORE the core registerChatbotModule call below, so a matched
+  // route answers before the core /api/chatbot authenticate runs (provider webhooks carry no session). Each surface
+  // keeps its own authenticate and requireCompanyScope. Flags are read inside mountChatbotModule; with flags off it mounts nothing new.
+  // The secret box is built only when a surface that stores secrets is on. createSecretBox throws when CHATBOT_SECRET_KEY
+  // is missing, so with those flags off a deployment without the key still starts.
+  const chatbotSecretsOn = [WIRING_FLAGS.BOOKINGS, WIRING_FLAGS.WIDGET, WIRING_FLAGS.CHANNELS].some((flag) => readFlag(flag, process.env));
+  mountChatbotModule(app, {
+    db,
+    env: process.env,
+    authenticate: routeContext.authenticateHybrid as unknown as import('express').RequestHandler,
+    requireCompanyScope: requireCompanyScope(),
+    requireRole: (...roles: string[]) => requireRole(...roles) as unknown as import('express').RequestHandler,
+    // agentAuthenticate is not passed: the app has no staff identity resolver for the agent surface, so agent calls answer 401.
+    secretBox: chatbotSecretsOn ? createSecretBox({ env: process.env }) : undefined,
+    // No reply runtime or receipt store is wired yet. These stubs keep startup working and refuse the work itself.
+    widget: {
+      messages: { send: async () => { throw new Error("chatbot widget reply runtime is not wired"); } },
+      assetBaseUrl: process.env.CHATBOT_WIDGET_ASSET_BASE_URL ?? "",
+    },
+    channels: { onReceipt: async () => { throw new Error("chatbot channel receipt store is not wired"); } },
+  });
+  // Chatbot module (port of the Clean-Hub Chatbot extension). Authenticated, company-scoped.
+  // Tables are DRAFT (migrations/DRAFT_chatbot.sql); requests fail until the draft is applied.
+  // A request that matches no route mounted above falls through to this core route unchanged.
+  registerChatbotModule(app, { requireCompanyScope: requireCompanyScope(), authenticate: routeContext.authenticateHybrid as unknown as import('express').RequestHandler });
+  registerApprovalModule(app); // /api/approvals: authenticateToken, then requireCompanyScope()
+
   // CRM routes - Lead Management (isolated module)
   // Use hybrid auth to allow both users and team members
   app.use("/api/crm", routeContext.authenticateHybrid as unknown as import('express').RequestHandler, crmRoutes);
@@ -1678,11 +1819,13 @@ When using a tool:
     });
   }
 
-  app.use("/api", routeContext.authenticateHybrid as unknown as import('express').RequestHandler, widgetRoutes);
+  // E6: the RAG tool webhook authenticates itself (WEBHOOK_TOKEN), so only that exact POST path skips the gate.
+  app.use("/api", hybridGateUnlessExempt(routeContext.authenticateHybrid as unknown as import('express').RequestHandler), widgetRoutes);
 
   // RAG Knowledge Base routes (scalable alternative to ElevenLabs 20MB KB)
-  // Set USE_RAG_KNOWLEDGE=true to enable this system
-  const ragKnowledgeRoutes = createRAGKnowledgeRoutes(routeContext.authenticateHybrid);
+  // Mounted unconditionally: no env check here. USE_RAG_KNOWLEDGE is read only by isRAGEnabled()
+  // (services/rag-elevenlabs-tool.ts), which defaults to on and is off only when set to false, 0 or no.
+  const ragKnowledgeRoutes = createRAGKnowledgeRoutes(routeContext.authenticateHybrid, { requireCompanyScope: requireCompanyScope() });
   app.use("/api/rag-knowledge", ragKnowledgeRoutes);
 
   // Google Sheets authenticated endpoints (auth, status, disconnect, sheets list)
@@ -2191,7 +2334,7 @@ When using a tool:
         suggestedPersonality: suggestedPersonality || null,
         isSystemTemplate: false,
         isPublic: isPublic || false,
-      });
+      } as PromptTemplateInsertRow);
 
       res.json(template);
     } catch (error: any) {
@@ -2360,7 +2503,7 @@ When using a tool:
         suggestedPersonality: suggestedPersonality || null,
         isSystemTemplate: true,
         isPublic: true, // System templates are always public
-      });
+      } as PromptTemplateInsertRow);
 
       res.json(template);
     } catch (error: any) {
@@ -2541,6 +2684,85 @@ When using a tool:
       res.status(500).json({ error: "Failed to fetch batch job details" });
     }
   });
+
+  await loadCatalogueAtStartup();
+  await (await import("./workforce/runtime/startup.ts")).startWorkforceRuntime();
+  app.get("/api/workforce/health", authenticateToken, requireRole("admin"), workforceHealthHandler);
+  // Agent writes (create, configure, pause, resume, retire) use the Postgres roster, so they survive a restart and match
+  // what the server stores. The retire guard reads running work through the run store. With no active catalogue the
+  // roster is unset and those routes return 503 (fail closed).
+  const adminDbPool = (await import("./db")).pool as unknown as SqlExecutor;
+  const adminCatalogue = getActiveCatalogue();
+  const adminRoster = adminCatalogue ? createPgRoster({ db: adminDbPool, catalogue: adminCatalogue }) : undefined;
+  const adminRunStore = createPgRunStore(adminDbPool);
+  app.use(createWorkforceAdminRouter({
+    controls: workforceControls,
+    roster: adminRoster,
+    getRuns: async (companyId: string) => agentRunsFromRecords(await adminRunStore.listRuns(companyId)),
+    isRosterAgent: async (companyId: string, agentId: string) => (await adminRoster?.getAgent(companyId, agentId)) !== undefined,
+  }, { authenticate: authenticateToken as unknown as import('express').RequestHandler, requireAdmin: requireRole("admin") as unknown as import('express').RequestHandler, requireManager: requireRole("admin", "manager") as unknown as import('express').RequestHandler, requireCompanyScope: requireCompanyScope() }));
+  app.use((await import("./workforce/runtime/shadow-routes.ts")).createShadowRouterForProduction((await import("./db")).pool as unknown as import("./workforce/runtime/shadow-routes.ts").ShadowPool, { authenticate: authenticateToken as unknown as import('express').RequestHandler, requireCompanyScope: requireCompanyScope(), requireApprover: requireRole("admin", "manager") as unknown as import('express').RequestHandler }));
+  app.use(createTaskBoardRouter({ store: createPgRunStore((await import("./db")).pool as unknown as SqlExecutor) }, { authenticate: authenticateToken as unknown as import('express').RequestHandler, requireCompanyScope: requireCompanyScope(), requireAdminOrManager: requireRole("admin", "manager") as unknown as import('express').RequestHandler }));
+  app.use(createCompanyControlsRouter({}, { authenticate: authenticateToken as unknown as import('express').RequestHandler, requireAdmin: requireRole("admin") as unknown as import('express').RequestHandler, requireCompanyScope: requireCompanyScope() }));
+  app.use(createCockpitRouter({}, { authenticate: authenticateToken as unknown as import('express').RequestHandler, requireCompanyScope: requireCompanyScope(), requireApprover: requireRole("admin", "manager") as unknown as import('express').RequestHandler }));
+
+  // Webhook dead-letter listing: admin or manager only, company from the verified session.
+  app.use(createDeadLetterRouter({}, { authenticate: authenticateToken as unknown as import('express').RequestHandler, requireCompanyScope: requireCompanyScope(), requireApprover: requireRole("admin", "manager") as unknown as import('express').RequestHandler }));
+
+  // Workforce roster read. In-memory roster built from the active catalogue. It holds no agents until one is
+  // created in this process, and nothing creates them yet. Switch to createPgRoster once DRAFT_workforce_agents is promoted.
+  const workforceCatalogue = getActiveCatalogue();
+  const workforceRoster = workforceCatalogue ? createRoster(workforceCatalogue) : null;
+  app.use(createWorkforceRosterRouter(
+    { listAgents: workforceRoster ? (companyId: string) => listRosterAgents(workforceRoster, companyId) : undefined },
+    { authenticate: authenticateToken as unknown as import('express').RequestHandler, requireCompanyScope: requireCompanyScope(), requireApprover: requireRole("admin", "manager") as unknown as import('express').RequestHandler },
+  ));
+
+  // Comms campaigns, comms host only (requireModule('campaigns') inside the router). Mounted under /api/comms so it
+  // does not share the legacy /api/campaigns paths. The store is a placeholder until DRAFT_campaigns is promoted, and
+  // approvals and transport refuse every call, so nothing can be approved or sent. Settings and suppression are in memory.
+  const commsNotConfigured = async (): Promise<never> => {
+    throw new Error("comms: not configured for production");
+  };
+  const campaignApprovals: ApprovalPort = { gateAction: commsNotConfigured, getApproval: commsNotConfigured, markExecuted: commsNotConfigured };
+  const campaignTransport: SendTransport = { send: commsNotConfigured };
+  const setCommsActor: import('express').RequestHandler = (req, res, next) => {
+    const userId = (req as AuthRequest).userId;
+    if (typeof userId === "string" && userId !== "") res.locals.actor = { kind: "human", id: userId };
+    next();
+  };
+  // Durable, company-scoped comms event sink for send audit. The company comes from the verified session (res.locals,
+  // set by requireCompanyScope). If it is missing or not a UUID, no sink is set and the send paths record nothing.
+  const setCommsEventSink: import('express').RequestHandler = (_req, res, next) => {
+    const companyId = (res.locals as { companyId?: unknown }).companyId;
+    if (typeof companyId === "string") {
+      try {
+        res.locals.commsEventSink = commsAudit.forCompanyDurable(companyId);
+      } catch {
+        delete res.locals.commsEventSink;
+      }
+    }
+    next();
+  };
+  // Flag COMMS_CAMPAIGNS_ENABLED: new, unfinished module, so it defaults OFF. Set it to 1 to mount.
+  const commsCampaignsEnabled = featureEnabled("COMMS_CAMPAIGNS_ENABLED", false);
+  console.log(`[flags] COMMS_CAMPAIGNS_ENABLED=${commsCampaignsEnabled ? "on" : "off"} (default off)`);
+  if (commsCampaignsEnabled) app.use(
+    "/api/comms",
+    authenticateToken as unknown as import('express').RequestHandler,
+    requireCompanyScope(),
+    setCommsActor,
+    setCommsEventSink,
+    deskModeMiddleware(DEFAULT_MODE_CONFIG) as unknown as import('express').RequestHandler,
+    createCampaignRouterForProduction({
+      store: createDrizzleCampaignStore(),
+      approvals: campaignApprovals,
+      transport: campaignTransport,
+      companySettings: createCompanySettingsStore(),
+      suppression: createSuppressionList({ audit: commsAudit.audit, clock: () => new Date().toISOString() }),
+      requireRole: requireRole("admin", "manager") as unknown as import('express').RequestHandler,
+    }),
+  );
 
   // Admin Campaign View Routes (allows admins to view any user's campaign)
   app.get("/api/admin/campaigns/:id", authenticateToken, requireRole("admin"), async (req: AuthRequest, res: Response) => {

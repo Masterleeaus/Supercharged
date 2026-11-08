@@ -13,6 +13,7 @@ export * from './queues';
 export * from './call-worker';
 export * from './scheduler-worker';
 export * from './campaign-queue-bridge';
+export * from './generic-jobs';
 
 import { getRedisConnection, closeRedisConnection, isRedisAvailable, getRedisHealthStatus } from './redis-connection';
 import { closeAllQueues, getCampaignCallsQueue, getCampaignSchedulerQueue, getCampaignRecoveryQueue, addCampaignCallJobs, getQueueStats, QUEUE_NAMES, CampaignCallJob } from './queues';

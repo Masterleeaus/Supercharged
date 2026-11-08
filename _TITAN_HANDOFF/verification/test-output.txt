@@ -1,0 +1,220 @@
+TAP version 13
+# Subtest: wire protocol is byte-for-byte identical in both deployment directories
+ok 1 - wire protocol is byte-for-byte identical in both deployment directories
+  ---
+  duration_ms: 2.033598
+  type: 'test'
+  ...
+# Subtest: intents are strictly validated and contain no contact address/message
+ok 2 - intents are strictly validated and contain no contact address/message
+  ---
+  duration_ms: 1.431279
+  type: 'test'
+  ...
+# Subtest: valid HMAC authorises exactly signed bytes
+ok 3 - valid HMAC authorises exactly signed bytes
+  ---
+  duration_ms: 1.012367
+  type: 'test'
+  ...
+# Subtest: old HMAC timestamps fail regardless of signature validity
+ok 4 - old HMAC timestamps fail regardless of signature validity
+  ---
+  duration_ms: 0.625303
+  type: 'test'
+  ...
+# Subtest: no configured persistence/mapping ports means 503 and no acceptance
+ok 5 - no configured persistence/mapping ports means 503 and no acceptance
+  ---
+  duration_ms: 0.158499
+  type: 'test'
+  ...
+# Subtest: invalid/mismatched tenant is rejected before event claim
+ok 6 - invalid/mismatched tenant is rejected before event claim
+  ---
+  duration_ms: 0.489818
+  type: 'test'
+  ...
+# Subtest: consent rejection means no claim, no dispatch and no receipt
+ok 7 - consent rejection means no claim, no dispatch and no receipt
+  ---
+  duration_ms: 0.333473
+  type: 'test'
+  ...
+# Subtest: durable ledger failure fails closed
+ok 8 - durable ledger failure fails closed
+  ---
+  duration_ms: 0.456299
+  type: 'test'
+  ...
+# Subtest: accepted request is simulated only and replay produces no second receipt
+ok 9 - accepted request is simulated only and replay produces no second receipt
+  ---
+  duration_ms: 0.608698
+  type: 'test'
+  ...
+# Subtest: concurrent duplicate requests share one durable ledger event
+ok 10 - concurrent duplicate requests share one durable ledger event
+  ---
+  duration_ms: 0.698554
+  type: 'test'
+  ...
+# Subtest: Field-to-Desk transport + Desk receiver produces correlated shadow receipt
+ok 11 - Field-to-Desk transport + Desk receiver produces correlated shadow receipt
+  ---
+  duration_ms: 0.892927
+  type: 'test'
+  ...
+# Subtest: Field client refuses insecure external HTTP URL without making a call
+ok 12 - Field client refuses insecure external HTTP URL without making a call
+  ---
+  duration_ms: 0.270568
+  type: 'test'
+  ...
+# Subtest: Field client rejects misleading sent/delivered receipts
+ok 13 - Field client rejects misleading sent/delivered receipts
+  ---
+  duration_ms: 0.264198
+  type: 'test'
+  ...
+# Subtest: reusing an event id with a different signed payload is rejected
+ok 14 - reusing an event id with a different signed payload is rejected
+  ---
+  duration_ms: 0.516058
+  type: 'test'
+  ...
+# Subtest: a replay pending its durable result cannot claim simulated acceptance
+ok 15 - a replay pending its durable result cannot claim simulated acceptance
+  ---
+  duration_ms: 0.345521
+  type: 'test'
+  ...
+# Subtest: real local HTTP round-trip passes signed bytes and returns no-send receipt
+ok 16 - real local HTTP round-trip passes signed bytes and returns no-send receipt
+  ---
+  duration_ms: 53.545611
+  type: 'test'
+  ...
+# Subtest: source-derived SQL scopes the real Field queue, visits, job and client by account
+ok 17 - source-derived SQL scopes the real Field queue, visits, job and client by account
+  ---
+  duration_ms: 1.53806
+  type: 'test'
+  ...
+# Subtest: plans stable, PII-free, SMS shadow intent for pending visit reminder
+ok 18 - plans stable, PII-free, SMS shadow intent for pending visit reminder
+  ---
+  duration_ms: 2.782968
+  type: 'test'
+  ...
+# Subtest: event identity changes with reschedule or source queue item
+ok 19 - event identity changes with reschedule or source queue item
+  ---
+  duration_ms: 0.889472
+  type: 'test'
+  ...
+# Subtest: cross-company row rejected even if SQL port returns it
+ok 20 - cross-company row rejected even if SQL port returns it
+  ---
+  duration_ms: 0.527135
+  type: 'test'
+  ...
+# Subtest: cancelled, completed and active visits are not modeled as reminders
+ok 21 - cancelled, completed and active visits are not modeled as reminders
+  ---
+  duration_ms: 0.461096
+  type: 'test'
+  ...
+# Subtest: rejects past visits and visits outside 24h reminder window
+ok 22 - rejects past visits and visits outside 24h reminder window
+  ---
+  duration_ms: 0.327093
+  type: 'test'
+  ...
+# Subtest: explicit SMS opt-in required; revocation and opt-out sources reject
+ok 23 - explicit SMS opt-in required; revocation and opt-out sources reject
+  ---
+  duration_ms: 0.264239
+  type: 'test'
+  ...
+# Subtest: rejects missing phone or missing/future consent evidence
+ok 24 - rejects missing phone or missing/future consent evidence
+  ---
+  duration_ms: 0.201103
+  type: 'test'
+  ...
+# Subtest: rejects malformed source IDs rather than inventing recipients
+ok 25 - rejects malformed source IDs rather than inventing recipients
+  ---
+  duration_ms: 0.604602
+  type: 'test'
+  ...
+# Subtest: read-only dry run lists eligibility without calling Desk
+ok 26 - read-only dry run lists eligibility without calling Desk
+  ---
+  duration_ms: 1.154201
+  type: 'test'
+  ...
+# Subtest: no Desk submit port means non-preview fails closed
+ok 27 - no Desk submit port means non-preview fails closed
+  ---
+  duration_ms: 0.356017
+  type: 'test'
+  ...
+# Subtest: invalid request limits rejected; no query executed
+ok 28 - invalid request limits rejected; no query executed
+  ---
+  duration_ms: 0.336808
+  type: 'test'
+  ...
+# Subtest: malicious query returns too many rows; fail closed
+ok 29 - malicious query returns too many rows; fail closed
+  ---
+  duration_ms: 0.174614
+  type: 'test'
+  ...
+# Subtest: duplicate queue row in one batch is projected at most once
+ok 30 - duplicate queue row in one batch is projected at most once
+  ---
+  duration_ms: 0.366332
+  type: 'test'
+  ...
+# Subtest: untruthful delivered receipt rejected; no success
+ok 31 - untruthful delivered receipt rejected; no success
+  ---
+  duration_ms: 0.283908
+  type: 'test'
+  ...
+# Subtest: partial transport outage does not abort unrelated reminders
+ok 32 - partial transport outage does not abort unrelated reminders
+  ---
+  duration_ms: 0.631783
+  type: 'test'
+  ...
+# Subtest: real local HTTP round-trip from pending Field visit queue to Desk fake ledger
+ok 33 - real local HTTP round-trip from pending Field visit queue to Desk fake ledger
+  ---
+  duration_ms: 42.707379
+  type: 'test'
+  ...
+# Subtest: Desk can revoke consent after Field plans but before shadow claim
+ok 34 - Desk can revoke consent after Field plans but before shadow claim
+  ---
+  duration_ms: 0.78888
+  type: 'test'
+  ...
+# Subtest: Field query failure does not invoke Desk or emit false results
+ok 35 - Field query failure does not invoke Desk or emit false results
+  ---
+  duration_ms: 0.381285
+  type: 'test'
+  ...
+1..35
+# tests 35
+# suites 0
+# pass 35
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 139.832944

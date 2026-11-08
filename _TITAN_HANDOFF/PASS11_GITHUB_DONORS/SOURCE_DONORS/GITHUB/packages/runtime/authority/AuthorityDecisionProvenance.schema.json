@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "titan.authority.decision-provenance.v1",
+  "type": "object",
+  "required": [
+    "company_id",
+    "decision_id",
+    "capability",
+    "source",
+    "authority_owner",
+    "verified_at",
+    "locally_issued",
+    "provenance_confers_authority"
+  ],
+  "properties": {
+    "company_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "decision_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "capability": {
+      "type": "string",
+      "minLength": 1
+    },
+    "variant": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "workflow": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "context_ref": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "source": {
+      "const": "titan-autonomy"
+    },
+    "authority_owner": {
+      "const": "titan-autonomy"
+    },
+    "verified_at": {
+      "type": "string",
+      "minLength": 1
+    },
+    "decision_version": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "evaluator_version": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "policy_ref": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "risk_ref": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "assurance_ref": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "source_receipt_ref": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "signature_ref": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "locally_issued": {
+      "const": false
+    },
+    "provenance_confers_authority": {
+      "const": false
+    },
+    "provenance_seal": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "provenance_seal_algorithm": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "supersedes_authority_decision_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "additionalProperties": false
+}

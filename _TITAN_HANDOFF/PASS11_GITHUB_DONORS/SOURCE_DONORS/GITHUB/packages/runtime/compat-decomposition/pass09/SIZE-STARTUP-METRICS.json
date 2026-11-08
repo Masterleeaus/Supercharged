@@ -1,0 +1,11 @@
+{
+  "schema": "titan.zero.compat-decomposition.metrics.v1",
+  "packet_id": "TZ-FIX-COMPAT-RUNTIME-DECOMPOSITION-001",
+  "pass": 9,
+  "monolith_bytes_total": 47933157,
+  "retired_monolith_bytes": 0,
+  "physical_payload_reduction_bytes": 0,
+  "decomposition_layer_bytes": 6113,
+  "startup_gain_claim": "NONE_YET_FROM_MONOLITH_RETIREMENT",
+  "note": "Lazy chunks are certified and ready for future call-site migration, but live monolith reachability prevents claiming physical startup/payload reduction."
+}

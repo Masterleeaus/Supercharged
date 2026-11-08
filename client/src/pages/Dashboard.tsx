@@ -57,6 +57,8 @@ import { useLocation } from "wouter";
 import { formatDistanceToNow } from "date-fns";
 import { useTranslation } from 'react-i18next';
 import { AuthStorage } from "@/lib/auth-storage";
+import { DeskCockpit } from "@/components/cockpit/DeskCockpit";
+import { ActivityStreamPanel } from "@/components/activity/ActivityStreamPanel";
 import {
   AreaChart,
   Area,
@@ -285,6 +287,12 @@ export default function Dashboard() {
           </DropdownMenu>
         </div>
       </div>
+
+      {/* Cockpit: control panels for the desk mode read from /api/desk-mode */}
+      <DeskCockpit />
+
+      {/* Activity stream: completed and waiting work. Swipe left archives, swipe right runs the suggested action. */}
+      <ActivityStreamPanel />
 
       {/* Stats Cards Row - with colored backgrounds like the image */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">

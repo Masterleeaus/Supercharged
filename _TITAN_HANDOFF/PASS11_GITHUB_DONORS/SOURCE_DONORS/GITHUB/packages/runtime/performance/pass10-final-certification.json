@@ -1,0 +1,72 @@
+{
+  "schema": "titan.zero.payload-performance-final-certification.v1",
+  "packet_id": "TZ-FIX-PAYLOAD-PERFORMANCE-001",
+  "pass": 10,
+  "status": "READY_FOR_MANAGER_MERGE",
+  "manager_baseline": {
+    "merge": 42,
+    "artifact": "Titan-Zero-CANONICAL-MASTER-2026-09-09-MERGE-42-PERMISSION-HARDENING-CONVERGED.zip",
+    "sha256": "1c4b6f471ba16f44d7b27db546ba41db18032ce9967b1d725dc0926cd73cc930"
+  },
+  "before": {
+    "files": 2989,
+    "unpacked_bytes": 185293390,
+    "compressed_bytes": 70934950,
+    "startup_p95_ms": 33.214,
+    "startup_heap_p95_bytes": 206608
+  },
+  "after_runtime": {
+    "files": 2814,
+    "unpacked_bytes": 91072581,
+    "compressed_bytes": 36415126,
+    "startup_p95_ms": 33.214,
+    "startup_heap_p95_bytes": 206608,
+    "service_worker_static_closure_bytes": 15179156
+  },
+  "improvement": {
+    "files_removed_net": 175,
+    "compressed_bytes_saved": 34519824,
+    "compressed_reduction_percent": 48.6641,
+    "unpacked_bytes_saved": 94220809,
+    "unpacked_reduction_percent": 50.8495
+  },
+  "retention": {
+    "titan_locale_packs": 55,
+    "protected_hashes_live": 437,
+    "retired_hashes_externalized": 105,
+    "retriever_background_retained": true,
+    "content_css_retained": true,
+    "compat_runtime_hashes_preserved": true
+  },
+  "verification": {
+    "payload": "65/65 PASS",
+    "python": "102/102 PASS",
+    "node_whole_tree": "1436/1438 PASS; only inherited Cleaning Workforce marketplace + Booking Pass1 inventory failures",
+    "operational_regression": "26/26 PASS",
+    "exact_reconstruction": "PASS",
+    "live_chrome": "NOT_CERTIFIED"
+  },
+  "constraints": {
+    "company_id_only": true,
+    "identity_not_authority": true,
+    "device_first": true,
+    "no_wholesale_replacement": true
+  },
+  "directives": [
+    "TZ-MGR-DONOR-SLIM-M42-001",
+    "TZ-MGR-DONOR-SLIM-M42-002",
+    "TZ-MGR-DONOR-SLIM-M42-003"
+  ],
+  "runtime_adapters": {
+    "builder_final_ready_for_manager_merge": true,
+    "manager_converged": false,
+    "no_post_convergence_retriever_or_content_css_retirement_in_this_packet": true
+  },
+  "manager_action": "Converge this final cumulative delta onto the current canonical lineage; strip embedded Agent Mesh payload before production merge; preserve deletion ledger and protected/retired hash split.",
+  "final_certified_tree": {
+    "files": 2817,
+    "unpacked_bytes": 91077528,
+    "compressed_bytes": 36418038,
+    "sha256": "a195c555d2c3c1ff75aa04261ce3cafa91c5697d3c5f80c4726366e3ce7cfc4d"
+  }
+}

@@ -14,20 +14,45 @@ import { CallInsightsService } from "../../services/call-insights.service";
 import { RAGKnowledgeService } from "../../services/rag-knowledge";
 import { formatDate } from "date-fns";
 import * as chrono from "chrono-node";
+import { apiRateLimiter } from "../../middleware/rateLimiter";
 
 const router = Router();
 
-// CORS middleware for public widget endpoints - allows embedding on external websites
+/**
+ * Cross-origin allowlist for public widget endpoints, read from the
+ * WIDGET_ALLOWED_ORIGINS environment variable (comma-separated, e.g.
+ * "https://example.com,https://app.example.org").
+ *
+ * If WIDGET_ALLOWED_ORIGINS is unset or empty, NO cross-origin requests are
+ * allowed: no Access-Control-Allow-Origin header is sent, so browsers block
+ * cross-origin reads. Same-origin requests do not depend on CORS and are unaffected.
+ */
+function getWidgetAllowedOrigins(): string[] {
+  return (process.env.WIDGET_ALLOWED_ORIGINS || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter((origin) => origin.length > 0);
+}
+
+// CORS middleware for public widget endpoints - allows embedding on allowlisted external websites only
 router.use((req: Request, res: Response, next: NextFunction) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  
+  res.vary('Origin');
+  const origin = req.headers.origin;
+  if (origin && getWidgetAllowedOrigins().includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  }
+
   if (req.method === 'OPTIONS') {
     return res.sendStatus(200);
   }
   next();
 });
+
+// Rate limit all public widget endpoints (per user or IP, see apiRateLimiter).
+// Placed after the CORS middleware so OPTIONS preflights are not counted.
+router.use(apiRateLimiter);
 
 // Helper to check if OpenAI Realtime is available
 async function isOpenAIRealtimeAvailable(): Promise<boolean> {
@@ -547,9 +572,10 @@ router.post('/widget/session/start', async (req: Request, res: Response) => {
       return res.status(429).json({ error: 'Too many concurrent calls', message: 'Please try again in a moment' });
     }
     
-    // Get visitor IP for cooldown check
-    const visitorIp = req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || '';
-    const cleanedIp = typeof visitorIp === 'string' ? visitorIp.split(',')[0].trim() : '';
+    // Get visitor IP for cooldown check. req.ip honours the app's trust proxy setting
+    // (TRUST_PROXY), so a client cannot pick its own cooldown bucket with X-Forwarded-For.
+    const visitorIp = req.ip || req.socket.remoteAddress || '';
+    const cleanedIp = typeof visitorIp === 'string' ? visitorIp.trim() : '';
     
     // Check cooldown period for this IP
     const cooldownCheck = await widgetService.checkCooldown(widget.id, cleanedIp);
@@ -642,6 +668,15 @@ router.post('/widget/session/:sessionId/end', async (req: Request, res: Response
       return res.json({ success: true, alreadyEnded: true });
     }
     
+    // Company comes from the owning widget row. Checked before any side effect (session completion,
+    // credit deduction) so a refusal leaves no partial state. Fail closed.
+    const ownerWidget = await widgetStorage.getWidgetById(session.widgetId);
+    const companyId: string | null = ownerWidget?.companyId ?? null;
+    if (!companyId) {
+      console.warn(`[Widget] Refusing session end for ${session.id}: owning widget has no company_id`);
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
     const durationSeconds = duration || 0;
     const durationMinutes = Math.ceil(durationSeconds / 60);
     const creditsUsed = durationMinutes;
@@ -746,6 +781,7 @@ router.post('/widget/session/:sessionId/end', async (req: Request, res: Response
       if (!existingCall.rows || existingCall.rows.length === 0) {
         await db.insert(calls).values({
           userId: session.userId,
+          companyId,
           widgetId: widget.id,
           status: 'completed',
           callDirection: 'incoming',
@@ -1134,7 +1170,7 @@ router.post('/widget/session/:sessionId/ephemeral-token', async (req: Request, r
     }
     
     const tokenData = await ephemeralResponse.json();
-    console.log('[Widget] OpenAI Realtime client_secrets response:', JSON.stringify(tokenData));
+    console.log('[Widget] OpenAI Realtime client_secrets response:', { status: ephemeralResponse.status, id: tokenData?.id ?? tokenData?.session?.id });
     
     await widgetStorage.updateSession(session.id, {
       status: 'active',
@@ -1317,11 +1353,19 @@ router.post('/widget/session/:sessionId/book-appointment', async (req: Request, 
       });
     }
     
+    // Company comes from the owning widget row. Fail closed.
+    const companyId: string | null = widget.companyId ?? null;
+    if (!companyId) {
+      console.warn(`[Widget] Refusing appointment insert: owning widget ${widget.id} has no company_id`);
+      return res.status(403).json({ success: false, message: 'Forbidden' });
+    }
+
     const appointmentId = `appt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
+
     const [appointment] = await db.insert(appointments).values({
       id: appointmentId,
       userId: widget.userId,
+      companyId,
       contactName: customerName,
       contactPhone: customerPhone,
       contactEmail: customerEmail || null,
@@ -1402,10 +1446,19 @@ router.post('/widget/session/:sessionId/knowledge-lookup', async (req: Request, 
     
     console.log(`[Widget KB] Searching for: "${query.substring(0, 50)}..." in ${knowledgeBaseIds.length} knowledge bases`);
     
+    // Scope comes from the widget row only. A widget with no company is refused before any search.
+    if (!widget.companyId) {
+      console.warn(`[Widget KB] Refused: widget ${widget.id} has no company scope`);
+      return res.json({
+        found: false,
+        message: 'Knowledge lookup is not available for this widget.'
+      });
+    }
+
     const results = await RAGKnowledgeService.searchKnowledge(
+      { companyId: widget.companyId, userId: widget.userId },
       query,
       knowledgeBaseIds,
-      widget.userId,
       5 // max results
     );
     

@@ -16,13 +16,26 @@
  * ============================================================
  */
 
-import { Router, Response } from "express";
+import { Router, Response, RequestHandler, NextFunction } from "express";
 import { RouteContext, AuthRequest } from "./common";
 import crypto from "crypto";
 
-export function createUserWebhookRoutes(ctx: RouteContext): Router {
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Company from the verified session only (res.locals.companyId, set by requireCompanyScope). */
+function sessionCompanyId(res: Response): string | null {
+  const companyId = res.locals?.companyId;
+  return typeof companyId === "string" && UUID_RE.test(companyId) ? companyId : null;
+}
+
+export function createUserWebhookRoutes(
+  ctx: RouteContext,
+  guards: { requireCompanyScope?: RequestHandler } = {}
+): Router {
   const router = Router();
   const { storage, authenticateToken, authenticateHybrid, webhookTestService } = ctx;
+  // Injected guard. If it is not mounted, the handlers below still refuse (fail closed).
+  const scopeGuard: RequestHandler = guards.requireCompanyScope ?? ((_req, _res, next: NextFunction) => next());
 
   // Get user's webhook limit and count
   router.get("/api/webhooks/limits", authenticateHybrid, async (req: AuthRequest, res: Response) => {
@@ -200,10 +213,14 @@ export function createUserWebhookRoutes(ctx: RouteContext): Router {
   });
 
   // Test webhook
-  router.post("/api/webhooks/:id/test", authenticateHybrid, async (req: AuthRequest, res: Response) => {
+  router.post("/api/webhooks/:id/test", authenticateHybrid, scopeGuard, async (req: AuthRequest, res: Response) => {
     try {
-      const result = await webhookTestService.testWebhook(req.params.id, req.userId!);
-      
+      const companyId = sessionCompanyId(res);
+      if (!companyId) {
+        return res.status(403).json({ error: "Company scope required" });
+      }
+      const result = await webhookTestService.testWebhook(req.params.id, req.userId!, companyId);
+
       if (result.success) {
         res.json({ 
           success: true, 
@@ -250,17 +267,21 @@ export function createUserWebhookRoutes(ctx: RouteContext): Router {
   });
 
   // Retry failed webhook delivery
-  router.post("/api/webhooks/logs/:logId/retry", authenticateHybrid, async (req: AuthRequest, res: Response) => {
+  router.post("/api/webhooks/logs/:logId/retry", authenticateHybrid, scopeGuard, async (req: AuthRequest, res: Response) => {
     try {
+      const companyId = sessionCompanyId(res);
+      if (!companyId) {
+        return res.status(403).json({ error: "Company scope required" });
+      }
       const logId = parseInt(req.params.logId, 10);
       const log = await storage.getWebhookLog(logId);
-      
+
       if (!log || !log.webhookId) {
         return res.status(404).json({ error: "Delivery log not found" });
       }
-      
+
       const webhook = await storage.getWebhook(log.webhookId);
-      if (!webhook || webhook.userId !== req.userId) {
+      if (!webhook || webhook.userId !== req.userId || webhook.companyId !== companyId) {
         return res.status(404).json({ error: "Webhook not found" });
       }
       

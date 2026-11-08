@@ -1,0 +1,14 @@
+{
+  "schema": "titan-zero-semantic-change/v1",
+  "packet_id": "TZ-FIX-COMPAT-RUNTIME-DECOMPOSITION-001",
+  "pass": 10,
+  "semantic_changes": [
+    "Finalize compatibility decomposition lane evidence and Manager handoff.",
+    "No additional runtime behavior change in Pass10.",
+    "Preserve existing monoliths until zero-live-reachability is proven."
+  ],
+  "authority_effect": "NONE",
+  "tenant_boundary": "company_id",
+  "ui_change": "NONE",
+  "retirement": "NONE"
+}

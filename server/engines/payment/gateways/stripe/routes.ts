@@ -37,6 +37,7 @@ import {
 } from './handlers';
 import { FRONTEND_URL } from '../../webhook-helper';
 import { logger } from '../../../../utils/logger';
+import { verifyStripeWebhookEvent, StripeWebhookSecretMissingError } from './webhook-verify';
 
 const router: Router = express.Router();
 
@@ -625,13 +626,13 @@ router.post('/webhook', async (req, res) => {
 
   try {
     const rawBody = rawReq.rawBody || Buffer.from(JSON.stringify(req.body));
-    
-    if (!webhookSecret) {
-      event = req.body as Stripe.Event;
-    } else {
-      event = stripe.webhooks.constructEvent(rawBody, sig as string, webhookSecret);
-    }
+    event = verifyStripeWebhookEvent(stripe, rawBody, sig as string, webhookSecret);
   } catch (err: any) {
+    if (err instanceof StripeWebhookSecretMissingError) {
+      // Fail closed. 503 makes Stripe retry the event after the secret is configured.
+      logger.error('Stripe webhook rejected: no webhook secret configured', err, 'Stripe');
+      return res.status(503).send('Stripe webhook secret is not configured');
+    }
     logger.error('Webhook signature verification failed', err, 'Stripe');
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }

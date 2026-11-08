@@ -1,0 +1,460 @@
+-- ============================================================================
+-- MIGRATION ORDER FOR THE OWNER'S MANUAL RUN (DirectAdmin SQL panel)
+-- Prepared 2026-11-03 from the review tree /home/claude/desk-review.
+--
+-- STATUS: NOT RUN. This is plain text. Nothing here has been executed, and no
+-- database was contacted while preparing it. The owner pastes the blocks below
+-- into the SQL tool, one file at a time, in the order shown. See
+-- docs/DEPLOY_PACK.md section (c) for the check after each block.
+--
+-- Rules used to build this file:
+--   * Each included block is copied verbatim from its source file. Only a
+--     header comment is added above it. Nothing inside a block was rewritten.
+--   * The exception is FILE 2, where only the lines listed as included were
+--     copied (see the comment at the top of FILE 2).
+--
+-- ORDER AND INCLUDED FILES
+--   1. migrations/DRAFT_companies_foundation.sql   (whole file, required first)
+--   2. migrations/DRAFT_company_scope.sql          (section 2 only, the function)
+--   3. migrations/DRAFT_webhook_delivery_status.sql (whole file)
+--   4. migrations/DRAFT_chatbot.sql                (whole file, not a prerequisite
+--                                                   of the others, see note)
+--   5. migrations/DRAFT_action_ledger.sql          (whole file, LAST; NOT required
+--                                                   for the chatbot)
+--
+-- EXCLUDED FILES (not in this paste, and must not be run from this pack)
+--   * migrations/DRAFT_approvals.sql
+--       Approvals API is not mounted in the main routes (checklist line 64).
+--       Owner decision pending on the approvals behaviour change (release notes
+--       section 2, item 6, and section 5).
+--   * migrations/DRAFT_campaigns.sql
+--       Its own header says it is a separate channel-neutral model and says
+--       "Do not merge the two without a plan" against the existing campaigns table.
+--   * migrations/DRAFT_inbox.sql
+--       Not in the requested order. Its header defers row-level security to
+--       DRAFT_company_scope.sql, which is not applied.
+--   * migrations/DRAFT_marketing.sql
+--       Not in the requested order. Its header says it does not depend on the
+--       campaigns or chatbot drafts, so it can wait for a separate decision.
+--   * migrations/DRAFT_audit_chain.sql
+--       Header says NOT FOR EXECUTION. Adds the audit hash chain. Not in the
+--       requested order, and the checklist (line 23) says audit events are still
+--       in memory, so it is a separate decision.
+--
+-- EXCLUDED PARTS OF migrations/DRAFT_company_scope.sql (not in this paste)
+--   * Guard (lines 17-18): a DO block that raises an exception on any run. It stops
+--     the whole file, so the file cannot be pasted as a unit.
+--   * Section 1, role desk_app (lines 20-40): contains a placeholder password, and
+--     the password must be set outside migrations. Owner must create the role out
+--     of band (see docs/TENANCY.md). Not part of this paste.
+--   * Section 3 (lines 57-86): commented-out example only. Nothing to run.
+--   * Section 4, STEP 0 (lines 88-94): the companies table is created in FILE 1.
+--     Pasting it again would be a second CREATE TABLE, so it is not repeated.
+--   * STEP A (lines 99-215): adds the same company_id columns and indexes as
+--     FILE 1, with the same names, plus CREATE INDEX CONCURRENTLY. FILE 1 already
+--     covers all of these, so STEP A would do nothing. The CONCURRENTLY indexes
+--     also must run outside a transaction block, which the panel may not allow.
+--     Excluded as a duplicate. Owner to confirm.
+--   * STEP B (lines 217-395): backfill. BLOCKED on D1 (no mapping from
+--     users.company text to a company id) and B1 (the JWT company claim is not
+--     chosen). See docs/TENANCY-INVENTORY.md. Also a data change.
+--   * STEP C (lines 397-508): foreign key to companies. BLOCKED on D1, because no
+--     company rows or company_id values exist yet. Needs step B first.
+--   * STEP D (lines 510-621): SET NOT NULL. Needs step B complete and no NULL rows.
+--     Separate review and a later window, per the file's own text.
+--
+-- NOTES
+--   * FILE 1 adds company_id to 65 tables, including 10 tables that
+--     docs/TENANCY-INVENTORY.md (decision D2) says stay unscoped until a decision.
+--     The draft does this on purpose; the owner should confirm it before running.
+--   * FILE 4 and FILE 5 use gen_random_uuid(). On PostgreSQL older than 13 this
+--     needs the pgcrypto extension. Check the server version first.
+--   * The B4 type conflict in docs/TENANCY-INVENTORY.md (approvals and chatbot
+--     declaring company_id varchar) does not show in the current files. Both
+--     declare uuid. Re-check with the owner before relying on that note.
+--   * Nothing in this paste touches the migration journal or the runner
+--     (scripts/run-safe-migration.mjs). Blocker B2 still applies.
+-- ============================================================================
+
+-- ############################################################################
+-- FILE 1 of 5: migrations/DRAFT_companies_foundation.sql (whole file, verbatim)
+-- ############################################################################
+-- ============================================================
+-- DRAFT - NOT FOR EXECUTION
+-- This file is a draft for review only. It is NOT applied by any
+-- migration runner, has NOT been run against any database, and is NOT
+-- listed in migrations/meta/_journal.json. Do not add it to the automatic
+-- migration sequence without review.
+-- ============================================================
+-- Companies foundation (tenancy decision D1, see docs/TENANCY-INVENTORY.md).
+--   * Creates public.companies (UUID primary key).
+--   * Adds a NULLABLE company_id uuid column and a plain index to 65 tables:
+--     55 tenant tables, plus 10 ambiguous tables (users, otp_verifications,
+--     synced_voices, phone_numbers, notifications, prompt_templates,
+--     audit_logs, payment_webhook_queue, plivo_phone_numbers,
+--     phone_release_retry_queue). NULL means platform-wide or unowned for the
+--     ambiguous tables.
+--   * Does NOT touch the 16 global tables or demo_sessions.
+-- Additive only: no DROP, no DELETE, no UPDATE, no NOT NULL, no foreign key,
+-- no RLS, no backfill. Existing rows keep company_id NULL until a later step.
+-- Indexes are plain CREATE INDEX: the columns are new and empty, so there is
+-- nothing to scan. D4 (CONCURRENTLY) is not decided and does not apply here.
+-- Canonical creator of public.companies. DRAFT_company_scope.sql STEP 0 no longer
+-- creates it and points here as the required prior step. Overlaps DRAFT_company_scope.sql
+-- STEP A (same column and index names); both use IF NOT EXISTS.
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS public.companies (
+  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name       text NOT NULL,
+  created_at timestamp NOT NULL DEFAULT now(),
+  updated_at timestamp NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS users_company_id_idx ON public.users (company_id);
+
+ALTER TABLE public.otp_verifications ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS otp_verifications_company_id_idx ON public.otp_verifications (company_id);
+
+ALTER TABLE public.refresh_tokens ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS refresh_tokens_company_id_idx ON public.refresh_tokens (company_id);
+
+ALTER TABLE public.synced_voices ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS synced_voices_company_id_idx ON public.synced_voices (company_id);
+
+ALTER TABLE public.agents ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS agents_company_id_idx ON public.agents (company_id);
+
+ALTER TABLE public.knowledge_base ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS knowledge_base_company_id_idx ON public.knowledge_base (company_id);
+
+ALTER TABLE public.incoming_agents ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS incoming_agents_company_id_idx ON public.incoming_agents (company_id);
+
+ALTER TABLE public.phone_numbers ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS phone_numbers_company_id_idx ON public.phone_numbers (company_id);
+
+ALTER TABLE public.incoming_connections ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS incoming_connections_company_id_idx ON public.incoming_connections (company_id);
+
+ALTER TABLE public.campaigns ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS campaigns_company_id_idx ON public.campaigns (company_id);
+
+ALTER TABLE public.contacts ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS contacts_company_id_idx ON public.contacts (company_id);
+
+ALTER TABLE public.calls ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS calls_company_id_idx ON public.calls (company_id);
+
+ALTER TABLE public.credit_transactions ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS credit_transactions_company_id_idx ON public.credit_transactions (company_id);
+
+ALTER TABLE public.tools ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS tools_company_id_idx ON public.tools (company_id);
+
+ALTER TABLE public.voices ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS voices_company_id_idx ON public.voices (company_id);
+
+ALTER TABLE public.user_subscriptions ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS user_subscriptions_company_id_idx ON public.user_subscriptions (company_id);
+
+ALTER TABLE public.phone_number_rentals ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS phone_number_rentals_company_id_idx ON public.phone_number_rentals (company_id);
+
+ALTER TABLE public.usage_records ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS usage_records_company_id_idx ON public.usage_records (company_id);
+
+ALTER TABLE public.webhooks ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS webhooks_company_id_idx ON public.webhooks (company_id);
+
+ALTER TABLE public.webhook_deliveries ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS webhook_deliveries_company_id_idx ON public.webhook_deliveries (company_id);
+
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS notifications_company_id_idx ON public.notifications (company_id);
+
+ALTER TABLE public.prompt_templates ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS prompt_templates_company_id_idx ON public.prompt_templates (company_id);
+
+ALTER TABLE public.agent_versions ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS agent_versions_company_id_idx ON public.agent_versions (company_id);
+
+ALTER TABLE public.audit_logs ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS audit_logs_company_id_idx ON public.audit_logs (company_id);
+
+ALTER TABLE public.user_knowledge_storage_limits ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS user_knowledge_storage_limits_company_id_idx ON public.user_knowledge_storage_limits (company_id);
+
+ALTER TABLE public.knowledge_chunks ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS knowledge_chunks_company_id_idx ON public.knowledge_chunks (company_id);
+
+ALTER TABLE public.knowledge_processing_queue ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS knowledge_processing_queue_company_id_idx ON public.knowledge_processing_queue (company_id);
+
+ALTER TABLE public.flows ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS flows_company_id_idx ON public.flows (company_id);
+
+ALTER TABLE public.flow_executions ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS flow_executions_company_id_idx ON public.flow_executions (company_id);
+
+ALTER TABLE public.flow_test_queue ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS flow_test_queue_company_id_idx ON public.flow_test_queue (company_id);
+
+ALTER TABLE public.webhook_subscriptions ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS webhook_subscriptions_company_id_idx ON public.webhook_subscriptions (company_id);
+
+ALTER TABLE public.webhook_logs ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS webhook_logs_company_id_idx ON public.webhook_logs (company_id);
+
+ALTER TABLE public.appointments ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS appointments_company_id_idx ON public.appointments (company_id);
+
+ALTER TABLE public.appointment_settings ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS appointment_settings_company_id_idx ON public.appointment_settings (company_id);
+
+ALTER TABLE public.forms ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS forms_company_id_idx ON public.forms (company_id);
+
+ALTER TABLE public.form_fields ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS form_fields_company_id_idx ON public.form_fields (company_id);
+
+ALTER TABLE public.form_submissions ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS form_submissions_company_id_idx ON public.form_submissions (company_id);
+
+ALTER TABLE public.payment_transactions ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS payment_transactions_company_id_idx ON public.payment_transactions (company_id);
+
+ALTER TABLE public.refunds ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS refunds_company_id_idx ON public.refunds (company_id);
+
+ALTER TABLE public.invoices ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS invoices_company_id_idx ON public.invoices (company_id);
+
+ALTER TABLE public.payment_webhook_queue ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS payment_webhook_queue_company_id_idx ON public.payment_webhook_queue (company_id);
+
+ALTER TABLE public.content_violations ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS content_violations_company_id_idx ON public.content_violations (company_id);
+
+ALTER TABLE public.plivo_phone_numbers ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS plivo_phone_numbers_company_id_idx ON public.plivo_phone_numbers (company_id);
+
+ALTER TABLE public.plivo_calls ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS plivo_calls_company_id_idx ON public.plivo_calls (company_id);
+
+ALTER TABLE public.campaign_jobs ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS campaign_jobs_company_id_idx ON public.campaign_jobs (company_id);
+
+ALTER TABLE public.user_kyc_documents ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS user_kyc_documents_company_id_idx ON public.user_kyc_documents (company_id);
+
+ALTER TABLE public.twilio_openai_calls ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS twilio_openai_calls_company_id_idx ON public.twilio_openai_calls (company_id);
+
+ALTER TABLE public.lead_stages ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS lead_stages_company_id_idx ON public.lead_stages (company_id);
+
+ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS leads_company_id_idx ON public.leads (company_id);
+
+ALTER TABLE public.lead_notes ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS lead_notes_company_id_idx ON public.lead_notes (company_id);
+
+ALTER TABLE public.lead_activities ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS lead_activities_company_id_idx ON public.lead_activities (company_id);
+
+ALTER TABLE public.crm_category_preferences ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS crm_category_preferences_company_id_idx ON public.crm_category_preferences (company_id);
+
+ALTER TABLE public.website_widgets ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS website_widgets_company_id_idx ON public.website_widgets (company_id);
+
+ALTER TABLE public.widget_call_sessions ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS widget_call_sessions_company_id_idx ON public.widget_call_sessions (company_id);
+
+ALTER TABLE public.api_keys ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS api_keys_company_id_idx ON public.api_keys (company_id);
+
+ALTER TABLE public.api_audit_logs ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS api_audit_logs_company_id_idx ON public.api_audit_logs (company_id);
+
+ALTER TABLE public.api_rate_limits ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS api_rate_limits_company_id_idx ON public.api_rate_limits (company_id);
+
+ALTER TABLE public.sip_trunks ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS sip_trunks_company_id_idx ON public.sip_trunks (company_id);
+
+ALTER TABLE public.sip_phone_numbers ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS sip_phone_numbers_company_id_idx ON public.sip_phone_numbers (company_id);
+
+ALTER TABLE public.sip_calls ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS sip_calls_company_id_idx ON public.sip_calls (company_id);
+
+ALTER TABLE public.user_addresses ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS user_addresses_company_id_idx ON public.user_addresses (company_id);
+
+ALTER TABLE public.user_feedback ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS user_feedback_company_id_idx ON public.user_feedback (company_id);
+
+ALTER TABLE public.google_calendar_credentials ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS google_calendar_credentials_company_id_idx ON public.google_calendar_credentials (company_id);
+
+ALTER TABLE public.google_sheets_credentials ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS google_sheets_credentials_company_id_idx ON public.google_sheets_credentials (company_id);
+
+ALTER TABLE public.phone_release_retry_queue ADD COLUMN IF NOT EXISTS company_id uuid NULL;
+CREATE INDEX IF NOT EXISTS phone_release_retry_queue_company_id_idx ON public.phone_release_retry_queue (company_id);
+
+-- ############################################################################
+-- FILE 2 of 5: migrations/DRAFT_company_scope.sql (SECTION 2 ONLY, lines 43-56, verbatim)
+-- Excluded from this file: guard, section 1, section 3, step 0, steps A-D.
+-- See the EXCLUDED PARTS list at the top of this file for the reason for each.
+-- ############################################################################
+-- 2. Current-company function ---------------------------------------------
+--
+-- Reads the transaction-local setting written by withTenant(). When the
+-- setting was never set, current_setting(..., true) returns NULL. When it was
+-- set and the transaction ended, it reads back as ''. nullif() turns '' into
+-- NULL, so the comparison matches zero rows instead of raising an error for
+-- ''::uuid.
+
+CREATE OR REPLACE FUNCTION public.current_company_id() RETURNS uuid
+LANGUAGE sql STABLE
+AS $$
+  SELECT nullif(current_setting('app.company_id', true), '')::uuid
+$$;
+
+
+-- ############################################################################
+-- FILE 3 of 5: migrations/DRAFT_webhook_delivery_status.sql (whole file, verbatim)
+-- ############################################################################
+-- DRAFT: NOT APPLIED. Review before running. Additive only.
+-- Adds a nullable delivery_status column to webhook_logs (outbound webhook delivery log).
+-- Values written by application code: delivered, retrying, dead_letter. No enum or default.
+
+ALTER TABLE public.webhook_logs ADD COLUMN IF NOT EXISTS delivery_status text;
+CREATE INDEX IF NOT EXISTS webhook_logs_delivery_status_idx ON public.webhook_logs (delivery_status);
+
+-- ############################################################################
+-- FILE 4 of 5: migrations/DRAFT_chatbot.sql (whole file, verbatim)
+-- ############################################################################
+-- DRAFT - DO NOT RUN. Not part of the numbered migration sequence.
+-- Matches server/modules/chatbot/schema.DRAFT.ts. Review both before promoting to a numbered migration.
+-- Idempotent (IF NOT EXISTS) so a later re-run is safe.
+-- Tenant key is company_id; there is no companies table yet, so no foreign key to one.
+-- Row-level security policies for these tables are not included here. Add them with the tenancy plan
+-- in migrations/DRAFT_company_scope.sql.
+
+CREATE TABLE IF NOT EXISTS chatbots (
+  id                    varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id            uuid    NOT NULL,
+  title                 varchar(200) NOT NULL,
+  language              varchar(10) NOT NULL DEFAULT 'en',
+  welcome_message       text,
+  instructions          text,
+  generative_ui_enabled boolean NOT NULL DEFAULT true,
+  active                boolean NOT NULL DEFAULT true,
+  created_at            timestamp NOT NULL DEFAULT now(),
+  updated_at            timestamp NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS chatbots_company_id_uidx
+  ON chatbots (company_id, id);
+CREATE INDEX IF NOT EXISTS chatbots_company_active_idx
+  ON chatbots (company_id, active);
+
+CREATE TABLE IF NOT EXISTS chatbot_conversations (
+  id                  varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id          uuid    NOT NULL,
+  chatbot_id          varchar NOT NULL,
+  session_id          varchar(128) NOT NULL,
+  channel             varchar(32) NOT NULL DEFAULT 'web',
+  connect_agent_at    timestamp,
+  is_shown_on_history boolean NOT NULL DEFAULT true,
+  ticket_status       varchar(16) NOT NULL DEFAULT 'new'
+                      CHECK (ticket_status IN ('new', 'closed')),
+  pinned              boolean NOT NULL DEFAULT false,
+  last_activity_at    timestamp NOT NULL DEFAULT now(),
+  created_at          timestamp NOT NULL DEFAULT now(),
+  updated_at          timestamp NOT NULL DEFAULT now(),
+  CONSTRAINT chatbot_conversations_company_id_uidx UNIQUE (company_id, id),
+  CONSTRAINT chatbot_conversations_company_chatbot_fk
+    FOREIGN KEY (company_id, chatbot_id) REFERENCES chatbots (company_id, id)
+);
+
+CREATE INDEX IF NOT EXISTS chatbot_conversations_company_activity_idx
+  ON chatbot_conversations (company_id, last_activity_at);
+CREATE INDEX IF NOT EXISTS chatbot_conversations_company_session_idx
+  ON chatbot_conversations (company_id, session_id);
+
+CREATE TABLE IF NOT EXISTS chatbot_messages (
+  id                varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id        uuid    NOT NULL,
+  conversation_id   varchar NOT NULL,
+  role              varchar(16) NOT NULL CHECK (role IN ('user', 'assistant')),
+  message           text NOT NULL,
+  content_type      varchar(16) NOT NULL DEFAULT 'text' CHECK (content_type IN ('text', 'titan-ui')),
+  ui_spec           jsonb,
+  media_url         text,
+  media_name        text,
+  is_internal_note  boolean NOT NULL DEFAULT false,
+  read_at           timestamp,
+  created_at        timestamp NOT NULL DEFAULT now(),
+  CONSTRAINT chatbot_messages_company_conversation_fk
+    FOREIGN KEY (company_id, conversation_id) REFERENCES chatbot_conversations (company_id, id)
+);
+
+CREATE INDEX IF NOT EXISTS chatbot_messages_company_conversation_idx
+  ON chatbot_messages (company_id, conversation_id, created_at);
+CREATE INDEX IF NOT EXISTS chatbot_messages_unread_idx
+  ON chatbot_messages (company_id, conversation_id, role, read_at);
+
+-- ############################################################################
+-- FILE 5 of 5: migrations/DRAFT_action_ledger.sql (whole file, verbatim). LAST. Not required for the chatbot.
+-- ############################################################################
+-- ============================================================
+-- DRAFT - NOT APPLIED
+-- This file is a draft for review only. It has NOT been run against any
+-- database, is NOT listed in migrations/meta/_journal.json, and is NOT
+-- picked up by any migration runner. Do not add it to the automatic
+-- migration sequence without review.
+-- Depends on public.companies from DRAFT_companies_foundation.sql, which
+-- must be applied before this file.
+-- Later step, not in this draft: a foreign key from action_ledger.company_id
+-- to public.companies(id). Left out here to match the foundation draft.
+-- ============================================================
+-- Action ledger (Auto tier, second database). See docs/AUTO_RECONCILIATION_DESIGN.md
+-- sections 2 and 3. Every action the AI takes gets a row here. The reconciliation
+-- engine checks these rows against the live business data.
+--   * Creates public.action_ledger only.
+--   * company_id is NOT NULL: every ledger row belongs to a company.
+--   * Append-only is enforced by privileges, not by convention (see REVOKE below).
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS public.action_ledger (
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id      uuid NOT NULL,
+  actor           text NOT NULL,
+  agent_id        text NULL,
+  tier            text NOT NULL,
+  action          text NOT NULL,
+  parameters_hash text NOT NULL,
+  policy_version  text NULL,
+  outcome         text NOT NULL,
+  created_at      timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS action_ledger_company_id_created_at_idx
+  ON public.action_ledger (company_id, created_at);
+
+-- Append-only at the database level. Revoking from PUBLIC removes the default
+-- privileges that every role inherits. The application role must be granted
+-- INSERT and SELECT on public.action_ledger, and nothing else. That role is
+-- created out of band and is NOT created in this file. The table owner keeps
+-- its own privileges, so the owner role must not be the application role.
+REVOKE UPDATE, DELETE, TRUNCATE ON public.action_ledger FROM PUBLIC;
+
+-- ============================================================================
+-- END OF MIGRATION ORDER. 5 files included (file 2 partial). Nothing executed.
+-- ============================================================================

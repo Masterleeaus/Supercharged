@@ -1,0 +1,8 @@
+{
+  "ui_change": false,
+  "storage_change": false,
+  "permission_change": false,
+  "authority_change": false,
+  "startup_change": "no eager load; document/page evidence and browser-session modules load on first use only",
+  "resource_closure": "no additional static assets or locale payloads required"
+}

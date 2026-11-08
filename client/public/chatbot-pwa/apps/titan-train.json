@@ -1,0 +1,25 @@
+{
+  "id": "titan-train",
+  "name": "Titan Train",
+  "version": "0.2.0-pass2",
+  "description": "Cleaner onboarding, lessons, assessments, competency and readiness inside Titan Zero.",
+  "online_only": true,
+  "launch_url": "/train",
+  "bridge_url": "/chatbot-pwa/apps/titan-train.js",
+  "bootstrap_endpoint": "/api/v1/titan-train/pwa/bootstrap",
+  "navigation": [
+    {"id":"learn","label":"Learn","icon":"book-open"},
+    {"id":"practice","label":"Practice","icon":"clipboard-check"},
+    {"id":"skills","label":"Skills","icon":"badge-check"},
+    {"id":"me","label":"Me","icon":"user"}
+  ],
+  "capabilities": [
+    "training.assignments.read",
+    "training.lessons.complete",
+    "training.assessments.attempt",
+    "training.readiness.read"
+  ],
+  "template_schema_url": "/titan-apps/TemplateSchemas/titan-train.json",
+  "api_auth": "passport",
+  "tenant_header": "X-Titan-Company"
+}

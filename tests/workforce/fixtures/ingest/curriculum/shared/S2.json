@@ -1,0 +1,7 @@
+{
+  "id": "S2",
+  "title": "Shared lesson named by its own courseSlugs",
+  "status": "DRAFT",
+  "courseSlugs": ["alpha-clean"],
+  "instruction": [{ "heading": "Shared", "body": "Pinned by courseSlugs only." }]
+}

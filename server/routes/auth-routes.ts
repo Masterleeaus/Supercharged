@@ -45,7 +45,7 @@ export function createAuthRoutes(ctx: RouteContext): Router {
   // OTP ENDPOINTS FOR EMAIL VERIFICATION
   // ============================================
 
-  router.post("/api/auth/send-otp", async (req: Request, res: Response) => {
+  router.post("/api/auth/send-otp", authRateLimiter, async (req: Request, res: Response) => {
     try {
       const { email, name } = req.body;
 
@@ -84,7 +84,7 @@ export function createAuthRoutes(ctx: RouteContext): Router {
         expiresAt,
       });
 
-      logger.info(`[AUTH OTP DEBUG] OTP Code for ${email}: ${otpCode}`, undefined, 'Auth');
+      logger.info(`[AUTH OTP DEBUG] OTP code generated for ${email}`, undefined, 'Auth');
 
       await emailService.sendOTPEmail(email, otpCode, name, otpExpiryMinutes);
 
@@ -195,7 +195,7 @@ export function createAuthRoutes(ctx: RouteContext): Router {
         expiresAt,
       });
 
-      logger.info(`[PASSWORD RESET OTP DEBUG] OTP Code for ${email}: ${otpCode}`, undefined, 'Auth');
+      logger.info(`[PASSWORD RESET OTP] Reset code generated for ${email}`, undefined, 'Auth');
 
       await emailService.sendPasswordResetEmail(email, otpCode, existingUser.name, expiryMinutes);
 
@@ -389,7 +389,7 @@ export function createAuthRoutes(ctx: RouteContext): Router {
         logger.error(`Exception sending welcome email to user ${user.id}`, emailError?.message || emailError, 'Auth');
       }
 
-      const accessToken = generateShortAccessToken(user.id, user.role);
+      const accessToken = generateShortAccessToken(user.id, user.role, user.companyId);
       
       const userAgent = req.headers['user-agent'] || undefined;
       const ipAddress = req.ip || req.connection.remoteAddress || undefined;
@@ -517,7 +517,7 @@ export function createAuthRoutes(ctx: RouteContext): Router {
         });
       }
 
-      const accessToken = generateShortAccessToken(user.id, user.role);
+      const accessToken = generateShortAccessToken(user.id, user.role, user.companyId);
       
       const userAgent = req.headers['user-agent'] || undefined;
       const ipAddress = req.ip || req.connection.remoteAddress || undefined;
@@ -610,7 +610,7 @@ export function createAuthRoutes(ctx: RouteContext): Router {
         .set({ lastUsedAt: new Date() })
         .where(eq(refreshTokens.id, tokenRecord.id));
 
-      const newAccessToken = generateShortAccessToken(user.id, user.role);
+      const newAccessToken = generateShortAccessToken(user.id, user.role, user.companyId);
 
       res.json({
         token: newAccessToken,

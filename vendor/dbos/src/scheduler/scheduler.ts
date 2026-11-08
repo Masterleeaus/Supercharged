@@ -1,0 +1,421 @@
+import { type SystemDatabase, WorkflowScheduleInternal, type WorkflowStatusInternal } from '../system_database';
+import { DBOSSerializer, serializeArgs } from '../serialization';
+import { randomUUID } from 'crypto';
+import { DBOS } from '..';
+import { DBOSLifecycleCallback } from '../decorators';
+import { interruptibleSleep, INTERNAL_QUEUE_NAME } from '../utils';
+import { TimeMatcher } from './crontab';
+import { DBOSExecutor } from '../dbos-executor';
+import { DBOSError } from '../error';
+import { StatusString } from '../workflow';
+import { runWithAbortableDbRetries } from '../context';
+
+// Because of function contravariance, we need to use any here.
+// We can't use generics because they don't support applySchedules and its array of schedules.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type ScheduledWorkflowFn = (scheduledDate: Date, context: any) => Promise<void>;
+
+export interface ScheduleOptions {
+  automaticBackfill?: boolean;
+  cronTimezone?: string;
+  queueName?: string;
+  // Shard key the schedule's workflows run under; required on a sharded system database.
+  shardKey?: string;
+}
+
+export interface WorkflowSchedule {
+  scheduleId: string;
+  scheduleName: string;
+  workflowName: string;
+  workflowClassName: string;
+  schedule: string;
+  status: string; // "ACTIVE" | "PAUSED"
+  context: unknown; // deserialized
+  lastFiredAt: string | null;
+  automaticBackfill: boolean;
+  cronTimezone: string | null;
+  queueName: string | null;
+  // The application that owns this schedule and runs its workflows; undefined if unclaimed.
+  applicationName?: string;
+  // Shard key the schedule's workflows run under; undefined on an unsharded database.
+  shardKey?: string;
+}
+
+export async function toWorkflowSchedule(
+  internal: WorkflowScheduleInternal,
+  serializer: DBOSSerializer,
+): Promise<WorkflowSchedule> {
+  const context = await serializer.parse(internal.context);
+
+  return {
+    scheduleId: internal.scheduleId,
+    scheduleName: internal.scheduleName,
+    workflowName: internal.workflowName,
+    workflowClassName: internal.workflowClassName,
+    schedule: internal.schedule,
+    status: internal.status,
+    context,
+    lastFiredAt: internal.lastFiredAt,
+    automaticBackfill: internal.automaticBackfill,
+    cronTimezone: internal.cronTimezone,
+    queueName: internal.queueName,
+    applicationName: internal.applicationName,
+    shardKey: internal.shardKey,
+  };
+}
+
+export function createScheduleId(): string {
+  return randomUUID();
+}
+
+interface ScheduleLoopEntry {
+  controller: AbortController;
+  promise: Promise<void>;
+  signature: string;
+}
+
+// Definition fields a running loop captures at start; a change requires restarting it. Runtime state (schedule_id, status, last_fired_at) is excluded so an unchanged re-apply doesn't restart the loop.
+export function scheduleSignature(sched: WorkflowScheduleInternal): string {
+  return JSON.stringify([
+    sched.workflowName,
+    sched.workflowClassName,
+    sched.schedule,
+    sched.context,
+    sched.cronTimezone ?? null,
+    sched.queueName ?? null,
+    sched.shardKey ?? null,
+  ]);
+}
+
+// During the first minute after startup, poll for schedules every second so schedules
+// registered around launch are picked up promptly rather than after a full polling interval.
+const STARTUP_FAST_POLL_DURATION_MS = 60_000;
+const STARTUP_FAST_POLL_INTERVAL_MS = 1_000;
+
+// Timers can't sleep past ~24.8 days, so wait for distant runs in bounded chunks.
+const MAX_SCHEDULE_SLEEP_MS = 60 * 60 * 1000;
+
+export class DynamicSchedulerLoop implements DBOSLifecycleCallback {
+  #mainController = new AbortController();
+  #pollingPromise: Promise<void> | undefined;
+  readonly #scheduleLoops = new Map<string, ScheduleLoopEntry>();
+  readonly #pollingIntervalMs: number;
+
+  constructor(pollingIntervalMs?: number) {
+    this.#pollingIntervalMs = pollingIntervalMs ?? 30000;
+  }
+
+  async initialize(): Promise<void> {
+    // Fresh controller each time: destroy() aborts the last one, and receivers can be restarted.
+    this.#mainController = new AbortController();
+    const signal = this.#mainController.signal;
+    this.#pollingPromise = runWithAbortableDbRetries(signal, () => this.#pollingLoop(signal));
+    await Promise.resolve();
+  }
+
+  async destroy(): Promise<void> {
+    this.#mainController.abort();
+    // Abort all per-schedule loops
+    for (const entry of this.#scheduleLoops.values()) {
+      entry.controller.abort();
+    }
+    const allPromises: Promise<void>[] = [];
+    if (this.#pollingPromise) {
+      allPromises.push(this.#pollingPromise);
+    }
+    for (const entry of this.#scheduleLoops.values()) {
+      allPromises.push(entry.promise);
+    }
+    await Promise.allSettled(allPromises);
+    this.#scheduleLoops.clear();
+  }
+
+  async #pollingLoop(signal: AbortSignal): Promise<void> {
+    const startupDeadline = Date.now() + STARTUP_FAST_POLL_DURATION_MS;
+    const pollTimeout = () =>
+      Date.now() < startupDeadline
+        ? Math.min(STARTUP_FAST_POLL_INTERVAL_MS, this.#pollingIntervalMs)
+        : this.#pollingIntervalMs;
+
+    while (!signal.aborted) {
+      let schedules: WorkflowScheduleInternal[];
+      try {
+        const executor = DBOSExecutor.globalInstance!;
+        schedules = await executor.systemDatabase.listSchedules({
+          applicationName: executor.systemDatabase.appName,
+        });
+      } catch (e) {
+        DBOS.logger.warn(`Dynamic scheduler: error listing schedules: ${(e as Error).message}`);
+        await interruptibleSleep(pollTimeout(), signal);
+        continue;
+      }
+
+      // Build set of current schedule names
+      const currentNames = new Set(schedules.map((s) => s.scheduleName));
+
+      // Stop loops for deleted schedules
+      for (const [name, entry] of this.#scheduleLoops) {
+        if (!currentNames.has(name)) {
+          entry.controller.abort();
+          this.#scheduleLoops.delete(name);
+        }
+      }
+
+      // Process each schedule
+      for (const sched of schedules) {
+        const existing = this.#scheduleLoops.get(sched.scheduleName);
+        const signature = scheduleSignature(sched);
+
+        if (sched.status === 'PAUSED' && existing) {
+          // Paused but has a running loop — stop it
+          existing.controller.abort();
+          this.#scheduleLoops.delete(sched.scheduleName);
+        } else if (sched.status === 'ACTIVE') {
+          // If the schedule's definition changed, restart the loop so it fires with the new definition.
+          if (existing && existing.signature !== signature) {
+            existing.controller.abort();
+            this.#scheduleLoops.delete(sched.scheduleName);
+          }
+
+          if (!this.#scheduleLoops.has(sched.scheduleName)) {
+            // Automatic backfill: if enabled and lastFiredAt is set,
+            // backfill missed executions before starting the thread.
+            if (sched.automaticBackfill && sched.lastFiredAt) {
+              try {
+                const lastFired = new Date(sched.lastFiredAt);
+                const now = new Date();
+                if (lastFired < now) {
+                  const executor = DBOSExecutor.globalInstance!;
+                  await backfillSchedule(
+                    executor.systemDatabase,
+                    executor.serializer,
+                    sched.scheduleName,
+                    lastFired,
+                    now,
+                  );
+                }
+              } catch (e) {
+                DBOS.logger.warn(
+                  `Dynamic scheduler: error backfilling schedule "${sched.scheduleName}": ${(e as Error).message}`,
+                );
+              }
+            }
+
+            // An abandoned backfill means shutdown began; a loop started now would outlive destroy().
+            if (signal.aborted) return;
+
+            // Active and no running loop — start one
+            const controller = new AbortController();
+            const executor = DBOSExecutor.globalInstance!;
+            // Only enqueues, never runs the workflow, so its retries may be abandoned when the loop stops.
+            const promise = runWithAbortableDbRetries(controller.signal, () =>
+              DynamicSchedulerLoop.#scheduleLoop(
+                sched.scheduleName,
+                sched.workflowName,
+                sched.workflowClassName,
+                sched.schedule,
+                sched.context,
+                executor.serializer,
+                controller.signal,
+                sched.cronTimezone ?? undefined,
+                sched.queueName ?? undefined,
+                sched.applicationName,
+                sched.shardKey,
+              ),
+            );
+            this.#scheduleLoops.set(sched.scheduleName, { controller, promise, signature });
+          }
+        }
+      }
+
+      await interruptibleSleep(pollTimeout(), signal);
+    }
+  }
+
+  static async #scheduleLoop(
+    scheduleName: string,
+    workflowName: string,
+    workflowClassName: string,
+    cronExpression: string,
+    serializedContext: string,
+    serializer: DBOSSerializer,
+    signal: AbortSignal,
+    cronTimezone?: string,
+    queueName?: string,
+    applicationName?: string,
+    shardKey?: string,
+  ): Promise<void> {
+    let timeMatcher: TimeMatcher;
+    try {
+      timeMatcher = new TimeMatcher(cronExpression, cronTimezone);
+    } catch (e) {
+      DBOS.logger.warn(
+        `Dynamic scheduler: not running invalid schedule "${scheduleName}" ("${cronExpression}"): ${(e as Error).message}`,
+      );
+      return;
+    }
+
+    const sched: WorkflowScheduleInternal = {
+      scheduleId: '',
+      scheduleName,
+      workflowName,
+      workflowClassName,
+      schedule: cronExpression,
+      status: 'ACTIVE',
+      context: serializedContext,
+      lastFiredAt: null,
+      automaticBackfill: false,
+      cronTimezone: cronTimezone ?? null,
+      queueName: queueName ?? null,
+      applicationName,
+      shardKey,
+    };
+
+    let lastExec = new Date().setMilliseconds(0);
+
+    while (!signal.aborted) {
+      const nextExec = timeMatcher.nextWakeupTime(lastExec).getTime();
+      const untilNext = nextExec - Date.now();
+
+      // Apply jitter to prevent thundering herd
+      const wakeTime = untilNext > 0 ? nextExec + Math.random() * Math.min(untilNext / 10, 10000) : nextExec;
+
+      while (!signal.aborted && Date.now() < wakeTime) {
+        await interruptibleSleep(Math.min(wakeTime - Date.now(), MAX_SCHEDULE_SLEEP_MS), signal);
+      }
+
+      if (signal.aborted) {
+        break;
+      }
+
+      // If TimeMatcher did not find the next occurrence of the schedule yet,
+      // we must have it determine the next wakeup time.
+      if (!timeMatcher.match(nextExec)) {
+        lastExec = nextExec;
+        continue;
+      }
+
+      const date = new Date(nextExec);
+      const workflowID = `sched-${scheduleName}-${date.toISOString()}`;
+
+      try {
+        // Idempotency check -- for performance only, not needed for correctness
+        const existing = await DBOS.getWorkflowStatus(workflowID, { shardKey });
+        if (existing) {
+          lastExec = nextExec;
+          continue;
+        }
+        const context = await serializer.parse(serializedContext);
+        const systemDatabase = DBOSExecutor.globalInstance!.systemDatabase;
+        await enqueueScheduledWorkflow(systemDatabase, serializer, sched, workflowID, date, context);
+        await systemDatabase.updateLastFiredAt(scheduleName, date.toISOString());
+      } catch (e) {
+        DBOS.logger.warn(
+          `Dynamic scheduler: error firing workflow for schedule "${scheduleName}": ${(e as Error).message}`,
+        );
+      }
+
+      lastExec = nextExec;
+    }
+  }
+}
+
+async function enqueueScheduledWorkflow(
+  systemDatabase: SystemDatabase,
+  serializer: DBOSSerializer,
+  sched: WorkflowScheduleInternal,
+  workflowID: string,
+  scheduledDate: Date,
+  context: unknown,
+): Promise<void> {
+  const serparam = await serializeArgs([scheduledDate, context], undefined, serializer, undefined);
+  // The schedule's owner routes its runs, whoever fires them; an unclaimed one falls back to the firing handle, which may have no identity itself.
+  const owner = sched.applicationName ?? systemDatabase.appName;
+  // Scheduled workflows are always enqueued to their owner's latest application version
+  const latestVersion = await systemDatabase.getLatestApplicationVersion(owner);
+  const internalStatus: WorkflowStatusInternal = {
+    workflowUUID: workflowID,
+    status: StatusString.ENQUEUED,
+    workflowName: sched.workflowName,
+    workflowClassName: sched.workflowClassName,
+    workflowConfigName: '',
+    applicationVersion: latestVersion.versionName,
+    queueName: sched.queueName || INTERNAL_QUEUE_NAME,
+    authenticatedUser: '',
+    output: null,
+    error: null,
+    assumedRole: '',
+    authenticatedRoles: [],
+    executorId: '',
+    applicationID: '',
+    input: serparam.serializedValue,
+    deduplicationID: undefined,
+    priority: 0,
+    queuePartitionKey: undefined,
+    serialization: serparam.serialization,
+    scheduleName: sched.scheduleName,
+    // Owned where possible: the internal queue's shared name cannot route an unclaimed row.
+    applicationName: owner,
+    shardKey: sched.shardKey,
+  };
+  await systemDatabase.initWorkflowStatus(internalStatus, null);
+  return;
+}
+
+export async function triggerSchedule(
+  systemDatabase: SystemDatabase,
+  serializer: DBOSSerializer,
+  name: string,
+): Promise<string> {
+  const sched = await systemDatabase.getSchedule(name);
+  if (!sched) {
+    throw new DBOSError(`Schedule "${name}" not found`);
+  }
+  const context = await serializer.parse(sched.context);
+  const now = new Date();
+  const workflowID = `sched-${name}-trigger-${now.toISOString()}`;
+  await enqueueScheduledWorkflow(systemDatabase, serializer, sched, workflowID, now, context);
+  return workflowID;
+}
+
+export async function backfillSchedule(
+  systemDatabase: SystemDatabase,
+  serializer: DBOSSerializer,
+  name: string,
+  start: Date,
+  end: Date,
+): Promise<string[]> {
+  const sched = await systemDatabase.getSchedule(name);
+  if (!sched) {
+    throw new DBOSError(`Schedule "${name}" not found`);
+  }
+  const context = await serializer.parse(sched.context);
+  const timeMatcher = new TimeMatcher(sched.schedule, sched.cronTimezone ?? undefined);
+  const workflowIDs: string[] = [];
+  let current = start.getTime();
+
+  while (current < end.getTime()) {
+    const next = timeMatcher.nextWakeupTime(current);
+
+    // If TimeMatcher did not find the next occurrence of the schedule yet,
+    // we must have it determine the next wakeup time.
+    if (!timeMatcher.match(next)) {
+      current = next.getTime();
+      continue;
+    }
+
+    if (next.getTime() >= end.getTime()) break;
+
+    const workflowID = `sched-${name}-${next.toISOString()}`;
+    await enqueueScheduledWorkflow(systemDatabase, serializer, sched, workflowID, next, context);
+    workflowIDs.push(workflowID);
+    current = next.getTime();
+  }
+
+  return workflowIDs;
+}
+
+/** The shard key a schedule's workflows run under. */
+export async function scheduleShardKey(systemDatabase: SystemDatabase, name: string): Promise<string | undefined> {
+  return (await systemDatabase.getSchedule(name))?.shardKey;
+}

@@ -30,7 +30,7 @@
  * Security: Uses a shared secret token in header for webhook authentication
  */
 
-import { RAGKnowledgeService } from "./rag-knowledge";
+import { RAGKnowledgeService, type KnowledgeSearchScope } from "./rag-knowledge";
 import { getDomain } from "../utils/domain";
 import { ElevenLabsService } from "./elevenlabs";
 import { ElevenLabsPoolService } from "./elevenlabs-pool";
@@ -174,10 +174,10 @@ export function getAskKnowledgeWebhookTool(elevenLabsAgentId: string): RAGWebhoo
 export async function handleAskKnowledgeToolCall(
   query: string,
   knowledgeBaseIds: string[],
-  userId: string
+  scope: KnowledgeSearchScope
 ): Promise<{ response: string; sources: Array<{ id: string; relevance: number }> }> {
   console.log(`[RAG Tool] Processing query: "${query.substring(0, 50)}..."`);
-  
+
   if (!knowledgeBaseIds || knowledgeBaseIds.length === 0) {
     return {
       response: "No knowledge base is configured for this agent.",
@@ -186,10 +186,11 @@ export async function handleAskKnowledgeToolCall(
   }
 
   try {
+    // The caller resolves scope from the agent row. The service refuses a missing or mismatched scope.
     const results = await RAGKnowledgeService.searchKnowledge(
+      scope,
       query,
       knowledgeBaseIds,
-      userId,
       3 // Top 3 results for concise response
     );
 

@@ -5,6 +5,14 @@ import path from 'path';
 import fs from 'fs';
 import { randomUUID } from 'crypto';
 import { authenticateHybrid } from '../middleware/hybrid-auth';
+import { strictRateLimiter } from '../middleware/rateLimiter';
+import {
+  AUDIO_OWNERS_DIR,
+  recordAudioOwner,
+  readAudioOwner,
+  removeAudioOwner,
+  canDeleteAudio,
+} from '../services/audio-ownership.mjs';
 
 const router = Router();
 
@@ -49,6 +57,13 @@ router.post('/upload', authenticateHybrid as any, upload.single('audio'), (req, 
     }
 
     const url = `/audio/${req.file.filename}`;
+    try {
+      recordAudioOwner(AUDIO_OWNERS_DIR, req.file.filename, (req as any).userId);
+    } catch (ownerError) {
+      // Without an owner record nobody but an admin could delete the file, so do not keep it.
+      fs.unlinkSync(req.file.path);
+      throw ownerError;
+    }
     console.log(`[AudioUpload] User ${(req as any).userId} uploaded: ${req.file.originalname} -> ${url}`);
 
     res.json({
@@ -63,8 +78,8 @@ router.post('/upload', authenticateHybrid as any, upload.single('audio'), (req, 
   }
 });
 
-// DELETE /api/audio/:filename - Delete audio file
-router.delete('/:filename', authenticateHybrid as any, (req, res) => {
+// DELETE /api/audio/:filename - Delete audio file (owner or admin only)
+router.delete('/:filename', authenticateHybrid as any, strictRateLimiter, (req, res) => {
   try {
     const { filename } = req.params;
     const filePath = path.join(AUDIO_DIR, filename);
@@ -74,9 +89,17 @@ router.delete('/:filename', authenticateHybrid as any, (req, res) => {
       return res.status(400).json({ error: 'Invalid filename' });
     }
 
+    const requesterId = (req as any).userId as string | undefined;
+    const requesterRole = (req as any).userRole as string | undefined;
+    const ownerId = readAudioOwner(AUDIO_OWNERS_DIR, filename);
+    if (!canDeleteAudio({ ownerId, requesterId, requesterRole })) {
+      return res.status(403).json({ error: 'You do not have permission to delete this audio file' });
+    }
+
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
-      console.log(`[AudioUpload] Deleted: ${filename}`);
+      removeAudioOwner(AUDIO_OWNERS_DIR, filename);
+      console.log(`[AudioUpload] Deleted: ${filename} by ${requesterId}`);
     }
 
     res.json({ success: true });

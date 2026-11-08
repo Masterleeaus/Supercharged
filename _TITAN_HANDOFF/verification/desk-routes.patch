@@ -1,0 +1,21 @@
+--- a/server/routes.ts
++++ b/server/routes.ts
+@@ -99,6 +99,7 @@
+ import { createRAGKnowledgeRoutes } from "./routes/rag-knowledge-routes";
+ import { createNotificationRoutes } from "./routes/notification-routes";
+ import { createUserWebhookRoutes } from "./routes/user-webhook-routes";
++import { createTitanFieldBridgeRouter } from "./integrations/titan-field/route";
+ import { createTemplateRoutes } from "./routes/template-routes";
+ import { createUserSipGatewaysRoutes } from "./routes/user-sip-gateways.routes";
+ import { createSubscriptionRoutes } from "./routes/subscription-routes";
+@@ -218,6 +219,10 @@
+   // Register notification routes
+   const notificationRoutes = createNotificationRoutes(routeContext);
+   app.use(notificationRoutes);
++
++  // Titan Field communication intent: shadow-only, fail-closed until the
++  // database integration owner supplies verified company mapping and a ledger.
++  app.use(createTitanFieldBridgeRouter());
+ 
+   // Register user webhook routes (subscription management)
+   const userWebhookRoutes = createUserWebhookRoutes(routeContext);

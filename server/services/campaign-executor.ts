@@ -367,7 +367,7 @@ export class CampaignExecutor {
               .from(contacts)
               .where(eq(contacts.campaignId, campaignId));
 
-            webhookDeliveryService.triggerEvent(campaign.userId, 'campaign.completed', {
+            webhookDeliveryService.triggerEvent(campaign.companyId ?? null, campaign.userId, 'campaign.completed', {
               campaignId,
               name: campaign.name,
               totalCalls: result.totalCalls,
@@ -493,7 +493,7 @@ export class CampaignExecutor {
               .from(contacts)
               .where(eq(contacts.campaignId, campaignId));
 
-            webhookDeliveryService.triggerEvent(campaign.userId, 'campaign.completed', {
+            webhookDeliveryService.triggerEvent(campaign.companyId ?? null, campaign.userId, 'campaign.completed', {
               campaign: {
                 id: campaign.id,
                 name: campaign.name,
@@ -639,7 +639,7 @@ export class CampaignExecutor {
               .from(contacts)
               .where(eq(contacts.campaignId, campaignId));
 
-            webhookDeliveryService.triggerEvent(campaign.userId, 'campaign.completed', {
+            webhookDeliveryService.triggerEvent(campaign.companyId ?? null, campaign.userId, 'campaign.completed', {
               campaign: {
                 id: campaign.id,
                 name: campaign.name,
@@ -1327,7 +1327,7 @@ export class CampaignExecutor {
       // Trigger campaign.failed webhook
       if (failedCampaign?.userId) {
         try {
-          webhookDeliveryService.triggerEvent(failedCampaign.userId, 'campaign.failed', {
+          webhookDeliveryService.triggerEvent(failedCampaign.companyId ?? null, failedCampaign.userId, 'campaign.failed', {
             campaignId: failedCampaign.id,
             campaignName: failedCampaign.name,
             status: 'failed',
@@ -1592,7 +1592,7 @@ export class CampaignExecutor {
 
       // Trigger webhook event for Plivo pause
       if (campaign.userId) {
-        webhookDeliveryService.triggerEvent(campaign.userId, 'campaign.paused', {
+        webhookDeliveryService.triggerEvent(campaign.companyId ?? null, campaign.userId, 'campaign.paused', {
           campaign: {
             id: campaign.id,
             name: campaign.name,
@@ -1630,7 +1630,7 @@ export class CampaignExecutor {
       console.log(`⏸️ [Campaign Executor] Paused Twilio-OpenAI campaign ${campaignId} (reason: ${reason})`);
 
       if (campaign.userId) {
-        webhookDeliveryService.triggerEvent(campaign.userId, 'campaign.paused', {
+        webhookDeliveryService.triggerEvent(campaign.companyId ?? null, campaign.userId, 'campaign.paused', {
           campaign: {
             id: campaign.id,
             name: campaign.name,
@@ -1715,7 +1715,7 @@ export class CampaignExecutor {
 
       // Trigger webhook event
       if (campaign.userId) {
-        webhookDeliveryService.triggerEvent(campaign.userId, 'campaign.paused', {
+        webhookDeliveryService.triggerEvent(campaign.companyId ?? null, campaign.userId, 'campaign.paused', {
           campaign: {
             id: campaign.id,
             name: campaign.name,
@@ -1796,7 +1796,7 @@ export class CampaignExecutor {
 
       // Trigger webhook event for Plivo campaign cancellation
       if (campaign.userId) {
-        webhookDeliveryService.triggerEvent(campaign.userId, 'campaign.cancelled', {
+        webhookDeliveryService.triggerEvent(campaign.companyId ?? null, campaign.userId, 'campaign.cancelled', {
           campaign: {
             id: campaign.id,
             name: campaign.name,
@@ -1852,7 +1852,7 @@ export class CampaignExecutor {
       console.log(`🛑 [Campaign Executor] Cancelled Twilio-OpenAI campaign ${campaignId}`);
 
       if (campaign.userId) {
-        webhookDeliveryService.triggerEvent(campaign.userId, 'campaign.cancelled', {
+        webhookDeliveryService.triggerEvent(campaign.companyId ?? null, campaign.userId, 'campaign.cancelled', {
           campaign: {
             id: campaign.id,
             name: campaign.name,
@@ -2013,7 +2013,7 @@ export class CampaignExecutor {
 
       cveBatchService.executeCampaign(campaignId).then(async (result: any) => {
         if (campaign.userId) {
-          webhookDeliveryService.triggerEvent(campaign.userId, 'campaign.resumed', {
+          webhookDeliveryService.triggerEvent(campaign.companyId ?? null, campaign.userId, 'campaign.resumed', {
             campaign: {
               id: campaign.id,
               name: campaign.name,
@@ -2073,7 +2073,7 @@ export class CampaignExecutor {
       plivoBatchService.executeCampaign(campaignId).then(async (result) => {
         // Trigger webhook event for Plivo resume
         if (campaign.userId) {
-          webhookDeliveryService.triggerEvent(campaign.userId, 'campaign.resumed', {
+          webhookDeliveryService.triggerEvent(campaign.companyId ?? null, campaign.userId, 'campaign.resumed', {
             campaign: {
               id: campaign.id,
               name: campaign.name,
@@ -2127,7 +2127,7 @@ export class CampaignExecutor {
 
       twilioOpenAIBatchService.executeCampaign(campaignId).then(async (result) => {
         if (campaign.userId) {
-          webhookDeliveryService.triggerEvent(campaign.userId, 'campaign.resumed', {
+          webhookDeliveryService.triggerEvent(campaign.companyId ?? null, campaign.userId, 'campaign.resumed', {
             campaign: {
               id: campaign.id,
               name: campaign.name,
@@ -2962,10 +2962,24 @@ export class CampaignExecutor {
       // Create ElevenLabsService with agent's credential
       const agentElevenLabsService = new ElevenLabsService(credential.apiKey);
 
+      // company_id from the owning contact and campaign records; refuse if missing or conflicting
+      const [owningCampaign] = await db
+        .select({ companyId: campaigns.companyId })
+        .from(campaigns)
+        .where(eq(campaigns.id, config.campaignId))
+        .limit(1);
+      const callCompanyIds = [contact.companyId, owningCampaign?.companyId].filter(
+        (v): v is string => typeof v === 'string' && v.length > 0
+      );
+      if (new Set(callCompanyIds).size !== 1) {
+        throw new Error('Company scope could not be verified for call record');
+      }
+
       // Create call record first
       const [callRecord] = await db
         .insert(calls)
         .values({
+          companyId: callCompanyIds[0],
           userId: config.userId, // Direct user ownership for guaranteed isolation
           campaignId: config.campaignId,
           contactId: config.contactId,

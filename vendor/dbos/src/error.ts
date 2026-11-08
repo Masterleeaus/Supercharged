@@ -1,0 +1,316 @@
+import { PortableWorkflowError } from '../schemas/system_db_schema';
+
+export class DBOSError extends Error {
+  // TODO: define a better coding system.
+  constructor(
+    msg: string,
+    readonly dbosErrorCode: number = 1,
+  ) {
+    super(msg);
+  }
+}
+
+const InitializationError = 3;
+export class DBOSInitializationError extends DBOSError {
+  constructor(
+    msg: string,
+    readonly error?: Error,
+  ) {
+    super(msg, InitializationError);
+  }
+}
+
+const ConflictingWFIDError = 5;
+/** Raised when an execution no longer owns its workflow, so it must stop and adopt the owner's outcome. */
+export class DBOSWorkflowConflictError extends DBOSError {
+  constructor(workflowID: string) {
+    super(`Workflow ${workflowID} is no longer owned by this execution`, ConflictingWFIDError);
+  }
+}
+
+const NotRegisteredError = 6;
+export class DBOSNotRegisteredError extends DBOSError {
+  constructor(name: string, fullmsg?: string) {
+    const msg = fullmsg ?? `Operation (Name: ${name}) not registered`;
+    super(msg, NotRegisteredError);
+  }
+}
+
+const NonExistentWorkflowError = 16;
+export class DBOSNonExistentWorkflowError extends DBOSError {
+  constructor(msg: string) {
+    super(msg, NonExistentWorkflowError);
+  }
+}
+
+const MaxRecoveryAttemptsExceededError = 18;
+export class DBOSMaxRecoveryAttemptsExceededError extends DBOSError {
+  constructor(workflowID: string, maxRetries?: number) {
+    super(
+      `Workflow ${workflowID} has exceeded its maximum ${maxRetries === undefined ? 'number of' : `of ${maxRetries}`} execution or recovery attempts. Further attempts to execute or recover it will fail.`,
+      MaxRecoveryAttemptsExceededError,
+    );
+  }
+}
+
+const ExecutorNotInitializedError = 20;
+export class DBOSExecutorNotInitializedError extends DBOSError {
+  constructor() {
+    super('DBOS not initialized', ExecutorNotInitializedError);
+  }
+}
+
+const InvalidWorkflowTransition = 21;
+export class DBOSInvalidWorkflowTransitionError extends DBOSError {
+  constructor(msg?: string) {
+    super(msg ?? 'Invalid workflow state', InvalidWorkflowTransition);
+  }
+}
+
+const ConflictingWorkflowError = 22;
+export class DBOSConflictingWorkflowError extends DBOSError {
+  constructor(workflowID: string, msg: string) {
+    super(`Conflicting workflow invocation with the same ID (${workflowID}): ${msg}`, ConflictingWorkflowError);
+  }
+}
+
+const MaximumRetriesError = 23;
+export class DBOSMaxStepRetriesError extends DBOSError {
+  readonly errors;
+  constructor(stepName: string, maxRetries: number, errors: Error[]) {
+    const formattedErrors = errors.map((error, index) => `Error ${index + 1}: ${error.message}`).join('. ');
+    super(
+      `Step ${stepName} has exceeded its maximum of ${maxRetries} retries. Previous errors: ${formattedErrors}`,
+      MaximumRetriesError,
+    );
+    this.errors = errors;
+  }
+}
+
+const WorkFlowCancelled = 24;
+export class DBOSWorkflowCancelledError extends DBOSError {
+  constructor(readonly workflowID: string) {
+    super(`Workflow ${workflowID} has been cancelled`, WorkFlowCancelled);
+  }
+}
+
+const ConflictingRegistrationError = 25;
+export class DBOSConflictingRegistrationError extends DBOSError {
+  constructor(msg: string) {
+    super(msg, ConflictingRegistrationError);
+  }
+}
+
+export const UnexpectedStep = 26;
+/** Exception raised when a step has an unexpected recorded name, indicating a determinism problem. */
+export class DBOSUnexpectedStepError extends DBOSError {
+  constructor(
+    readonly workflowID: string,
+    readonly stepID: number,
+    readonly expectedName: string,
+    recordedName: string,
+  ) {
+    super(
+      recordedName.startsWith('DBOS.patch')
+        ? `During execution of workflow ${workflowID} step ${stepID}, function ${recordedName} was recorded when ${expectedName} was expected.\n
+          Check that your patches are backward compatible, that you do not have older code trying to recover workflows with newer patches, and that your workflow is deterministic.`
+        : `During execution of workflow ${workflowID} step ${stepID}, function ${recordedName} was recorded when ${expectedName} was expected. Check that your workflow is deterministic.`,
+      UnexpectedStep,
+    );
+  }
+}
+
+const TargetWorkflowCancelled = 27;
+export class DBOSAwaitedWorkflowCancelledError extends DBOSError {
+  constructor(readonly workflowID: string) {
+    super(`Awaited ${workflowID} was cancelled`, TargetWorkflowCancelled);
+  }
+}
+
+export const QueueDedupIDDuplicated = 28;
+/** Exception raised when workflow with same dedupid is queued*/
+export class DBOSQueueDuplicatedError extends DBOSError {
+  constructor(
+    readonly workflowID: string,
+    readonly queue: string,
+    readonly deduplicationID: string,
+  ) {
+    super(
+      `Workflow ${workflowID} was deduplicated due to an existing workflow in queue ${queue} with deduplication ID ${deduplicationID}.`,
+      QueueDedupIDDuplicated,
+    );
+    // Portable error serialization records err.name, which is otherwise 'Error'; the debouncer matches on it after replay.
+    this.name = 'DBOSQueueDuplicatedError';
+  }
+}
+
+const InvalidQueuePriority = 29;
+/** Exception raised queue priority is invalid */
+export class DBOSInvalidQueuePriorityError extends DBOSError {
+  constructor(
+    readonly priority: number,
+    readonly min: number,
+    readonly max: number,
+  ) {
+    super(`Invalid priority ${priority}. Priority must be between ${min} and ${max}.`, InvalidQueuePriority);
+  }
+}
+
+const AwaitedWorkflowExceededMaxRecoveryAttempts = 30;
+export class DBOSAwaitedWorkflowExceededMaxRecoveryAttempts extends DBOSError {
+  constructor(readonly workflowID: string) {
+    super(`Awaited ${workflowID} exceeded its maximum recovery attempts`, AwaitedWorkflowExceededMaxRecoveryAttempts);
+  }
+}
+
+const StepTimeout = 31;
+/** Exception raised when a single attempt of a step exceeds its configured `timeoutMS` */
+export class DBOSStepTimeoutError extends DBOSError {
+  constructor(
+    readonly stepName: string,
+    readonly timeoutMS: number,
+  ) {
+    super(`Step ${stepName} timed out after ${timeoutMS}ms`, StepTimeout);
+  }
+}
+
+const InvalidWorkflowInput = 32;
+/** Exception raised when a workflow's arguments cannot be serialized. Blames the arguments alone. */
+export class DBOSInvalidWorkflowInputError extends DBOSError {
+  constructor(workflowName: string, cause: unknown) {
+    super(
+      `Could not serialize the arguments to workflow ${workflowName}: ${cause instanceof Error ? cause.message : String(cause)}`,
+      InvalidWorkflowInput,
+    );
+  }
+}
+
+export const StreamTimeout = 33;
+/** Exception raised when no value arrives on a stream within its timeout, or the stream ends before reaching a requested offset. */
+export class DBOSStreamTimeoutError extends DBOSError {
+  constructor(
+    readonly workflowID: string,
+    readonly key: string,
+    readonly timeoutMS?: number,
+  ) {
+    // No timeout means the stream ended without reaching the value, so none ever will.
+    super(
+      `No value arrived on stream ${key} of workflow ${workflowID}${timeoutMS !== undefined ? ` within ${timeoutMS}ms` : ''}`,
+      StreamTimeout,
+    );
+    // Error serialization records err.name, which is otherwise 'Error'; a replayed timeout is matched on it.
+    this.name = 'DBOSStreamTimeoutError';
+  }
+}
+
+export const StreamNondeterminism = 34;
+/** Exception raised when concurrent stream reads would make replay depend on scheduling. */
+export class DBOSStreamNondeterminismError extends DBOSError {
+  constructor(
+    readonly workflowID: string,
+    readonly key: string,
+  ) {
+    super(
+      `Cannot deterministically read stream ${key} in workflow ${workflowID}: another stream read ` +
+        `in the same workflow is still in progress, so which read records which value would depend ` +
+        `on task scheduling. Read streams from sequential workflow code, or read them from a step.`,
+      StreamNondeterminism,
+    );
+    // Error serialization records err.name, which is otherwise 'Error'.
+    this.name = 'DBOSStreamNondeterminismError';
+  }
+}
+
+export const QueryTimeout = 35;
+/** Exception raised when a read-only observability query exceeds its statement timeout. */
+export class DBOSQueryTimeoutError extends DBOSError {
+  constructor(readonly timeoutMS: number) {
+    super(`This query was cancelled after exceeding its ${timeoutMS}ms statement timeout.`, QueryTimeout);
+    // Error serialization records err.name, which is otherwise 'Error'.
+    this.name = 'DBOSQueryTimeoutError';
+  }
+}
+
+export const WorkflowIDInUse = 36;
+/** Raised when a `workflowIDReusePolicy: 'reject'` start finds its ID in use; match it with `isWorkflowIDInUseError`, not `instanceof`. */
+export class DBOSWorkflowIDInUseError extends DBOSError {
+  constructor(
+    readonly workflowID: string,
+    readonly status: string,
+    readonly workflowName: string,
+  ) {
+    super(
+      `Workflow ID ${workflowID} is already in use by workflow ${workflowName} with status ${status}.`,
+      WorkflowIDInUse,
+    );
+    // Error serialization records err.name, which is otherwise 'Error'; a replayed rejection is matched on it.
+    this.name = 'DBOSWorkflowIDInUseError';
+  }
+}
+
+export const StepNondeterminism = 37;
+/** Raised when an execution records a step ID that it already recorded differently. */
+export class DBOSStepNondeterminismError extends DBOSError {
+  constructor(
+    readonly workflowID: string,
+    readonly stepID: number,
+  ) {
+    super(
+      `Step ${stepID} of workflow ${workflowID} was recorded twice by the same execution with different results. Check that your workflow is deterministic.`,
+      StepNondeterminism,
+    );
+    // Error serialization records err.name, which is otherwise 'Error'.
+    this.name = 'DBOSStepNondeterminismError';
+  }
+}
+
+export const WorkflowSuspended = 38;
+function suspendedOn(topic: string | undefined): string {
+  if (topic === undefined) return 'sleeping';
+  // A recv with no topic waits on the system database's null topic.
+  return topic === '__null__topic__' ? 'waiting on a message with no topic' : `waiting on topic ${topic}`;
+}
+
+/**
+ * Raised by a suspend-mode recv or sleep (Transact Enterprise) once the workflow is parked in the
+ * database. The execution must exit: a send on the topic, the recv timeout, or the end of the
+ * sleep re-enqueues the workflow. Do not catch it in workflow code.
+ */
+export class DBOSWorkflowSuspendedError extends DBOSError {
+  constructor(
+    readonly workflowID: string,
+    readonly topic: string | undefined,
+  ) {
+    super(`Workflow ${workflowID} suspended ${suspendedOn(topic)}`, WorkflowSuspended);
+    this.name = 'DBOSWorkflowSuspendedError';
+  }
+}
+
+/**
+ * True if `e` is a stream-read timeout, including the portable-serialization
+ * replay form, which carries only the original type name.
+ *
+ * A replayed error is revived as a plain `Error`, so `instanceof` does not hold; match on this.
+ */
+export function isStreamTimeoutError(e: unknown): boolean {
+  if (e instanceof Error && getDBOSErrorCode(e) === StreamTimeout) {
+    return true;
+  }
+  return e instanceof PortableWorkflowError && e.name === DBOSStreamTimeoutError.name;
+}
+
+/** True if `e` is a workflow-ID-in-use rejection, including its replayed forms, where `instanceof` does not hold. */
+export function isWorkflowIDInUseError(e: unknown): boolean {
+  if (e instanceof Error && getDBOSErrorCode(e) === WorkflowIDInUse) {
+    return true;
+  }
+  return e instanceof PortableWorkflowError && e.name === DBOSWorkflowIDInUseError.name;
+}
+
+export function getDBOSErrorCode(e: Error): number | undefined {
+  if (e && typeof e === 'object' && 'dbosErrorCode' in e) {
+    const code = (e as Record<string, unknown>).dbosErrorCode;
+    return typeof code === 'number' ? code : undefined;
+  }
+  return undefined;
+}

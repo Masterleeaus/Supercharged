@@ -1,0 +1,10 @@
+course_slug,lesson_id,title,layer,level,has_written_content
+alpha-clean,A1,Alpha lesson one,business,1,yes
+alpha-clean,A2,Alpha lesson two,business,1,yes
+alpha-clean,A3,Alpha lesson with no course pin,business,1,yes
+alpha-clean,A4,Alpha lesson under review,business,1,yes
+alpha-clean,A5,Alpha lesson with an unknown course slug,business,1,yes
+beta-pool,B1,Beta lesson one,business,1,yes
+alpha-clean,S1,Shared lesson referenced by two courses,base,base,yes
+alpha-clean,S2,"Shared lesson, named by its own courseSlugs",base,base,yes
+alpha-clean,ZZ-L01,Level row with no lesson file,business,1,no

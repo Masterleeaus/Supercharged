@@ -1,0 +1,10 @@
+{
+  "name": "{{name}}",
+  "displayName": "{{title}}",
+  "version": "0.1.0",
+  "description": "Template plugin. Replace this text. Registers nothing unless TITAN_{{upper}}_ENABLED=true.",
+  "author": "Your name or team",
+  "entryPoint": "index.mjs",
+  "registerFunction": "registerPlugin",
+  "features": ["fail-closed", "env-gated", "no-database-migration"]
+}

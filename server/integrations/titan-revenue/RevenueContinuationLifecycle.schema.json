@@ -1,0 +1,21 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"titan.zero.revenue-journey.continuation-lifecycle.v1",
+  "type":"object",
+  "required":["schema","company_id","kind","event_type","state","continuation_id","parent_revenue_journey_id","candidate_revenue_journey_id","correlation","provenance","evidence","context","semantics","governance"],
+  "properties":{
+    "schema":{"const":"titan.zero.revenue-journey.continuation-lifecycle.v1"},
+    "company_id":{"type":"string","minLength":1},
+    "kind":{"enum":["repeat_service","referral"]},
+    "event_type":{"type":"string","minLength":1},
+    "state":{"type":"string","minLength":1},
+    "continuation_id":{"type":"string","minLength":1},
+    "parent_revenue_journey_id":{"type":"string","minLength":1},
+    "candidate_revenue_journey_id":{"type":"string","minLength":1},
+    "repeat_id":{"type":["string","null"]},
+    "referral_id":{"type":["string","null"]},
+    "handoff":{"type":["object","null"]},
+    "governance":{"type":"object","required":["company_boundary","owns_domain_truth","identity_is_authority","authority_granted","execution_permitted","may_create_booking","may_create_schedule","may_create_lead","may_send_outreach","may_mutate_entities"]}
+  },
+  "additionalProperties":true
+}

@@ -1,0 +1,62 @@
+{
+  "schema": "titan.zero.payload-performance-regression-pass09.v1",
+  "packet_id": "TZ-FIX-PAYLOAD-PERFORMANCE-001",
+  "pass": 9,
+  "manager_baseline": {
+    "merge": 42,
+    "artifact": "Titan-Zero-CANONICAL-MASTER-2026-09-09-MERGE-42-PERMISSION-HARDENING-CONVERGED.zip",
+    "sha256": "1c4b6f471ba16f44d7b27db546ba41db18032ce9967b1d725dc0926cd73cc930"
+  },
+  "pre_optimization": {
+    "files": 2989,
+    "uncompressed_bytes": 185293390,
+    "compressed_bytes": 70934950,
+    "startup_p95_ms": 33.214,
+    "startup_p95_heap_delta_bytes": 206608
+  },
+  "pass09_reconstruction": {
+    "package_zip_bytes": 36417911,
+    "package_uncompressed_bytes": 91090320,
+    "file_count": 2813,
+    "startup_p95_ms": 33.214,
+    "startup_positive_heap_delta_bytes": 206608,
+    "service_worker_static_closure_bytes": 15179156
+  },
+  "delta_vs_pre_optimization": {
+    "compressed_bytes_saved": 34517039,
+    "compressed_reduction_percent": 48.6601,
+    "uncompressed_bytes_saved": 94203070,
+    "uncompressed_reduction_percent": 50.84,
+    "files_removed_net": 176
+  },
+  "budget_status": {
+    "package_zip": true,
+    "package_uncompressed": true,
+    "startup_p95": true,
+    "heap_p95": true,
+    "service_worker_closure": true
+  },
+  "operational_regression": {
+    "node_selected": "26/26 PASS",
+    "startup_order": "PASS",
+    "module_startup": "PASS",
+    "workforce_startup": "PASS",
+    "startup_recovery": "PASS",
+    "reload_recovery": "PASS",
+    "offline_operation_identity": "PASS",
+    "restart_authority_continuity": "PASS",
+    "restart_continuation": "PASS"
+  },
+  "low_resource_method": "Budget-enforced reconstructed package plus bounded startup/recovery contracts; no live Chrome process instrumentation available in this environment.",
+  "live_chrome": "NOT_CERTIFIED",
+  "company_boundary": "company_id_only",
+  "identity_not_authority": true,
+  "authority_effect": false,
+  "grants_authority": false,
+  "runtime_adapters": {
+    "builder_final_delta_present": true,
+    "manager_converged": false,
+    "retriever_retirement": false,
+    "content_css_retirement": false
+  }
+}

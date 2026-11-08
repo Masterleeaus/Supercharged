@@ -1,0 +1,6 @@
+{
+  "change": "bootstrap registry now exposes company-scoped documentEvidence and browserSession optional chunks that delegate to existing Merge46 page-evidence and browser session registry modules",
+  "feature_removed": false,
+  "eager_load_added": false,
+  "new_authority": false
+}

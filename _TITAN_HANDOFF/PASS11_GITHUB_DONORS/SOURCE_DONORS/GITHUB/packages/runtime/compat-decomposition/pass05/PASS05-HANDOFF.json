@@ -1,0 +1,5 @@
+{
+  "recommended_convergence_class": "CLEAN_FORWARD_PORT",
+  "next_pass": 6,
+  "note": "translation proved as low-risk first extraction; do not retire monolith sections yet"
+}

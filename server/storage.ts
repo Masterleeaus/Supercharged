@@ -62,6 +62,29 @@ import {
 import { eq, sql, and, gte, lte, lt, desc, asc, isNull, isNotNull, or, inArray, ilike } from "drizzle-orm";
 import { calculateGlobalAnalytics, calculateUserAnalytics, calculateDashboardData } from "./storage/analytics-helpers";
 
+/**
+ * company_id for an insert. Sources: company ids read from the owning record(s) in the database,
+ * and the verified-session company id when the caller supplies it. Never from the row body.
+ * Fails closed: throws when no source has a company id, or when the sources disagree.
+ */
+function resolveInsertCompanyId(
+  label: string,
+  sessionCompanyId: string | undefined,
+  ownerCompanyIds: Array<string | null | undefined>
+): string {
+  const found = new Set<string>();
+  for (const value of [sessionCompanyId, ...ownerCompanyIds]) {
+    if (typeof value === "string" && value.length > 0) found.add(value);
+  }
+  if (found.size === 0) {
+    throw new Error(`${label}: company scope unavailable; insert refused`);
+  }
+  if (found.size > 1) {
+    throw new Error(`${label}: company scope mismatch; insert refused`);
+  }
+  return Array.from(found)[0];
+}
+
 // Effective limits type - merges plan limits with per-user subscription overrides
 export interface EffectiveLimits {
   maxAgents: number;
@@ -114,7 +137,7 @@ export interface IStorage {
   getCampaignIncludingDeleted(id: string): Promise<Campaign | undefined>;
   getUserCampaigns(userId: string): Promise<Campaign[]>;
   getUserDeletedCampaigns(userId: string): Promise<Campaign[]>;
-  createCampaign(campaign: InsertCampaign): Promise<Campaign>;
+  createCampaign(campaign: InsertCampaign, companyId?: string): Promise<Campaign>;
   updateCampaign(id: string, campaign: Partial<InsertCampaign>): Promise<void>;
   deleteCampaign(id: string): Promise<void>;
   restoreCampaign(id: string): Promise<void>;
@@ -124,8 +147,8 @@ export interface IStorage {
   getCampaignContacts(campaignId: string): Promise<Contact[]>;
   getUserContacts(userId: string): Promise<any[]>;
   getUserContactsDeduplicated(userId: string): Promise<any[]>;
-  createContact(contact: InsertContact): Promise<Contact>;
-  createContacts(contacts: InsertContact[]): Promise<Contact[]>;
+  createContact(contact: InsertContact, companyId?: string): Promise<Contact>;
+  createContacts(contacts: InsertContact[], companyId?: string): Promise<Contact[]>;
 
   // Calls
   getCall(id: string): Promise<Call | undefined>;
@@ -156,7 +179,7 @@ export interface IStorage {
       outgoingCalls: number;
     };
   }>;
-  createCall(call: InsertCall): Promise<Call>;
+  createCall(call: InsertCall, companyId?: string): Promise<Call>;
   updateCall(id: string, call: Partial<InsertCall>): Promise<void>;
 
   // Credit Transactions
@@ -237,14 +260,14 @@ export interface IStorage {
   getUserWebhooks(userId: string): Promise<Webhook[]>;
   getUserWebhookCount(userId: string): Promise<number>;
   getWebhooksForEvent(userId: string, event: string, campaignId?: string): Promise<Webhook[]>;
-  createWebhook(webhook: InsertWebhook): Promise<Webhook>;
+  createWebhook(webhook: InsertWebhook, companyId?: string): Promise<Webhook>;
   updateWebhook(id: string, webhook: Partial<InsertWebhook>): Promise<void>;
   deleteWebhook(id: string): Promise<void>;
 
   // Webhook Delivery Logs
   getWebhookLog(id: number): Promise<WebhookLog | undefined>;
   getWebhookLogs(webhookId: string, limit?: number): Promise<WebhookLog[]>;
-  createWebhookLog(log: InsertWebhookLog): Promise<WebhookLog>;
+  createWebhookLog(log: InsertWebhookLog, companyId?: string): Promise<WebhookLog>;
   updateWebhookLog(id: number, log: Partial<InsertWebhookLog>): Promise<void>;
   getFailedWebhookLogs(limit?: number): Promise<WebhookLog[]>;
 
@@ -270,7 +293,7 @@ export interface IStorage {
   getUserPromptTemplates(userId: string): Promise<PromptTemplate[]>;
   getSystemPromptTemplates(): Promise<PromptTemplate[]>;
   getPublicPromptTemplates(): Promise<PromptTemplate[]>;
-  createPromptTemplate(template: InsertPromptTemplate): Promise<PromptTemplate>;
+  createPromptTemplate(template: InsertPromptTemplate & { companyId?: string }): Promise<PromptTemplate>;
   updatePromptTemplate(id: string, template: Partial<InsertPromptTemplate>): Promise<void>;
   deletePromptTemplate(id: string): Promise<void>;
   incrementPromptTemplateUsage(id: string): Promise<void>;
@@ -557,8 +580,14 @@ export class DbStorage implements IStorage {
     )).orderBy(desc(campaigns.createdAt));
   }
 
-  async createCampaign(insertCampaign: InsertCampaign): Promise<Campaign> {
-    const [campaign] = await db.insert(campaigns).values(insertCampaign).returning();
+  async createCampaign(insertCampaign: InsertCampaign, companyId?: string): Promise<Campaign> {
+    const [owner] = await db.select({ companyId: users.companyId }).from(users)
+      .where(eq(users.id, insertCampaign.userId)).limit(1);
+    const scoped = {
+      ...insertCampaign,
+      companyId: resolveInsertCompanyId("createCampaign", companyId, [owner?.companyId]),
+    };
+    const [campaign] = await db.insert(campaigns).values(scoped).returning();
     return campaign;
   }
 
@@ -974,13 +1003,28 @@ export class DbStorage implements IStorage {
     }));
   }
 
-  async createContact(insertContact: InsertContact): Promise<Contact> {
-    const [contact] = await db.insert(contacts).values(insertContact).returning();
+  async createContact(insertContact: InsertContact, companyId?: string): Promise<Contact> {
+    const [owner] = await db.select({ companyId: campaigns.companyId }).from(campaigns)
+      .where(eq(campaigns.id, insertContact.campaignId)).limit(1);
+    const scoped = {
+      ...insertContact,
+      companyId: resolveInsertCompanyId("createContact", companyId, [owner?.companyId]),
+    };
+    const [contact] = await db.insert(contacts).values(scoped).returning();
     return contact;
   }
 
-  async createContacts(insertContacts: InsertContact[]): Promise<Contact[]> {
-    return db.insert(contacts).values(insertContacts).returning();
+  async createContacts(insertContacts: InsertContact[], companyId?: string): Promise<Contact[]> {
+    if (insertContacts.length === 0) return [];
+    const campaignIds = Array.from(new Set(insertContacts.map(c => c.campaignId)));
+    const owners = await db.select({ id: campaigns.id, companyId: campaigns.companyId })
+      .from(campaigns).where(inArray(campaigns.id, campaignIds));
+    const ownerByCampaign = new Map(owners.map(o => [o.id, o.companyId]));
+    const scoped = insertContacts.map(c => ({
+      ...c,
+      companyId: resolveInsertCompanyId("createContacts", companyId, [ownerByCampaign.get(c.campaignId)]),
+    }));
+    return db.insert(contacts).values(scoped).returning();
   }
 
   async deleteContact(id: string): Promise<void> {
@@ -2266,8 +2310,20 @@ export class DbStorage implements IStorage {
     };
   }
 
-  async createCall(insertCall: InsertCall): Promise<Call> {
-    const [call] = await db.insert(calls).values(insertCall).returning();
+  async createCall(insertCall: InsertCall, companyId?: string): Promise<Call> {
+    const [campaignOwner] = insertCall.campaignId
+      ? await db.select({ companyId: campaigns.companyId }).from(campaigns)
+          .where(eq(campaigns.id, insertCall.campaignId)).limit(1)
+      : [];
+    const [userOwner] = insertCall.userId
+      ? await db.select({ companyId: users.companyId }).from(users)
+          .where(eq(users.id, insertCall.userId)).limit(1)
+      : [];
+    const scoped = {
+      ...insertCall,
+      companyId: resolveInsertCompanyId("createCall", companyId, [campaignOwner?.companyId, userOwner?.companyId]),
+    };
+    const [call] = await db.insert(calls).values(scoped).returning();
     return call;
   }
 
@@ -2722,10 +2778,13 @@ export class DbStorage implements IStorage {
     });
   }
 
-  async createWebhook(webhook: InsertWebhook): Promise<Webhook> {
+  async createWebhook(webhook: InsertWebhook, companyId?: string): Promise<Webhook> {
+    const [owner] = await db.select({ companyId: users.companyId }).from(users)
+      .where(eq(users.id, webhook.userId)).limit(1);
     const [newWebhook] = await db.insert(webhookSubscriptions).values({
       ...webhook,
       id: nanoid(),
+      companyId: resolveInsertCompanyId("createWebhook", companyId, [owner?.companyId]),
     } as typeof webhookSubscriptions.$inferInsert).returning();
     return newWebhook;
   }
@@ -2755,8 +2814,16 @@ export class DbStorage implements IStorage {
       .limit(limit);
   }
 
-  async createWebhookLog(log: InsertWebhookLog): Promise<WebhookLog> {
-    const [newLog] = await db.insert(webhookDeliveryLogs).values(log).returning();
+  async createWebhookLog(log: InsertWebhookLog, companyId?: string): Promise<WebhookLog> {
+    const [owner] = log.webhookId
+      ? await db.select({ companyId: webhookSubscriptions.companyId }).from(webhookSubscriptions)
+          .where(eq(webhookSubscriptions.id, log.webhookId)).limit(1)
+      : [];
+    const scoped = {
+      ...log,
+      companyId: resolveInsertCompanyId("createWebhookLog", companyId, [owner?.companyId]),
+    };
+    const [newLog] = await db.insert(webhookDeliveryLogs).values(scoped).returning();
     return newLog;
   }
 
@@ -2904,7 +2971,7 @@ export class DbStorage implements IStorage {
       .orderBy(desc(promptTemplates.usageCount), asc(promptTemplates.name));
   }
 
-  async createPromptTemplate(template: InsertPromptTemplate): Promise<PromptTemplate> {
+  async createPromptTemplate(template: InsertPromptTemplate & { companyId?: string }): Promise<PromptTemplate> {
     const [newTemplate] = await db.insert(promptTemplates).values(template).returning();
     return newTemplate;
   }
@@ -3388,6 +3455,8 @@ export class DbStorage implements IStorage {
           eq(paymentWebhookQueue.status, 'failed')
         ),
         sql`${paymentWebhookQueue.attemptCount} < ${paymentWebhookQueue.maxAttempts}`,
+        // Dead-letter guard in SQL (status 'failed' at or past maxAttempts), not only in memory.
+        sql`NOT (${paymentWebhookQueue.status} = ${'failed'} AND ${paymentWebhookQueue.attemptCount} >= ${paymentWebhookQueue.maxAttempts})`,
         or(
           isNull(paymentWebhookQueue.nextRetryAt),
           lte(paymentWebhookQueue.nextRetryAt, now)

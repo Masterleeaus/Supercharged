@@ -1,0 +1,32 @@
+{
+  "schema": "titan-zero-compat-reachability/v1",
+  "packet_id": "TZ-FIX-COMPAT-RUNTIME-DECOMPOSITION-001",
+  "pass": 1,
+  "manifest_content_script": {
+    "all_frames": true,
+    "js": [
+      "titan-zero-chat-content.compat.js"
+    ],
+    "css": [
+      "titan-zero-chat-content.compat.css"
+    ],
+    "match_about_blank": true,
+    "match_origin_as_fallback": true,
+    "matches": [
+      "http://*/*",
+      "https://*/*",
+      "<all_urls>"
+    ],
+    "run_at": "document_start"
+  },
+  "background_chain": [
+    "manifest.json background.service_worker=background-bootstrap.js",
+    "background-bootstrap.js imports compatibility/monica/background-runtime-boundary.mjs",
+    "background-runtime-boundary.mjs imports ../../titan-zero-chat-background.compat.js"
+  ],
+  "runtime_html": [
+    "monicaPopup.html -> titan-zero-chat-runtime.compat.js",
+    "titan-zero-chat-runtime.html -> titan-zero-chat-runtime.compat.js"
+  ],
+  "protected_rule": "do not alter/remove these boundaries in Pass 1; decomposition begins only after Pass 2/3 classification and equivalence mapping"
+}

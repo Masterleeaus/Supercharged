@@ -11,7 +11,7 @@
  * ============================================================
  */
 
-import type { Express, Request, Response } from 'express';
+import type { Express, NextFunction, Request, Response } from 'express';
 import { getWebhookUrl, getStreamUrl, generateTransferXML, generateHangupXML } from '../config/plivo-config';
 import { PlivoCallService } from '../services/plivo-call.service';
 import { CallSummarizationService } from '../services/call-summarization.service';
@@ -24,8 +24,66 @@ import type { PlivoCallStatus } from '../types';
 import { logger } from '../../../utils/logger';
 import { webhookDeliveryService } from '../../../services/webhook-delivery';
 import { scheduleContactRetry } from '../../../routes/webhooks/helpers';
+import { requirePlivoV2Signature } from '../plivo-signature';
+import { createReplayGuard } from '../../../middleware/webhook-replay';
+import {
+  createSmsInboundHandler,
+  createSmsStatusHandler,
+  type SmsRouteDeps,
+} from '../../../modules/comms/sms-inbound-route';
 
-export function setupPlivoWebhooks(app: Express, baseUrl: string): void {
+// Replay protection for Plivo deliveries. Plivo V2 carries no event id or
+// timestamp, so the per-request signature nonce is the event id and the
+// receive time is the timestamp. A captured V2 request stays signature-valid,
+// so nonces are kept for 24 hours. When the table is full, new nonces are
+// refused (fail closed), never evicted. Per-process, in-memory state.
+const PLIVO_NONCE_RETENTION_MS = 24 * 60 * 60 * 1000;
+const plivoReplayGuard = createReplayGuard({
+  now: () => Date.now(),
+  windowMs: 5 * 60 * 1000,
+  maxEntries: 100000,
+  retentionMsByProvider: { plivo: PLIVO_NONCE_RETENTION_MS },
+  onFull: 'refuse',
+});
+
+/**
+ * @param smsDeps Injected SMS stores and suppression list. Null or omitted keeps the SMS routes at 503.
+ */
+export function setupPlivoWebhooks(app: Express, baseUrl: string, smsDeps?: SmsRouteDeps | null): void {
+  // Every inbound POST webhook verifies X-Plivo-Signature-V2 before its handler runs,
+  // then refuses a nonce it has already accepted.
+  const verifyPlivoSignature = requirePlivoV2Signature(baseUrl);
+  const verifyPlivoReplay = (req: Request, res: Response, next: NextFunction) => {
+    const nonce = req.headers['x-plivo-signature-v2-nonce'];
+    const replay = plivoReplayGuard.check({
+      provider: 'plivo',
+      eventId: typeof nonce === 'string' ? nonce : null,
+      timestampMs: Date.now(),
+    });
+    if (!replay.accepted) {
+      logger.warn(`Plivo webhook rejected: ${replay.reason}`, undefined, 'PlivoWebhook');
+      if (replay.reason === 'capacity') {
+        // Temporary refusal: the nonce table is full. Not a duplicate.
+        res.status(503).json({ error: 'Webhook temporarily unavailable' });
+        return;
+      }
+      res.status(409).json({ error: 'Duplicate or stale webhook event', reason: replay.reason });
+      return;
+    }
+    next();
+  };
+  const verifyPlivo = [verifyPlivoSignature, verifyPlivoReplay];
+
+  /**
+   * Internal failure in a Plivo webhook handler. A 2xx tells Plivo the event was handled, so it
+   * would not retry and the event would be lost. A 500 makes Plivo retry. The body is generic;
+   * the caller logs the error detail server-side.
+   */
+  const sendWebhookInternalError = (res: Response) => {
+    if (res.headersSent) return;
+    res.status(500).json({ error: 'Internal error' });
+  };
+
   /**
    * Helper to handle incoming (inbound) calls
    */
@@ -60,7 +118,7 @@ export function setupPlivoWebhooks(app: Express, baseUrl: string): void {
       // Trigger inbound_call.received early if we have a phone record
       if (phoneNumber?.userId) {
         try {
-          await webhookDeliveryService.triggerEvent(phoneNumber.userId, 'inbound_call.received', {
+          await webhookDeliveryService.triggerEvent(phoneNumber.companyId ?? null, phoneNumber.userId, 'inbound_call.received', {
             callId: null,
             callSid: CallUUID,
             direction: 'inbound',
@@ -171,7 +229,7 @@ export function setupPlivoWebhooks(app: Express, baseUrl: string): void {
 
       // Trigger inbound_call.answered webhook - call has been answered by AI agent
       try {
-        await webhookDeliveryService.triggerEvent(agent.userId, 'inbound_call.answered', {
+        await webhookDeliveryService.triggerEvent(agent.companyId ?? null, agent.userId, 'inbound_call.answered', {
           callId: callRecord?.id || null,
           callSid: CallUUID,
           direction: 'inbound',
@@ -200,12 +258,7 @@ export function setupPlivoWebhooks(app: Express, baseUrl: string): void {
       res.send(xml);
     } catch (error: any) {
       logger.error('Incoming call error', error, 'PlivoWebhook');
-      res.set('Content-Type', 'text/xml');
-      res.send(`<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Speak>Sorry, an error occurred. Goodbye.</Speak>
-  <Hangup/>
-</Response>`);
+      sendWebhookInternalError(res);
     }
   }
 
@@ -216,7 +269,7 @@ export function setupPlivoWebhooks(app: Express, baseUrl: string): void {
    * For outbound calls: callId is in the URL path
    * For inbound calls: lookup by phone number
    */
-  app.post('/api/plivo/voice/answer', async (req: Request, res: Response) => {
+  app.post('/api/plivo/voice/answer', verifyPlivo, async (req: Request, res: Response) => {
     try {
       const { CallUUID, From, To, Direction } = req.body;
       
@@ -240,15 +293,14 @@ export function setupPlivoWebhooks(app: Express, baseUrl: string): void {
       res.send(xml);
     } catch (error: any) {
       logger.error('Answer error', error, 'PlivoWebhook');
-      res.set('Content-Type', 'text/xml');
-      res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Hangup/></Response>`);
+      sendWebhookInternalError(res);
     }
   });
 
   /**
    * Answer URL with call ID path - for outbound calls
    */
-  app.post('/api/plivo/voice/:callId', async (req: Request, res: Response) => {
+  app.post('/api/plivo/voice/:callId', verifyPlivo, async (req: Request, res: Response) => {
     try {
       const { callId } = req.params;
       const { CallUUID, From, To, Direction } = req.body;
@@ -276,15 +328,14 @@ export function setupPlivoWebhooks(app: Express, baseUrl: string): void {
       res.send(xml);
     } catch (error: any) {
       logger.error('Answer error', error, 'PlivoWebhook');
-      res.set('Content-Type', 'text/xml');
-      res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Hangup/></Response>`);
+      sendWebhookInternalError(res);
     }
   });
 
   /**
    * Status callback - Called when call status changes
    */
-  app.post('/api/plivo/voice/status', async (req: Request, res: Response) => {
+  app.post('/api/plivo/voice/status', verifyPlivo, async (req: Request, res: Response) => {
     try {
       const { CallUUID, CallStatus, Duration, HangupCause, From, To } = req.body;
       
@@ -361,14 +412,14 @@ export function setupPlivoWebhooks(app: Express, baseUrl: string): void {
       res.sendStatus(200);
     } catch (error: any) {
       logger.error('Status error', error, 'PlivoWebhook');
-      res.sendStatus(200); // Always return 200 to prevent retries
+      sendWebhookInternalError(res);
     }
   });
 
   /**
    * Status callback with call ID path
    */
-  app.post('/api/plivo/status/:callId', async (req: Request, res: Response) => {
+  app.post('/api/plivo/status/:callId', verifyPlivo, async (req: Request, res: Response) => {
     try {
       const { callId } = req.params;
       const { CallUUID, CallStatus, Duration, HangupCause, From, To } = req.body;
@@ -448,14 +499,14 @@ export function setupPlivoWebhooks(app: Express, baseUrl: string): void {
       res.sendStatus(200);
     } catch (error: any) {
       logger.error('Status error', error, 'PlivoWebhook');
-      res.sendStatus(200);
+      sendWebhookInternalError(res);
     }
   });
 
   /**
    * Recording callback - Called when recording is ready
    */
-  app.post('/api/plivo/voice/recording', async (req: Request, res: Response) => {
+  app.post('/api/plivo/voice/recording', verifyPlivo, async (req: Request, res: Response) => {
     try {
       const { CallUUID, RecordUrl, RecordingDuration } = req.body;
       
@@ -477,14 +528,14 @@ export function setupPlivoWebhooks(app: Express, baseUrl: string): void {
       res.sendStatus(200);
     } catch (error: any) {
       logger.error('Recording error', error, 'PlivoWebhook');
-      res.sendStatus(200);
+      sendWebhookInternalError(res);
     }
   });
 
   /**
    * Recording callback with call ID path
    */
-  app.post('/api/plivo/recording/:callId', async (req: Request, res: Response) => {
+  app.post('/api/plivo/recording/:callId', verifyPlivo, async (req: Request, res: Response) => {
     try {
       const { callId } = req.params;
       const { CallUUID, RecordUrl, RecordingDuration } = req.body;
@@ -500,7 +551,7 @@ export function setupPlivoWebhooks(app: Express, baseUrl: string): void {
       res.sendStatus(200);
     } catch (error: any) {
       logger.error('Recording error', error, 'PlivoWebhook');
-      res.sendStatus(200);
+      sendWebhookInternalError(res);
     }
   });
 
@@ -509,7 +560,7 @@ export function setupPlivoWebhooks(app: Express, baseUrl: string): void {
    * Called by PlivoRecordingService when recording is ready
    * Plivo sends application/x-www-form-urlencoded with a 'response' field containing JSON string
    */
-  app.post('/api/plivo/recording/callback/:callRecordId', async (req: Request, res: Response) => {
+  app.post('/api/plivo/recording/callback/:callRecordId', verifyPlivo, async (req: Request, res: Response) => {
     try {
       const { callRecordId } = req.params;
       
@@ -576,7 +627,7 @@ export function setupPlivoWebhooks(app: Express, baseUrl: string): void {
       res.sendStatus(200);
     } catch (error: any) {
       logger.error(`[Recording] Callback error: ${error.message}`, error, 'PlivoWebhook');
-      res.sendStatus(200);
+      sendWebhookInternalError(res);
     }
   });
 
@@ -616,19 +667,19 @@ export function setupPlivoWebhooks(app: Express, baseUrl: string): void {
       res.send(xml);
     } catch (error: any) {
       logger.error('[Transfer XML] Error generating XML', error, 'PlivoWebhook');
-      res.set('Content-Type', 'text/xml');
-      res.send(generateHangupXML('Sorry, an error occurred during transfer.'));
+      sendWebhookInternalError(res);
     }
   };
   
   // Support both GET and POST for transfer webhook
-  app.get('/api/plivo/voice/transfer', handleTransferWebhook);
-  app.post('/api/plivo/voice/transfer', handleTransferWebhook);
+  // GET is signature-guarded like POST: Plivo signs the full URL including the query string.
+  app.get('/api/plivo/voice/transfer', verifyPlivo, handleTransferWebhook);
+  app.post('/api/plivo/voice/transfer', verifyPlivo, handleTransferWebhook);
 
   /**
    * Hangup webhook - Returns XML to end the call gracefully
    */
-  app.post('/api/plivo/voice/hangup', async (req: Request, res: Response) => {
+  app.post('/api/plivo/voice/hangup', verifyPlivo, async (req: Request, res: Response) => {
     try {
       const { message } = req.query;
       const { CallUUID } = req.body;
@@ -642,15 +693,14 @@ export function setupPlivoWebhooks(app: Express, baseUrl: string): void {
       res.send(xml);
     } catch (error: any) {
       logger.error('Hangup error', error, 'PlivoWebhook');
-      res.set('Content-Type', 'text/xml');
-      res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Hangup/></Response>`);
+      sendWebhookInternalError(res);
     }
   });
 
   /**
    * Health check for incoming endpoint - allows testing if URL is reachable
    */
-  app.get('/api/plivo/incoming', async (req: Request, res: Response) => {
+  app.get('/api/plivo/incoming', verifyPlivo, async (req: Request, res: Response) => {
     logger.info('Incoming endpoint health check (GET)', undefined, 'PlivoWebhook');
     res.json({ status: 'ok', endpoint: '/api/plivo/incoming', method: 'GET', message: 'Plivo incoming webhook endpoint is accessible' });
   });
@@ -658,7 +708,7 @@ export function setupPlivoWebhooks(app: Express, baseUrl: string): void {
   /**
    * Incoming call handler - Routes inbound calls to appropriate agents
    */
-  app.post('/api/plivo/incoming', async (req: Request, res: Response) => {
+  app.post('/api/plivo/incoming', verifyPlivo, async (req: Request, res: Response) => {
     await handleIncomingCall(req, res);
   });
 
@@ -666,7 +716,9 @@ export function setupPlivoWebhooks(app: Express, baseUrl: string): void {
    * Transfer XML endpoint - Called by Plivo Transfer API
    * Returns Dial XML to connect the call to the transfer target
    */
-  app.get('/api/plivo/voice/transfer', (req: Request, res: Response) => {
+  // Second GET registration for the same path. The guarded GET above is registered first and
+  // answers every request, so this one is shadowed. It is guarded too, so no unguarded GET remains.
+  app.get('/api/plivo/voice/transfer', verifyPlivo, (req: Request, res: Response) => {
     const { target, callerId } = req.query;
     
     logger.info(`[TransferXML] ===== TRANSFER XML ENDPOINT CALLED =====`, undefined, 'PlivoWebhook');
@@ -698,7 +750,7 @@ export function setupPlivoWebhooks(app: Express, baseUrl: string): void {
    * Post-stream webhook - Fallback handler (kept for compatibility)
    * With the new Transfer API + Stop Stream approach, this is rarely needed
    */
-  app.post('/api/plivo/voice/post-stream', (req: Request, res: Response) => {
+  app.post('/api/plivo/voice/post-stream', verifyPlivo, (req: Request, res: Response) => {
     const callUuid = req.query.callUuid as string;
     const { CallUUID, StreamAction } = req.body;
     
@@ -751,6 +803,36 @@ export function setupPlivoWebhooks(app: Express, baseUrl: string): void {
     
     res.set('Content-Type', 'application/xml');
     res.send(xml);
+  });
+
+  /**
+   * SMS delivery-receipt callback (Plivo message status). Signature and replay guarded like every
+   * Plivo POST. The handler resolves the company from the Plivo sender number and writes only the
+   * row matching that company and MessageUUID, when canAdvanceDeliveryStatus allows it.
+   * Without injected SMS dependencies it answers 503, so Plivo retries and nothing is written.
+   */
+  const smsStatusHandler = smsDeps ? createSmsStatusHandler(smsDeps) : null;
+  app.post('/api/plivo/sms/status', verifyPlivo, async (req: Request, res: Response) => {
+    if (!smsStatusHandler) {
+      logger.warn('Plivo SMS delivery receipt received before SMS dependencies are injected; answering 503', undefined, 'PlivoWebhook');
+      res.status(503).json({ error: 'Delivery receipt handling not yet enabled' });
+      return;
+    }
+    await smsStatusHandler(req, res);
+  });
+
+  /**
+   * Inbound SMS callback. Same guard. STOP writes the sms suppression and the SMS-only consent
+   * event; START follows the lane-3 rules. Without injected SMS dependencies it answers 503.
+   */
+  const smsInboundHandler = smsDeps ? createSmsInboundHandler(smsDeps) : null;
+  app.post('/api/plivo/sms/inbound', verifyPlivo, async (req: Request, res: Response) => {
+    if (!smsInboundHandler) {
+      logger.warn('Plivo inbound SMS received before SMS dependencies are injected; answering 503', undefined, 'PlivoWebhook');
+      res.status(503).json({ error: 'Inbound SMS handling not yet enabled' });
+      return;
+    }
+    await smsInboundHandler(req, res);
   });
 
   logger.info('Plivo webhook routes registered', undefined, 'PlivoWebhook');

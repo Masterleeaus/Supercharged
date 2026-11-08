@@ -60,6 +60,11 @@ const MIGRATIONS = [
   resolve(rootDir, 'migrations', '008_add_ve_session_id_and_voice_engine_tables.sql'),
   resolve(rootDir, 'migrations', '009_fix_ve_session_id_and_all_missing_columns.sql'),
   resolve(rootDir, 'migrations', '0010_add_yookassa_columns.sql'),
+  resolve(rootDir, 'migrations', '0010a_inbox.sql'),
+  resolve(rootDir, 'migrations', '0011_inbox_channels_and_providers.sql'),
+  resolve(rootDir, 'migrations', '0010b_approvals.sql'),
+  resolve(rootDir, 'migrations', '0013_approvals_revoked_status.sql'),
+  resolve(rootDir, 'migrations', '0010c_chatbot.sql'),
 ];
 
 /**

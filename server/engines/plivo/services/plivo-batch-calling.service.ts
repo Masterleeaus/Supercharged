@@ -35,6 +35,7 @@ type PlivoPhoneNumber = typeof plivoPhoneNumbers.$inferSelect;
 interface BatchCallConfig {
   campaignId: string;
   userId: string;
+  companyId: string | null;
   agentId: string;
   phoneNumberId: string;
   maxConcurrentCalls: number;
@@ -226,6 +227,7 @@ export class PlivoBatchCallingService {
       this.config = {
         campaignId,
         userId: campaign.userId,
+        companyId: campaign.companyId ?? null,
         agentId: campaign.agentId,
         phoneNumberId: plivoPhoneNumberId,
         maxConcurrentCalls: concurrencyLimit,
@@ -661,7 +663,7 @@ export class PlivoBatchCallingService {
       if (this.config && this.config.userId) {
         try {
           const contactName = [contact.firstName, contact.lastName].filter(Boolean).join(' ') || 'Unknown';
-          await webhookDeliveryService.triggerEvent(this.config.userId, 'call.started', {
+          await webhookDeliveryService.triggerEvent(this.config.companyId, this.config.userId, 'call.started', {
             call: {
               id: plivoCall.id,
               callUuid: callUuid,

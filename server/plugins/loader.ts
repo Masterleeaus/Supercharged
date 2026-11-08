@@ -21,6 +21,7 @@ import { db } from '../db';
 import { globalSettings } from '@shared/schema';
 import { eq, sql } from 'drizzle-orm';
 import { canImportTypeScript, resetCanImportTypeScript } from '../utils/plugin-import';
+import { isRegistrationAccepted, registrationReason } from './register-result';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -83,6 +84,10 @@ export interface PluginLoaderOptions {
   adminAuthMiddleware: RequestHandler;
   httpServer?: HttpServer;
   callServices?: any; // Passed dynamically
+  /** Trusted workforce ports (identity, resource, authorize). Forwarded to plugins unchanged. */
+  titanWorkforcePorts?: unknown;
+  /** Middleware chain a plugin must use for permission-gated routes (for example the workforce previews). */
+  workforceAdminMiddleware?: RequestHandler | RequestHandler[];
 }
 
 const loadedPlugins: Map<string, LoadedPlugin> = new Map();
@@ -315,9 +320,13 @@ export async function loadPlugins(app: Express, options: PluginLoaderOptions): P
         }
       }
 
-      // Register the plugin — await in case the function is async
-      await Promise.resolve(registerFn(app, enrichedOptions));
-      
+      // Register the plugin — await in case the function is async.
+      // Only an explicit { registered: true } counts (D5). A skip result or a void return is an error.
+      const registration = await Promise.resolve(registerFn(app, enrichedOptions));
+      if (!isRegistrationAccepted(registration)) {
+        throw new Error(`plugin did not register (reason: ${registrationReason(registration)})`);
+      }
+
       loadedPlugin.registered = true;
       console.log(`[Plugin Loader] Registered plugin '${manifest.displayName}' v${manifest.version}`);
       

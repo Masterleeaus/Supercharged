@@ -1,0 +1,9 @@
+{
+  "exclusive_hotspots_modified": [],
+  "shared_hotspots_modified": [
+    "tests/**"
+  ],
+  "compat_monoliths_modified": false,
+  "retriever_hotspot_touched": false,
+  "builder3_retriever_native_collision": false
+}

@@ -1,0 +1,20 @@
+{
+  "schema": "titan-zero-pass-summary/v1",
+  "packet_id": "TZ-FIX-COMPAT-RUNTIME-DECOMPOSITION-001",
+  "pass": 6,
+  "domains": [
+    "document/page-evidence",
+    "browser-session"
+  ],
+  "strategy": "additional_optional_chunks_reusing_existing_merge46_exact_candidates",
+  "production_changes": [
+    "titan-runtime/compat-decomposition/compat-bootstrap.mjs",
+    "titan-runtime/compat-decomposition/chunks/document-evidence.mjs",
+    "titan-runtime/compat-decomposition/chunks/browser-session.mjs"
+  ],
+  "static_assets_required": false,
+  "locale_assets_required": false,
+  "compat_monoliths_modified": false,
+  "authority_neutral": true,
+  "company_boundary": "company_id only"
+}

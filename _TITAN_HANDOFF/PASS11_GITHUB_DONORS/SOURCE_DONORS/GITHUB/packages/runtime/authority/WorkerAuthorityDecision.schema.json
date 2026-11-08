@@ -1,0 +1,141 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "titan.worker.authority-decision.v1",
+  "type": "object",
+  "required": [
+    "authority_decision_id",
+    "company_id",
+    "worker_id",
+    "capability",
+    "decision",
+    "effective_authority_score",
+    "identity_confers_authority",
+    "local_can_raise_authority"
+  ],
+  "properties": {
+    "authority_decision_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "company_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "worker_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "actor_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "worker_type": {
+      "type": "string",
+      "minLength": 1
+    },
+    "surface": {
+      "type": "string",
+      "minLength": 1
+    },
+    "capability": {
+      "type": "string",
+      "minLength": 1
+    },
+    "decision": {
+      "enum": [
+        "ALLOW",
+        "APPROVAL_REQUIRED",
+        "EVIDENCE_REQUIRED",
+        "ESCALATE",
+        "DENY",
+        "AUTHORITY_UNAVAILABLE",
+        "RECOVERY_REQUIRED"
+      ]
+    },
+    "effective_authority_score": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "identity_confers_authority": {
+      "const": false
+    },
+    "activation_confers_authority": {
+      "const": false
+    },
+    "module_activation_confers_authority": {
+      "const": false
+    },
+    "local_can_raise_authority": {
+      "const": false
+    },
+    "authority_lease": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "authority_provenance": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "authority_delegation": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "delegation_extinction": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "operation_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "action_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "evaluated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "additionalProperties": true,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "decision": {
+            "const": "ALLOW"
+          }
+        },
+        "required": [
+          "decision"
+        ]
+      },
+      "then": {
+        "required": [
+          "authority_decision_id",
+          "company_id",
+          "worker_id",
+          "capability",
+          "operation_id",
+          "action_id",
+          "evaluated_at"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,358 @@
+{
+  "schema": "titan-zero-compat-domain-classification/v1",
+  "packet_id": "TZ-FIX-COMPAT-RUNTIME-DECOMPOSITION-001",
+  "pass": 2,
+  "manager_merge": 46,
+  "classification_policy": {
+    "always_on_shell": "startup/messaging/API wiring retained until Pass3+ equivalence proof",
+    "optional_domain": "lexical/behavioral signal only; does not authorize extraction",
+    "feature_removal_for_size_only": false
+  },
+  "bundles": {
+    "titan-zero-chat-content.compat.js": {
+      "bytes": 28593247,
+      "sha256": "7823c16665d37581e460b70d3e888db7d45786b6a5c5ca868214d5b3088ff441",
+      "startup_role": "content",
+      "always_on_shell_candidate": {
+        "classification": "RETAIN_UNTIL_EQUIVALENCE_PROVEN",
+        "signals": {
+          "chrome.runtime.onMessage": 6,
+          "chrome.runtime.onConnect": 1,
+          "chrome.storage": 4,
+          "document.addEventListener": 84,
+          "window.addEventListener": 124,
+          "MutationObserver": 72,
+          "postMessage": 101
+        },
+        "rationale": "startup/messaging/DOM-or-Chrome API wiring is treated as shell candidate; Pass 2 does not prove extractability"
+      },
+      "domains": {
+        "page_overlay": {
+          "evidence_count": 6061,
+          "term_counts": {
+            "floating": 430,
+            "overlay": 596,
+            "selection": 2011,
+            "tooltip": 647,
+            "sidebar": 921,
+            "sidepanel": 121,
+            "contextmenu": 302,
+            "highlight": 1033
+          },
+          "candidate": "OPTIONAL_FEATURE_DOMAIN"
+        },
+        "chat": {
+          "evidence_count": 12952,
+          "term_counts": {
+            "chat": 5588,
+            "conversation": 2036,
+            "message": 2989,
+            "assistant": 224,
+            "prompt": 1898,
+            "quickcompose": 217
+          },
+          "candidate": "OPTIONAL_FEATURE_DOMAIN"
+        },
+        "document_pdf": {
+          "evidence_count": 13404,
+          "term_counts": {
+            "pdf": 1329,
+            "document": 3208,
+            "reader": 477,
+            "upload": 987,
+            "file": 5947,
+            "summar": 1456
+          },
+          "candidate": "OPTIONAL_FEATURE_DOMAIN"
+        },
+        "search": {
+          "evidence_count": 5233,
+          "term_counts": {
+            "search": 2832,
+            "query": 2171,
+            "webpage": 230,
+            "browser_navigate": 0,
+            "browser_view": 0
+          },
+          "candidate": "OPTIONAL_FEATURE_DOMAIN"
+        },
+        "media": {
+          "evidence_count": 12576,
+          "term_counts": {
+            "image": 8039,
+            "video": 2094,
+            "audio": 1843,
+            "youtube": 259,
+            "screenshot": 336,
+            "capturevisibletab": 5
+          },
+          "candidate": "OPTIONAL_FEATURE_DOMAIN"
+        },
+        "translation": {
+          "evidence_count": 7030,
+          "term_counts": {
+            "translate": 2736,
+            "translation": 1197,
+            "language": 1851,
+            "locale": 1098,
+            "i18n": 148
+          },
+          "candidate": "OPTIONAL_FEATURE_DOMAIN"
+        },
+        "auth": {
+          "evidence_count": 4064,
+          "term_counts": {
+            "auth": 580,
+            "session": 942,
+            "token": 2144,
+            "login": 317,
+            "logout": 73,
+            "refreshToken": 8
+          },
+          "candidate": "OPTIONAL_FEATURE_DOMAIN"
+        },
+        "settings": {
+          "evidence_count": 7768,
+          "term_counts": {
+            "settings": 400,
+            "options": 6296,
+            "configuration": 151,
+            "preference": 78,
+            "storage": 843
+          },
+          "candidate": "OPTIONAL_FEATURE_DOMAIN"
+        }
+      },
+      "separability_status": "UNPROVEN_PASS2_CLASSIFICATION_ONLY"
+    },
+    "titan-zero-chat-background.compat.js": {
+      "bytes": 11561297,
+      "sha256": "ebbd0843eb12d0413af6aa13603be2b365aa702304df2f74b87e4951a3f9a805",
+      "startup_role": "background",
+      "always_on_shell_candidate": {
+        "classification": "RETAIN_UNTIL_EQUIVALENCE_PROVEN",
+        "signals": {
+          "chrome.runtime.onMessage": 7,
+          "chrome.runtime.onConnect": 1,
+          "chrome.tabs": 30,
+          "chrome.windows": 22,
+          "chrome.sidePanel": 6,
+          "chrome.storage": 2,
+          "chrome.permissions": 2
+        },
+        "rationale": "startup/messaging/DOM-or-Chrome API wiring is treated as shell candidate; Pass 2 does not prove extractability"
+      },
+      "domains": {
+        "page_overlay": {
+          "evidence_count": 2966,
+          "term_counts": {
+            "floating": 67,
+            "overlay": 1,
+            "selection": 383,
+            "tooltip": 532,
+            "sidebar": 1228,
+            "sidepanel": 126,
+            "contextmenu": 77,
+            "highlight": 552
+          },
+          "candidate": "OPTIONAL_FEATURE_DOMAIN"
+        },
+        "chat": {
+          "evidence_count": 17022,
+          "term_counts": {
+            "chat": 8231,
+            "conversation": 1323,
+            "message": 1922,
+            "assistant": 1248,
+            "prompt": 4033,
+            "quickcompose": 265
+          },
+          "candidate": "OPTIONAL_FEATURE_DOMAIN"
+        },
+        "document_pdf": {
+          "evidence_count": 14769,
+          "term_counts": {
+            "pdf": 4917,
+            "document": 746,
+            "reader": 141,
+            "upload": 2195,
+            "file": 3395,
+            "summar": 3375
+          },
+          "candidate": "OPTIONAL_FEATURE_DOMAIN"
+        },
+        "search": {
+          "evidence_count": 5482,
+          "term_counts": {
+            "search": 4362,
+            "query": 736,
+            "webpage": 374,
+            "browser_navigate": 6,
+            "browser_view": 4
+          },
+          "candidate": "OPTIONAL_FEATURE_DOMAIN"
+        },
+        "media": {
+          "evidence_count": 14545,
+          "term_counts": {
+            "image": 7958,
+            "video": 3435,
+            "audio": 861,
+            "youtube": 1346,
+            "screenshot": 941,
+            "capturevisibletab": 4
+          },
+          "candidate": "OPTIONAL_FEATURE_DOMAIN"
+        },
+        "translation": {
+          "evidence_count": 6362,
+          "term_counts": {
+            "translate": 2804,
+            "translation": 1586,
+            "language": 1385,
+            "locale": 553,
+            "i18n": 34
+          },
+          "candidate": "OPTIONAL_FEATURE_DOMAIN"
+        },
+        "auth": {
+          "evidence_count": 2389,
+          "term_counts": {
+            "auth": 317,
+            "session": 463,
+            "token": 1071,
+            "login": 443,
+            "logout": 87,
+            "refreshToken": 8
+          },
+          "candidate": "OPTIONAL_FEATURE_DOMAIN"
+        },
+        "settings": {
+          "evidence_count": 1968,
+          "term_counts": {
+            "settings": 503,
+            "options": 819,
+            "configuration": 26,
+            "preference": 64,
+            "storage": 556
+          },
+          "candidate": "OPTIONAL_FEATURE_DOMAIN"
+        }
+      },
+      "separability_status": "UNPROVEN_PASS2_CLASSIFICATION_ONLY"
+    },
+    "titan-zero-chat-runtime.compat.js": {
+      "bytes": 7778613,
+      "sha256": "195e1860346583b62c518881837d72b90aa51bb12f177ee8994e76b026cd7533",
+      "startup_role": "runtime",
+      "always_on_shell_candidate": {
+        "classification": "RETAIN_UNTIL_EQUIVALENCE_PROVEN",
+        "signals": {
+          "chrome.runtime.onMessage": 5,
+          "document.addEventListener": 4,
+          "window.addEventListener": 7,
+          "postMessage": 22
+        },
+        "rationale": "startup/messaging/DOM-or-Chrome API wiring is treated as shell candidate; Pass 2 does not prove extractability"
+      },
+      "domains": {
+        "page_overlay": {
+          "evidence_count": 843,
+          "term_counts": {
+            "floating": 18,
+            "overlay": 92,
+            "selection": 173,
+            "tooltip": 104,
+            "sidebar": 255,
+            "sidepanel": 29,
+            "contextmenu": 50,
+            "highlight": 122
+          },
+          "candidate": "OPTIONAL_FEATURE_DOMAIN"
+        },
+        "chat": {
+          "evidence_count": 2878,
+          "term_counts": {
+            "chat": 1207,
+            "conversation": 368,
+            "message": 746,
+            "assistant": 120,
+            "prompt": 411,
+            "quickcompose": 26
+          },
+          "candidate": "OPTIONAL_FEATURE_DOMAIN"
+        },
+        "document_pdf": {
+          "evidence_count": 2529,
+          "term_counts": {
+            "pdf": 436,
+            "document": 521,
+            "reader": 42,
+            "upload": 251,
+            "file": 710,
+            "summar": 569
+          },
+          "candidate": "OPTIONAL_FEATURE_DOMAIN"
+        },
+        "search": {
+          "evidence_count": 1028,
+          "term_counts": {
+            "search": 715,
+            "query": 206,
+            "webpage": 107,
+            "browser_navigate": 0,
+            "browser_view": 0
+          },
+          "candidate": "OPTIONAL_FEATURE_DOMAIN"
+        },
+        "media": {
+          "evidence_count": 2226,
+          "term_counts": {
+            "image": 1381,
+            "video": 417,
+            "audio": 217,
+            "youtube": 113,
+            "screenshot": 95,
+            "capturevisibletab": 3
+          },
+          "candidate": "OPTIONAL_FEATURE_DOMAIN"
+        },
+        "translation": {
+          "evidence_count": 1887,
+          "term_counts": {
+            "translate": 539,
+            "translation": 313,
+            "language": 567,
+            "locale": 430,
+            "i18n": 38
+          },
+          "candidate": "OPTIONAL_FEATURE_DOMAIN"
+        },
+        "auth": {
+          "evidence_count": 1390,
+          "term_counts": {
+            "auth": 146,
+            "session": 110,
+            "token": 1010,
+            "login": 89,
+            "logout": 35,
+            "refreshToken": 0
+          },
+          "candidate": "OPTIONAL_FEATURE_DOMAIN"
+        },
+        "settings": {
+          "evidence_count": 1220,
+          "term_counts": {
+            "settings": 152,
+            "options": 668,
+            "configuration": 20,
+            "preference": 38,
+            "storage": 342
+          },
+          "candidate": "OPTIONAL_FEATURE_DOMAIN"
+        }
+      },
+      "separability_status": "UNPROVEN_PASS2_CLASSIFICATION_ONLY"
+    }
+  }
+}

@@ -31,6 +31,7 @@ type PhoneNumber = typeof phoneNumbers.$inferSelect;
 interface BatchCallConfig {
   campaignId: string;
   userId: string;
+  companyId: string | null;
   agentId: string;
   phoneNumberId: string;
   maxConcurrentCalls: number;
@@ -213,6 +214,7 @@ export class TwilioOpenAIBatchCallingService {
       this.config = {
         campaignId,
         userId: campaign.userId,
+        companyId: campaign.companyId ?? null,
         agentId: campaign.agentId,
         phoneNumberId: campaign.phoneNumberId,
         maxConcurrentCalls: concurrencyLimit,
@@ -517,7 +519,7 @@ export class TwilioOpenAIBatchCallingService {
       if (this.config && this.config.userId) {
         try {
           const contactName = [contact.firstName, contact.lastName].filter(Boolean).join(' ') || 'Unknown';
-          await webhookDeliveryService.triggerEvent(this.config.userId, 'call.started', {
+          await webhookDeliveryService.triggerEvent(this.config.companyId, this.config.userId, 'call.started', {
             call: {
               id: result.callId,
               callSid: result.twilioCallSid || null,

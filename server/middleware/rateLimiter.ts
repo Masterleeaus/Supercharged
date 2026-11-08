@@ -16,9 +16,9 @@
  * ============================================================
  */
 
-import { Request, Response, NextFunction } from "express";
-import { RateLimitError } from "../utils/errors";
-import { AuthenticatedRequest } from "./errorHandler";
+import type { Request, Response, NextFunction } from "express";
+import { RateLimitError } from "../utils/errors.ts";
+import type { AuthenticatedRequest } from "./errorHandler.ts";
 
 interface RateLimitEntry {
   count: number;
@@ -63,9 +63,10 @@ function defaultKeyGenerator(req: Request): string {
     return `user:${authReq.userId}`;
   }
   
-  const ip = req.ip || 
-             req.headers["x-forwarded-for"]?.toString().split(",")[0] || 
-             req.socket.remoteAddress || 
+  // Key on the socket-derived req.ip only. The raw X-Forwarded-For header is
+  // client-controlled and must never select a bucket.
+  const ip = req.ip ||
+             req.socket.remoteAddress ||
              "unknown";
   
   return `ip:${ip}`;
@@ -121,19 +122,33 @@ export function createRateLimiter(options: RateLimiterOptions) {
   };
 }
 
+// 60 requests per minute. Keyed by the signed-in user when present, otherwise
+// by socket IP (req.ip). Public widget routes are unauthenticated, so they are
+// limited per IP.
 export const apiRateLimiter = createRateLimiter({
   windowMs: 60 * 1000,
-  maxRequests: 100,
+  maxRequests: 60,
   message: "Too many API requests, please try again later"
+});
+
+// Webhooks are unauthenticated provider callbacks, so they are keyed by
+// route path plus source IP rather than by user.
+export const webhookRateLimiter = createRateLimiter({
+  windowMs: 60 * 1000,
+  maxRequests: 160,
+  keyGenerator: (req: Request) => {
+    const ip = req.ip || req.socket.remoteAddress || "unknown";
+    const route = `${req.baseUrl || ""}${req.path || ""}`;
+    return `webhook:${route}:${ip}`;
+  },
+  message: "Too many webhook requests, please try again later"
 });
 
 export const authRateLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000,
   maxRequests: 10,
   keyGenerator: (req: Request) => {
-    const ip = req.ip || 
-               req.headers["x-forwarded-for"]?.toString().split(",")[0] || 
-               "unknown";
+    const ip = req.ip || req.socket.remoteAddress || "unknown";
     return `auth:${ip}`;
   },
   message: "Too many login attempts, please try again later"

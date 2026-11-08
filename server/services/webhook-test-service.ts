@@ -1074,7 +1074,15 @@ export function generateComprehensiveTestPayload(eventType: WebhookEventType = '
   }
 }
 
+/** Narrow store surface used here. The default is the shared storage module. */
+export interface WebhookTestStore {
+  getWebhook(id: string): Promise<Webhook | undefined>;
+  createWebhookLog(log: InsertWebhookLog): Promise<unknown>;
+}
+
 export class WebhookTestService {
+  constructor(private readonly store: WebhookTestStore = storage) {}
+
   private generateSignature(payload: string, secret: string, timestamp: string): string {
     const signaturePayload = timestamp + payload;
     return crypto
@@ -1119,12 +1127,23 @@ export class WebhookTestService {
     return headers;
   }
 
-  async testWebhook(webhookId: string, userId: string): Promise<WebhookTestResult> {
+  async testWebhook(webhookId: string, userId: string, companyId: string): Promise<WebhookTestResult> {
     console.log(`🧪 [WebhookTest] Testing webhook ${webhookId}`);
 
-    const webhook = await storage.getWebhook(webhookId);
-    
-    if (!webhook) {
+    // Fail closed: no company, no test.
+    if (!companyId) {
+      return {
+        success: false,
+        responseTime: 0,
+        error: 'Company scope required',
+        message: 'Company scope required',
+      };
+    }
+
+    const webhook = await this.store.getWebhook(webhookId);
+
+    // A subscription from another company is reported exactly like a missing one.
+    if (!webhook || webhook.companyId !== companyId) {
       console.log(`❌ [WebhookTest] Webhook ${webhookId} not found in database`);
       return {
         success: false,
@@ -1233,8 +1252,8 @@ export class WebhookTestService {
     result: WebhookTestResult
   ): Promise<void> {
     try {
-      const existingWebhook = await storage.getWebhook(webhook.id);
-      if (!existingWebhook) {
+      const existingWebhook = await this.store.getWebhook(webhook.id);
+      if (!existingWebhook || existingWebhook.companyId !== webhook.companyId) {
         console.log(`⚠️ [WebhookTest] Webhook ${webhook.id} no longer exists, skipping log`);
         return;
       }
@@ -1253,7 +1272,7 @@ export class WebhookTestService {
         nextRetryAt: null,
       };
 
-      await storage.createWebhookLog(logData);
+      await this.store.createWebhookLog(logData);
       console.log(`📝 [WebhookTest] Logged delivery for webhook ${webhook.id}`);
     } catch (error) {
       console.error(`⚠️ [WebhookTest] Failed to log delivery (non-fatal):`, error);

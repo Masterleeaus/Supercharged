@@ -32,34 +32,47 @@ import path from "path";
 
 const PERSISTED_SECRET_PATH = path.join(process.cwd(), '.appointment-webhook-secret');
 
+// Dev-only fallback. Used only when NODE_ENV is explicitly 'development' or 'test'.
+// Never used in production: any other NODE_ENV (including unset) fails closed.
+export const DEV_ONLY_APPOINTMENT_WEBHOOK_SECRET = 'DEV-ONLY-INSECURE-appointment-webhook-secret';
+
+/**
+ * Resolve the appointment webhook secret without generating a random one.
+ * Order: APPOINTMENT_WEBHOOK_SECRET env var, then the secret file.
+ * If neither exists, production throws (fail closed); dev/test uses the labelled dev-only value.
+ */
+export function resolveAppointmentWebhookSecret(
+  env: NodeJS.ProcessEnv = process.env,
+  secretPath: string = PERSISTED_SECRET_PATH,
+): string {
+  if (env.APPOINTMENT_WEBHOOK_SECRET) {
+    return env.APPOINTMENT_WEBHOOK_SECRET;
+  }
+
+  try {
+    if (fs.existsSync(secretPath)) {
+      const fromFile = fs.readFileSync(secretPath, 'utf-8').trim();
+      if (fromFile) {
+        return fromFile;
+      }
+    }
+  } catch (err) {
+    // fall through to fail closed below
+  }
+
+  if (env.NODE_ENV === 'development' || env.NODE_ENV === 'test') {
+    console.warn(`📅 [Appointment Tool] Using DEV-ONLY appointment webhook secret (NODE_ENV=${env.NODE_ENV})`);
+    return DEV_ONLY_APPOINTMENT_WEBHOOK_SECRET;
+  }
+
+  throw new Error('Appointment webhook secret is not configured (set APPOINTMENT_WEBHOOK_SECRET or provide the secret file)');
+}
+
 let appointmentWebhookSecret: string | null = null;
 
 export function getAppointmentWebhookSecret(): string {
   if (!appointmentWebhookSecret) {
-    if (process.env.APPOINTMENT_WEBHOOK_SECRET) {
-      appointmentWebhookSecret = process.env.APPOINTMENT_WEBHOOK_SECRET;
-    } else {
-      try {
-        if (fs.existsSync(PERSISTED_SECRET_PATH)) {
-          appointmentWebhookSecret = fs.readFileSync(PERSISTED_SECRET_PATH, 'utf-8').trim();
-          console.log(`📅 [Appointment Tool] Loaded persisted webhook secret from file`);
-        }
-      } catch (err) {
-        // ignore read errors
-      }
-
-      if (!appointmentWebhookSecret) {
-        appointmentWebhookSecret = crypto.randomBytes(32).toString('hex');
-        console.log(`📅 [Appointment Tool] Generated new webhook secret`);
-      }
-
-      try {
-        fs.writeFileSync(PERSISTED_SECRET_PATH, appointmentWebhookSecret, { mode: 0o600 });
-        console.log(`📅 [Appointment Tool] Persisted webhook secret to file (set APPOINTMENT_WEBHOOK_SECRET env var for explicit control)`);
-      } catch (err) {
-        console.warn(`📅 [Appointment Tool] Could not persist webhook secret to file - secret will change on restart`);
-      }
-    }
+    appointmentWebhookSecret = resolveAppointmentWebhookSecret();
   }
   return appointmentWebhookSecret;
 }
@@ -68,8 +81,14 @@ export function validateAppointmentWebhookToken(providedToken: string | undefine
   if (!providedToken) {
     return false;
   }
-  const secret = getAppointmentWebhookSecret();
-  
+  let secret: string;
+  try {
+    secret = getAppointmentWebhookSecret();
+  } catch (err) {
+    // No configured secret: refuse every token rather than guess one.
+    return false;
+  }
+
   const providedBuffer = Buffer.from(providedToken);
   const secretBuffer = Buffer.from(secret);
   

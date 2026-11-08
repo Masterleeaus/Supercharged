@@ -1,0 +1,124 @@
+{
+  "wizard": {
+    "id": "complete_job_v1",
+    "version": "1.0.0",
+    "name": "Complete Job",
+    "capability": "crm.work_order.complete",
+    "permissions": {
+      "required_roles": [
+        "field_worker",
+        "supervisor",
+        "admin",
+        "owner",
+        "manager"
+      ]
+    },
+    "metadata": {
+      "category": "jobs",
+      "interfaces": [
+        "chat",
+        "mobile",
+        "tablet",
+        "voice"
+      ],
+      "surfaces": [
+        "go",
+        "command"
+      ]
+    },
+    "offline": {
+      "enabled": true,
+      "sync_priority": "critical",
+      "conflict_handling": "prompt_user"
+    },
+    "steps": [
+      {
+        "id": "job",
+        "title": "Select job",
+        "fields": [
+          {
+            "id": "job_id",
+            "label": "Job",
+            "type": "text",
+            "required": true
+          }
+        ]
+      },
+      {
+        "id": "completion",
+        "title": "Completion details",
+        "fields": [
+          {
+            "id": "completed_at",
+            "label": "Completed at",
+            "type": "text",
+            "required": true
+          },
+          {
+            "id": "checklist_complete",
+            "label": "Checklist complete",
+            "type": "boolean",
+            "required": true
+          },
+          {
+            "id": "actual_duration_minutes",
+            "label": "Duration in minutes",
+            "type": "number",
+            "required": true,
+            "min": 1
+          }
+        ]
+      },
+      {
+        "id": "evidence",
+        "title": "Evidence and exceptions",
+        "fields": [
+          {
+            "id": "evidence_attachment_ids",
+            "label": "Evidence attachments",
+            "type": "array",
+            "required": false
+          },
+          {
+            "id": "damage_reported",
+            "label": "Damage reported",
+            "type": "boolean",
+            "required": true
+          },
+          {
+            "id": "exception_notes",
+            "label": "Exception notes",
+            "type": "text",
+            "required": false,
+            "max": 1000
+          }
+        ]
+      },
+      {
+        "id": "customer_outcome",
+        "title": "Customer outcome",
+        "fields": [
+          {
+            "id": "customer_signature",
+            "label": "Customer signature",
+            "type": "text",
+            "required": false
+          },
+          {
+            "id": "request_invoice",
+            "label": "Create invoice next",
+            "type": "boolean",
+            "required": true
+          }
+        ]
+      }
+    ]
+  },
+  "_titan_provenance": {
+    "source_product": "Titan Interaction Engine",
+    "source_version": "10.12.0",
+    "source_path": "resources/wizards/complete_job.json",
+    "company_boundary": "company_id",
+    "copied_without_domain_authority": true
+  }
+}
