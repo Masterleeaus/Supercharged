@@ -37,7 +37,7 @@ export function createPublicRoutes(ctx: RouteContext): Router {
   async function getAppNameFallback(): Promise<string> {
     try {
       const setting = await storage.getGlobalSetting('app_name');
-      return (setting?.value as string) || 'AgentLabs';
+      return (setting?.value as string) || 'Supercharged';
     } catch {
       return 'AgentLabs';
     }
@@ -108,7 +108,7 @@ export function createPublicRoutes(ctx: RouteContext): Router {
         success: true,
         installed,
         branding: {
-          app_name: brandingSettings.app_name || '',
+          app_name: brandingSettings.app_name || 'Supercharged',
           app_tagline: brandingSettings.app_tagline || '',
           logo_url: brandingSettings.logo_url || null,
           logo_url_light: brandingSettings.logo_url_light || null,
@@ -126,7 +126,7 @@ export function createPublicRoutes(ctx: RouteContext): Router {
       res.json({
         success: false,
         installed: false,
-        branding: { app_name: '', app_tagline: '', logo_url: null, favicon_url: null },
+        branding: { app_name: 'Supercharged', app_tagline: '', logo_url: null, favicon_url: null },
         seo: null,
         version
       });
@@ -998,7 +998,7 @@ ${allUrls.map(u => {
       const adminEmail = (adminEmailSetting?.value as string) || (smtpFromEmail?.value as string) || process.env.SMTP_USER;
 
       const appNameSetting = await storage.getGlobalSetting('app_name');
-      const appName = (appNameSetting?.value as string) || '';
+      const appName = (appNameSetting?.value as string) || 'Supercharged';
 
       if (!adminEmail) {
         console.error('No admin email configured for contact form');
