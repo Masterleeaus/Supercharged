@@ -11,6 +11,7 @@ import {
   MAX_READ_ROWS,
 } from '../../server/workforce/tools/read-handlers.ts';
 import { createToolRegistry } from '../../server/workforce/runtime/index.ts';
+import { GROUP03_TOOL_IDS } from '../../server/workforce/tools/handlers/group-03.ts';
 
 const CO_A = 'company-a';
 const CO_B = 'company-b';
@@ -228,14 +229,16 @@ test('input validation rejects unknown keys and bad values, naming fields only',
   await assert.rejects(() => specs['payments.list'].run(CO_A, { sneaky: true }), /invalid input: sneaky/);
 });
 
-test('registerReadTools registers each bound tool as a read tool with the registry', () => {
+test('registerReadTools registers each bound read tool as a read tool, plus the group 03 handlers', () => {
   const registered = [];
   registerReadTools({ register: (def) => registered.push(def) }, seededStore());
+  const readIds = ['booking_requests.get', 'booking_requests.list', 'invoices.get', 'invoices.list', 'payments.list'];
   assert.deepEqual(
     registered.map((d) => d.id).sort(),
-    ['booking_requests.get', 'booking_requests.list', 'invoices.get', 'invoices.list', 'payments.list'],
+    [...readIds, ...GROUP03_TOOL_IDS].sort(),
   );
-  for (const def of registered) {
+  // The group 03 handlers include writes and side effects. They are checked in tools-real-03.test.mjs.
+  for (const def of registered.filter((d) => readIds.includes(d.id))) {
     assert.equal(def.access, 'read');
     assert.equal(def.risk, 'low');
     assert.equal(typeof def.handler, 'function');
@@ -265,9 +268,9 @@ test('read tools run through the tool registry and refuse companyId in params', 
   assert.equal(refused.reason, 'tenant_override');
 });
 
-test('definitions expose the same ids as the specs', () => {
+test('definitions expose the same ids as the specs, apart from the group 03 handlers', () => {
   const store = seededStore();
-  const defIds = createReadToolDefinitions(store).map((d) => d.id).sort();
+  const defIds = createReadToolDefinitions(store).map((d) => d.id).filter((id) => !GROUP03_TOOL_IDS.includes(id)).sort();
   const specIds = createReadToolSpecs(store).map((s) => s.id).sort();
   assert.deepEqual(defIds, specIds);
 });

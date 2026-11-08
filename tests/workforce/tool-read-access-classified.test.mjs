@@ -12,6 +12,7 @@ for (const method of ['log', 'info', 'warn']) console[method] = () => {};
 
 const { TOOL_ACCESS } = await import('../../server/workforce/catalogue/tool-access.ts');
 const { createReadToolDefinitions } = await import('../../server/workforce/tools/read-handlers.ts');
+const { GROUP03_TOOL_IDS } = await import('../../server/workforce/tools/handlers/group-03.ts');
 
 const READ_VERBS = new Set(['list', 'get', 'search', 'view', 'lookup', 'check', 'read', 'availability', 'status']);
 
@@ -33,9 +34,20 @@ test('every TOOL_ACCESS value is read or write', () => {
 
 test('bound read tool definitions declare access read', () => {
   const definitions = createReadToolDefinitions(new Proxy({}, { get: () => async () => [] }));
-  assert.ok(definitions.length > 0, 'expected bound read tool definitions');
-  const notRead = definitions.filter((def) => def.access !== 'read').map((def) => `${def.id}=${String(def.access)}`);
+  // Group 03 is checked below: it includes writes and side effects.
+  const bound = definitions.filter((def) => !GROUP03_TOOL_IDS.includes(def.id));
+  assert.ok(bound.length > 0, 'expected bound read tool definitions');
+  const notRead = bound.filter((def) => def.access !== 'read').map((def) => `${def.id}=${String(def.access)}`);
   assert.deepEqual(notRead, [], `bound read tools not declared read: ${notRead.join(', ')}`);
+});
+
+test('group 03 definitions match the access classification in TOOL_ACCESS', () => {
+  const definitions = createReadToolDefinitions(new Proxy({}, { get: () => async () => [] }));
+  const mismatched = definitions
+    .filter((def) => GROUP03_TOOL_IDS.includes(def.id))
+    .filter((def) => def.access !== TOOL_ACCESS[def.id])
+    .map((def) => `${def.id}=${String(def.access)}`);
+  assert.deepEqual(mismatched, [], `group 03 access differs from TOOL_ACCESS: ${mismatched.join(', ')}`);
 });
 
 test('the four tools still under review are classified', () => {
