@@ -606,6 +606,8 @@ export async function getPluginStatus(): Promise<Array<{
   description: string;
   enabled: boolean;
   registered: boolean;
+  // A persisted toggle is not an unload/reload of routes in this process.
+  requiresRestart: boolean;
   features: string[];
   hasFrontendBundle: boolean;
   error?: string;
@@ -623,6 +625,7 @@ export async function getPluginStatus(): Promise<Array<{
       description: plugin.manifest.description,
       enabled: plugin.enabled,
       registered: plugin.registered,
+      requiresRestart: plugin.enabled !== plugin.registered,
       features: plugin.manifest.features || [],
       hasFrontendBundle,
       error: plugin.error,
