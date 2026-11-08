@@ -29,6 +29,7 @@ import { ElevenLabsPoolService } from '../services/elevenlabs-pool';
 import twilio from 'twilio';
 import crypto from 'crypto';
 import { webhookRateLimiter } from '../middleware/rateLimiter';
+import { logger } from '../utils/logger';
 
 /**
  * Runs the shared webhook rate limiter inside a handler. The handlers in this file are mounted
@@ -124,7 +125,7 @@ async function linkPendingAppointments(params: {
       `);
       const rowCount = result.rowCount || 0;
       if (rowCount > 0) {
-        console.log(`📅 [Appointment Linker] Linked ${rowCount} appointment(s) to call ${callId} via conversationId: ${conversationId}`);
+        logger.info(`📅 [Appointment Linker] Linked ${rowCount} appointment(s) to call ${callId} via conversationId: ${conversationId}`);
         const table = isSipCall ? 'sip_calls' : 'calls';
         await db.execute(sql`
           UPDATE ${sql.identifier(table)}
@@ -156,7 +157,7 @@ async function linkPendingAppointments(params: {
             apptLast10.split('').filter((d: string, i: number) => d === last10[i]).length >= 9;
 
           if (phoneMatches || fuzzyPhoneMatch) {
-            console.log(`📅 [Appointment Linker] Linked appointment ${row.id} to call ${callId} via phone number match`);
+            logger.info(`📅 [Appointment Linker] Linked appointment ${row.id} to call ${callId} via phone number match`);
             await db.execute(sql`
               UPDATE appointments 
               SET call_id = ${callId}, updated_at = NOW()
@@ -195,13 +196,13 @@ async function endTwilioCall(twilioCallSid: string | null, reason: string): Prom
       return;
     }
 
-    console.log(`📞 [Ending Call] Reason: ${reason}`);
-    console.log(`   CallSid: ${twilioCallSid}`);
+    logger.info(`📞 [Ending Call] Reason: ${reason}`);
+    logger.info(`   CallSid: ${twilioCallSid}`);
 
     const twilioClient = await getTwilioClient();
     await twilioClient.calls(twilioCallSid).update({ status: 'completed' });
 
-    console.log(`✅ [Call Ended Successfully] CallSid: ${twilioCallSid}`);
+    logger.info(`✅ [Call Ended Successfully] CallSid: ${twilioCallSid}`);
   } catch (error) {
     console.error(`❌ [Call End Error]`, error);
   }
@@ -210,8 +211,8 @@ async function endTwilioCall(twilioCallSid: string | null, reason: string): Prom
 // Helper function to execute call transfer via Twilio REST API
 async function executeCallTransfer(twilioCallSid: string, transferPhoneNumber: string): Promise<void> {
   try {
-    console.log(`📞 [Twilio Transfer] Initiating transfer for CallSid: ${twilioCallSid}`);
-    console.log(`   Transfer to: ${transferPhoneNumber}`);
+    logger.info(`📞 [Twilio Transfer] Initiating transfer for CallSid: ${twilioCallSid}`);
+    logger.info(`   Transfer to: [redacted]`);
 
     const twilioClient = await getTwilioClient();
 
@@ -228,15 +229,15 @@ async function executeCallTransfer(twilioCallSid: string, transferPhoneNumber: s
   </Dial>
 </Response>`;
 
-    console.log(`📋 [Twilio Transfer] TwiML:`, twiml);
+    logger.info(`📋 [Twilio Transfer] TwiML:`, twiml);
 
     // Update the active call with the transfer TwiML
     await twilioClient.calls(twilioCallSid).update({
       twiml: twiml
     });
 
-    console.log(`✅ [Twilio Transfer] Call transfer initiated successfully`);
-    console.log(`   The caller will now be connected to ${transferPhoneNumber}`);
+    logger.info(`✅ [Twilio Transfer] Call transfer initiated successfully`);
+    logger.info(`   The caller will now be connected to [redacted]`);
   } catch (error: any) {
     console.error(`❌ [Twilio Transfer] Failed to transfer call:`, error);
     throw new Error(`Twilio transfer failed: ${error.message}`);
@@ -259,18 +260,18 @@ function setupElevenLabsMessageHandlers(
     clearTimeout(silenceTimerRef.current);
   }
   silenceTimerRef.current = setTimeout(async () => {
-    console.log(`🔇 [Silence Detected] No activity/speech at the start of the call for 30 seconds, ending call...`);
+    logger.info(`🔇 [Silence Detected] No activity/speech at the start of the call for 30 seconds, ending call...`);
     await endCall('30 seconds of initial silence detected');
   }, 30000);
 
   elevenLabsWs.on('message', async (data) => {
     try {
       const message = JSON.parse(data.toString());
-      console.log(`📨 [ElevenLabs] Received message type: ${message.type}`);
+      logger.info(`📨 [ElevenLabs] Received message type: ${message.type}`);
 
       switch (message.type) {
         case 'conversation_initiation_metadata':
-          console.log(`✅ [ElevenLabs] Conversation initiated for call ${callId}`);
+          logger.info(`✅ [ElevenLabs] Conversation initiated for call ${callId}`);
           break;
 
         case 'audio':
@@ -287,7 +288,7 @@ function setupElevenLabsMessageHandlers(
             clearTimeout(silenceTimerRef.current);
           }
           silenceTimerRef.current = setTimeout(async () => {
-            console.log(`🔇 [Silence Detected] No activity for 30 seconds after agent audio, ending call...`);
+            logger.info(`🔇 [Silence Detected] No activity for 30 seconds after agent audio, ending call...`);
             await endCall('30 seconds of silence detected');
           }, 30000);
 
@@ -306,7 +307,7 @@ function setupElevenLabsMessageHandlers(
           break;
 
         case 'interruption':
-          console.log(`🛑 [ElevenLabs] User interruption detected`);
+          logger.info(`🛑 [ElevenLabs] User interruption detected`);
           if (streamSid && twilioWs.readyState === WebSocket.OPEN) {
             twilioWs.send(JSON.stringify({ event: 'clear', streamSid }));
           }
@@ -318,11 +319,11 @@ function setupElevenLabsMessageHandlers(
           const transcriptTime = new Date().toISOString();
 
           // Enhanced logging for transcription quality monitoring
-          console.log(`🗣️ [User Said]: "${userText}"`);
-          console.log(`   📊 Transcript length: ${userTranscriptLength} chars`);
-          console.log(`   ⏱️  Received at: ${transcriptTime}`);
+          logger.info(`🗣️ [User Said]: "${userText}"`);
+          logger.info(`   📊 Transcript length: ${userTranscriptLength} chars`);
+          logger.info(`   ⏱️  Received at: ${transcriptTime}`);
           if (message.user_transcription_event?.confidence) {
-            console.log(`   🎯 Confidence: ${message.user_transcription_event.confidence}`);
+            logger.info(`   🎯 Confidence: ${message.user_transcription_event.confidence}`);
           }
 
           if (userText && userText !== 'N/A') {
@@ -345,7 +346,7 @@ function setupElevenLabsMessageHandlers(
                 for (const bannedWord of bannedWords) {
                   const wordLower = bannedWord.word.toLowerCase();
                   if (userTextLower.includes(wordLower)) {
-                    console.log(`🚨 [Realtime Banned Word] Detected "${bannedWord.word}" in user transcript for call ${callId}`);
+                    logger.info(`🚨 [Realtime Banned Word] Detected "${bannedWord.word}" in user transcript for call ${callId}`);
 
                     // Calculate context
                     const position = userTextLower.indexOf(wordLower);
@@ -377,11 +378,11 @@ function setupElevenLabsMessageHandlers(
                           blockedAt: new Date(),
                           blockedBy: 'system',
                         });
-                        console.log(`⚠️ [Realtime Banned Word] Auto-blocked user ${callRecord.userId} for violation: ${bannedWord.word}`);
+                        logger.info(`⚠️ [Realtime Banned Word] Auto-blocked user ${callRecord.userId} for violation: ${bannedWord.word}`);
                       }
 
                       // End the call immediately if autoBlock is enabled
-                      console.log(`🚫 [Realtime Banned Word] Auto-block is ON. Terminating call ${callId}`);
+                      logger.info(`🚫 [Realtime Banned Word] Auto-block is ON. Terminating call ${callId}`);
                       await endCall('Banned word detected (auto-block)');
                       break; // Stop checking more words
                     }
@@ -394,7 +395,7 @@ function setupElevenLabsMessageHandlers(
 
                 if (violationDetected) {
                   // If autoBlock is OFF but violation was detected, give a warning to the customer
-                  console.log(`⚠️ [Realtime Banned Word] Violation detected but Auto-block is OFF. Giving warning to customer for call ${callId}`);
+                  logger.warn(`⚠️ [Realtime Banned Word] Violation detected but Auto-block is OFF. Giving warning to customer for call ${callId}`);
 
                   // Send warning instruction to ElevenLabs
                   const warningText = `[SYSTEM WARNING] The user used inappropriate or offensive language. Please politely warn the user to refrain from using offensive language and continue the conversation.`;
@@ -413,19 +414,19 @@ function setupElevenLabsMessageHandlers(
               try {
                 // Process response - this auto-progresses through nodes
                 await flowBridge.processUserResponse(userText);
-                console.log(`[Flow Bridge] ✅ Processed user response`);
+                logger.info(`[Flow Bridge] ✅ Processed user response`);
 
                 // Check if flow has ended (after auto-progression)
                 if (flowBridge.hasFlowEnded()) {
-                  console.log(`[Flow Bridge] 🎯 Flow execution completed (reached END node)`);
+                  logger.info(`[Flow Bridge] 🎯 Flow execution completed (reached END node)`);
 
                   // Send final contextual update with END node message
                   try {
                     const finalUpdate = flowBridge.generateContextualUpdate();
                     const finalText = finalUpdate.text || "Thank you for your time. Goodbye!";
 
-                    console.log(`[Flow Bridge] 📤 Sending final contextual update to ElevenLabs:`);
-                    console.log(`   Instruction: "${finalText}"`);
+                    logger.info(`[Flow Bridge] 📤 Sending final contextual update to ElevenLabs:`);
+                    logger.info(`   Instruction: "${finalText}"`);
 
                     const success = await sendWebSocketWithRetry(elevenLabsWs, {
                       type: "contextual_update",
@@ -433,7 +434,7 @@ function setupElevenLabsMessageHandlers(
                     });
 
                     if (success) {
-                      console.log(`[Flow Bridge] ✅ Final contextual update sent`);
+                      logger.info(`[Flow Bridge] ✅ Final contextual update sent`);
                     } else {
                       console.error(`[Flow Bridge] ❌ Failed to send final update after retries - terminating call anyway`);
                     }
@@ -444,9 +445,9 @@ function setupElevenLabsMessageHandlers(
                   // Don't update call status here - let it be updated when call actually ends
                   // The Twilio status webhook will update status to 'completed' when call terminates
                   // This ensures DB state matches actual call lifecycle
-                  console.log(`[Flow Bridge] ✅ Flow execution completed - final goodbye sent`);
-                  console.log(`[Flow Bridge] 📞 Letting call end naturally via silence detection`);
-                  console.log(`[Flow Bridge] 💾 Call status will be updated to 'completed' by Twilio webhook when call actually ends`);
+                  logger.info(`[Flow Bridge] ✅ Flow execution completed - final goodbye sent`);
+                  logger.info(`[Flow Bridge] 📞 Letting call end naturally via silence detection`);
+                  logger.info(`[Flow Bridge] 💾 Call status will be updated to 'completed' by Twilio webhook when call actually ends`);
                 } else {
                   // Send contextual update to ElevenLabs with next node instructions
                   if (flowBridge.shouldSendContextualUpdate()) {
@@ -455,8 +456,8 @@ function setupElevenLabsMessageHandlers(
                       const instructionText = contextualUpdate.text || "Continue the conversation.";
 
                       if (instructionText.trim()) {
-                        console.log(`[Flow Bridge] 📤 Sending contextual update to ElevenLabs:`);
-                        console.log(`   Instruction: "${instructionText}"`);
+                        logger.info(`[Flow Bridge] 📤 Sending contextual update to ElevenLabs:`);
+                        logger.info(`   Instruction: "${instructionText}"`);
 
                         const success = await sendWebSocketWithRetry(elevenLabsWs, {
                           type: "contextual_update",
@@ -464,18 +465,18 @@ function setupElevenLabsMessageHandlers(
                         });
 
                         if (success) {
-                          console.log(`[Flow Bridge] ✅ Contextual update sent`);
+                          logger.info(`[Flow Bridge] ✅ Contextual update sent`);
                         } else {
                           console.error(`[Flow Bridge] ❌ Failed to send contextual update after retries`);
                         }
                       } else {
-                        console.log(`[Flow Bridge] ℹ️ Skipping empty contextual update (likely condition node)`);
+                        logger.warn(`[Flow Bridge] ℹ️ Skipping empty contextual update (likely condition node)`);
                       }
                     } catch (sendError) {
                       console.error(`[Flow Bridge] ❌ Failed to send contextual update:`, sendError);
                     }
                   } else {
-                    console.log(`[Flow Bridge] ℹ️ No contextual update needed for current node`);
+                    logger.info(`[Flow Bridge] ℹ️ No contextual update needed for current node`);
                   }
                 }
               } catch (error) {
@@ -498,7 +499,7 @@ function setupElevenLabsMessageHandlers(
             const userRejected = rejectionPhrases.some(phrase => lowerUserText.includes(phrase));
 
             if (userRejected) {
-              console.log(`🚫 [User Rejected] User expressed disinterest, ending call in 2 seconds...`);
+              logger.warn(`🚫 [User Rejected] User expressed disinterest, ending call in 2 seconds...`);
               setTimeout(async () => {
                 await endCall('User expressed disinterest');
               }, 2000);
@@ -510,14 +511,14 @@ function setupElevenLabsMessageHandlers(
           }
 
           silenceTimerRef.current = setTimeout(async () => {
-            console.log(`🔇 [Silence Detected] No user speech for 30 seconds, ending call...`);
+            logger.info(`🔇 [Silence Detected] No user speech for 30 seconds, ending call...`);
             await endCall('30 seconds of user silence detected');
           }, 30000);
           break;
 
         case 'agent_response':
           const agentText = message.agent_response_event?.agent_response || 'N/A';
-          console.log(`🤖 [AI Responded]: "${agentText}"`);
+          logger.info(`🤖 [AI Responded]: "${agentText}"`);
 
           if (agentText && agentText !== 'N/A') {
             conversationHistory.push({
@@ -533,7 +534,7 @@ function setupElevenLabsMessageHandlers(
           }
 
           silenceTimerRef.current = setTimeout(async () => {
-            console.log(`🔇 [Silence Detected] No activity for 30 seconds after agent response, ending call...`);
+            logger.info(`🔇 [Silence Detected] No activity for 30 seconds after agent response, ending call...`);
             await endCall('30 seconds of silence detected');
           }, 30000);
 
@@ -547,12 +548,12 @@ function setupElevenLabsMessageHandlers(
           const saidGoodbye = goodbyePhrases.some(phrase => lowerText.includes(phrase));
 
           if (saidGoodbye && !lowerText.includes('?')) {
-            console.log(`👋 [Agent Farewell] Agent said goodbye - setting short 5-second silence timeout to end call`);
+            logger.warn(`👋 [Agent Farewell] Agent said goodbye - setting short 5-second silence timeout to end call`);
             if (silenceTimerRef.current) {
               clearTimeout(silenceTimerRef.current);
             }
             silenceTimerRef.current = setTimeout(async () => {
-              console.log(`👋 [Agent Farewell] Ending call 5 seconds after agent said goodbye`);
+              logger.info(`👋 [Agent Farewell] Ending call 5 seconds after agent said goodbye`);
               await endCall('Agent said goodbye');
             }, 5000);
           }
@@ -569,13 +570,13 @@ function setupElevenLabsMessageHandlers(
           break;
 
         case 'client_tool_call':
-          console.log(`🔧 [Client Tool] Tool call received:`, message.client_tool_call);
+          logger.info(`🔧 [Client Tool] Tool call received:`, message.client_tool_call);
           const toolCall = message.client_tool_call;
 
           if (toolCall?.tool_name === 'transfer_call') {
-            console.log(`📞 [Call Transfer] Agent requested call transfer`);
-            console.log(`   Reason: ${toolCall.parameters?.reason || 'Not specified'}`);
-            console.log(`   Tool Call ID: ${toolCall.tool_call_id}`);
+            logger.info(`📞 [Call Transfer] Agent requested call transfer`);
+            logger.info(`   Reason: ${toolCall.parameters?.reason || 'Not specified'}`);
+            logger.info(`   Tool Call ID: ${toolCall.tool_call_id}`);
 
             try {
               // Get call details (works for both incoming and campaign calls)
@@ -590,11 +591,11 @@ function setupElevenLabsMessageHandlers(
               if (call.incomingConnection?.agentId) {
                 // Incoming call - get agent from incoming connection
                 agentIdToUse = call.incomingConnection.agentId;
-                console.log(`   📞 Incoming call - using incoming agent: ${agentIdToUse}`);
+                logger.info(`   📞 Incoming call - using incoming agent: ${agentIdToUse}`);
               } else if (call.campaign?.agentId) {
                 // Outgoing campaign call - get agent from campaign
                 agentIdToUse = call.campaign.agentId;
-                console.log(`   📞 Campaign call - using campaign agent: ${agentIdToUse}`);
+                logger.info(`   📞 Campaign call - using campaign agent: ${agentIdToUse}`);
               } else {
                 throw new Error('Call is not associated with any agent (neither incoming nor campaign)');
               }
@@ -606,7 +607,7 @@ function setupElevenLabsMessageHandlers(
               }
 
               const transferNumber = agent.transferPhoneNumber;
-              console.log(`   📲 Transferring to: ${transferNumber}`);
+              logger.info(`   📲 Transferring to: [redacted]`);
 
               // Execute the transfer via Twilio REST API
               if (!call.twilioSid) {
@@ -624,7 +625,7 @@ function setupElevenLabsMessageHandlers(
               };
 
               elevenLabsWs.send(JSON.stringify(successResult));
-              console.log(`✅ [Call Transfer] Transfer initiated and confirmed to ElevenLabs`);
+              logger.info(`✅ [Call Transfer] Transfer initiated and confirmed to ElevenLabs`);
 
               // Update call metadata for CRM Lead Processor detection
               try {
@@ -654,7 +655,7 @@ function setupElevenLabsMessageHandlers(
                   })
                   .where(eq(calls.id, callId));
 
-                console.log(`📞 [Call Transfer] Updated call metadata for CRM detection`);
+                logger.info(`📞 [Call Transfer] Updated call metadata for CRM detection`);
               } catch (metadataError: any) {
                 console.error(`📞 [Call Transfer] Failed to update call metadata:`, metadataError.message);
               }
@@ -683,15 +684,15 @@ function setupElevenLabsMessageHandlers(
               };
 
               elevenLabsWs.send(JSON.stringify(errorResult));
-              console.log(`❌ [Call Transfer] Error sent to ElevenLabs: ${errorMessage}`);
+              logger.error(`❌ [Call Transfer] Error sent to ElevenLabs: ${errorMessage}`);
             }
           } else {
-            console.log(`❓ [Client Tool] Unknown tool: ${toolCall?.tool_name}`);
+            logger.info(`❓ [Client Tool] Unknown tool: ${toolCall?.tool_name}`);
           }
           break;
 
         default:
-          console.log(`❓ [ElevenLabs] Unhandled message type: ${message.type}`);
+          logger.info(`❓ [ElevenLabs] Unhandled message type: ${message.type}`);
       }
     } catch (error) {
       console.error(`❌ [ElevenLabs] Error parsing message for call ${callId}:`, error);
@@ -713,7 +714,7 @@ async function initializeElevenLabsConnection(
   flowBridge?: any  // Optional FlowExecutionBridge instance
 ): Promise<WebSocket> {
   // agentId is the database UUID - need to look up the ElevenLabs agent ID
-  console.log(`[Stream] Looking up ElevenLabs agent ID for database agent ${agentId}`);
+  logger.info(`[Stream] Looking up ElevenLabs agent ID for database agent ${agentId}`);
 
   const agent = await storage.getAgent(agentId);
   if (!agent) {
@@ -725,15 +726,15 @@ async function initializeElevenLabsConnection(
   }
 
   const elevenLabsAgentId = agent.elevenLabsAgentId;
-  console.log(`[Stream] Resolved database agent ${agentId} to ElevenLabs agent ${elevenLabsAgentId}`);
+  logger.info(`[Stream] Resolved database agent ${agentId} to ElevenLabs agent ${elevenLabsAgentId}`);
 
   // Get the pool-assigned credential for this agent
-  console.log(`[Stream] 🔑 Resolving pool-assigned credential for agent ${agentId}...`);
+  logger.info(`[Stream] 🔑 Resolving pool-assigned credential for agent ${agentId}...`);
   const credential = await ElevenLabsPoolService.getCredentialForAgent(agentId);
   if (!credential) {
     throw new Error(`No ElevenLabs credential found for agent ${agentId}`);
   }
-  console.log(`[Stream] ✅ Using credential: ${credential.name} (ID: ${credential.id})`);
+  logger.info(`[Stream] ✅ Using credential: ${credential.name} (ID: ${credential.id})`);
 
   // Create ElevenLabsService instance with the agent's pool-assigned credential
   const agentElevenLabsService = new ElevenLabsService(credential.apiKey);
@@ -742,15 +743,15 @@ async function initializeElevenLabsConnection(
   // SKIP for Flow agents - their workflow is already compiled and saved when user edits the flow
   // Syncing here would overwrite the visual flow with a simplified built-in tools workflow
   if (agent.type === 'flow') {
-    console.log(`[Stream] ⏭️ Skipping agent sync for Flow agent - workflow is managed by flow builder`);
+    logger.warn(`[Stream] ⏭️ Skipping agent sync for Flow agent - workflow is managed by flow builder`);
   } else {
     // For Natural/Incoming agents, sync configuration to ensure latest settings
-    console.log(`[Stream] 🔄 Syncing agent configuration to ElevenLabs...`);
+    logger.info(`[Stream] 🔄 Syncing agent configuration to ElevenLabs...`);
     try {
       // Fetch knowledge base items if agent has knowledge base IDs
       let knowledgeBases: any[] = [];
       if (agent.knowledgeBaseIds && agent.knowledgeBaseIds.length > 0) {
-        console.log(`[Stream] 📚 Fetching ${agent.knowledgeBaseIds.length} knowledge base items...`);
+        logger.info(`[Stream] 📚 Fetching ${agent.knowledgeBaseIds.length} knowledge base items...`);
         const kbItems = await db
           .select()
           .from(knowledgeBase)
@@ -764,7 +765,7 @@ async function initializeElevenLabsConnection(
             elevenLabsDocId: kb.elevenLabsDocId,
           }));
 
-        console.log(`[Stream] 📚 Found ${knowledgeBases.length} synced knowledge base items`);
+        logger.info(`[Stream] 📚 Found ${knowledgeBases.length} synced knowledge base items`);
       }
 
       await agentElevenLabsService.updateAgent(elevenLabsAgentId, {
@@ -782,7 +783,7 @@ async function initializeElevenLabsConnection(
         detectLanguageEnabled: agent.detectLanguageEnabled || undefined,
         endConversationEnabled: agent.endConversationEnabled || undefined,
       });
-      console.log(`[Stream] ✅ Agent configuration synced to ElevenLabs using credential: ${credential.name}`);
+      logger.info(`[Stream] ✅ Agent configuration synced to ElevenLabs using credential: ${credential.name}`);
     } catch (syncError: any) {
       console.error(`[Stream] ⚠️ Failed to sync agent config (continuing anyway):`, syncError.message);
       // Continue with call even if sync fails - agent will use previous config
@@ -792,24 +793,24 @@ async function initializeElevenLabsConnection(
   // Check if this is a Flow agent (uses native ElevenLabs workflows)
   const isFlowAgent = agent.type === 'flow';
 
-  console.log(`[Stream] Getting fresh signed URL for ElevenLabs agent ${elevenLabsAgentId} using credential: ${credential.name}`);
+  logger.info(`[Stream] Getting fresh signed URL for ElevenLabs agent ${elevenLabsAgentId} using credential: ${credential.name}`);
   const wsAuth = await agentElevenLabsService.getConversationWebSocketAuth(elevenLabsAgentId);
 
   if (!wsAuth.signed_url) {
     throw new Error('Failed to get signed URL from ElevenLabs');
   }
 
-  console.log(`[ElevenLabs] Attempting to connect to ElevenLabs WebSocket...`);
-  console.log(`[ElevenLabs] Signed URL obtained (first 100 chars): ${wsAuth.signed_url.substring(0, 100)}...`);
+  logger.info(`[ElevenLabs] Attempting to connect to ElevenLabs WebSocket...`);
+  logger.info(`[ElevenLabs] Signed URL obtained (first 100 chars): [redacted]...`);
   const elevenLabsWs = new WebSocket(wsAuth.signed_url);
 
   elevenLabsWs.on('open', async () => {
-    console.log(`✅ [ElevenLabs] WebSocket connection established for call ${callId}`);
+    logger.info(`✅ [ElevenLabs] WebSocket connection established for call ${callId}`);
 
     // Increment load counter for this credential
     try {
       await ElevenLabsPoolService.incrementLoad(credential.id);
-      console.log(`[Pool] ✅ Incremented load for credential: ${credential.name}`);
+      logger.info(`[Pool] ✅ Incremented load for credential: ${credential.name}`);
     } catch (loadError) {
       console.error(`[Pool] ⚠️ Failed to increment load:`, loadError);
       // Continue with call even if load tracking fails
@@ -819,7 +820,7 @@ async function initializeElevenLabsConnection(
     // DO NOT send any agent config - let ElevenLabs use the saved workflow without overrides
     // Sending an empty agent: {} could override/disable the workflow
     if (isFlowAgent) {
-      console.log(`[ElevenLabs] 🔄 Flow Agent: Using native ElevenLabs workflow (no config override)`);
+      logger.info(`[ElevenLabs] 🔄 Flow Agent: Using native ElevenLabs workflow (no config override)`);
 
       // Only send dynamic variables if we have them, no agent config
       const hasDynamicVars = !!(contactName || contactPhone);
@@ -834,16 +835,16 @@ async function initializeElevenLabsConnection(
             }
           }
         };
-        console.log(`[ElevenLabs] Sending minimal config (dynamic vars only)`);
-        console.log(`   Dynamic variables:`, JSON.stringify(minimalConfig.conversation_config.dynamic_variables));
+        logger.info(`[ElevenLabs] Sending minimal config (dynamic vars only)`);
+        logger.info(`   Dynamic variables:`, JSON.stringify(minimalConfig.conversation_config.dynamic_variables));
         elevenLabsWs.send(JSON.stringify(minimalConfig));
       } else {
         // For Flow agents with no dynamic vars, don't send any initiation config
         // Let ElevenLabs use the agent's saved workflow configuration entirely
-        console.log(`[ElevenLabs] No initiation config sent - using agent's saved workflow`);
+        logger.info(`[ElevenLabs] No initiation config sent - using agent's saved workflow`);
       }
 
-      console.log(`[ElevenLabs] ✅ Flow agent ready - workflow handles conversation flow`);
+      logger.info(`[ElevenLabs] ✅ Flow agent ready - workflow handles conversation flow`);
     } else {
       // For Natural/Incoming agents, use the standard conversation config
       const conversationConfig: any = {
@@ -854,18 +855,18 @@ async function initializeElevenLabsConnection(
       // Add dynamic variables
       if (contactName) {
         conversationConfig.dynamic_variables.contact_name = contactName;
-        console.log(`[ElevenLabs] Adding contact name: ${contactName}`);
+        logger.info(`[ElevenLabs] Adding contact name: ${contactName}`);
       }
       if (contactPhone) {
         conversationConfig.dynamic_variables.contact_phone = contactPhone;
-        console.log(`[ElevenLabs] Adding contact phone: ${contactPhone}`);
+        logger.info(`[ElevenLabs] Adding contact phone: [redacted]`);
       }
 
       // For flow-based calls with flowBridge (legacy), use first_message from the flow
       if (flowBridge) {
         const firstMessage = flowBridge.getFirstMessage();
-        console.log(`[ElevenLabs] 🔀 Flow Mode: Setting first message from flow`);
-        console.log(`   First message: "${firstMessage}"`);
+        logger.info(`[ElevenLabs] 🔀 Flow Mode: Setting first message from flow`);
+        logger.info(`   First message: "${firstMessage}"`);
         conversationConfig.agent.first_message = firstMessage;
       }
 
@@ -875,11 +876,11 @@ async function initializeElevenLabsConnection(
         conversation_config: conversationConfig
       };
 
-      console.log(`[ElevenLabs] Sending conversation initiation`);
-      console.log(`   Dynamic variables:`, JSON.stringify(conversationConfig.dynamic_variables));
+      logger.info(`[ElevenLabs] Sending conversation initiation`);
+      logger.info(`   Dynamic variables:`, JSON.stringify(conversationConfig.dynamic_variables));
 
       elevenLabsWs.send(JSON.stringify(initialConfig));
-      console.log(`[ElevenLabs] ✅ Sent initial config`);
+      logger.info(`[ElevenLabs] ✅ Sent initial config`);
     }
 
     // Continue with flow bridge handling only for non-Flow agents
@@ -898,9 +899,9 @@ async function initializeElevenLabsConnection(
 
             // Always send if we have non-empty text OR if we're on an END node
             if (instructionText.trim() || flowBridge.hasFlowEnded()) {
-              console.log(`[Flow Bridge] 📤 Sending post-initialization contextual update:`);
-              console.log(`   Instruction: "${instructionText}"`);
-              console.log(`   Flow ended: ${flowBridge.hasFlowEnded()}`);
+              logger.info(`[Flow Bridge] 📤 Sending post-initialization contextual update:`);
+              logger.info(`   Instruction: "${instructionText}"`);
+              logger.info(`   Flow ended: ${flowBridge.hasFlowEnded()}`);
 
               const success = await sendWebSocketWithRetry(elevenLabsWs, {
                 type: "contextual_update",
@@ -908,20 +909,20 @@ async function initializeElevenLabsConnection(
               });
 
               if (success) {
-                console.log(`[Flow Bridge] ✅ Post-init contextual update sent`);
+                logger.info(`[Flow Bridge] ✅ Post-init contextual update sent`);
               } else {
                 console.error(`[Flow Bridge] ❌ Failed to send post-init update after retries`);
               }
             } else {
               // If text is empty and not END node, send a generic instruction
-              console.log(`[Flow Bridge] ℹ️ Sending fallback instruction after auto-progression`);
+              logger.info(`[Flow Bridge] ℹ️ Sending fallback instruction after auto-progression`);
               const success = await sendWebSocketWithRetry(elevenLabsWs, {
                 type: "contextual_update",
                 text: "Continue the conversation naturally."
               });
 
               if (success) {
-                console.log(`[Flow Bridge] ✅ Fallback instruction sent`);
+                logger.info(`[Flow Bridge] ✅ Fallback instruction sent`);
               } else {
                 console.error(`[Flow Bridge] ❌ Failed to send fallback instruction after retries`);
               }
@@ -950,14 +951,14 @@ async function initializeElevenLabsConnection(
   });
 
   elevenLabsWs.on('close', async (code, reason) => {
-    console.log(`[ElevenLabs] WebSocket closed for call ${callId}`);
-    console.log(`   Close code: ${code}`);
-    console.log(`   Close reason: ${reason.toString() || 'No reason provided'}`);
+    logger.info(`[ElevenLabs] WebSocket closed for call ${callId}`);
+    logger.info(`   Close code: ${code}`);
+    logger.info(`   Close reason: ${reason.toString() || 'No reason provided'}`);
 
     // Decrement load counter for this credential
     try {
       await ElevenLabsPoolService.decrementLoad(credential.id);
-      console.log(`[Pool] ✅ Decremented load for credential: ${credential.name}`);
+      logger.info(`[Pool] ✅ Decremented load for credential: ${credential.name}`);
     } catch (loadError) {
       console.error(`[Pool] ⚠️ Failed to decrement load:`, loadError);
     }
@@ -979,8 +980,8 @@ async function initializeElevenLabsConnection(
 export async function handleIncomingCallWebhook(req: Request, res: Response) {
   if (!(await enforceWebhookRateLimit(req, res))) return;
   try {
-    console.log(`📞 [Incoming Call] Received incoming call from Twilio`);
-    console.log(`   Body:`, req.body);
+    logger.info(`📞 [Incoming Call] Received incoming call from Twilio`);
+    logger.info(`   Body:`);
 
     const { To, From, CallSid, CallerId } = req.body;
 
@@ -989,7 +990,7 @@ export async function handleIncomingCallWebhook(req: Request, res: Response) {
       return res.status(400).send('Missing required parameters');
     }
 
-    console.log(`📞 [Incoming Call] From: ${From}, To: ${To}, CallSid: ${CallSid}`);
+    logger.info(`📞 [Incoming Call] From: ${From}, To: [redacted], CallSid: ${CallSid}`);
 
     // Look up the phone number and its incoming connection
     const phoneNumber = await db
@@ -1083,10 +1084,10 @@ export async function handleIncomingCallWebhook(req: Request, res: Response) {
     // Twilio should route directly to ElevenLabs (https://api.elevenlabs.io/twilio/inbound_call).
     // If we reach here, it means Twilio webhook is misconfigured for this number.
 
-    console.log(`⚠️  [Incoming Call] Call reached our server but should be handled by ElevenLabs natively`);
-    console.log(`   This indicates Twilio webhook is misconfigured for phone number ${To}`);
-    console.log(`   Expected: Twilio should route to https://api.elevenlabs.io/twilio/inbound_call`);
-    console.log(`   Fix: Delete and recreate the incoming connection to resync Twilio webhook`);
+    logger.info(`⚠️  [Incoming Call] Call reached our server but should be handled by ElevenLabs natively`);
+    logger.info(`   This indicates Twilio webhook is misconfigured for phone number [redacted]`);
+    logger.info(`   Expected: Twilio should route to https://api.elevenlabs.io/twilio/inbound_call`);
+    logger.info(`   Fix: Delete and recreate the incoming connection to resync Twilio webhook`);
 
     // Return a helpful message to the caller
     const VoiceResponse = twilio.twiml.VoiceResponse;
@@ -1108,9 +1109,9 @@ export async function handleIncomingCallWebhook(req: Request, res: Response) {
 export async function handleTwilioVoiceWebhook(req: Request, res: Response) {
   if (!(await enforceWebhookRateLimit(req, res))) return;
   try {
-    console.log(`🎙️ [Voice Webhook] Received request from Twilio`);
-    console.log(`   Query params:`, req.query);
-    console.log(`   Body:`, req.body);
+    logger.info(`🎙️ [Voice Webhook] Received request from Twilio`);
+    logger.info(`   Query params:`, req.query);
+    logger.info(`   Body:`);
 
     const { callId, agentId, contactName, flowId, executionId } = req.query;
 
@@ -1119,9 +1120,9 @@ export async function handleTwilioVoiceWebhook(req: Request, res: Response) {
       return res.status(400).send('Missing required parameters');
     }
 
-    console.log(`✅ [Voice Webhook] Call ${callId} answered, agent: ${agentId}, contact: ${contactName || 'N/A'}`);
+    logger.info(`✅ [Voice Webhook] Call ${callId} answered, agent: ${agentId}, contact: ${contactName || 'N/A'}`);
     if (flowId) {
-      console.log(`   Flow ID: ${flowId}, Execution ID: ${executionId}`);
+      logger.info(`   Flow ID: ${flowId}, Execution ID: ${executionId}`);
     }
 
     await db
@@ -1132,8 +1133,8 @@ export async function handleTwilioVoiceWebhook(req: Request, res: Response) {
     const domain = getDomain(req.headers.host as string);
     const streamUrl = `wss://${domain}/api/webhooks/twilio/stream`;
 
-    console.log(`📞 [Voice Webhook] Creating TwiML with stream URL: ${streamUrl}`);
-    console.log(`   Parameters: callId=${callId}, agentId=${agentId}, contactName=${contactName || 'N/A'}`);
+    logger.info(`📞 [Voice Webhook] Creating TwiML with stream URL: [redacted]`);
+    logger.info(`   Parameters: callId=${callId}, agentId=${agentId}, contactName=${contactName || 'N/A'}`);
 
     const VoiceResponse = twilio.twiml.VoiceResponse;
     const response = new VoiceResponse();
@@ -1154,7 +1155,7 @@ export async function handleTwilioVoiceWebhook(req: Request, res: Response) {
     }
 
     const twimlString = response.toString();
-    console.log(`📄 [Voice Webhook] Generated TwiML:\n${twimlString}`);
+    logger.info(`📄 [Voice Webhook] Generated TwiML:\n${twimlString}`);
 
     res.type('text/xml');
     res.send(twimlString);
@@ -1167,10 +1168,10 @@ export async function handleTwilioVoiceWebhook(req: Request, res: Response) {
 export async function handleTwilioStatusWebhook(req: Request, res: Response) {
   if (!(await enforceWebhookRateLimit(req, res))) return;
   try {
-    console.log(`📊 [Status Webhook] Received status update from Twilio`);
-    console.log(`   Query params:`, JSON.stringify(req.query));
-    console.log(`   Body:`, JSON.stringify(req.body));
-    console.log(`   CallSid: ${req.body.CallSid}, Status: ${req.body.CallStatus}`);
+    logger.info(`📊 [Status Webhook] Received status update from Twilio`);
+    logger.info(`   Query params:`, JSON.stringify(req.query));
+    logger.info(`   Body:`);
+    logger.info(`   CallSid: ${req.body.CallSid}, Status: ${req.body.CallStatus}`);
 
     const { callId: queryCallId } = req.query;
     const {
@@ -1196,7 +1197,7 @@ export async function handleTwilioStatusWebhook(req: Request, res: Response) {
 
       if (matchedCall) {
         callId = matchedCall.id;
-        console.log(`[Status Webhook] Resolved call by CallSid ${CallSid} -> ${callId}`);
+        logger.info(`[Status Webhook] Resolved call by CallSid ${CallSid} -> ${callId}`);
       } else {
         console.warn(`[Status Webhook] No match found for CallSid ${CallSid} in calls table`);
       }
@@ -1217,7 +1218,7 @@ export async function handleTwilioStatusWebhook(req: Request, res: Response) {
           const sipCall = sipCallResult.rows[0] as any;
 
           if (sipCall) {
-            console.log(`[Status Webhook] Found SIP call by CallSid ${CallSid} -> ${sipCall.id}`);
+            logger.info(`[Status Webhook] Found SIP call by CallSid ${CallSid} -> ${sipCall.id}`);
 
             const sipStatusMap: Record<string, string> = {
               'initiated': 'initiated',
@@ -1243,9 +1244,9 @@ export async function handleTwilioStatusWebhook(req: Request, res: Response) {
                   updated_at = NOW()
                 WHERE id = ${sipCall.id}
               `);
-              console.log(`✅ [Status Webhook] SIP call ${sipCall.id} status updated: ${CallStatus}`);
+              logger.info(`✅ [Status Webhook] SIP call ${sipCall.id} status updated: ${CallStatus}`);
             } else {
-              console.log(`[Status Webhook] SIP call ${sipCall.id} already in terminal status '${sipCall.status}' - skipping`);
+              logger.warn(`[Status Webhook] SIP call ${sipCall.id} already in terminal status '${sipCall.status}' - skipping`);
             }
 
             return res.sendStatus(200);
@@ -1298,7 +1299,7 @@ export async function handleTwilioStatusWebhook(req: Request, res: Response) {
     if (RecordingUrl) {
       // Append .mp3 for direct audio playback access
       updateData.recordingUrl = RecordingUrl.endsWith('.mp3') ? RecordingUrl : `${RecordingUrl}.mp3`;
-      console.log(`📼 [Status Webhook] Recording URL captured: ${updateData.recordingUrl}`);
+      logger.info(`📼 [Status Webhook] Recording URL captured: [redacted]`);
     }
 
     // Save phone numbers from Twilio for incoming calls
@@ -1321,7 +1322,7 @@ export async function handleTwilioStatusWebhook(req: Request, res: Response) {
       .set(updateData)
       .where(eq(calls.id, callId as string));
 
-    console.log(`✅ [Status Webhook] Call ${callId} status updated: ${CallStatus}`);
+    logger.info(`✅ [Status Webhook] Call ${callId} status updated: ${CallStatus}`);
 
     if (CallStatus === 'completed' && CallDuration) {
       const creditResult = await deductCallCreditsForElevenLabs(callId as string, parseInt(CallDuration, 10));
@@ -1359,7 +1360,7 @@ export async function handleTwilioStatusWebhook(req: Request, res: Response) {
           .limit(1);
 
         if (callRecord && callRecord.twilioSid && !callRecord.recordingUrl) {
-          console.log(`🎙️ [Auto Recovery] Call ${callId} completed but no recording URL. Fetching from Twilio...`);
+          logger.info(`🎙️ [Auto Recovery] Call ${callId} completed but no recording URL. Fetching from Twilio...`);
 
           const twilioClient = await getTwilioClient();
 
@@ -1374,7 +1375,7 @@ export async function handleTwilioStatusWebhook(req: Request, res: Response) {
               const recording = recordings[0];
               const recordingUrl = `https://api.twilio.com${recording.uri.replace('.json', '')}`;
 
-              console.log(`✅ [Auto Recovery] Found recording: ${recordingUrl}`);
+              logger.info(`✅ [Auto Recovery] Found recording: ${recordingUrl}`);
 
               // Update call with recording URL
               await db
@@ -1385,9 +1386,9 @@ export async function handleTwilioStatusWebhook(req: Request, res: Response) {
                 })
                 .where(eq(calls.id, callId as string));
 
-              console.log(`✅ [Auto Recovery] Recording automatically recovered for call ${callId}`);
+              logger.info(`✅ [Auto Recovery] Recording automatically recovered for call ${callId}`);
             } else {
-              console.log(`⚠️ [Auto Recovery] No recording found in Twilio for call ${callId} (SID: ${callRecord.twilioSid})`);
+              logger.info(`⚠️ [Auto Recovery] No recording found in Twilio for call ${callId} (SID: ${callRecord.twilioSid})`);
             }
           } catch (recordingError: any) {
             console.error(`❌ [Auto Recovery] Failed to fetch recording from Twilio:`, recordingError.message);
@@ -1420,9 +1421,9 @@ export async function handleTwilioStatusWebhook(req: Request, res: Response) {
 export async function handleTwilioRecordingWebhook(req: Request, res: Response) {
   if (!(await enforceWebhookRateLimit(req, res))) return;
   try {
-    console.log(`📼 [Recording Webhook] Received request`);
-    console.log(`   Query params:`, req.query);
-    console.log(`   Body:`, req.body);
+    logger.info(`📼 [Recording Webhook] Received request`);
+    logger.info(`   Query params:`, req.query);
+    logger.info(`   Body:`);
 
     const { callId } = req.query;
     const { RecordingUrl, RecordingDuration, RecordingSid, RecordingStatus } = req.body;
@@ -1436,7 +1437,7 @@ export async function handleTwilioRecordingWebhook(req: Request, res: Response) 
     // Twilio sends multiple callbacks for different recording statuses
     // Only process when status is 'completed' and we have a RecordingUrl
     if (RecordingStatus !== 'completed') {
-      console.log(`⏳ [Recording Webhook] Status: ${RecordingStatus} (waiting for 'completed')`);
+      logger.info(`⏳ [Recording Webhook] Status: ${RecordingStatus} (waiting for 'completed')`);
       return res.sendStatus(200);
     }
 
@@ -1446,11 +1447,11 @@ export async function handleTwilioRecordingWebhook(req: Request, res: Response) 
       return res.sendStatus(200);
     }
 
-    console.log(`💾 [Recording Webhook] Updating call ${callId}`);
-    console.log(`   RecordingUrl: ${RecordingUrl}`);
-    console.log(`   RecordingSid: ${RecordingSid}`);
-    console.log(`   RecordingDuration: ${RecordingDuration}`);
-    console.log(`   RecordingStatus: ${RecordingStatus}`);
+    logger.info(`💾 [Recording Webhook] Updating call ${callId}`);
+    logger.info(`   RecordingUrl: ${RecordingUrl}`);
+    logger.info(`   RecordingSid: ${RecordingSid}`);
+    logger.info(`   RecordingDuration: ${RecordingDuration}`);
+    logger.info(`   RecordingStatus: ${RecordingStatus}`);
 
     await db
       .update(calls)
@@ -1460,7 +1461,7 @@ export async function handleTwilioRecordingWebhook(req: Request, res: Response) 
       })
       .where(eq(calls.id, callId as string));
 
-    console.log(`✅ [Recording Webhook] Successfully saved recording for call ${callId}`);
+    logger.info(`✅ [Recording Webhook] Successfully saved recording for call ${callId}`);
 
     res.sendStatus(200);
   } catch (error) {
@@ -1471,7 +1472,7 @@ export async function handleTwilioRecordingWebhook(req: Request, res: Response) 
 }
 
 export async function handleTwilioStreamWebSocket(ws: WebSocket, req: Request) {
-  console.log(`[Stream] WebSocket connection established, waiting for Twilio start message...`);
+  logger.info(`[Stream] WebSocket connection established, waiting for Twilio start message...`);
 
   let callId: string | null = null;
   let agentId: string | null = null;
@@ -1514,19 +1515,19 @@ export async function handleTwilioStreamWebSocket(ws: WebSocket, req: Request) {
           executionId = customParams.executionId || null;
           fromPhoneNumber = customParams.fromPhone || null;
 
-          console.log(`✅ [Twilio] Media stream started`);
-          console.log(`   StreamSid: ${streamSid}`);
-          console.log(`   Twilio CallSid: ${twilioCallSid}`);
-          console.log(`   CallId: ${callId}`);
-          console.log(`   AgentId: ${agentId}`);
-          console.log(`   Contact Name: ${contactName || 'N/A'}`);
-          console.log(`   From Phone: ${fromPhoneNumber || 'N/A'}`);
+          logger.info(`✅ [Twilio] Media stream started`);
+          logger.info(`   StreamSid: ${streamSid}`);
+          logger.info(`   Twilio CallSid: ${twilioCallSid}`);
+          logger.info(`   CallId: ${callId}`);
+          logger.info(`   AgentId: ${agentId}`);
+          logger.info(`   Contact Name: ${contactName || 'N/A'}`);
+          logger.info(`   From Phone: [redacted]`);
           if (flowId) {
-            console.log(`   🔀 Flow Mode Enabled`);
-            console.log(`   Flow ID: ${flowId}`);
-            console.log(`   Execution ID: ${executionId}`);
+            logger.info(`   🔀 Flow Mode Enabled`);
+            logger.info(`   Flow ID: ${flowId}`);
+            logger.info(`   Execution ID: ${executionId}`);
           }
-          console.log(`   Custom parameters:`, JSON.stringify(customParams, null, 2));
+          logger.info(`   Custom parameters:`, JSON.stringify(customParams, null, 2));
 
           if (!callId || !agentId) {
             console.error('[Stream] Missing required parameters in start message');
@@ -1542,8 +1543,8 @@ export async function handleTwilioStreamWebSocket(ws: WebSocket, req: Request) {
               const domain = getDomain(req.headers.host as string);
               const recordingCallbackUrl = `${domain}/api/webhooks/twilio/recording?callId=${callId}`;
 
-              console.log(`📼 [Recording] Starting recording for call ${twilioCallSid}`);
-              console.log(`   Recording callback URL: ${recordingCallbackUrl}`);
+              logger.info(`📼 [Recording] Starting recording for call ${twilioCallSid}`);
+              logger.info(`   Recording callback URL: ${recordingCallbackUrl}`);
 
               await twilioClient.calls(twilioCallSid)
                 .recordings
@@ -1553,7 +1554,7 @@ export async function handleTwilioStreamWebSocket(ws: WebSocket, req: Request) {
                   recordingStatusCallbackEvent: ['completed'],
                 });
 
-              console.log(`✅ [Recording] Recording started successfully`);
+              logger.info(`✅ [Recording] Recording started successfully`);
             } catch (recordingError) {
               // Don't fail the call if recording fails - just log the error
               console.error(`❌ [Recording] Failed to start recording:`, recordingError);
@@ -1578,21 +1579,21 @@ export async function handleTwilioStreamWebSocket(ws: WebSocket, req: Request) {
                   .limit(1);
                 if (callRecord.length > 0 && callRecord[0].phoneNumber) {
                   callerPhone = callRecord[0].phoneNumber;
-                  console.log(`[Stream] 📞 Resolved caller phone from call record: ${callerPhone}`);
+                  logger.info(`[Stream] 📞 Resolved caller phone from call record: [redacted]`);
                 }
               } catch (phoneErr) {
                 console.warn(`[Stream] ⚠️ Could not resolve caller phone for dynamic variable:`, phoneErr);
               }
             } else {
-              console.log(`[Stream] 📞 Using caller phone from custom params: ${callerPhone}`);
+              logger.info(`[Stream] 📞 Using caller phone from custom params: [redacted]`);
             }
 
             // Flow Agents now execute entirely through ElevenLabs with compiled workflows
             // No need for FlowExecutionBridge - ElevenLabs handles the workflow execution
             if (flowId && executionId) {
-              console.log(`🔄 [Flow Agent] Using ElevenLabs workflow execution`);
-              console.log(`   Flow ID: ${flowId}`);
-              console.log(`   Execution ID: ${executionId}`);
+              logger.info(`🔄 [Flow Agent] Using ElevenLabs workflow execution`);
+              logger.info(`   Flow ID: ${flowId}`);
+              logger.info(`   Execution ID: ${executionId}`);
             }
 
             elevenLabsWs = await initializeElevenLabsConnection(
@@ -1616,7 +1617,7 @@ export async function handleTwilioStreamWebSocket(ws: WebSocket, req: Request) {
         case 'media':
           mediaPacketCount++;
           if (mediaPacketCount % 50 === 0) {
-            console.log(`🎤 [Twilio→ElevenLabs] Sent ${mediaPacketCount} audio packets`);
+            logger.info(`🎤 [Twilio→ElevenLabs] Sent ${mediaPacketCount} audio packets`);
           }
 
           if (elevenLabsWs && elevenLabsWs.readyState === WebSocket.OPEN && data.media?.payload) {
@@ -1628,15 +1629,15 @@ export async function handleTwilioStreamWebSocket(ws: WebSocket, req: Request) {
           break;
 
         case 'stop':
-          console.log(`🛑 [Twilio] Media stream stopped for call ${callId}`);
-          console.log(`[Twilio] Total media packets received: ${mediaPacketCount}`);
+          logger.info(`🛑 [Twilio] Media stream stopped for call ${callId}`);
+          logger.info(`[Twilio] Total media packets received: ${mediaPacketCount}`);
           if (elevenLabsWs) {
             elevenLabsWs.close();
           }
           break;
 
         default:
-          console.log(`❓ [Twilio] Received unhandled event: ${data.event}`);
+          logger.info(`❓ [Twilio] Received unhandled event: ${data.event}`);
       }
     } catch (error) {
       console.error(`❌ [Twilio] Error processing message for call ${callId}:`, error);
@@ -1644,9 +1645,9 @@ export async function handleTwilioStreamWebSocket(ws: WebSocket, req: Request) {
   });
 
   ws.on('close', async () => {
-    console.log(`[Twilio] WebSocket closed for call ${callId}`);
-    console.log(`[Twilio] Conversation history length: ${conversationHistory.length}`);
-    console.log(`[Twilio] CallId present: ${!!callId}`);
+    logger.info(`[Twilio] WebSocket closed for call ${callId}`);
+    logger.info(`[Twilio] Conversation history length: ${conversationHistory.length}`);
+    logger.info(`[Twilio] CallId present: ${!!callId}`);
 
     await formatAndSaveTranscript(callId, conversationHistory);
 
@@ -1736,9 +1737,9 @@ export async function handleFlowContinue(req: Request, res: Response) {
 export async function handleFlowStatus(req: Request, res: Response) {
   if (!(await enforceWebhookRateLimit(req, res))) return;
   try {
-    console.log(`📊 [Flow Status] Received status update`);
-    console.log(`   Query params:`, req.query);
-    console.log(`   Body:`, req.body);
+    logger.info(`📊 [Flow Status] Received status update`);
+    logger.info(`   Query params:`, req.query);
+    logger.info(`   Body:`);
 
     const { executionId } = req.query;
     const { CallStatus, CallDuration } = req.body;
@@ -1769,7 +1770,7 @@ export async function handleFlowStatus(req: Request, res: Response) {
         })
         .where(eq(flowExecutions.id, executionId as string));
 
-      console.log(`✅ [Flow Status] Execution ${executionId} marked as completed`);
+      logger.info(`✅ [Flow Status] Execution ${executionId} marked as completed`);
     }
 
     // Update call record if callId is available
@@ -1863,7 +1864,7 @@ async function verifyWithAllSecrets(
 export async function handleElevenLabsWebhook(req: Request, res: Response) {
   if (!(await enforceWebhookRateLimit(req, res))) return;
   try {
-    console.log(`📞 [ElevenLabs Webhook] Received event`);
+    logger.info(`📞 [ElevenLabs Webhook] Received event`);
 
     // Get the raw body as string for signature verification
     // Must use the actual raw body buffer, not re-stringified JSON, for HMAC to match
@@ -1871,9 +1872,9 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
     const signatureHeader = req.headers['elevenlabs-signature'] as string | undefined;
 
     // Debug: Log signature header format
-    console.log(`   Signature header present: ${!!signatureHeader}`);
+    logger.info(`   Signature header present: ${!!signatureHeader}`);
     if (signatureHeader) {
-      console.log(`   Signature header value: ${signatureHeader.substring(0, 60)}...`);
+      logger.info(`   Signature header value: [redacted]...`);
     }
 
     // Secure verification: Try all credential secrets until one matches
@@ -1886,7 +1887,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
       console.warn(`⚠️ [ElevenLabs Webhook] Signature verification failed: ${verification.error}`);
       return res.status(401).json({ error: 'Invalid webhook signature' });
     }
-    console.log(`   ✅ Signature verified`);
+    logger.info(`   ✅ Signature verified`);
 
     // Parse the webhook body according to ElevenLabs format
     // Standard format: { type: string, data: object, event_timestamp: number }
@@ -1895,26 +1896,26 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
 
     // DEBUG: Log the entire webhook body structure (keys only for sensitive data)
     const bodyKeys = Object.keys(req.body);
-    console.log(`   Body structure: { ${bodyKeys.join(', ')} }`);
-    console.log(`   Has 'type': ${!!type}`);
-    console.log(`   Has 'data': ${!!data}`);
-    console.log(`   Has 'audio': ${!!audio}`);
+    logger.info(`   Body structure: { ${bodyKeys.join(', ')} }`);
+    logger.info(`   Has 'type': ${!!type}`);
+    logger.info(`   Has 'data': ${!!data}`);
+    logger.info(`   Has 'audio': ${!!audio}`);
 
     // Handle legacy audio-only webhook format (WebSocket streaming)
     if (audio && !type) {
-      console.log(`📞 [ElevenLabs Webhook] Received legacy audio-only webhook - skipping`);
-      console.log(`   Audio data size: ~${Math.round((audio as string).length / 1024)}KB`);
+      logger.warn(`📞 [ElevenLabs Webhook] Received legacy audio-only webhook - skipping`);
+      logger.info(`   Audio data size: ~${Math.round((audio as string).length / 1024)}KB`);
       // These are streaming audio chunks, not post-call data
       return res.sendStatus(200);
     }
 
     // Log webhook type
-    console.log(`   Webhook type: ${type || 'undefined'}`);
-    console.log(`   Event timestamp: ${event_timestamp || 'N/A'}`);
+    logger.info(`   Webhook type: ${type || 'undefined'}`);
+    logger.info(`   Event timestamp: ${event_timestamp || 'N/A'}`);
 
     if (!type) {
       console.warn(`⚠️ [ElevenLabs Webhook] Unknown webhook format - no 'type' field`);
-      console.log(`   Full body keys: ${JSON.stringify(bodyKeys)}`);
+      logger.info(`   Full body keys: ${JSON.stringify(bodyKeys)}`);
       // Don't return 400 - just log and acknowledge to prevent retries
       return res.sendStatus(200);
     }
@@ -1924,15 +1925,15 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
     // Instead, we fetch ElevenLabs audio on-demand during playback
     // We only store Twilio recording URLs (stable/permanent)
     if (type === 'post_call_audio') {
-      console.log(`📞 [ElevenLabs Webhook] Received post_call_audio`);
+      logger.info(`📞 [ElevenLabs Webhook] Received post_call_audio`);
       const { conversation_id: audioConvId, recording_url, audio_url, metadata: audioMetadata } = data || {};
 
-      console.log(`   Conversation ID: ${audioConvId || 'N/A'}`);
-      console.log(`   ElevenLabs recording present: ${recording_url || audio_url ? 'yes (not storing - expires)' : 'no'}`);
+      logger.info(`   Conversation ID: ${audioConvId || 'N/A'}`);
+      logger.info(`   ElevenLabs recording present: ${recording_url || audio_url ? 'yes (not storing - expires)' : 'no'}`);
 
       // Extract call_sid from metadata for Twilio fallback
       const callSid = audioMetadata?.phone_call?.call_sid || audioMetadata?.call_sid;
-      console.log(`   Call SID for Twilio: ${callSid || 'N/A'}`);
+      logger.info(`   Call SID for Twilio: ${callSid || 'N/A'}`);
 
       if (audioConvId) {
         try {
@@ -1947,14 +1948,14 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
 
             let twilioRecordingUrl: string | null = null;
             if (twilioSid && !existingCall.recordingUrl) {
-              console.log(`   📞 Fetching stable Twilio recording for SID: ${twilioSid}`);
+              logger.info(`   📞 Fetching stable Twilio recording for SID: ${twilioSid}`);
               try {
                 const twilioData = await twilioService.getCallDetails(twilioSid);
                 if (twilioData?.recordingUrl) {
                   twilioRecordingUrl = twilioData.recordingUrl;
-                  console.log(`   ✅ Got stable Twilio recording URL`);
+                  logger.info(`   ✅ Got stable Twilio recording URL`);
                 } else {
-                  console.log(`   ⚠️ No Twilio recording available (call may not have recording enabled)`);
+                  logger.info(`   ⚠️ No Twilio recording available (call may not have recording enabled)`);
                 }
               } catch (twilioError: any) {
                 console.warn(`   ⚠️ Twilio recording fetch failed: ${twilioError.message}`);
@@ -1990,7 +1991,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                 throw audioUpdateErr;
               }
             }
-            console.log(`   ✅ Updated call record: ${existingCall.id} (Twilio SID: ${twilioSid || 'N/A'})`);
+            logger.info(`   ✅ Updated call record: ${existingCall.id} (Twilio SID: ${twilioSid || 'N/A'})`);
           } else {
             // Check SIP calls table if not found in main calls table
             // Critical for SIP-based clients who don't use Twilio
@@ -2000,7 +2001,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
             const existingSipCall = sipCallResult.rows[0] as any;
 
             if (existingSipCall) {
-              console.log(`   📞 Found SIP call record: ${existingSipCall.id}`);
+              logger.info(`   📞 Found SIP call record: ${existingSipCall.id}`);
               await db.execute(sql`
                 UPDATE sip_calls SET
                   metadata = COALESCE(metadata, '{}'::jsonb) || ${JSON.stringify({
@@ -2010,9 +2011,9 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                   updated_at = NOW()
                 WHERE id = ${existingSipCall.id}
               `);
-              console.log(`   ✅ Updated SIP call record: ${existingSipCall.id}`);
+              logger.info(`   ✅ Updated SIP call record: ${existingSipCall.id}`);
             } else {
-              console.log(`   ⚠️ No call record found (calls or sip_calls) for conversation: ${audioConvId}`);
+              logger.info(`   ⚠️ No call record found (calls or sip_calls) for conversation: ${audioConvId}`);
             }
           }
         } catch (audioError: any) {
@@ -2026,11 +2027,11 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
 
     // Handle call_initiation_failure webhooks
     if (type === 'call_initiation_failure') {
-      console.log(`📞 [ElevenLabs Webhook] Call initiation failed`);
+      logger.error(`📞 [ElevenLabs Webhook] Call initiation failed`);
       const { agent_id, conversation_id, failure_reason, metadata: failureMetadata } = data || {};
-      console.log(`   Agent ID: ${agent_id}`);
-      console.log(`   Conversation ID: ${conversation_id}`);
-      console.log(`   Failure reason: ${failure_reason}`);
+      logger.info(`   Agent ID: ${agent_id}`);
+      logger.info(`   Conversation ID: ${conversation_id}`);
+      logger.error(`   Failure reason: ${failure_reason}`);
 
       // Try to update the call record if it exists — check both calls and sip_calls tables
       if (conversation_id) {
@@ -2070,7 +2071,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
             })}::jsonb
               WHERE id = ${callRecord.id}
             `);
-            console.log(`   Updated SIP call ${callRecord.id} as failed`);
+            logger.error(`   Updated SIP call ${callRecord.id} as failed`);
           } else {
             await db
               .update(calls)
@@ -2084,7 +2085,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                 }
               })
               .where(eq(calls.id, callRecord.id));
-            console.log(`   Updated call ${callRecord.id} as failed`);
+            logger.error(`   Updated call ${callRecord.id} as failed`);
 
             // Trigger call.failed webhook if user is known
             if (callRecord.userId) {
@@ -2121,8 +2122,8 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                 /auth.*retry/i.test(failure_reason));
 
             if (isAuthRetryFailure) {
-              console.log(`🔄 [ElevenLabs Webhook] Auth retry failure detected — triggering background credential resync`);
-              console.log(`   Failure reason: "${failure_reason}"`);
+              logger.error(`🔄 [ElevenLabs Webhook] Auth retry failure detected — triggering background credential resync`);
+              logger.error(`   Failure reason: "${failure_reason}"`);
 
               const campaignId = callRecord.campaignId;
               let phoneDbId: string | null = null;
@@ -2145,12 +2146,12 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
               if (phoneDbId) {
                 (async () => {
                   try {
-                    console.log(`🔄 [ElevenLabs Webhook] Resyncing phone DB id: ${phoneDbId}`);
+                    logger.info(`🔄 [ElevenLabs Webhook] Resyncing phone DB id: ${phoneDbId}`);
                     const resyncResult = await resyncSinglePhoneCredentials(phoneDbId!);
                     if (resyncResult.success) {
-                      console.log(`✅ [ElevenLabs Webhook] Credential resync succeeded for phone ${phoneDbId}`);
+                      logger.info(`✅ [ElevenLabs Webhook] Credential resync succeeded for phone ${phoneDbId}`);
                       if (campaignId) {
-                        console.log(`🔄 [ElevenLabs Webhook] Marking campaign ${campaignId} for retry after successful resync`);
+                        logger.info(`🔄 [ElevenLabs Webhook] Marking campaign ${campaignId} for retry after successful resync`);
                         await markCampaignForRetry(campaignId, `Auto-retry after credential resync (original failure: ${failure_reason})`);
                       }
                     } else {
@@ -2172,7 +2173,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
               metadata: failureMetadata,
               timestamp: Date.now(),
             });
-            console.log(`   ⏳ Stored pending failure for conversation ${conversation_id} (will be applied if SIP record is created later)`);
+            logger.error(`   ⏳ Stored pending failure for conversation ${conversation_id} (will be applied if SIP record is created later)`);
           }
         }
       }
@@ -2183,7 +2184,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
     // Handle post_call_transcription webhooks (main call completion data)
     // Support both standard 'post_call_transcription' and OpenTelemetry-enabled 'post_call_transcription_otel' formats
     if (type !== 'post_call_transcription' && type !== 'post_call_transcription_otel') {
-      console.log(`⚠️ [ElevenLabs Webhook] Unknown webhook type: ${type}`);
+      logger.info(`⚠️ [ElevenLabs Webhook] Unknown webhook type: ${type}`);
       return res.sendStatus(200);
     }
 
@@ -2204,52 +2205,52 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
       return res.status(400).json({ error: 'Missing conversation_id' });
     }
 
-    console.log(`   Conversation ID: ${conversation_id}`);
-    console.log(`   Agent ID: ${agent_id || 'N/A'}`);
-    console.log(`   Status: ${status || 'N/A'}`);
+    logger.info(`   Conversation ID: ${conversation_id}`);
+    logger.info(`   Agent ID: ${agent_id || 'N/A'}`);
+    logger.info(`   Status: ${status || 'N/A'}`);
 
     // COMPREHENSIVE LOGGING: Log all webhook data for debugging
-    console.log(`📋 [ElevenLabs Webhook] Full webhook data structure:`);
-    console.log(`   metadata keys: ${metadata ? Object.keys(metadata).join(', ') : 'N/A'}`);
+    logger.info(`📋 [ElevenLabs Webhook] Full webhook data structure:`);
+    logger.info(`   metadata keys: ${metadata ? Object.keys(metadata).join(', ') : 'N/A'}`);
     if (metadata) {
       // Log phone_call object (where phone numbers are nested for telephony calls)
       if (metadata.phone_call) {
-        console.log(`   metadata.phone_call keys: ${Object.keys(metadata.phone_call).join(', ')}`);
-        console.log(`   metadata.phone_call.from: ${metadata.phone_call.from || metadata.phone_call.from_number || 'N/A'}`);
-        console.log(`   metadata.phone_call.to: ${metadata.phone_call.to || metadata.phone_call.to_number || 'N/A'}`);
-        console.log(`   metadata.phone_call.call_sid: ${metadata.phone_call.call_sid || metadata.phone_call.twilio_call_sid || 'N/A'}`);
+        logger.info(`   metadata.phone_call keys: ${Object.keys(metadata.phone_call).join(', ')}`);
+        logger.info(`   metadata.phone_call.from: [redacted]`);
+        logger.info(`   metadata.phone_call.to: [redacted]`);
+        logger.info(`   metadata.phone_call.call_sid: ${metadata.phone_call.call_sid || metadata.phone_call.twilio_call_sid || 'N/A'}`);
       } else {
-        console.log(`   metadata.phone_call: N/A (not a phone call)`);
+        logger.info(`   metadata.phone_call: N/A (not a phone call)`);
       }
       // Log batch_call object if present
       if (metadata.batch_call) {
-        console.log(`   metadata.batch_call keys: ${Object.keys(metadata.batch_call).join(', ')}`);
-        console.log(`   metadata.batch_call.batch_call_id: ${metadata.batch_call.batch_call_id || 'N/A'}`);
-        console.log(`   metadata.batch_call.batch_call_recipient_id: ${metadata.batch_call.batch_call_recipient_id || 'N/A'}`);
+        logger.info(`   metadata.batch_call keys: ${Object.keys(metadata.batch_call).join(', ')}`);
+        logger.info(`   metadata.batch_call.batch_call_id: ${metadata.batch_call.batch_call_id || 'N/A'}`);
+        logger.info(`   metadata.batch_call.batch_call_recipient_id: ${metadata.batch_call.batch_call_recipient_id || 'N/A'}`);
       }
       // Log external_number if present (used in batch calls)
       if (metadata.phone_call?.external_number) {
-        console.log(`   metadata.phone_call.external_number: ${metadata.phone_call.external_number}`);
+        logger.info(`   metadata.phone_call.external_number: [redacted]`);
       }
       // Log direct fields (fallback)
-      console.log(`   metadata.from_number (direct): ${metadata.from_number || 'N/A'}`);
-      console.log(`   metadata.to_number (direct): ${metadata.to_number || 'N/A'}`);
-      console.log(`   metadata.call_duration_secs: ${metadata.call_duration_secs || 'N/A'}`);
-      console.log(`   metadata.termination_reason: ${metadata.termination_reason || 'N/A'}`);
+      logger.info(`   metadata.from_number (direct): ${metadata.from_number || 'N/A'}`);
+      logger.info(`   metadata.to_number (direct): ${metadata.to_number || 'N/A'}`);
+      logger.info(`   metadata.call_duration_secs: ${metadata.call_duration_secs || 'N/A'}`);
+      logger.info(`   metadata.termination_reason: ${metadata.termination_reason || 'N/A'}`);
       // Log error and warnings for debugging failed calls
       if (metadata.error) {
-        console.log(`   ❌ metadata.error: ${JSON.stringify(metadata.error)}`);
+        logger.error(`   ❌ metadata.error: ${JSON.stringify(metadata.error)}`);
       }
       if (metadata.warnings && metadata.warnings.length > 0) {
-        console.log(`   ⚠️ metadata.warnings: ${JSON.stringify(metadata.warnings)}`);
+        logger.info(`   ⚠️ metadata.warnings: ${JSON.stringify(metadata.warnings)}`);
       }
     }
-    console.log(`   analysis keys: ${analysis ? Object.keys(analysis).join(', ') : 'N/A'}`);
+    logger.info(`   analysis keys: ${analysis ? Object.keys(analysis).join(', ') : 'N/A'}`);
     if (analysis) {
-      console.log(`   analysis.call_successful: ${analysis.call_successful || 'N/A'}`);
-      console.log(`   analysis.transcript_summary: ${analysis.transcript_summary ? 'present (' + analysis.transcript_summary.length + ' chars)' : 'N/A'}`);
+      logger.info(`   analysis.call_successful: ${analysis.call_successful || 'N/A'}`);
+      logger.info(`   analysis.transcript_summary: ${analysis.transcript_summary ? 'present (' + analysis.transcript_summary.length + ' chars)' : 'N/A'}`);
     }
-    console.log(`   transcript entries: ${webhookTranscript ? webhookTranscript.length : 0}`);
+    logger.info(`   transcript entries: ${webhookTranscript ? webhookTranscript.length : 0}`);
 
     // EXTRACT PHONE NUMBERS: Check all possible locations
     // Priority: phone_call object > batch_call object > direct metadata fields
@@ -2297,11 +2298,11 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
       metadata?.call_sid ||
       null;
 
-    console.log(`📱 [ElevenLabs Webhook] Extracted phone data (direction: ${callDirection || 'unknown'}):`);
-    console.log(`   From: ${extractedFromNumber || 'N/A'} (caller)`);
-    console.log(`   To: ${extractedToNumber || 'N/A'} (recipient)`);
-    console.log(`   Agent Number: ${agentNumber || 'N/A'}, External Number: ${externalNumber || 'N/A'}`);
-    console.log(`   CallSid: ${extractedCallSid || 'N/A'}`);
+    logger.info(`📱 [ElevenLabs Webhook] Extracted phone data (direction: ${callDirection || 'unknown'}):`);
+    logger.info(`   From: ${extractedFromNumber || 'N/A'} (caller)`);
+    logger.info(`   To: ${extractedToNumber || 'N/A'} (recipient)`);
+    logger.info(`   Agent Number: [redacted], External Number: ${externalNumber || 'N/A'}`);
+    logger.info(`   CallSid: ${extractedCallSid || 'N/A'}`);
 
     // Find the call record by ElevenLabs conversation ID
     let [callRecord] = await db
@@ -2315,7 +2316,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
     // NOTE: Campaign scheduler may mark calls as 'failed' before this webhook arrives,
     // so we also search for 'failed' and 'in_progress' statuses
     if (!callRecord && agent_id) {
-      console.log(`📞 [ElevenLabs Webhook] No record by conversation_id - attempting phone number match for batch calls`);
+      logger.info(`📞 [ElevenLabs Webhook] No record by conversation_id - attempting phone number match for batch calls`);
 
       const webhookPhoneNumber = extractedToNumber || extractedFromNumber || customerPhone;
 
@@ -2327,8 +2328,8 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
           .limit(1);
 
         if (agent && (agent.type === 'natural' || agent.type === 'flow')) {
-          console.log(`   Found campaign agent: ${agent.name} (${agent.type})`);
-          console.log(`   Looking for batch call to: ${webhookPhoneNumber}`);
+          logger.info(`   Found campaign agent: ${agent.name} (${agent.type})`);
+          logger.info(`   Looking for batch call to: [redacted]`);
 
           try {
             const webhookPhoneNoPlus = webhookPhoneNumber.replace(/^\+/, '');
@@ -2371,12 +2372,12 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
 
               if (matchedRow && matchedRow.call) {
                 callRecord = matchedRow.call;
-                console.log(`   ✅ Found matching pre-created batch call record: ${callRecord.id} (status: ${callRecord.status})`);
+                logger.info(`   ✅ Found matching pre-created batch call record: ${callRecord.id} (status: ${callRecord.status})`);
               }
             }
 
             if (!callRecord) {
-              console.log(`   No batch call found by phone number formats for ${webhookPhoneNumber}`);
+              logger.info(`   No batch call found by phone number formats for [redacted]`);
             }
           } catch (pendingQueryError: any) {
             if (isTypeMismatchError(pendingQueryError)) {
@@ -2395,9 +2396,9 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                 `);
                 if (rawResult.rows && rawResult.rows.length > 0) {
                   callRecord = rawResult.rows[0] as any;
-                  console.log(`   ✅ Found batch call via raw SQL: ${callRecord.id} (status: ${callRecord.status})`);
+                  logger.info(`   ✅ Found batch call via raw SQL: ${callRecord.id} (status: ${callRecord.status})`);
                 } else {
-                  console.log(`   No batch call found by phone number (raw SQL) for ${webhookPhoneNumber}`);
+                  logger.info(`   No batch call found by phone number (raw SQL) for [redacted]`);
                 }
               } catch (rawQueryError: any) {
                 console.error(`   ❌ Raw SQL pending call lookup also failed:`, rawQueryError.message);
@@ -2413,12 +2414,12 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                 .update(calls)
                 .set({ elevenLabsConversationId: conversation_id })
                 .where(eq(calls.id, callRecord.id));
-              console.log(`   Updated call record with conversation_id: ${conversation_id}`);
+              logger.info(`   Updated call record with conversation_id: ${conversation_id}`);
             } catch (updateConvIdError: any) {
               if (isTypeMismatchError(updateConvIdError)) {
                 try {
                   await db.execute(sql`UPDATE calls SET elevenlabs_conversation_id = ${conversation_id} WHERE id::text = ${callRecord.id}::text`);
-                  console.log(`   Updated call record with conversation_id (raw SQL): ${conversation_id}`);
+                  logger.info(`   Updated call record with conversation_id (raw SQL): ${conversation_id}`);
                 } catch (rawUpdateErr: any) {
                   console.warn(`   ⚠️ Failed to set conversation_id (non-fatal):`, rawUpdateErr.message);
                 }
@@ -2435,7 +2436,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
       if (!callRecord && metadata?.batch_call?.batch_call_id) {
         const batchCallId = metadata.batch_call.batch_call_id;
         const webhookPhone = extractedToNumber || extractedFromNumber || customerPhone;
-        console.log(`   Attempting batch_call_id match: ${batchCallId}, phone: ${webhookPhone}`);
+        logger.info(`   Attempting batch_call_id match: ${batchCallId}, phone: [redacted]`);
 
         try {
           const batchCallQuery = await db
@@ -2461,7 +2462,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
             .orderBy(sql`${calls.createdAt} DESC`)
             .limit(20);
 
-          console.log(`   Found ${batchCallQuery.length} calls for batch_call_id ${batchCallId}`);
+          logger.info(`   Found ${batchCallQuery.length} calls for batch_call_id ${batchCallId}`);
 
           if (batchCallQuery.length > 0) {
             if (webhookPhone) {
@@ -2474,13 +2475,13 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
               });
               if (exactMatch) {
                 callRecord = exactMatch;
-                console.log(`   ✅ Found batch call by batch_call_id + phone: ${callRecord.id}`);
+                logger.info(`   ✅ Found batch call by batch_call_id + phone: ${callRecord.id}`);
               }
             }
 
             if (!callRecord) {
               callRecord = batchCallQuery[0];
-              console.log(`   ✅ Found batch call by batch_call_id (first match): ${callRecord.id}`);
+              logger.info(`   ✅ Found batch call by batch_call_id (first match): ${callRecord.id}`);
             }
 
             try {
@@ -2488,12 +2489,12 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                 .update(calls)
                 .set({ elevenLabsConversationId: conversation_id })
                 .where(eq(calls.id, callRecord.id));
-              console.log(`   Updated call record with conversation_id: ${conversation_id}`);
+              logger.info(`   Updated call record with conversation_id: ${conversation_id}`);
             } catch (updateConvIdError: any) {
               if (isTypeMismatchError(updateConvIdError)) {
                 try {
                   await db.execute(sql`UPDATE calls SET elevenlabs_conversation_id = ${conversation_id} WHERE id::text = ${callRecord.id}::text`);
-                  console.log(`   Updated call record with conversation_id (raw SQL): ${conversation_id}`);
+                  logger.info(`   Updated call record with conversation_id (raw SQL): ${conversation_id}`);
                 } catch (rawUpdateErr: any) {
                   console.warn(`   ⚠️ Failed to set conversation_id (non-fatal):`, rawUpdateErr.message);
                 }
@@ -2502,7 +2503,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
               }
             }
           } else {
-            console.log(`   No calls found for batch_call_id: ${batchCallId}`);
+            logger.info(`   No calls found for batch_call_id: ${batchCallId}`);
           }
         } catch (batchQueryError: any) {
           console.error(`   ❌ Batch call ID lookup error:`, batchQueryError.message);
@@ -2528,7 +2529,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
               metadata: sql`COALESCE(${flowExecutions.metadata}, '{}'::jsonb) || ${JSON.stringify({ conversationId: conversation_id })}::jsonb`,
             })
             .where(eq(flowExecutions.id, flowExecution.id));
-          console.log(`🔀 [ElevenLabs Webhook] Flow execution ${flowExecution.id} started (pending -> running)`);
+          logger.info(`🔀 [ElevenLabs Webhook] Flow execution ${flowExecution.id} started (pending -> running)`);
         }
       } catch (flowExecError: any) {
         console.warn(`⚠️ [ElevenLabs Webhook] Error updating flow execution to running:`, flowExecError.message);
@@ -2538,7 +2539,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
     // If no call record exists, this might be an incoming call via ElevenLabs native integration
     // We need to create a call record for it - process the webhook data directly
     if (!callRecord) {
-      console.log(`📞 [ElevenLabs Webhook] No existing call record - checking if this is a native incoming call or outbound campaign call`);
+      logger.info(`📞 [ElevenLabs Webhook] No existing call record - checking if this is a native incoming call or outbound campaign call`);
 
       try {
         // Find the agent by ElevenLabs agent ID
@@ -2554,7 +2555,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
           // ISOLATION: Wrapped in try/catch so failures never block other CASE branches
           try {
             if (agent && agent.telephonyProvider === 'elevenlabs-sip') {
-              console.log(`📞 [ElevenLabs SIP] Found SIP agent: ${agent.name}`);
+              logger.info(`📞 [ElevenLabs SIP] Found SIP agent: ${agent.name}`);
 
               let callerPhoneNumber = extractedFromNumber;
               let calledNumber = extractedToNumber;
@@ -2570,7 +2571,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                 }
               }
 
-              console.log(`   SIP Call - Direction: ${direction}, From: ${callerPhoneNumber || 'N/A'}, To: ${calledNumber || 'N/A'}`);
+              logger.info(`   SIP Call - Direction: ${direction}, From: [redacted], To: [redacted]`);
 
               // BATCH CAMPAIGN INTERCEPT: For SIP agents, batch campaign calls are stored in
               // the `calls` table (not sip_calls). Check for a matching batch campaign call
@@ -2606,7 +2607,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                   }
 
                   if (matchedBatchCall) {
-                    console.log(`📞 [ElevenLabs SIP] Found matching batch campaign call: ${matchedBatchCall.id} (status: ${matchedBatchCall.status}, phone: ${matchedBatchCall.phoneNumber})`);
+                    logger.info(`📞 [ElevenLabs SIP] Found matching batch campaign call: ${matchedBatchCall.id} (status: ${matchedBatchCall.status}, phone: [redacted])`);
 
                     // Link conversation_id and update status
                     const updateData: Record<string, any> = {
@@ -2617,7 +2618,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                     // post_call_transcription webhook = call completed on ElevenLabs
                     if (matchedBatchCall.status === 'failed' || matchedBatchCall.status === 'pending') {
                       updateData.status = 'completed';
-                      console.log(`   ✅ Rescuing batch call from '${matchedBatchCall.status}' → 'completed'`);
+                      logger.info(`   ✅ Rescuing batch call from '${matchedBatchCall.status}' → 'completed'`);
                     }
 
                     await db
@@ -2631,14 +2632,14 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                       console.error(`❌ [ElevenLabs SIP] Background sync failed for batch call ${matchedBatchCall!.id}:`, syncErr.message);
                     });
 
-                    console.log(`✅ [ElevenLabs SIP] Linked batch call ${matchedBatchCall.id} to conversation ${conversation_id}, sync triggered`);
+                    logger.info(`✅ [ElevenLabs SIP] Linked batch call ${matchedBatchCall.id} to conversation ${conversation_id}, sync triggered`);
                     await recordWebhookReceived('elevenlabs');
                     return res.sendStatus(200);
                   } else {
-                    console.log(`   [ElevenLabs SIP] No matching batch campaign call found by phone number — proceeding with SIP call flow`);
+                    logger.info(`   [ElevenLabs SIP] No matching batch campaign call found by phone number — proceeding with SIP call flow`);
                   }
                 } else {
-                  console.log(`   [ElevenLabs SIP] No unlinked batch campaign calls found — proceeding with SIP call flow`);
+                  logger.info(`   [ElevenLabs SIP] No unlinked batch campaign calls found — proceeding with SIP call flow`);
                 }
               } catch (batchInterceptErr: any) {
                 console.error(`   [ElevenLabs SIP] Batch intercept error (non-fatal): ${batchInterceptErr.message}`);
@@ -2652,12 +2653,12 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
               const existingSipCall = existingSipCallResult.rows[0] as any;
 
               if (existingSipCall) {
-                console.log(`   Found existing SIP call record: ${existingSipCall.id} (${existingSipCall.direction})`);
+                logger.info(`   Found existing SIP call record: ${existingSipCall.id} (${existingSipCall.direction})`);
 
                 // Status downgrade protection: Don't update if already in terminal state
                 const terminalStatuses = ['completed', 'failed'];
                 if (terminalStatuses.includes(existingSipCall.status)) {
-                  console.log(`   SIP call already in terminal status '${existingSipCall.status}' - skipping update`);
+                  logger.warn(`   SIP call already in terminal status '${existingSipCall.status}' - skipping update`);
                   return res.sendStatus(200);
                 }
 
@@ -2678,12 +2679,12 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                       const tIsSip = tDigits && (sipDigits.endsWith(tDigits) || tDigits.endsWith(sipDigits));
 
                       if (direction === 'inbound' && fIsSip && !tIsSip) {
-                        console.log(`   🔄 Correcting existing inbound SIP From/To swap`);
+                        logger.info(`   🔄 Correcting existing inbound SIP From/To swap`);
                         const temp = callerPhoneNumber;
                         callerPhoneNumber = calledNumber;
                         calledNumber = temp || existingSipPhone.phone_number;
                       } else if (direction === 'outbound' && tIsSip && !fIsSip) {
-                        console.log(`   🔄 Correcting existing outbound SIP From/To swap`);
+                        logger.info(`   🔄 Correcting existing outbound SIP From/To swap`);
                         const temp = calledNumber;
                         calledNumber = callerPhoneNumber;
                         callerPhoneNumber = temp || existingSipPhone.phone_number;
@@ -2746,7 +2747,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                   updated_at = NOW()
                 WHERE id = ${existingSipCall.id}
               `);
-                console.log(`✅ [ElevenLabs SIP] Updated SIP call record: ${existingSipCall.id} (status: ${finalStatus}, sentiment: ${syncedData.sentiment || 'N/A'}, classification: ${syncedData.classification || 'N/A'})`);
+                logger.info(`✅ [ElevenLabs SIP] Updated SIP call record: ${existingSipCall.id} (status: ${finalStatus}, sentiment: ${syncedData.sentiment || 'N/A'}, classification: ${syncedData.classification || 'N/A'})`);
 
                 // Pre-call credit balance check for existing SIP calls
                 if (isCompletedCall && resolvedDuration > 0) {
@@ -2773,10 +2774,10 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                     return res.sendStatus(200);
                   }
 
-                  console.log(`💳 [ElevenLabs SIP] Processing credit deduction for ${resolvedDuration}s call`);
+                  logger.info(`💳 [ElevenLabs SIP] Processing credit deduction for ${resolvedDuration}s call`);
                   const creditResult = await deductSipCallCredits(existingSipCall.id, resolvedDuration, 'elevenlabs-sip');
                   if (creditResult.success || creditResult.alreadyDeducted) {
-                    console.log(`✅ [ElevenLabs SIP] Credits deducted: ${creditResult.creditsDeducted}`);
+                    logger.info(`✅ [ElevenLabs SIP] Credits deducted: ${creditResult.creditsDeducted}`);
 
                     checkAndDisconnectIfLowCredits(existingSipCall.user_id).catch(err =>
                       console.error(`[SIP Credit Guard] Error: ${err.message}`)
@@ -2786,9 +2787,9 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                       CRMLeadProcessor.processSipCall(existingSipCall.id)
                         .then((result) => {
                           if (result?.leadId) {
-                            console.log(`📋 [CRM] Lead created from SIP call ${existingSipCall.id}: ${result.leadId} (${result.qualification.category})`);
+                            logger.info(`📋 [CRM] Lead created from SIP call ${existingSipCall.id}: ${result.leadId} (${result.qualification.category})`);
                           } else if (result) {
-                            console.log(`📋 [CRM] SIP call ${existingSipCall.id} did not qualify for CRM lead`);
+                            logger.info(`📋 [CRM] SIP call ${existingSipCall.id} did not qualify for CRM lead`);
                           }
                         })
                         .catch((err) => {
@@ -2808,7 +2809,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                   `);
                   }
                 } else if (!isCompletedCall) {
-                  console.log(`⚠️ [ElevenLabs SIP] Call ${finalStatus} - no credit deduction`);
+                  logger.info(`⚠️ [ElevenLabs SIP] Call ${finalStatus} - no credit deduction`);
                 }
 
                 // Trigger post-call messaging for completed SIP calls (fire-and-forget)
@@ -2871,7 +2872,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
               let sipPhoneNumber = null;
               const sipPhoneToMatch = agentNumber || (direction === 'inbound' ? calledNumber : callerPhoneNumber);
 
-              console.log(`   Looking for SIP phone: ${sipPhoneToMatch || 'N/A'} (agentNumber: ${agentNumber || 'N/A'})`);
+              logger.info(`   Looking for SIP phone: [redacted] (agentNumber: [redacted])`);
 
               if (sipPhoneToMatch) {
                 const normalizeDigits = (phone: string) => phone.replace(/[^0-9]/g, '');
@@ -2882,7 +2883,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                   .from(sipPhoneNumbers)
                   .where(eq(sipPhoneNumbers.userId, agent.userId));
 
-                console.log(`   Found ${allSipPhones.length} SIP phones for user, matching against: ${normalizedTarget}`);
+                logger.info(`   Found ${allSipPhones.length} SIP phones for user, matching against: ${normalizedTarget}`);
 
                 sipPhoneNumber = allSipPhones.find(sp => {
                   const normalizedSp = normalizeDigits(sp.phoneNumber);
@@ -2890,13 +2891,13 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                 });
 
                 if (sipPhoneNumber) {
-                  console.log(`   ✅ Matched SIP phone: ${sipPhoneNumber.phoneNumber} (ID: ${sipPhoneNumber.id})`);
+                  logger.info(`   ✅ Matched SIP phone: [redacted] (ID: ${sipPhoneNumber.id})`);
                 }
               }
 
               // Fallback: Get SIP phone from agent's sipPhoneNumberId
               if (!sipPhoneNumber && agent.sipPhoneNumberId) {
-                console.log(`   Fallback: Using agent's sipPhoneNumberId: ${agent.sipPhoneNumberId}`);
+                logger.warn(`   Fallback: Using agent's sipPhoneNumberId: ${agent.sipPhoneNumberId}`);
                 const [spn] = await db
                   .select()
                   .from(sipPhoneNumbers)
@@ -2907,7 +2908,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
 
               // Final fallback: Get SIP phone assigned to this agent
               if (!sipPhoneNumber) {
-                console.log(`   Final fallback: Looking for SIP phone assigned to agent ${agent.id}`);
+                logger.warn(`   Final fallback: Looking for SIP phone assigned to agent ${agent.id}`);
                 const [spn] = await db
                   .select()
                   .from(sipPhoneNumbers)
@@ -2915,7 +2916,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                   .limit(1);
                 sipPhoneNumber = spn;
                 if (sipPhoneNumber) {
-                  console.log(`   ✅ Found SIP phone by agent assignment: ${sipPhoneNumber.phoneNumber}`);
+                  logger.info(`   ✅ Found SIP phone by agent assignment: [redacted]`);
                 }
               }
 
@@ -2964,7 +2965,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                     }
 
                     if (matchedCall) {
-                      console.log(`📞 [ElevenLabs SIP] Found batch campaign call record: ${matchedCall.id} (status: ${matchedCall.status})`);
+                      logger.info(`📞 [ElevenLabs SIP] Found batch campaign call record: ${matchedCall.id} (status: ${matchedCall.status})`);
 
                       // Update conversation_id so future webhooks can match
                       await db
@@ -2978,12 +2979,12 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                         console.error(`❌ [ElevenLabs SIP] Background sync failed for batch call ${matchedCall!.id}:`, err.message);
                       });
 
-                      console.log(`✅ [ElevenLabs SIP] Linked batch call ${matchedCall.id} to conversation ${conversation_id}, sync triggered`);
+                      logger.info(`✅ [ElevenLabs SIP] Linked batch call ${matchedCall.id} to conversation ${conversation_id}, sync triggered`);
                       return res.sendStatus(200);
                     }
                   }
 
-                  console.log(`   [ElevenLabs SIP] No batch campaign call match found either`);
+                  logger.info(`   [ElevenLabs SIP] No batch campaign call match found either`);
                 } catch (batchFallbackErr: any) {
                   console.error(`   [ElevenLabs SIP] Batch call fallback error: ${batchFallbackErr.message}`);
                 }
@@ -3003,17 +3004,17 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
               const toIsSipPhone = toDigits && (sipPhoneDigits.endsWith(toDigits) || toDigits.endsWith(sipPhoneDigits));
 
               if (direction === 'inbound' && fromIsSipPhone && !toIsSipPhone) {
-                console.log(`   🔄 Correcting inbound SIP From/To swap: SIP phone was in 'from', swapping`);
+                logger.info(`   🔄 Correcting inbound SIP From/To swap: SIP phone was in 'from', swapping`);
                 const temp = callerPhoneNumber;
                 callerPhoneNumber = calledNumber;
                 calledNumber = temp || sipPhoneNumber.phoneNumber;
               } else if (direction === 'outbound' && toIsSipPhone && !fromIsSipPhone) {
-                console.log(`   🔄 Correcting outbound SIP From/To swap: SIP phone was in 'to', swapping`);
+                logger.info(`   🔄 Correcting outbound SIP From/To swap: SIP phone was in 'to', swapping`);
                 const temp = calledNumber;
                 calledNumber = callerPhoneNumber;
                 callerPhoneNumber = temp || sipPhoneNumber.phoneNumber;
               }
-              console.log(`   SIP Call (corrected) - From: ${callerPhoneNumber || 'N/A'}, To: ${calledNumber || 'N/A'}`);
+              logger.info(`   SIP Call (corrected) - From: [redacted], To: [redacted]`);
 
               // Use sync service to get transcript and analysis data
               const { callSyncService } = await import('../services/call-sync');
@@ -3071,7 +3072,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
             `);
 
               const sipCallRecord = sipCallResult.rows[0] as any;
-              console.log(`✅ [ElevenLabs SIP] Created SIP call record: ${sipCallRecord?.id} (status: ${finalStatus}, sentiment: ${syncedData.sentiment || 'N/A'}, classification: ${syncedData.classification || 'N/A'})`);
+              logger.info(`✅ [ElevenLabs SIP] Created SIP call record: ${sipCallRecord?.id} (status: ${finalStatus}, sentiment: ${syncedData.sentiment || 'N/A'}, classification: ${syncedData.classification || 'N/A'})`);
 
               // Link pending appointments created during this conversation
               await linkPendingAppointments({
@@ -3107,10 +3108,10 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                   return res.sendStatus(200);
                 }
 
-                console.log(`💳 [ElevenLabs SIP] Processing credit deduction for ${resolvedDuration}s call`);
+                logger.info(`💳 [ElevenLabs SIP] Processing credit deduction for ${resolvedDuration}s call`);
                 const creditResult = await deductSipCallCredits(sipCallRecord.id, resolvedDuration, 'elevenlabs-sip');
                 if (creditResult.success || creditResult.alreadyDeducted) {
-                  console.log(`✅ [ElevenLabs SIP] Credits deducted: ${creditResult.creditsDeducted}`);
+                  logger.info(`✅ [ElevenLabs SIP] Credits deducted: ${creditResult.creditsDeducted}`);
 
                   checkAndDisconnectIfLowCredits(agent.userId).catch(err =>
                     console.error(`[SIP Credit Guard] Error: ${err.message}`)
@@ -3120,9 +3121,9 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                     CRMLeadProcessor.processSipCall(sipCallRecord.id)
                       .then((result) => {
                         if (result?.leadId) {
-                          console.log(`📋 [CRM] Lead created from SIP call ${sipCallRecord.id}: ${result.leadId} (${result.qualification.category})`);
+                          logger.info(`📋 [CRM] Lead created from SIP call ${sipCallRecord.id}: ${result.leadId} (${result.qualification.category})`);
                         } else if (result) {
-                          console.log(`📋 [CRM] SIP call ${sipCallRecord.id} did not qualify for CRM lead`);
+                          logger.info(`📋 [CRM] SIP call ${sipCallRecord.id} did not qualify for CRM lead`);
                         }
                       })
                       .catch((err) => {
@@ -3142,7 +3143,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                 `);
                 }
               } else if (!isCompletedCall) {
-                console.log(`⚠️ [ElevenLabs SIP] Call ${finalStatus} - no credit deduction`);
+                logger.info(`⚠️ [ElevenLabs SIP] Call ${finalStatus} - no credit deduction`);
               }
 
               // Trigger post-call messaging for completed SIP calls (fire-and-forget)
@@ -3217,7 +3218,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
               const validToDigits = extractedToDigits.length >= 10 ? extractedToDigits : '';
 
               if (!validFromDigits && !validToDigits) {
-                console.log(`📞 [ElevenLabs SIP Fallback] Skipping - no valid phone numbers (from: ${extractedFromDigits.length} digits, to: ${extractedToDigits.length} digits)`);
+                logger.warn(`📞 [ElevenLabs SIP Fallback] Skipping - no valid phone numbers (from: ${extractedFromDigits.length} digits, to: ${extractedToDigits.length} digits)`);
               } else {
 
                 // Look for SIP phone number scoped to the agent's user
@@ -3241,7 +3242,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                 const matchedSipPhone = sipPhoneResult.rows[0] as any;
 
                 if (matchedSipPhone) {
-                  console.log(`📞 [ElevenLabs SIP Fallback] Found SIP phone number: ${matchedSipPhone.phone_number} (user: ${agent.userId})`);
+                  logger.info(`📞 [ElevenLabs SIP Fallback] Found SIP phone number: [redacted] (user: ${agent.userId})`);
 
                   const direction = metadata?.phone_call?.direction || 'inbound';
                   const callDuration = metadata?.call_duration_secs || 0;
@@ -3258,12 +3259,12 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                   const sipFbToIsSip = sipFbToDigits && (sipFbDigits.endsWith(sipFbToDigits) || sipFbToDigits.endsWith(sipFbDigits));
 
                   if (direction === 'inbound' && sipFbFromIsSip && !sipFbToIsSip) {
-                    console.log(`   🔄 Correcting inbound SIP Fallback From/To swap`);
+                    logger.info(`   🔄 Correcting inbound SIP Fallback From/To swap`);
                     const temp = sipFallbackFrom;
                     sipFallbackFrom = sipFallbackTo;
                     sipFallbackTo = temp || matchedSipPhone.phone_number;
                   } else if (direction === 'outbound' && sipFbToIsSip && !sipFbFromIsSip) {
-                    console.log(`   🔄 Correcting outbound SIP Fallback From/To swap`);
+                    logger.info(`   🔄 Correcting outbound SIP Fallback From/To swap`);
                     const temp = sipFallbackTo;
                     sipFallbackTo = sipFallbackFrom;
                     sipFallbackFrom = temp || matchedSipPhone.phone_number;
@@ -3279,7 +3280,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                     // Status downgrade protection
                     const terminalStatuses = ['completed', 'failed'];
                     if (terminalStatuses.includes(existingSipCall.status)) {
-                      console.log(`   SIP call already in terminal status '${existingSipCall.status}' - skipping update`);
+                      logger.warn(`   SIP call already in terminal status '${existingSipCall.status}' - skipping update`);
                       return res.sendStatus(200);
                     }
                   }
@@ -3347,7 +3348,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                     updated_at = NOW()
                   WHERE id = ${existingSipCall.id}
                 `);
-                    console.log(`✅ [ElevenLabs SIP Fallback] Updated SIP call record: ${existingSipCall.id} (status: ${finalStatus}, sentiment: ${syncedData.sentiment || 'N/A'}, classification: ${syncedData.classification || 'N/A'})`);
+                    logger.info(`✅ [ElevenLabs SIP Fallback] Updated SIP call record: ${existingSipCall.id} (status: ${finalStatus}, sentiment: ${syncedData.sentiment || 'N/A'}, classification: ${syncedData.classification || 'N/A'})`);
 
                     // Credit check + deduction for completed calls only
                     if (isCompletedCall && resolvedDuration > 0 && !errorInfo) {
@@ -3373,7 +3374,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                       } else {
                         const creditResult = await deductSipCallCredits(existingSipCall.id, resolvedDuration, 'elevenlabs-sip');
                         if (creditResult.success || creditResult.alreadyDeducted) {
-                          console.log(`✅ [ElevenLabs SIP Fallback] Credits deducted: ${creditResult.creditsDeducted}`);
+                          logger.info(`✅ [ElevenLabs SIP Fallback] Credits deducted: ${creditResult.creditsDeducted}`);
 
                           checkAndDisconnectIfLowCredits(userId).catch(err =>
                             console.error(`[SIP Credit Guard] Error: ${err.message}`)
@@ -3383,7 +3384,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                             CRMLeadProcessor.processSipCall(existingSipCall.id)
                               .then((result) => {
                                 if (result?.leadId) {
-                                  console.log(`📋 [CRM] Lead created from SIP call ${existingSipCall.id}: ${result.leadId} (${result.qualification.category})`);
+                                  logger.info(`📋 [CRM] Lead created from SIP call ${existingSipCall.id}: ${result.leadId} (${result.qualification.category})`);
                                 }
                               })
                               .catch((err) => {
@@ -3400,7 +3401,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                         }
                       }
                     } else if (errorInfo) {
-                      console.log(`⚠️ [ElevenLabs SIP Fallback] Skipping credit deduction due to error: ${JSON.stringify(errorInfo)}`);
+                      logger.error(`⚠️ [ElevenLabs SIP Fallback] Skipping credit deduction due to error: ${JSON.stringify(errorInfo)}`);
                     }
 
                     // Trigger post-call messaging for completed SIP calls (fire-and-forget)
@@ -3489,7 +3490,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                 `);
 
                     const sipCallRecord = sipCallResult.rows[0] as any;
-                    console.log(`✅ [ElevenLabs SIP Fallback] Created SIP call record: ${sipCallRecord?.id} (status: ${finalStatus}, sentiment: ${syncedData.sentiment || 'N/A'}, classification: ${syncedData.classification || 'N/A'})`);
+                    logger.info(`✅ [ElevenLabs SIP Fallback] Created SIP call record: ${sipCallRecord?.id} (status: ${finalStatus}, sentiment: ${syncedData.sentiment || 'N/A'}, classification: ${syncedData.classification || 'N/A'})`);
 
                     // Link pending appointments created during this conversation
                     await linkPendingAppointments({
@@ -3524,7 +3525,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                       } else {
                         const creditResult = await deductSipCallCredits(sipCallRecord.id, resolvedDuration, 'elevenlabs-sip');
                         if (creditResult.success || creditResult.alreadyDeducted) {
-                          console.log(`✅ [ElevenLabs SIP Fallback] Credits deducted: ${creditResult.creditsDeducted}`);
+                          logger.info(`✅ [ElevenLabs SIP Fallback] Credits deducted: ${creditResult.creditsDeducted}`);
 
                           checkAndDisconnectIfLowCredits(userId).catch(err =>
                             console.error(`[SIP Credit Guard] Error: ${err.message}`)
@@ -3534,7 +3535,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                             CRMLeadProcessor.processSipCall(sipCallRecord.id)
                               .then((result) => {
                                 if (result?.leadId) {
-                                  console.log(`📋 [CRM] Lead created from SIP call ${sipCallRecord.id}: ${result.leadId} (${result.qualification.category})`);
+                                  logger.info(`📋 [CRM] Lead created from SIP call ${sipCallRecord.id}: ${result.leadId} (${result.qualification.category})`);
                                 }
                               })
                               .catch((err) => {
@@ -3551,7 +3552,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                         }
                       }
                     } else if (errorInfo) {
-                      console.log(`⚠️ [ElevenLabs SIP Fallback] Skipping credit deduction due to error: ${JSON.stringify(errorInfo)}`);
+                      logger.error(`⚠️ [ElevenLabs SIP Fallback] Skipping credit deduction due to error: ${JSON.stringify(errorInfo)}`);
                     }
 
                     // Trigger post-call messaging for completed SIP calls (fire-and-forget)
@@ -3619,13 +3620,13 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
           // CASE 1: Outbound campaign/flow agent - create fallback record
           // This handles cases where batch call record wasn't pre-created or phone format mismatch
           if (agent && (agent.type === 'natural' || agent.type === 'flow')) {
-            console.log(`   Found campaign agent: ${agent.name} (${agent.type})`);
+            logger.info(`   Found campaign agent: ${agent.name} (${agent.type})`);
 
             // Use extracted phone number (already checked all nested locations)
             const webhookPhoneNumber = extractedToNumber || extractedFromNumber;
 
             if (webhookPhoneNumber) {
-              console.log(`   Creating fallback outbound call record for: ${webhookPhoneNumber}`);
+              logger.warn(`   Creating fallback outbound call record for: [redacted]`);
 
               // Find a campaign using this agent
               let campaignMatch: any = null;
@@ -3730,7 +3731,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
               }
 
               callRecord = newCallRecord;
-              console.log(`✅ [ElevenLabs Webhook] Created fallback outbound call record: ${callRecord.id}`);
+              logger.info(`✅ [ElevenLabs Webhook] Created fallback outbound call record: ${callRecord.id}`);
 
               // Create flow execution record for flow-based fallback calls
               if (agent.flowId) {
@@ -3758,7 +3759,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                       conversationId: conversation_id,
                     },
                   });
-                  console.log(`🔀 [ElevenLabs Webhook] Created flow execution for fallback call: ${executionId}`);
+                  logger.info(`🔀 [ElevenLabs Webhook] Created flow execution for fallback call: ${executionId}`);
                 } catch (flowExecError: any) {
                   console.warn(`⚠️ [ElevenLabs Webhook] Error creating flow execution for fallback:`, flowExecError.message);
                 }
@@ -3768,13 +3769,13 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
 
           // CASE 2: Incoming agent - create new incoming call record
           if (!callRecord && agent && agent.type === 'incoming') {
-            console.log(`   Found incoming agent: ${agent.name}`);
+            logger.info(`   Found incoming agent: ${agent.name}`);
 
             // USE EXTRACTED PHONE NUMBERS (already checked all nested locations: phone_call, batch_call, direct)
             const callerPhoneNumber = extractedFromNumber;
             const calledNumber = extractedToNumber;
 
-            console.log(`   Using extracted phone data - From: ${callerPhoneNumber || 'N/A'}, To: ${calledNumber || 'N/A'}`);
+            logger.info(`   Using extracted phone data - From: [redacted], To: [redacted]`);
 
             // CRITICAL: Find the incoming connection by the CALLED phone number (to_number)
             // This ensures we link to the correct connection when an agent has multiple
@@ -3885,12 +3886,12 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
               console.warn(`   ⚠️ Cannot determine userId - call will have orphaned ownership`);
             }
 
-            console.log(`   Creating incoming call record with:`);
-            console.log(`     Phone: ${finalPhoneNumber}`);
-            console.log(`     Called: ${finalCalledNumber}`);
-            console.log(`     Duration: ${syncedData.duration || metadata?.call_duration_secs || 'N/A'}s`);
-            console.log(`     Transcript: ${syncedData.transcript ? 'present' : 'N/A'}`);
-            console.log(`     AI Summary: ${syncedData.aiSummary ? 'present' : 'N/A'}`);
+            logger.info(`   Creating incoming call record with:`);
+            logger.info(`     Phone: [redacted]`);
+            logger.info(`     Called: ${finalCalledNumber}`);
+            logger.info(`     Duration: ${syncedData.duration || metadata?.call_duration_secs || 'N/A'}s`);
+            logger.info(`     Transcript: ${syncedData.transcript ? 'present' : 'N/A'}`);
+            logger.info(`     AI Summary: ${syncedData.aiSummary ? 'present' : 'N/A'}`);
 
             // Provider webhooks carry no session, so company comes from the owning agent record.
             // Fail closed: refuse rather than insert a row without company_id.
@@ -3964,7 +3965,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
             }
 
             callRecord = newCallRecord;
-            console.log(`✅ [ElevenLabs Webhook] Created incoming call record: ${callRecord.id}`);
+            logger.info(`✅ [ElevenLabs Webhook] Created incoming call record: ${callRecord.id}`);
           }
         }
       } catch (createError: any) {
@@ -3977,7 +3978,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
     if (!callRecord && agent_id && metadata?.error) {
       const errorInfo = metadata.error;
       const terminationReason = metadata.termination_reason || 'Unknown error';
-      console.log(`📞 [ElevenLabs Webhook] Creating failed call record for error: ${terminationReason}`);
+      logger.error(`📞 [ElevenLabs Webhook] Creating failed call record for error: ${terminationReason}`);
 
       try {
         // Look up agent fresh for this scope
@@ -4061,7 +4062,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                 ${startedAt}, ${endedAt}
               )
             `);
-              console.log(`✅ [ElevenLabs Webhook] Created failed SIP call record for: ${conversation_id}`);
+              logger.error(`✅ [ElevenLabs Webhook] Created failed SIP call record for: ${conversation_id}`);
               await recordWebhookReceived('elevenlabs');
               return res.sendStatus(200);
             }
@@ -4131,7 +4132,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
           }
 
           callRecord = failedCallRecord;
-          console.log(`✅ [ElevenLabs Webhook] Created failed call record: ${callRecord.id}`);
+          logger.error(`✅ [ElevenLabs Webhook] Created failed call record: ${callRecord.id}`);
         }
       } catch (failedCallError: any) {
         console.error(`❌ [ElevenLabs Webhook] Error creating failed call record:`, failedCallError.message);
@@ -4152,10 +4153,10 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
       return res.sendStatus(200);
     }
 
-    console.log(`   Found call record: ${callRecord.id}`);
+    logger.info(`   Found call record: ${callRecord.id}`);
 
     // Process the post_call_transcription webhook data using unified sync service
-    console.log(`📞 [ElevenLabs Webhook] Processing post_call_transcription with unified sync`);
+    logger.info(`📞 [ElevenLabs Webhook] Processing post_call_transcription with unified sync`);
 
     try {
       // Use sync service to get combined data from both ElevenLabs and Twilio
@@ -4279,7 +4280,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
         }
       }
 
-      console.log(`✅ [ElevenLabs Webhook] Updated call record with synced data: ${callRecord.id}`);
+      logger.info(`✅ [ElevenLabs Webhook] Updated call record with synced data: ${callRecord.id}`);
 
       // AUTH-RETRY AUTO-RESYNC (post_call path):
       // If the call failed because ElevenLabs had stale Twilio credentials (SID/Token rotated),
@@ -4292,8 +4293,8 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
         (/max.*auth/i.test(postCallTerminationReason) || /auth.*retry/i.test(postCallTerminationReason));
 
       if (isPostCallAuthRetryFailure) {
-        console.log(`🔄 [ElevenLabs Webhook] Auth retry failure detected in post_call_transcription — triggering background credential resync`);
-        console.log(`   Termination reason: "${postCallTerminationReason}"`);
+        logger.error(`🔄 [ElevenLabs Webhook] Auth retry failure detected in post_call_transcription — triggering background credential resync`);
+        logger.info(`   Termination reason: "${postCallTerminationReason}"`);
 
         const postCallCampaignId = callRecord.campaignId;
         let postCallPhoneDbId: string | null = null;
@@ -4318,12 +4319,12 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
         if (postCallPhoneDbId) {
           (async () => {
             try {
-              console.log(`🔄 [ElevenLabs Webhook] Post_call resync — phone DB id: ${postCallPhoneDbId}`);
+              logger.info(`🔄 [ElevenLabs Webhook] Post_call resync — phone DB id: ${postCallPhoneDbId}`);
               const resyncResult = await resyncSinglePhoneCredentials(postCallPhoneDbId!);
               if (resyncResult.success) {
-                console.log(`✅ [ElevenLabs Webhook] Credential resync succeeded (post_call path)`);
+                logger.info(`✅ [ElevenLabs Webhook] Credential resync succeeded (post_call path)`);
                 if (postCallCampaignId) {
-                  console.log(`🔄 [ElevenLabs Webhook] Marking campaign ${postCallCampaignId} for retry after successful resync`);
+                  logger.info(`🔄 [ElevenLabs Webhook] Marking campaign ${postCallCampaignId} for retry after successful resync`);
                   await markCampaignForRetry(postCallCampaignId,
                     `Auto-retry after credential resync (original failure: ${postCallTerminationReason})`);
                 }
@@ -4374,7 +4375,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
               sql`${appointments.createdAt} > NOW() - INTERVAL '10 minutes'`
             ));
 
-          console.log(`📅 [ElevenLabs Webhook] Checking ${recentAppointments.length} recent appointments for linking to call ${callRecord.id}`);
+          logger.info(`📅 [ElevenLabs Webhook] Checking ${recentAppointments.length} recent appointments for linking to call ${callRecord.id}`);
 
           for (const appointment of recentAppointments) {
             // Try matching by conversation ID first
@@ -4397,9 +4398,9 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
               appointment.metadata.elevenLabsAgentId === agent_id;
 
             if (convIdMatches || phoneMatches || fuzzyPhoneMatch || (agentIdMatch && recentAppointments.length === 1)) {
-              console.log(`📅 [ElevenLabs Webhook] Found appointment ${appointment.id} booked during call - linking and updating metadata`);
-              console.log(`   Matches: convId=${!!convIdMatches}, phone=${phoneMatches}, fuzzy=${fuzzyPhoneMatch}, agentId=${agentIdMatch}`);
-              console.log(`   Call phone: ${normalizedCallPhone}, Appointment phone: ${appointmentPhone}`);
+              logger.info(`📅 [ElevenLabs Webhook] Found appointment ${appointment.id} booked during call - linking and updating metadata`);
+              logger.info(`   Matches: convId=${!!convIdMatches}, phone=${phoneMatches}, fuzzy=${fuzzyPhoneMatch}, agentId=${agentIdMatch}`);
+              logger.info(`   Call phone: [redacted], Appointment phone: [redacted]`);
 
               // Link appointment to this call
               await db
@@ -4438,7 +4439,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
               // Update our local reference so CRM processor sees the updated metadata
               callRecord.metadata = appointmentMetadata;
 
-              console.log(`✅ [ElevenLabs Webhook] Linked appointment ${appointment.id} to call ${callRecord.id}`);
+              logger.info(`✅ [ElevenLabs Webhook] Linked appointment ${appointment.id} to call ${callRecord.id}`);
               break; // Only link one appointment per call
             }
           }
@@ -4464,7 +4465,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                   if (credential?.apiKey) {
                     const service = new ElevenLabsService(credential.apiKey);
                     await service.refreshAppointmentToolWithCurrentDate(agent_id);
-                    console.log(`📅 [ElevenLabs Webhook] Refreshed appointment tool date for incoming agent ${agent_id}`);
+                    logger.info(`📅 [ElevenLabs Webhook] Refreshed appointment tool date for incoming agent ${agent_id}`);
                   }
                 }
               }).catch(() => { });
@@ -4486,7 +4487,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
         ]).then(([bannedWordViolations, aiViolations]) => {
           const totalViolations = bannedWordViolations.length + aiViolations.length;
           if (totalViolations > 0) {
-            console.log(`🔍 [Violation Detection] Call ${callRecord.id}: ${bannedWordViolations.length} banned word + ${aiViolations.length} AI violations detected`);
+            logger.info(`🔍 [Violation Detection] Call ${callRecord.id}: ${bannedWordViolations.length} banned word + ${aiViolations.length} AI violations detected`);
           }
         }).catch((err) => {
           console.error(`❌ [Violation Detection] Error scanning call ${callRecord.id}:`, err.message);
@@ -4500,16 +4501,16 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
           const creditResult = await deductCallCreditsForElevenLabs(callRecord.id, callDuration);
 
           if (creditResult.success || creditResult.alreadyDeducted) {
-            console.log(`💳 [ElevenLabs Webhook] Credit deduction processed for call: ${callRecord.id}`);
+            logger.info(`💳 [ElevenLabs Webhook] Credit deduction processed for call: ${callRecord.id}`);
 
             // Process call for CRM lead creation (run in background)
             import('../engines/crm/lead-processor.service').then(({ CRMLeadProcessor }) => {
               CRMLeadProcessor.processElevenLabsTwilioCall(callRecord.id)
                 .then((result) => {
                   if (result?.leadId) {
-                    console.log(`📋 [CRM] Lead created from call ${callRecord.id}: ${result.leadId} (${result.qualification.category})`);
+                    logger.info(`📋 [CRM] Lead created from call ${callRecord.id}: ${result.leadId} (${result.qualification.category})`);
                   } else if (result) {
-                    console.log(`📋 [CRM] Call ${callRecord.id} did not qualify for CRM lead`);
+                    logger.info(`📋 [CRM] Call ${callRecord.id} did not qualify for CRM lead`);
                   }
                 })
                 .catch((err) => {
@@ -4543,7 +4544,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
           console.error(`❌ [ElevenLabs Webhook] Credit deduction error:`, creditError.message);
         }
       } else {
-        console.log(`⚠️ [ElevenLabs Webhook] Skipping credit deduction - no duration available`);
+        logger.warn(`⚠️ [ElevenLabs Webhook] Skipping credit deduction - no duration available`);
       }
 
       // Update flow execution status if one exists for this call
@@ -4619,7 +4620,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
             })
             .where(eq(flowExecutions.id, flowExecution.id));
 
-          console.log(`✅ [ElevenLabs Webhook] Updated flow execution: ${flowExecution.id} -> ${executionStatus}`);
+          logger.info(`✅ [ElevenLabs Webhook] Updated flow execution: ${flowExecution.id} -> ${executionStatus}`);
         }
       } catch (flowExecError: any) {
         console.error(`⚠️ [ElevenLabs Webhook] Error updating flow execution:`, flowExecError.message);
@@ -4768,8 +4769,8 @@ export async function fetchElevenLabsConversation(req: Request, res: Response) {
       return res.status(400).json({ error: 'Call does not have an ElevenLabs conversation ID' });
     }
 
-    console.log(`📞 [Fetch Conversation] Fetching details for call: ${callId} (${isSipCall ? 'SIP' : 'standard'})`);
-    console.log(`   Conversation ID: ${conversationId}`);
+    logger.info(`📞 [Fetch Conversation] Fetching details for call: ${callId} (${isSipCall ? 'SIP' : 'standard'})`);
+    logger.info(`   Conversation ID: ${conversationId}`);
 
     // Find the agent and credential for this call
     let agentElevenLabsService: ElevenLabsService = elevenLabsService;
@@ -4863,7 +4864,7 @@ export async function fetchElevenLabsConversation(req: Request, res: Response) {
         .where(eq(calls.id, callId));
     }
 
-    console.log(`✅ [Fetch Conversation] Updated ${isSipCall ? 'SIP' : 'standard'} call record`);
+    logger.info(`✅ [Fetch Conversation] Updated ${isSipCall ? 'SIP' : 'standard'} call record`);
 
     res.json({
       success: true,
@@ -4930,7 +4931,7 @@ export async function getElevenLabsRecording(req: Request, res: Response) {
       return res.status(400).json({ error: 'Call does not have an ElevenLabs conversation ID' });
     }
 
-    console.log(`🎙️ [Get Recording] Fetching audio for call: ${callId} (${isSipCall ? 'SIP' : 'standard'})`);
+    logger.info(`🎙️ [Get Recording] Fetching audio for call: ${callId} (${isSipCall ? 'SIP' : 'standard'})`);
 
     // Find the agent and credential
     let agentElevenLabsService: ElevenLabsService = elevenLabsService;
@@ -5041,13 +5042,13 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
   // CRITICAL: Log immediately on entry - before ANY async operations
   // This confirms whether ElevenLabs is reaching our endpoint at all
   const startTime = Date.now();
-  console.log(`📅 [Appointment Webhook] ===== WEBHOOK HIT =====`);
-  console.log(`📅 [Appointment Webhook] Timestamp: ${new Date().toISOString()}`);
+  logger.info(`📅 [Appointment Webhook] ===== WEBHOOK HIT =====`);
+  logger.info(`📅 [Appointment Webhook] Timestamp: ${new Date().toISOString()}`);
 
   const { token: urlToken, agentId: elevenLabsAgentId } = req.params;
   const { callId } = req.query;
 
-  console.log(`📅 [Appointment Webhook] Agent: ${elevenLabsAgentId}, CallId: ${callId || 'none'}`);
+  logger.info(`📅 [Appointment Webhook] Agent: ${elevenLabsAgentId}, CallId: ${callId || 'none'}`);
 
   try {
     // NOTE: Using static imports (at top of file) instead of dynamic imports
@@ -5061,8 +5062,8 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
       });
     }
 
-    console.log(`📅 [Appointment Webhook] Authentication successful`);
-    console.log(`   Request body:`, JSON.stringify(req.body, null, 2));
+    logger.info(`📅 [Appointment Webhook] Authentication successful`);
+    logger.info(`   Request body:`);
 
     const {
       contactName,
@@ -5091,19 +5092,19 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
       if (digitCount >= 6) {
         // Looks like a real phone number (either from system__caller_id resolution or caller-provided)
         contactPhone = rawContactPhone;
-        console.log(`📅 [Appointment Webhook] Using phone number: ${contactPhone}`);
+        logger.info(`📅 [Appointment Webhook] Using phone number: [redacted]`);
       } else if (rawContactPhone === 'USE_CALLER_NUMBER' ||
         rawContactPhone === '{{system__caller_id}}' ||
         rawContactPhone?.toLowerCase()?.includes('same') ||
         rawContactPhone?.toLowerCase()?.includes('calling') ||
         rawContactPhone?.toLowerCase()?.includes('called') ||
         rawContactPhone?.toLowerCase()?.includes('system__caller')) {
-        console.log(`📅 [Appointment Webhook] Caller number placeholder detected: "${rawContactPhone}" - will resolve from call record`);
+        logger.info(`📅 [Appointment Webhook] Caller number placeholder detected: "[redacted]" - will resolve from call record`);
       } else {
-        console.log(`📅 [Appointment Webhook] AI sent invalid phone text: "${rawContactPhone}" - will resolve from call record`);
+        logger.warn(`📅 [Appointment Webhook] AI sent invalid phone text: "[redacted]" - will resolve from call record`);
       }
     } else {
-      console.log(`📅 [Appointment Webhook] No phone provided - will resolve from call record`);
+      logger.info(`📅 [Appointment Webhook] No phone provided - will resolve from call record`);
     }
 
     // Look up agent by ElevenLabs agent ID to get database agent ID and userId
@@ -5116,7 +5117,7 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
     // Fallback: If agent not found by ElevenLabs ID, try to find via SIP call record using callId
     // This is a safe, deterministic lookup using the callId parameter
     if (agent.length === 0 && callId) {
-      console.log(`📅 [Appointment Webhook] Agent not found by ElevenLabs ID, trying callId fallback...`);
+      logger.warn(`📅 [Appointment Webhook] Agent not found by ElevenLabs ID, trying callId fallback...`);
 
       // Look up SIP call by external call ID or call ID to find the correct agent
       // This is safe because we're using the callId from the request, not guessing
@@ -5131,7 +5132,7 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
 
       if (sipCallByCallId.rows.length > 0) {
         const sipCallAgent = sipCallByCallId.rows[0] as any;
-        console.log(`📅 [Appointment Webhook] Found agent via SIP call record ${sipCallAgent.call_id}: ${sipCallAgent.agent_id_verified}`);
+        logger.info(`📅 [Appointment Webhook] Found agent via SIP call record ${sipCallAgent.call_id}: ${sipCallAgent.agent_id_verified}`);
         agent = [{
           id: sipCallAgent.agent_id_verified,
           userId: sipCallAgent.user_id,
@@ -5171,7 +5172,7 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
       return res.status(403).json({ success: false, message: "Forbidden" });
     }
 
-    console.log(`📅 [Appointment Webhook] Found database agent ${dbAgentId} for user ${userId}`);
+    logger.info(`📅 [Appointment Webhook] Found database agent ${dbAgentId} for user ${userId}`);
 
     // Get call record to extract verified caller phone number
     // Strategy: Try explicit callId first, then use call matcher to find recent calls for this agent
@@ -5199,7 +5200,7 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
       if (callRecord.length > 0) {
         validatedCallId = callRecord[0].id;
         verifiedCallerPhone = callRecord[0].phoneNumber;
-        console.log(`📅 [Appointment Webhook] Found call by explicit ID: ${validatedCallId}`);
+        logger.info(`📅 [Appointment Webhook] Found call by explicit ID: ${validatedCallId}`);
 
         if (callRecord[0].contactId) {
           const contactRecord = await db
@@ -5214,7 +5215,7 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
           if (contactRecord.length > 0) {
             verifiedCallerName = [contactRecord[0].firstName, contactRecord[0].lastName].filter(Boolean).join(' ');
             verifiedCallerPhone = contactRecord[0].phone || verifiedCallerPhone;
-            console.log(`📅 [Appointment Webhook] Verified contact: ${verifiedCallerName} (${verifiedCallerPhone})`);
+            logger.info(`📅 [Appointment Webhook] Verified contact: ${verifiedCallerName} ([redacted])`);
           }
         }
       }
@@ -5228,9 +5229,9 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
         validatedCallId = matchedCall.callId;
         verifiedCallerPhone = matchedCall.verifiedContactPhone || matchedCall.phoneNumber;
         verifiedCallerName = matchedCall.contactName;
-        console.log(`📅 [Appointment Webhook] Matched call via call-matcher: ${validatedCallId}`);
+        logger.info(`📅 [Appointment Webhook] Matched call via call-matcher: ${validatedCallId}`);
       } else {
-        console.log(`📅 [Appointment Webhook] No call match found - appointment will be saved without call link`);
+        logger.info(`📅 [Appointment Webhook] No call match found - appointment will be saved without call link`);
       }
     }
 
@@ -5242,9 +5243,9 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
 
     // Log which phone source we're using
     if (verifiedCallerPhone && !contactPhone) {
-      console.log(`📅 [Appointment Webhook] Using verified caller phone from call record: ${verifiedCallerPhone}`);
+      logger.info(`📅 [Appointment Webhook] Using verified caller phone from call record: [redacted]`);
     } else if (verifiedCallerPhone && contactPhone && verifiedCallerPhone !== contactPhone) {
-      console.log(`📅 [Appointment Webhook] Caller provided different phone: ${contactPhone} (call record: ${verifiedCallerPhone})`);
+      logger.info(`📅 [Appointment Webhook] Caller provided different phone: [redacted] (call record: [redacted])`);
     }
 
     if (!finalContactPhone) {
@@ -5271,7 +5272,7 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
     const isoDateMatch = appointmentDate.match(/^\d{4}-\d{2}-\d{2}$/);
     if (isoDateMatch) {
       parsedDate = new Date(appointmentDate + 'T12:00:00');
-      console.log(`📅 [Appointment Webhook] Date already in ISO format: ${appointmentDate}`);
+      logger.info(`📅 [Appointment Webhook] Date already in ISO format: ${appointmentDate}`);
     } else {
       // Parse natural language date (e.g., "tomorrow", "next Monday", "Oct 3")
       const dateTimeString = `${appointmentDate} ${appointmentTime}`;
@@ -5279,13 +5280,13 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
 
       if (chronoResult) {
         parsedDate = chronoResult;
-        console.log(`📅 [Appointment Webhook] Parsed natural language date: "${appointmentDate}" -> ${parsedDate.toISOString()}`);
+        logger.info(`📅 [Appointment Webhook] Parsed natural language date: "${appointmentDate}" -> ${parsedDate.toISOString()}`);
       } else {
         // Try parsing just the date
         const dateOnlyResult = chrono.parseDate(appointmentDate, new Date(), { forwardDate: true });
         if (dateOnlyResult) {
           parsedDate = dateOnlyResult;
-          console.log(`📅 [Appointment Webhook] Parsed date only: "${appointmentDate}" -> ${parsedDate.toISOString()}`);
+          logger.info(`📅 [Appointment Webhook] Parsed date only: "${appointmentDate}" -> ${parsedDate.toISOString()}`);
         }
       }
     }
@@ -5307,7 +5308,7 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
       }
 
       if (parsedDate) {
-        console.log(`📅 [Appointment Webhook] Parsed relative date: "${appointmentDate}" -> ${parsedDate.toISOString()}`);
+        logger.info(`📅 [Appointment Webhook] Parsed relative date: "${appointmentDate}" -> ${parsedDate.toISOString()}`);
       }
     }
 
@@ -5352,7 +5353,7 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
       finalTime = appointmentTime;
     }
 
-    console.log(`📅 [Appointment Webhook] Final parsed date/time: ${finalDate} at ${finalTime}`);
+    logger.info(`📅 [Appointment Webhook] Final parsed date/time: ${finalDate} at ${finalTime}`);
 
     // Validate against user's working hours settings
     const [userSettings] = await db
@@ -5381,10 +5382,10 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
       ? { ...defaultWorkingHours[dayName], ...userWorkingHours[dayName] }
       : defaultWorkingHours[dayName];
 
-    console.log(`📅 [Appointment Webhook] Working hours for ${dayName}:`, daySettings);
+    logger.info(`📅 [Appointment Webhook] Working hours for ${dayName}:`, daySettings);
 
     if (!daySettings?.enabled) {
-      console.log(`📅 [Appointment Webhook] Rejected: ${dayName} is not available for appointments`);
+      logger.warn(`📅 [Appointment Webhook] Rejected: ${dayName} is not available for appointments`);
       return res.json({
         success: false,
         message: `I'm sorry, but we're not available on ${dayName.charAt(0).toUpperCase() + dayName.slice(1)}s. Please choose a different day.`
@@ -5412,14 +5413,14 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
       const appointmentEndMinutes = requestedMinutes + appointmentDuration;
 
       if (requestedMinutes < startMinutes || appointmentEndMinutes > endMinutes) {
-        console.log(`📅 [Appointment Webhook] Rejected: ${finalTime} (duration: ${appointmentDuration}min) is outside working hours (${daySettings.start} - ${daySettings.end})`);
+        logger.warn(`📅 [Appointment Webhook] Rejected: ${finalTime} (duration: ${appointmentDuration}min) is outside working hours (${daySettings.start} - ${daySettings.end})`);
         return res.json({
           success: false,
           message: `I'm sorry, but ${finalTime} is outside our available hours on ${dayName.charAt(0).toUpperCase() + dayName.slice(1)}. We're available from ${daySettings.start} to ${daySettings.end}. Would you like to choose a different time?`
         });
       }
 
-      console.log(`📅 [Appointment Webhook] Time validation passed: ${finalTime} is within ${daySettings.start} - ${daySettings.end}`);
+      logger.info(`📅 [Appointment Webhook] Time validation passed: ${finalTime} is within ${daySettings.start} - ${daySettings.end}`);
     } catch (parseError: any) {
       console.error(`📅 [Appointment Webhook] Time parsing error:`, parseError.message);
       console.error(`📅 [Appointment Webhook] daySettings:`, JSON.stringify(daySettings));
@@ -5436,7 +5437,7 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
     const finalConvId = conversationId || conversation_id || null;
     if (finalConvId) {
       metadata.elevenLabsConversationId = finalConvId;
-      console.log(`📅 [Appointment Webhook] Received ElevenLabs Conversation ID: ${finalConvId}`);
+      logger.info(`📅 [Appointment Webhook] Received ElevenLabs Conversation ID: ${finalConvId}`);
     }
     // Store the ElevenLabs agent ID for matching during appointment linking
     if (elevenLabsAgentId) {
@@ -5448,9 +5449,9 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
       metadata.aiCollectedPhone = contactPhone;
       metadata.verifiedPhone = verifiedCallerPhone;
       metadata.phoneDiscrepancy = true;
-      console.log(`📅 [Appointment Webhook] Phone discrepancy detected:`);
-      console.log(`   AI collected: ${contactPhone}`);
-      console.log(`   Verified (call): ${verifiedCallerPhone}`);
+      logger.info(`📅 [Appointment Webhook] Phone discrepancy detected:`);
+      logger.info(`   AI collected: [redacted]`);
+      logger.info(`   Verified (call): [redacted]`);
     }
     if (contactName && verifiedCallerName && contactName !== verifiedCallerName) {
       metadata.aiCollectedName = contactName;
@@ -5479,9 +5480,9 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
       })
       .returning();
 
-    console.log(`📅 [Appointment Webhook] Created appointment ${appointmentId}`);
-    console.log(`   Contact: ${finalContactName} (${finalContactPhone})`);
-    console.log(`   Date/Time: ${finalDate} at ${finalTime}`);
+    logger.info(`📅 [Appointment Webhook] Created appointment ${appointmentId}`);
+    logger.info(`   Contact: ${finalContactName} ([redacted])`);
+    logger.info(`   Date/Time: ${finalDate} at ${finalTime}`);
 
     // Auto-sync to Google Calendar if enabled
     try {
@@ -5505,7 +5506,7 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
             .update(appointments)
             .set({ googleCalendarEventId: eventId, updatedAt: new Date() })
             .where(eq(appointments.id, appointmentId));
-          console.log(`📅 [GoogleCalendar] Auto-synced appointment ${appointmentId} → event ${eventId}`);
+          logger.info(`📅 [GoogleCalendar] Auto-synced appointment ${appointmentId} → event ${eventId}`);
         }
       }
     } catch (calErr: any) {
@@ -5535,7 +5536,7 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
           id: flowId || null,
         },
       });
-      console.log(`📅 [Appointment Webhook] Triggered appointment.booked webhook event`);
+      logger.info(`📅 [Appointment Webhook] Triggered appointment.booked webhook event`);
     } catch (webhookError: any) {
       console.error(`📅 [Appointment Webhook] Failed to trigger webhook:`, webhookError.message);
     }
@@ -5577,7 +5578,7 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
             .set({ metadata: updatedMetadata })
             .where(eq(calls.id, validatedCallId));
 
-          console.log(`📅 [Appointment Webhook] Updated call metadata for CRM detection`);
+          logger.info(`📅 [Appointment Webhook] Updated call metadata for CRM detection`);
         }
       } catch (metadataError: any) {
         console.error(`📅 [Appointment Webhook] Failed to update call metadata:`, metadataError.message);
@@ -5589,7 +5590,7 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
     const readableTime = formatDate(new Date(`2000-01-01T${finalTime}`), 'h:mm a');
 
     const responseTime = Date.now() - startTime;
-    console.log(`📅 [Appointment Webhook] ✅ SUCCESS - Response time: ${responseTime}ms`);
+    logger.info(`📅 [Appointment Webhook] ✅ SUCCESS - Response time: ${responseTime}ms`);
 
     return res.json({
       success: true,
@@ -5622,7 +5623,7 @@ export async function handleFormSubmissionWebhook(req: Request, res: Response) {
   const { token: urlToken, formId, agentId: elevenLabsAgentId } = req.params;
   const { callId } = req.query;
 
-  console.log(`📋 [Form Webhook] Received submission for form: ${formId}, agent: ${elevenLabsAgentId}`);
+  logger.info(`📋 [Form Webhook] Received submission for form: ${formId}, agent: ${elevenLabsAgentId}`);
 
   try {
     const { formSubmissions, forms, formFields } = await import('../../shared/schema');
@@ -5635,8 +5636,8 @@ export async function handleFormSubmissionWebhook(req: Request, res: Response) {
       });
     }
 
-    console.log(`📋 [Form Webhook] Authentication successful`);
-    console.log(`   Request body:`, JSON.stringify(req.body, null, 2));
+    logger.info(`📋 [Form Webhook] Authentication successful`);
+    logger.info(`   Request body:`);
 
     const { contactName, contactPhone, ...fieldResponses } = req.body;
 
@@ -5660,7 +5661,7 @@ export async function handleFormSubmissionWebhook(req: Request, res: Response) {
     // We set flowExecutionId to null since we don't have the execution ID in webhook context
     // The callId still provides traceability to the specific call
 
-    console.log(`📋 [Form Webhook] Found database agent for user ${userId}`);
+    logger.info(`📋 [Form Webhook] Found database agent for user ${userId}`);
 
     // Verify form exists and belongs to user
     const [form] = await db
@@ -5717,7 +5718,7 @@ export async function handleFormSubmissionWebhook(req: Request, res: Response) {
         const phoneKey = `field_${sanitizeFieldId(phoneField.id)}`;
         if (fieldResponses[phoneKey]) {
           resolvedContactPhone = String(fieldResponses[phoneKey]);
-          console.log(`📋 [Form Webhook] Extracted contactPhone from phone field "${phoneField.id}": ${resolvedContactPhone}`);
+          logger.info(`📋 [Form Webhook] Extracted contactPhone from phone field "${phoneField.id}": [redacted]`);
         }
       }
     }
@@ -5763,7 +5764,7 @@ export async function handleFormSubmissionWebhook(req: Request, res: Response) {
             verifiedCallerPhone = contactRecord[0].phone || verifiedCallerPhone;
           }
         }
-        console.log(`📋 [Form Webhook] Found call by explicit ID: ${validatedCallId}`);
+        logger.info(`📋 [Form Webhook] Found call by explicit ID: ${validatedCallId}`);
       }
     }
 
@@ -5776,9 +5777,9 @@ export async function handleFormSubmissionWebhook(req: Request, res: Response) {
         validatedCallId = matchedCall.callId;
         verifiedCallerPhone = matchedCall.verifiedContactPhone || matchedCall.phoneNumber;
         verifiedCallerName = matchedCall.contactName;
-        console.log(`📋 [Form Webhook] Matched call via call-matcher: ${validatedCallId}`);
+        logger.info(`📋 [Form Webhook] Matched call via call-matcher: ${validatedCallId}`);
       } else {
-        console.log(`📋 [Form Webhook] No call match found - submission will be saved without call link`);
+        logger.info(`📋 [Form Webhook] No call match found - submission will be saved without call link`);
       }
     }
 
@@ -5801,9 +5802,9 @@ export async function handleFormSubmissionWebhook(req: Request, res: Response) {
       })
       .returning();
 
-    console.log(`📋 [Form Webhook] Created submission ${submissionId}`);
-    console.log(`   Contact: ${finalContactName} (${finalContactPhone})`);
-    console.log(`   Responses: ${responses.length} fields`);
+    logger.info(`📋 [Form Webhook] Created submission ${submissionId}`);
+    logger.info(`   Contact: ${finalContactName} ([redacted])`);
+    logger.info(`   Responses: ${responses.length} fields`);
 
     // Push form data to Google Sheets if the flow node has a sheet configured
     try {
@@ -5831,7 +5832,7 @@ export async function handleFormSubmissionWebhook(req: Request, res: Response) {
               const candidateCfg = candidate.data?.config || candidate.data || {};
               if (candidateCfg.formId === formId) {
                 formFlowNode = candidate;
-                console.log(`📋 [Form Webhook] Matched flow node by nodeId ${incomingNodeId} + formId ${formId}`);
+                logger.info(`📋 [Form Webhook] Matched flow node by nodeId ${incomingNodeId} + formId ${formId}`);
               } else {
                 console.warn(
                   `📋 [Form Webhook] nodeId "${incomingNodeId}" found but formId mismatch ` +
@@ -5850,7 +5851,7 @@ export async function handleFormSubmissionWebhook(req: Request, res: Response) {
               return cfg.formId === formId;
             });
             if (formFlowNode) {
-              console.log(`📋 [Form Webhook] Matched flow node by formId (fallback)`);
+              logger.info(`📋 [Form Webhook] Matched flow node by formId (fallback)`);
             }
           }
 
@@ -5869,7 +5870,7 @@ export async function handleFormSubmissionWebhook(req: Request, res: Response) {
                   const tabs = await listSheetTabs(userId, sheetId);
                   if (tabs.length > 0) {
                     sheetName = tabs[0].title;
-                    console.log(`📋 [Form Webhook] Auto-detected sheet tab: "${sheetName}"`);
+                    logger.info(`📋 [Form Webhook] Auto-detected sheet tab: "${sheetName}"`);
                   } else {
                     sheetName = 'Sheet1'; // absolute last-resort fallback
                     console.warn(`📋 [Form Webhook] Could not detect sheet tabs; falling back to "Sheet1"`);
@@ -5892,7 +5893,7 @@ export async function handleFormSubmissionWebhook(req: Request, res: Response) {
                 ];
                 const wroteHeaders = await ensureSheetHeaders(userId, sheetId, sheetName, headerRow);
                 if (wroteHeaders) {
-                  console.log(`📋 [Form Webhook] Safety-net: wrote missing header row to Google Sheet "${sheetName}" (${sheetId})`);
+                  logger.warn(`📋 [Form Webhook] Safety-net: wrote missing header row to Google Sheet "${sheetName}" (${sheetId})`);
                 }
               } catch (headerErr: any) {
                 console.warn(`📋 [Form Webhook] Safety-net header write failed (non-fatal):`, headerErr.message);
@@ -5908,7 +5909,7 @@ export async function handleFormSubmissionWebhook(req: Request, res: Response) {
               ];
               const pushed = await appendRowToSheet(userId, sheetId, sheetName, sheetRow);
               if (pushed) {
-                console.log(`📋 [Form Webhook] Appended row to Google Sheet "${sheetName}" (${sheetId})`);
+                logger.info(`📋 [Form Webhook] Appended row to Google Sheet "${sheetName}" (${sheetId})`);
               } else {
                 const errMsg = `appendRowToSheet returned false for sheet ${sheetId} tab "${sheetName}"`;
                 console.error(`📋 [Form Webhook] Google Sheets append FAILED — form data saved locally but NOT in Google Sheets. ${errMsg}`);
@@ -5928,7 +5929,7 @@ export async function handleFormSubmissionWebhook(req: Request, res: Response) {
                       const rows = await db.execute(drizzleSql.raw(`SELECT id FROM ${table} WHERE id = `).append(drizzleSql`${validatedCallId}`).append(drizzleSql.raw(` LIMIT 1`)));
                       if ((Array.isArray(rows) ? rows : (rows as any).rows || []).length > 0) {
                         await db.execute(drizzleSql.raw(`UPDATE ${table} SET metadata = COALESCE(metadata, '{}'::jsonb) || `).append(drizzleSql`${warning}::jsonb`).append(drizzleSql.raw(` WHERE id = `)).append(drizzleSql`${validatedCallId}`));
-                        console.log(`📋 [Form Webhook] Wrote googleSheetsWarning to ${table} call ${validatedCallId}`);
+                        logger.info(`📋 [Form Webhook] Wrote googleSheetsWarning to ${table} call ${validatedCallId}`);
                         break;
                       }
                     }
@@ -5968,7 +5969,7 @@ export async function handleFormSubmissionWebhook(req: Request, res: Response) {
           description: form.description || null,
         },
       });
-      console.log(`📋 [Form Webhook] Triggered form.submitted webhook event`);
+      logger.info(`📋 [Form Webhook] Triggered form.submitted webhook event`);
     } catch (webhookError: any) {
       console.error(`📋 [Form Webhook] Failed to trigger webhook:`, webhookError.message);
     }
@@ -6010,7 +6011,7 @@ export async function handleFormSubmissionWebhook(req: Request, res: Response) {
             .set({ metadata: updatedMetadata })
             .where(eq(calls.id, validatedCallId));
 
-          console.log(`📋 [Form Webhook] Updated call metadata for CRM detection`);
+          logger.info(`📋 [Form Webhook] Updated call metadata for CRM detection`);
         }
       } catch (metadataError: any) {
         console.error(`📋 [Form Webhook] Failed to update call metadata:`, metadataError.message);
@@ -6048,10 +6049,10 @@ export async function handleRAGToolWebhook(req: Request, res: Response) {
   // - Legacy: /api/webhooks/elevenlabs/rag-tool/:agentId (with header auth)
   const { token: urlToken, agentId: elevenLabsAgentId } = req.params;
 
-  console.log(`📚 [RAG Webhook] Received tool call for ElevenLabs agent: ${elevenLabsAgentId}`);
+  logger.info(`📚 [RAG Webhook] Received tool call for ElevenLabs agent: ${elevenLabsAgentId}`);
 
   // Debug: Log all headers to see what ElevenLabs sends
-  console.log(`📚 [RAG Webhook] Request headers:`, JSON.stringify(req.headers, null, 2));
+  logger.info(`📚 [RAG Webhook] Request headers:`);
 
   try {
     // Validate authentication token - try URL token first, then header
@@ -6059,7 +6060,7 @@ export async function handleRAGToolWebhook(req: Request, res: Response) {
     const headerToken = req.headers['x-rag-token'] as string | undefined;
     const providedToken = urlToken || headerToken;
 
-    console.log(`📚 [RAG Webhook] Token sources - URL: ${urlToken ? 'present' : 'missing'}, Header: ${headerToken ? 'present' : 'missing'}`);
+    logger.info(`📚 [RAG Webhook] Token sources - URL: ${urlToken ? 'present' : 'missing'}, Header: ${headerToken ? 'present' : 'missing'}`);
 
     if (!validateRAGWebhookToken(providedToken)) {
       console.warn(`📚 [RAG Webhook] Invalid or missing authentication token`);
@@ -6071,9 +6072,9 @@ export async function handleRAGToolWebhook(req: Request, res: Response) {
       });
     }
 
-    console.log(`📚 [RAG Webhook] Authentication successful via ${urlToken ? 'URL' : 'header'} token`);
+    logger.info(`📚 [RAG Webhook] Authentication successful via ${urlToken ? 'URL' : 'header'} token`);
 
-    console.log(`   Request body:`, JSON.stringify(req.body, null, 2));
+    logger.info(`   Request body:`);
 
     // Extract the query from the request body
     // ElevenLabs sends the tool parameters in the body
@@ -6087,7 +6088,7 @@ export async function handleRAGToolWebhook(req: Request, res: Response) {
       });
     }
 
-    console.log(`📚 [RAG Webhook] Query: "${query.substring(0, 100)}..."`);
+    logger.info(`📚 [RAG Webhook] Query: "${query.substring(0, 100)}..."`);
 
     // Look up the agent by ElevenLabs agent ID to get user ID and knowledge base IDs
     // First try incoming agents table
@@ -6106,7 +6107,7 @@ export async function handleRAGToolWebhook(req: Request, res: Response) {
       userId = agent[0].userId;
       companyId = agent[0].companyId ?? null;
       knowledgeBaseIds = agent[0].knowledgeBaseIds || [];
-      console.log(`📚 [RAG Webhook] Found incoming agent, user: ${userId}, KBs: ${knowledgeBaseIds.length}`);
+      logger.info(`📚 [RAG Webhook] Found incoming agent, user: ${userId}, KBs: ${knowledgeBaseIds.length}`);
     } else {
       // Try the regular agents table
       const regularAgent = await db
@@ -6119,7 +6120,7 @@ export async function handleRAGToolWebhook(req: Request, res: Response) {
         userId = regularAgent[0].userId;
         companyId = regularAgent[0].companyId ?? null;
         knowledgeBaseIds = regularAgent[0].knowledgeBaseIds || [];
-        console.log(`📚 [RAG Webhook] Found regular agent, user: ${userId}, KBs: ${knowledgeBaseIds.length}`);
+        logger.info(`📚 [RAG Webhook] Found regular agent, user: ${userId}, KBs: ${knowledgeBaseIds.length}`);
       }
     }
 
@@ -6154,8 +6155,8 @@ export async function handleRAGToolWebhook(req: Request, res: Response) {
     // Process the query through RAG
     const result = await handleAskKnowledgeToolCall(query, knowledgeBaseIds, { companyId, userId });
 
-    console.log(`📚 [RAG Webhook] Returning result with ${result.sources.length} sources`);
-    console.log(`   Response preview: "${result.response.substring(0, 100)}..."`);
+    logger.info(`📚 [RAG Webhook] Returning result with ${result.sources.length} sources`);
+    logger.info(`   Response preview: "${result.response.substring(0, 100)}..."`);
 
     // Return the result in a format ElevenLabs expects
     // For webhook tools, ElevenLabs expects a JSON response that becomes the tool result
@@ -6185,8 +6186,8 @@ export async function handlePlayAudioToolWebhook(req: Request, res: Response): P
   const { agentId: elevenLabsAgentId } = req.params;
 
   try {
-    console.log('[PlayAudio Webhook] Received request for agent:', elevenLabsAgentId);
-    console.log('[PlayAudio Webhook] Request body:', JSON.stringify(req.body));
+    logger.info('[PlayAudio Webhook] Received request for agent:', elevenLabsAgentId);
+    logger.info('[PlayAudio Webhook] Request body:');
 
     const { audioUrl, interruptible, waitForComplete } = req.body;
 
@@ -6253,10 +6254,10 @@ export async function handlePlayAudioToolWebhook(req: Request, res: Response): P
       }
       const fullAudioUrl = audioUrl.startsWith('http') ? audioUrl : `${domain}${resolvedUrl}`;
 
-      console.log(`[PlayAudio Webhook] SIP call detected (${activeSipCall.engine})`);
-      console.log(`   Call ID: ${activeSipCall.id}`);
-      console.log(`   Audio URL: ${fullAudioUrl}`);
-      console.log(`   Note: ElevenLabs SIP handles audio natively through the workflow`);
+      logger.info(`[PlayAudio Webhook] SIP call detected (${activeSipCall.engine})`);
+      logger.info(`   Call ID: ${activeSipCall.id}`);
+      logger.info(`   Audio URL: [redacted]`);
+      logger.info(`   Note: ElevenLabs SIP handles audio natively through the workflow`);
 
       // Return success so ElevenLabs workflow continues
       // The audio playback is handled by ElevenLabs through its native workflow execution
@@ -6351,7 +6352,7 @@ export async function handlePlayAudioToolWebhook(req: Request, res: Response): P
 
         if (flowTestCall?.twilioSid) {
           callSid = flowTestCall.twilioSid;
-          console.log(`[PlayAudio Webhook] Found flow test call: ${callSid}`);
+          logger.info(`[PlayAudio Webhook] Found flow test call: ${callSid}`);
         }
       }
     }
@@ -6380,7 +6381,7 @@ export async function handlePlayAudioToolWebhook(req: Request, res: Response): P
     }
     const fullAudioUrl = audioUrl.startsWith('http') ? audioUrl : `${domain}${resolvedAudioUrl}`;
 
-    console.log(`[PlayAudio Webhook] Playing audio on call ${callSid}: ${fullAudioUrl}`);
+    logger.info(`[PlayAudio Webhook] Playing audio on call ${callSid}: [redacted]`);
 
     // Use Twilio REST API to play audio on the call
     const twilioClient = await getTwilioClient();
@@ -6400,7 +6401,7 @@ export async function handlePlayAudioToolWebhook(req: Request, res: Response): P
         twiml: twiml.toString()
       });
 
-      console.log(`[PlayAudio Webhook] Audio playback initiated on call ${callSid}`);
+      logger.info(`[PlayAudio Webhook] Audio playback initiated on call ${callSid}`);
       res.json({
         success: true,
         message: 'Audio playback initiated',
