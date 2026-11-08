@@ -1,11 +1,13 @@
-# AgentLabs Installation Guide
+# Supercharged Installation Guide
 
 **Version:** 5.4.5  
 **Last Updated:** not verified in this repo (this guide was last dated December 2025)
 
-This guide provides comprehensive step-by-step instructions for installing and updating AgentLabs. Written for non-technical users with clear instructions.
+This guide covers installation and updates for the Supercharged source tree. It includes historical compatibility examples; verify commands against the current repository and deployment before using them in production.
 
 ---
+
+> **Read before deploying:** The inherited installation instructions include historical ZIP names, PM2 service identifiers, database names, and package paths. These are compatibility examples, not proof of a current distributable Supercharged ZIP. Verify `package.json`, `STATUS.md`, database migrations, environment variables and the release artifact first. Keep original licensing notices; see issue #37.
 
 ## Table of Contents
 
@@ -294,7 +296,7 @@ Your admin account starts with:
 
 ## Configuring AI Engines
 
-AgentLabs supports three AI engine configurations. Configure at least one.
+The inherited Supercharged source includes integrations for three AI engine configurations. Verify at least one provider path before treating calling as operational.
 
 ### Option 1: ElevenLabs (Recommended)
 
@@ -305,7 +307,7 @@ Best for: High-quality natural voices, global coverage
 3. Click "Create API Key"
 4. Copy the key
 
-**In AgentLabs:**
+**In Supercharged:**
 1. Login as Admin
 2. Go to Settings > ElevenLabs Pool
 3. Click "Add Key"
@@ -324,7 +326,7 @@ Best for: Use with Plivo or as alternative AI voice
 3. Create a new secret key
 4. Copy the key (starts with `sk-`)
 
-**In AgentLabs:**
+**In Supercharged:**
 1. Go to Settings > OpenAI Keys
 2. Click "Add Key"
 3. Enter a name
@@ -347,7 +349,7 @@ Configure at least one telephony provider for phone calls.
 3. Go to Console Dashboard
 4. Copy your Account SID and Auth Token
 
-**In AgentLabs:**
+**In Supercharged:**
 1. Go to Settings > Twilio Settings
 2. Enter Account SID
 3. Enter Auth Token
@@ -365,7 +367,7 @@ Set these URLs in Twilio for your phone numbers:
 2. Go to Dashboard
 3. Copy Auth ID and Auth Token
 
-**In AgentLabs:**
+**In Supercharged:**
 1. Go to Settings > Plivo Settings
 2. Enter Auth ID
 3. Enter Auth Token
@@ -387,7 +389,7 @@ Configure the payment gateways your customers will use.
 2. Go to Developers > API Keys
 3. Copy Publishable Key and Secret Key
 
-**In AgentLabs:**
+**In Supercharged:**
 1. Go to Settings > Payments
 2. Find Stripe section
 3. Enter Secret Key
@@ -409,7 +411,7 @@ Configure the payment gateways your customers will use.
 3. Go to Settings > API Keys
 4. Generate Key ID and Secret
 
-**In AgentLabs:**
+**In Supercharged:**
 1. Go to Settings > Payments
 2. Find Razorpay section
 3. Enter Key ID and Secret
@@ -426,7 +428,7 @@ Configure the payment gateways your customers will use.
 3. Create an app (choose Live for production)
 4. Copy Client ID and Secret
 
-**In AgentLabs:**
+**In Supercharged:**
 1. Go to Settings > Payments
 2. Find PayPal section
 3. Enter Client ID
@@ -445,7 +447,7 @@ Configure the payment gateways your customers will use.
 3. Go to Settings > API Keys
 4. Copy Public Key and Secret Key
 
-**In AgentLabs:**
+**In Supercharged:**
 1. Go to Settings > Payments
 2. Find Paystack section
 3. Enter Public Key
@@ -462,7 +464,7 @@ Configure the payment gateways your customers will use.
 2. Go to Your Credentials (Tus credenciales)
 3. Copy Access Token
 
-**In AgentLabs:**
+**In Supercharged:**
 1. Go to Settings > Payments
 2. Find MercadoPago section
 3. Enter Access Token
@@ -486,7 +488,7 @@ Email is required for user verification, password resets, and notifications.
 4. Create an app password for "Mail"
 5. Copy the 16-character password
 
-**In AgentLabs Settings:**
+**In Supercharged settings:**
 - SMTP Host: `smtp.gmail.com`
 - SMTP Port: `587`
 - SMTP User: your Gmail address
