@@ -52,6 +52,8 @@ function toHttpRequest(req: Request): AgentHttpRequest {
     query: req.query,
     body: req.body as unknown,
     headers,
+    // Set by the auth middleware in front of this router. The identity resolver reads only this field.
+    user: (req as Request & { user?: unknown }).user,
   };
 }
 

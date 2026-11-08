@@ -135,6 +135,7 @@ import { safeErrorMessage } from "./utils/safe-error";
 import { markPluginAsRegistered } from "./plugins/loader";
 import { registerChatbotModule } from "./modules/chatbot/index.ts";
 import { mountChatbotModule, WIRING_FLAGS } from "./modules/chatbot/wiring/mount.ts";
+import { resolveAgentStaffIdentity } from "./modules/chatbot/agent-routes/staff-identity.ts";
 import { readFlag } from "./modules/chatbot/contracts/flags.ts";
 import { createSecretBox } from "./modules/chatbot/secrets/secret-box.ts";
 import { captureChatbotWebhookRawBody } from "./middleware/raw-body.ts";
@@ -1757,7 +1758,9 @@ When using a tool:
     authenticate: routeContext.authenticateHybrid as unknown as import('express').RequestHandler,
     requireCompanyScope: requireCompanyScope(),
     requireRole: (...roles: string[]) => requireRole(...roles) as unknown as import('express').RequestHandler,
-    // agentAuthenticate is not passed: the app has no staff identity resolver for the agent surface, so agent calls answer 401.
+    // Agent surface: identity comes from req.user, which authenticateHybrid sets from a verified token. Company and role
+    // come from that user only, never from headers or body. A user with no company gets 403, no identity gets 401.
+    agentAuthenticate: resolveAgentStaffIdentity,
     secretBox: chatbotSecretsOn ? createSecretBox({ env: process.env }) : undefined,
     // No reply runtime or receipt store is wired yet. These stubs keep startup working and refuse the work itself.
     widget: {

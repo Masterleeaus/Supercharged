@@ -30,6 +30,8 @@ export interface AgentHttpRequest {
   query: unknown;
   body: unknown;
   headers: Record<string, string | undefined>;
+  /** The verified user, set by the auth middleware in front of the agent mount (req.user). Never from headers or body. */
+  user?: unknown;
 }
 
 export interface AgentHttpResponse {

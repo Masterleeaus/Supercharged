@@ -132,8 +132,8 @@ export interface ChatbotWiringDeps {
   /** Role check, shaped like requireRole in server/middleware/auth.ts. Optional: without it the routers refuse every request. */
   requireRole?: (...roles: string[]) => RequestHandler;
   /**
-   * Resolves the staff caller for the agent surface. The agent router does its own identity check, so this is not
-   * express middleware. Optional: without it every agent call answers 401.
+   * Resolves the staff caller for the agent surface from req.user (see agent-routes/staff-identity.ts). Runs behind
+   * deps.authenticate. Optional: without it every agent call answers 401.
    */
   agentAuthenticate?: AuthenticateFn;
   /**
@@ -249,7 +249,8 @@ export function mountChatbotModule(app: Pick<Express, "use">, deps: ChatbotWirin
     mountAt(WIRING_PREFIXES.builder, [deps.authenticate, deps.requireCompanyScope, router]);
   }
 
-  // Agent: the router resolves identity itself, so no express auth is put in front of it.
+  // Agent: the same authenticate middleware as the other staff surfaces runs first and sets req.user. The router
+  // then resolves the staff identity from req.user only (agentAuthenticate). Without agentAuthenticate, every call is 401.
   if (readFlag(WIRING_FLAGS.AGENT, env)) {
     const inbox = createInboxService({ storage: createDrizzleInboxStorage(deps.db), enabled: true, now: clock });
     const services = createInboxAgentServices({ inbox, store: createDrizzleAgentStore(deps.db) });
@@ -261,7 +262,7 @@ export function mountChatbotModule(app: Pick<Express, "use">, deps: ChatbotWirin
       enabled: true,
     });
     result.routers.agent = router;
-    mountAt(WIRING_PREFIXES.agent, [router]);
+    mountAt(WIRING_PREFIXES.agent, [deps.authenticate, router]);
   }
 
   // Bookings: needs the chatbot SecretBox for stored calendar credentials.
