@@ -101,3 +101,20 @@ These are mainly repeated generated static assets and images, plus exact copies 
 5. Track explicit file-by-file delete/retain/merge decisions in a future PR. **No files were removed for this audit.**
 
 Related: `docs/SUPERCHARGED_CANONICAL_SOURCE_MAP.md` and issue #54. Current branch remains a draft PR; this report is not a completed code consolidation.
+
+## Repeatable working-tree audit (Pass 11)
+
+Use `node scripts/audit-source-duplicates.mjs` from the repository root to report byte-identical local files; use `node scripts/audit-source-duplicates.mjs --json` for structured, machine-readable output. A separate checkout can be audited with `--root=/absolute/path`. `--help` shows usage.
+
+The working-tree audit computes SHA-256 of local file bytes and skips `.git`, `node_modules`, `.cache`, `.next`, `coverage`, and symbolic links. It does **not** delete or edit any files. It can include added/uncommitted local files: expect counts to differ from the historical **Git blob** snapshot above. A file's classification as an `active-tree` location is not evidence that it runs in production.
+
+The four associated Node test cases in `tests/infrastructure/source-duplicate-audit.test.mjs` cover classification, exact active/donor and active/dist duplicates, same-name divergent bytes, skip directories, symlinks, and read-only behavior.
+
+### Import and ownership findings
+
+- `server/integrations/titan-revenue/revenue-invoice-payment-lifecycle.mjs` imports **its own sibling** `./revenue-journey-correlation.mjs`; the matching archived donor versions are byte-identical to the copied integration files at the snapshot. The related `revenue-invoice-payment-outcome.test.mjs` imports the same integration siblings. This is evidence of a *local import boundary*, not proof that every lifecycle is wired into deployed routes.
+- `server/integrations/field-link/vendor/authority/runtime-authority-gateway.mjs` imports its sibling `./authority-evaluator.mjs`. The `server/integrations/field-link/vendor/NOTICE.md` identifies this as a copied Field runtime from a specific upstream revision, explicitly warns **not to edit these vendored files in place**, and notes unresolved Field source licensing. Removing the donor archival copy cannot be inferred safe merely because its hash matches.
+- `server/integrations/field-link/client.ts` describes the target Field HTTP endpoints as **assumed** and a service-to-service auth scheme as **not yet implemented**, with fail-closed `DENY_ALL_COMPANY_MAP`; do not describe the integration as operating live.
+- The repository's `package.json` claims `MIT`, whereas the original source headers and LICENSE/installation text contain CodeCanyon/Envato attribution. These conflicting provenance signals require licensing resolution before redistribution (issue #37).
+
+**No donor, vendor, dist, revenue, or field-link files were removed or rewritten.** Runtime ownership and license checks must precede consolidation.
