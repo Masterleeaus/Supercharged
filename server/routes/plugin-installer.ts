@@ -401,7 +401,7 @@ router.post('/install',
 
       try {
         await setPluginEnabled(pluginName, true);
-        steps.push({ step: 'register', status: 'success', message: 'Plugin registered and enabled' });
+        steps.push({ step: 'register', status: 'success', message: 'Plugin enabled for next startup; runtime registration pending restart' });
       } catch (regErr: any) {
         steps.push({ step: 'register', status: 'failed', message: `Registration failed: ${regErr.message}` });
       }
