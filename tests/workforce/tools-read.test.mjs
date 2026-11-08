@@ -11,6 +11,7 @@ import {
   MAX_READ_ROWS,
 } from '../../server/workforce/tools/read-handlers.ts';
 import { createToolRegistry } from '../../server/workforce/runtime/index.ts';
+import { createGroup04ToolDefinitions } from '../../server/workforce/tools/handlers/group-04.ts';
 
 const CO_A = 'company-a';
 const CO_B = 'company-b';
@@ -231,11 +232,14 @@ test('input validation rejects unknown keys and bad values, naming fields only',
 test('registerReadTools registers each bound tool as a read tool with the registry', () => {
   const registered = [];
   registerReadTools({ register: (def) => registered.push(def) }, seededStore());
+  // Handler group 04 definitions are registered too. They are checked in tools-real-04.test.mjs.
+  const groupIds = new Set(createGroup04ToolDefinitions().map((d) => d.id));
+  const bound = registered.filter((d) => !groupIds.has(d.id));
   assert.deepEqual(
-    registered.map((d) => d.id).sort(),
+    bound.map((d) => d.id).sort(),
     ['booking_requests.get', 'booking_requests.list', 'invoices.get', 'invoices.list', 'payments.list'],
   );
-  for (const def of registered) {
+  for (const def of bound) {
     assert.equal(def.access, 'read');
     assert.equal(def.risk, 'low');
     assert.equal(typeof def.handler, 'function');
@@ -265,9 +269,10 @@ test('read tools run through the tool registry and refuse companyId in params', 
   assert.equal(refused.reason, 'tenant_override');
 });
 
-test('definitions expose the same ids as the specs', () => {
+test('definitions expose the same ids as the specs, plus the handler group 04 ids', () => {
   const store = seededStore();
-  const defIds = createReadToolDefinitions(store).map((d) => d.id).sort();
+  const groupIds = new Set(createGroup04ToolDefinitions().map((d) => d.id));
+  const defIds = createReadToolDefinitions(store).map((d) => d.id).filter((id) => !groupIds.has(id)).sort();
   const specIds = createReadToolSpecs(store).map((s) => s.id).sort();
   assert.deepEqual(defIds, specIds);
 });

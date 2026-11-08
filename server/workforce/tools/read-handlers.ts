@@ -14,6 +14,7 @@ import { z } from 'zod';
 import { requireCompanyId } from '../../services/ai-runtime/company.ts';
 import type { CompanyId } from '../../services/ai-runtime/types.ts';
 import type { ToolDefinition, ToolSchema } from '../runtime/tool-registry.ts';
+import { createGroup04ToolDefinitions } from './handlers/group-04.ts';
 
 export const MAX_READ_ROWS = 50;
 
@@ -290,13 +291,17 @@ export function createReadToolSpecs(store: ReadStore): ReadToolSpec[] {
 
 /** Registry definitions for every bound read tool. Each runs with access 'read' and risk 'low'. */
 export function createReadToolDefinitions(store: ReadStore): ToolDefinition[] {
-  return createReadToolSpecs(store).map((spec) => ({
-    id: spec.id,
-    risk: 'low',
-    access: 'read',
-    schema: spec.schema,
-    handler: (params, context) => spec.run(context.companyId, params),
-  }));
+  return [
+    ...createReadToolSpecs(store).map((spec) => ({
+      id: spec.id,
+      risk: 'low' as const,
+      access: 'read' as const,
+      schema: spec.schema,
+      handler: (params: Record<string, unknown>, context: { companyId: CompanyId }) => spec.run(context.companyId, params),
+    })),
+    // Group 04 handler definitions: reads and writes, each with its own access class and timeout (handlers/group-04.ts).
+    ...createGroup04ToolDefinitions(),
+  ];
 }
 
 /** Minimal shape of the registry that registerReadTools needs. */

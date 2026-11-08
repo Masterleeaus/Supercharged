@@ -12,6 +12,7 @@ for (const method of ['log', 'info', 'warn']) console[method] = () => {};
 
 const { TOOL_ACCESS } = await import('../../server/workforce/catalogue/tool-access.ts');
 const { createReadToolDefinitions } = await import('../../server/workforce/tools/read-handlers.ts');
+const { createGroup04ToolDefinitions } = await import('../../server/workforce/tools/handlers/group-04.ts');
 
 const READ_VERBS = new Set(['list', 'get', 'search', 'view', 'lookup', 'check', 'read', 'availability', 'status']);
 
@@ -34,7 +35,11 @@ test('every TOOL_ACCESS value is read or write', () => {
 test('bound read tool definitions declare access read', () => {
   const definitions = createReadToolDefinitions(new Proxy({}, { get: () => async () => [] }));
   assert.ok(definitions.length > 0, 'expected bound read tool definitions');
-  const notRead = definitions.filter((def) => def.access !== 'read').map((def) => `${def.id}=${String(def.access)}`);
+  // Handler group 04 write tools are excluded here: they are checked as write in tools-real-04.test.mjs.
+  const groupWriteIds = new Set(createGroup04ToolDefinitions().filter((def) => def.access === 'write').map((def) => def.id));
+  const notRead = definitions
+    .filter((def) => !groupWriteIds.has(def.id) && def.access !== 'read')
+    .map((def) => `${def.id}=${String(def.access)}`);
   assert.deepEqual(notRead, [], `bound read tools not declared read: ${notRead.join(', ')}`);
 });
 

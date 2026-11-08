@@ -14,9 +14,11 @@ for (const method of ['log', 'info', 'warn']) console[method] = () => {};
 
 const { loadRoleCatalogue } = await import('../../server/workforce/catalogue/loader.ts');
 const { createReadToolSpecs } = await import('../../server/workforce/tools/read-handlers.ts');
+const { createGroup04ToolDefinitions, GROUP04_NOT_IMPLEMENTED } = await import('../../server/workforce/tools/handlers/group-04.ts');
 
 // Recorded on 2026-11-04: 100 distinct declared IDs across 125 role files, 5 bound to a handler, 95 unmapped.
-const UNMAPPED_COUNT_RECORDED = 95;
+// Group 04 (handlers/group-04.ts) binds 19 more: 20 ids, with site_visits.schedule not_implemented. 95 - 19 = 76.
+const UNMAPPED_COUNT_RECORDED = 76;
 
 const ROLES_DIR = fileURLToPath(new URL('../../server/workforce/catalogue/roles', import.meta.url));
 
@@ -26,7 +28,11 @@ for (const role of catalogue.values()) for (const toolId of role.tools) declared
 
 // Typed handlers bound through the read-handler port. The store is a stub: no calls are made when building specs.
 const stubStore = new Proxy({}, { get: () => async () => [] });
-const bound = new Set(createReadToolSpecs(stubStore).map((spec) => spec.id));
+// Group 04 counts as bound only for the ids it implements. not_implemented ids do not lower the count.
+const group04Bound = createGroup04ToolDefinitions()
+  .map((def) => def.id)
+  .filter((id) => !GROUP04_NOT_IMPLEMENTED.includes(id));
+const bound = new Set([...createReadToolSpecs(stubStore).map((spec) => spec.id), ...group04Bound]);
 
 const unmapped = [...declared].filter((toolId) => !bound.has(toolId)).sort();
 

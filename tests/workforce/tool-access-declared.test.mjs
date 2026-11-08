@@ -7,16 +7,25 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createReadToolDefinitions } from '../../server/workforce/tools/read-handlers.ts';
+import { createGroup04ToolDefinitions } from '../../server/workforce/tools/handlers/group-04.ts';
 
 const READ_VERBS = new Set(['list', 'get', 'search', 'view', 'lookup', 'check', 'read', 'availability']);
 
 const stubStore = new Proxy({}, { get: () => async () => [] });
 const definitions = createReadToolDefinitions(stubStore);
+// Handler group 04 also sits in createReadToolDefinitions. Its write tools are checked against 'write' below.
+const groupWriteIds = new Set(createGroup04ToolDefinitions().filter((def) => def.access === 'write').map((def) => def.id));
 
 test('every read tool defined under tools/ declares access read', () => {
   assert.ok(definitions.length > 0, 'expected at least one bound read tool definition');
-  const missing = definitions.filter((def) => def.access !== 'read').map((def) => def.id);
+  const readDefs = definitions.filter((def) => !groupWriteIds.has(def.id));
+  const missing = readDefs.filter((def) => def.access !== 'read').map((def) => def.id);
   assert.deepEqual(missing, [], `read tools without access 'read': ${missing.join(', ')}`);
+});
+
+test('every write tool from a handler group declares access write', () => {
+  const notWrite = definitions.filter((def) => groupWriteIds.has(def.id) && def.access !== 'write').map((def) => def.id);
+  assert.deepEqual(notWrite, [], `group write tools not declared write: ${notWrite.join(', ')}`);
 });
 
 test('read-named tools defined under tools/ are not declared as write', () => {
