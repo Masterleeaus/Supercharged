@@ -34,7 +34,7 @@
  */
 import { Router, type Express, type RequestHandler } from "express";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
-import { readFlag, type FlagEnv } from "../contracts/flags.ts";
+import { CONTRACT_FLAGS, readFlag, type FlagEnv } from "../contracts/flags.ts";
 import type { SecretBox } from "../contracts/secrets.ts";
 
 // Builder
@@ -358,15 +358,18 @@ export function mountChatbotModule(app: Pick<Express, "use">, deps: ChatbotWirin
       onReceipt: channels.onReceipt,
       logger,
     };
-    const built: Record<ChannelRouterKind, Router> = {
-      telegram: createTelegramWebhookRouter(inbound),
-      whatsapp: createWhatsappWebhookRouter({ ...inbound, env: env as FlagEnv }),
-      messenger: createMessengerWebhookRouter(inbound),
-      instagram: createInstagramWebhookRouter(inbound),
-    };
+    // Telegram has its own kill switch. Its route is not mounted unless that flag is exactly "true", and the router
+    // checks the same flag again (it is passed env).
+    const built: Partial<Record<ChannelRouterKind, Router>> = {};
+    if (readFlag(CONTRACT_FLAGS.TELEGRAM_CHANNEL, env)) {
+      built.telegram = createTelegramWebhookRouter({ ...inbound, env: env as FlagEnv });
+    }
+    built.whatsapp = createWhatsappWebhookRouter({ ...inbound, env: env as FlagEnv });
+    built.messenger = createMessengerWebhookRouter(inbound);
+    built.instagram = createInstagramWebhookRouter(inbound);
     result.routers.channels = built;
     for (const kind of Object.keys(built) as ChannelRouterKind[]) {
-      mountAt(`${WIRING_PREFIXES.channels}/${CHANNEL_COMPANY_SEGMENT}/${kind}`, [built[kind]]);
+      mountAt(`${WIRING_PREFIXES.channels}/${CHANNEL_COMPANY_SEGMENT}/${kind}`, [built[kind] as Router]);
     }
   }
 

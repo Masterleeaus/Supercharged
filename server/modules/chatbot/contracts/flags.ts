@@ -47,8 +47,8 @@ export const CONTRACT_FLAGS = {
   /** Review requests after a conversation. Added by the reviews change request. Off by default. */
   REVIEWS_ENABLED: "CHATBOT_REVIEWS_ENABLED",
   /**
-   * Telegram channel kill switch. Off by default. Not yet read by wiring/mount.ts: until that file gates the telegram
-   * router on this flag, the telegram webhook follows CHATBOT_CHANNELS_ENABLED alone.
+   * Telegram channel kill switch. Off by default. wiring/mount.ts mounts the telegram route only when this is "true",
+   * and the telegram router checks it again. It still needs CHATBOT_CHANNELS_ENABLED for the channel surface as a whole.
    */
   TELEGRAM_CHANNEL: "CHATBOT_TELEGRAM_CHANNEL_ENABLED",
   /** Conversation attachments (upload and read). Added by the ops change request. Off by default. */

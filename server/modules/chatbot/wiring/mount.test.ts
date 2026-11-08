@@ -58,8 +58,9 @@ function prefixesOf(calls: UseCall[]): string[] {
 
 const ALL_FLAGS = Object.values(WIRING_FLAGS);
 
+// Telegram has its own flag (CHATBOT_TELEGRAM_CHANNEL_ENABLED), so it is not mounted with CHATBOT_CHANNELS_ENABLED alone.
+const TELEGRAM_PREFIX = `${WIRING_PREFIXES.channels}/:companyId/telegram`;
 const CHANNEL_PREFIXES = [
-  `${WIRING_PREFIXES.channels}/:companyId/telegram`,
   `${WIRING_PREFIXES.channels}/:companyId/whatsapp`,
   `${WIRING_PREFIXES.channels}/:companyId/messenger`,
   `${WIRING_PREFIXES.channels}/:companyId/instagram`,
@@ -89,6 +90,31 @@ test("each flag mounts only its own prefix", () => {
     assert.deepEqual(prefixesOf(calls), PREFIX_FOR_FLAG[flag], `flag ${flag}`);
     assert.deepEqual(result.mounted, PREFIX_FOR_FLAG[flag], `flag ${flag} report`);
   }
+});
+
+test("telegram mounts only when its own flag is also exactly true", () => {
+  const tgFlag = "CHATBOT_TELEGRAM_CHANNEL_ENABLED";
+  const channelsOn = { [WIRING_FLAGS.CHANNELS]: "true" };
+
+  const withoutTelegram = fakeApp();
+  const r1 = mountChatbotModule(withoutTelegram.app, deps(channelsOn));
+  assert.ok(!r1.mounted.includes(TELEGRAM_PREFIX));
+  assert.equal(r1.routers.channels?.telegram, undefined);
+
+  for (const value of ["TRUE", "1", "yes", ""]) {
+    const off = fakeApp();
+    const r = mountChatbotModule(off.app, deps({ ...channelsOn, [tgFlag]: value }));
+    assert.ok(!r.mounted.includes(TELEGRAM_PREFIX), `telegram flag ${JSON.stringify(value)} must not mount`);
+  }
+
+  const withTelegram = fakeApp();
+  const r2 = mountChatbotModule(withTelegram.app, deps({ ...channelsOn, [tgFlag]: "true" }));
+  assert.ok(r2.mounted.includes(TELEGRAM_PREFIX));
+  assert.ok(r2.routers.channels?.telegram);
+
+  const telegramOnly = fakeApp();
+  const r3 = mountChatbotModule(telegramOnly.app, deps({ [tgFlag]: "true" }));
+  assert.deepEqual(r3.mounted, []);
 });
 
 test("only the exact string true turns a flag on", () => {
