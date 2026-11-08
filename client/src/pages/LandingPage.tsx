@@ -41,8 +41,8 @@ export default function LandingPage() {
     "Twilio integration"
   ];
 
-  const seoTitle = seoSettings?.defaultTitle || "Supercharged | AI Communications and Business Operations";
-  const seoDescription = seoSettings?.defaultDescription || branding.app_tagline || "Transform your call operations with AI-powered voice agents. Automate outbound calls, qualify leads, schedule appointments, and provide 24/7 customer support.";
+  const seoTitle = seoSettings?.defaultTitle || `${branding.app_name || "Supercharged"} | AI Communications and Business Operations`;
+  const seoDescription = seoSettings?.defaultDescription || branding.app_tagline || "Manage customer communications and business operations with connected AI-powered tools.";
   const seoKeywords = (seoSettings?.defaultKeywords && seoSettings.defaultKeywords.length > 0) 
     ? seoSettings.defaultKeywords 
     : defaultKeywords;
