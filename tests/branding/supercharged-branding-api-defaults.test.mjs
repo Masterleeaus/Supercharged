@@ -17,6 +17,7 @@ test("public API ignores blank app_name but retains configured names", () => {
   const route = publicRoutes.split('router.get("/api/branding"')[1]?.split("// SEO ROUTES")[0];
   assert.match(route, /key === 'app_name' && \(typeof setting\.value !== 'string' \|\| !setting\.value\.trim\(\)\)/);
   assert.match(route, /branding\[key\] = setting\.value;/);
+  assert.match(route, /res\.setHeader\('Cache-Control', 'no-store'\)/);
 });
 
 test("admin branding settings render a product fallback without replacing customer values", () => {
