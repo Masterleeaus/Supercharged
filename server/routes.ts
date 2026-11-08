@@ -19,7 +19,7 @@ import type { Express, RequestHandler, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
-import { phoneNumbers, agents, calls, campaigns, incomingConnections, users, knowledgeBase } from "@shared/schema";
+import { agents, calls, campaigns, incomingConnections, users } from "@shared/schema";
 import { eq, desc, and, isNull, sql, or } from "drizzle-orm";
 import { authenticateToken, requireRole, type AuthRequest } from "./middleware/auth";
 import { ElevenLabsPoolService } from "./services/elevenlabs-pool";
@@ -36,7 +36,7 @@ import { initPlivoElevenLabsStream } from "./engines/plivo-elevenlabs";
 // Twilio + OpenAI Realtime Engine (ISOLATED from Twilio+ElevenLabs and Plivo+OpenAI)
 import { setupTwilioOpenAIStreamHandler } from "./engines/twilio-openai";
 import { checkAdmin, checkAdminOrTeamMember, requireAdminPermission, AdminRequest } from "./middleware/admin-auth";
-import { flows, insertPromptTemplateSchema, promptTemplates } from "@shared/schema";
+import { insertPromptTemplateSchema, promptTemplates } from "@shared/schema";
 
 // Table insert shape for createPromptTemplate; the drizzle-zod insert type resolves to {}.
 type PromptTemplateInsertRow = typeof promptTemplates.$inferInsert & { companyId?: string };
@@ -83,6 +83,7 @@ import { registerCrmPublicRoutes } from "./routes/core/crm-public-routes";
 import { registerStreamWidgetRoutes } from "./routes/core/stream-widget-routes";
 import { registerIntegrationRoutes } from "./routes/core/integration-routes";
 import { registerTwilioStreamUpgrade } from "./routes/core/twilio-stream-upgrade";
+import { registerUserLimitsRoutes } from "./routes/core/user-limits-routes";
 
 const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
@@ -203,61 +204,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Routes: Twilio stream WebSocket upgrade, see server/routes/core/twilio-stream-upgrade.ts
   registerTwilioStreamUpgrade(app, { httpServer });
 
-  // ============================================
-  // USER LIMITS API
-  // ============================================
-
-  // Get all user limits and current usage
-  app.get("/api/user/limits", authenticateToken, async (req: AuthRequest, res: Response) => {
-    try {
-      const limits = await storage.getUserEffectiveLimits(req.userId!);
-
-      // Get current counts
-      const webhookCount = await storage.getUserWebhookCount(req.userId!);
-      const kbCount = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(knowledgeBase)
-        .where(eq(knowledgeBase.userId, req.userId!));
-      const flowCount = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(flows)
-        .where(eq(flows.userId, req.userId!));
-      const phoneCount = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(phoneNumbers)
-        .where(eq(phoneNumbers.userId, req.userId!));
-
-      res.json({
-        webhooks: {
-          current: webhookCount,
-          max: limits.maxWebhooks,
-          remaining: Math.max(0, limits.maxWebhooks - webhookCount),
-          source: limits.sources.maxWebhooks
-        },
-        knowledgeBases: {
-          current: Number(kbCount[0]?.count || 0),
-          max: limits.maxKnowledgeBases,
-          remaining: Math.max(0, limits.maxKnowledgeBases - Number(kbCount[0]?.count || 0)),
-          source: limits.sources.maxKnowledgeBases
-        },
-        flows: {
-          current: Number(flowCount[0]?.count || 0),
-          max: limits.maxFlows,
-          remaining: Math.max(0, limits.maxFlows - Number(flowCount[0]?.count || 0)),
-          source: limits.sources.maxFlows
-        },
-        phoneNumbers: {
-          current: Number(phoneCount[0]?.count || 0),
-          max: limits.maxPhoneNumbers,
-          remaining: Math.max(0, limits.maxPhoneNumbers - Number(phoneCount[0]?.count || 0)),
-          source: limits.sources.maxPhoneNumbers
-        }
-      });
-    } catch (error: any) {
-      console.error("Get user limits error:", error);
-      res.status(500).json({ error: "Failed to get user limits" });
-    }
-  });
+  // Routes: user limits, see server/routes/core/user-limits-routes.ts
+  registerUserLimitsRoutes(app);
 
   // Notifications
   app.get("/api/notifications", authenticateToken, async (req: AuthRequest, res: Response) => {
