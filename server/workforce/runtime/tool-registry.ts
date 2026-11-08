@@ -109,6 +109,7 @@ export interface ToolDefinition {
   risk: RiskTier;
   /** 'read' or 'write'. Absent means 'write'. A suggest agent may run only read tools. */
   access?: ToolAccess;
+  timeoutMs?: number;
   /**
    * Action category, passed to evaluatePolicy. Absent means 'other'. Allowed values:
    *  - 'money':         moves money (payments, refunds, transfers, payouts). Always needs owner approval.
