@@ -112,12 +112,12 @@ test('sms: duplicate send with the same idempotency key is accepted once by a ke
 
 const tgRequest = () => buildTelegramSendRequest({ chatId: -1001234567890, text: 'Booking confirmed.' });
 
-test('telegram: provider timeout returns provider_error and no messageId', async () => {
+test('telegram: provider timeout returns uncertain and no messageId', async () => {
   const outcome = await settleWithin(
     sendTelegram({ token: TG_TOKEN, request: tgRequest(), http: { post: never }, timeoutMs: 50 }),
   );
   assert.notEqual(outcome, 'HUNG');
-  assert.deepEqual(outcome, { ok: false, reason: 'provider_error' });
+  assert.deepEqual(outcome, { ok: false, reason: 'uncertain' });
 });
 
 test('telegram: provider 5xx outage returns provider_error and drops the URL that holds the token', async () => {
@@ -166,7 +166,7 @@ const waBuilt = () => {
   return built;
 };
 
-test('whatsapp: provider timeout returns provider_error and no externalId', async () => {
+test('whatsapp: provider timeout returns uncertain and no externalId', async () => {
   const built = waBuilt();
   const outcome = await settleWithin(
     sendWhatsApp({
@@ -177,7 +177,7 @@ test('whatsapp: provider timeout returns provider_error and no externalId', asyn
     }),
   );
   assert.notEqual(outcome, 'HUNG');
-  assert.deepEqual(outcome, { ok: false, reason: 'provider_error' });
+  assert.deepEqual(outcome, { ok: false, reason: 'uncertain' });
 });
 
 test('whatsapp: provider 5xx outage returns provider_error, no success recorded', async () => {
@@ -239,12 +239,12 @@ const metaRequest = () => {
   return built.request;
 };
 
-test('messenger: provider timeout returns provider_error and no messageId', async () => {
+test('messenger: provider timeout returns uncertain and no messageId', async () => {
   const outcome = await settleWithin(
     sendMeta({ accessToken: META_TOKEN, request: metaRequest(), http: { post: never }, timeoutMs: 50 }),
   );
   assert.notEqual(outcome, 'HUNG');
-  assert.deepEqual(outcome, { ok: false, reason: 'provider_error' });
+  assert.deepEqual(outcome, { ok: false, reason: 'uncertain' });
 });
 
 test('messenger: provider 5xx outage returns provider_error, no success recorded', async () => {
