@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { auditSourceDuplicates, classifySourcePath } from "../../scripts/audit-source-duplicates.mjs";
 
-function withFixture(run) {
+async function withFixture(run) {
   const root = mkdtempSync(join(tmpdir(), "supercharged-duplicate-audit-"));
   const make = (path, data) => {
     const absolute = join(root, path);
@@ -14,7 +14,7 @@ function withFixture(run) {
     return absolute;
   };
   try {
-    return run({ root, make });
+    return await run({ root, make });
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
