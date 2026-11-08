@@ -164,7 +164,7 @@ function readCache(): BrandingData | null {
     if (!cached) return null;
     const parsed: CachedBranding = JSON.parse(cached);
     const age = Date.now() - parsed.timestamp;
-    if (age > CACHE_TTL) {
+    if (!Number.isFinite(age) || age < 0 || age > CACHE_TTL) {
       localStorage.removeItem(CACHE_KEY);
       return null;
     }
