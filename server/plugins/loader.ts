@@ -625,7 +625,7 @@ export async function getPluginStatus(): Promise<Array<{
       description: plugin.manifest.description,
       enabled: plugin.enabled,
       registered: plugin.registered,
-      requiresRestart: plugin.enabled !== plugin.registered,
+      requiresRestart: !plugin.error && plugin.enabled !== plugin.registered,
       features: plugin.manifest.features || [],
       hasFrontendBundle,
       error: plugin.error,
