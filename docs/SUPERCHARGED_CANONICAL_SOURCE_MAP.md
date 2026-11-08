@@ -144,3 +144,14 @@ No merge, deletion, tenant data migration, privilege change, template schema cha
 - Plugin installer and plugin manifest are separate capabilities (ZIP plugins, not browser installability). Their schema, compatibility keys and notices were not changed.
 
 **Outstanding:** CI verification of the three new installer assertions and new-build artifact, further actual install/runtime testing, all user-facing surfaces and donor code/license reconciliation; draft PR remains open.
+
+## Pass 9 — admin/public branding consistency and caching
+
+- Verified CI on completed Pass 8 head: production build **passed**; 5,956 tests **passed**, three failed, 13 skipped. All 18 brand regression tests passed; the three failing tests remain in workforce read-tool composition and declared tool metadata. Migration inventory and informational typecheck remain failing.
+- Audited the two distinct branding GET handlers: `/api/branding` and `/api/admin/branding`. Public API already provided a product fallback, but a legacy stored blank name could overwrite it. Admin API initialized to an empty object, so an unconfigured installation could present an empty name in admin settings.
+- Public GET now ignores stored blank/whitespace/non-string `app_name` values while retaining real configured values. Admin GET now supplies `app_name: Supercharged` and an empty tagline as defaults and applies the same blank-name protection; settings edits and custom tenant names remain authoritative.
+- Public GET's response previously had `Cache-Control: public, max-age=300`; admin changes might remain invisible through browser caches despite React query invalidation. Only the branding GET response was changed to `Cache-Control: no-store`, leaving unrelated caching policies untouched.
+- Added `tests/branding/supercharged-branding-api-defaults.test.mjs`: four source-level contract tests, including cache-header protection, fallback precedence, admin branding query binding, and user-set names. These need execution on the Pass 9 head.
+- No third-party notices, historical cache keys, datastore records, donor code or deployment artifacts were modified.
+
+**Not yet production-ready:** runtime tenant isolation, entitlement and installation verification, legal ownership review, migration baseline repair and source consolidation still pending.
