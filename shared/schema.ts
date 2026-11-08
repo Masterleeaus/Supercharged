@@ -3604,6 +3604,725 @@ export const workforceAgents = pgTable("workforce_agents", {
   workforceAgentsStatusCheck: check("workforce_agents_status_check", sql`${table.status} IN ('active', 'paused', 'retired')`),
 }));
 
+// ---------------------------------------------------------------------------
+// Workforce tool tables. Mirrors migrations/0014_workforce_tool_tables.sql.
+// Every table has company_id NOT NULL referencing companies(id), with an index on company_id.
+// Parents expose unique (company_id, id); children use composite foreign keys on (company_id, parent_id).
+// Column shapes follow Sorted's table of the same name where one exists (account_id becomes company_id).
+// ---------------------------------------------------------------------------
+const wfId = () => uuid("id").primaryKey().default(sql`gen_random_uuid()`);
+const wfCompany = () => uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" });
+const wfStamps = () => ({
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Customers and sites
+export const clients = pgTable("clients", {
+  id: wfId(),
+  companyId: wfCompany(),
+  name: text("name").notNull(),
+  email: text("email"),
+  phone: text("phone"),
+  notes: text("notes"),
+  ...wfStamps(),
+}, (t) => ({
+  clientsCompanyIdIdx: index("clients_company_id_idx").on(t.companyId),
+  clientsCompanyIdUidx: unique("clients_company_id_uidx").on(t.companyId, t.id),
+}));
+
+export const clientMergeSuggestions = pgTable("client_merge_suggestions", {
+  id: wfId(),
+  companyId: wfCompany(),
+  clientId: uuid("client_id").notNull(),
+  duplicateClientId: uuid("duplicate_client_id").notNull(),
+  reason: text("reason"),
+  status: text("status").notNull().default("open"),
+  ...wfStamps(),
+}, (t) => ({
+  clientMergeCompanyIdIdx: index("client_merge_suggestions_company_id_idx").on(t.companyId),
+  clientMergeCompanyIdUidx: unique("client_merge_suggestions_company_id_uidx").on(t.companyId, t.id),
+  clientMergeStatusCheck: check("client_merge_suggestions_status_check", sql`${t.status} IN ('open', 'dismissed', 'merged')`),
+  clientMergeDistinctCheck: check("client_merge_suggestions_distinct_chk", sql`${t.clientId} <> ${t.duplicateClientId}`),
+  clientMergeClientFk: foreignKey({ columns: [t.companyId, t.clientId], foreignColumns: [clients.companyId, clients.id] }).onDelete("cascade"),
+  clientMergeDuplicateFk: foreignKey({ columns: [t.companyId, t.duplicateClientId], foreignColumns: [clients.companyId, clients.id] }).onDelete("cascade"),
+}));
+
+export const properties = pgTable("properties", {
+  id: wfId(),
+  companyId: wfCompany(),
+  clientId: uuid("client_id").notNull(),
+  name: text("name"),
+  address: text("address").notNull(),
+  city: text("city"),
+  state: text("state"),
+  zip: text("zip"),
+  notes: text("notes"),
+  ...wfStamps(),
+}, (t) => ({
+  propertiesCompanyIdIdx: index("properties_company_id_idx").on(t.companyId),
+  propertiesCompanyIdUidx: unique("properties_company_id_uidx").on(t.companyId, t.id),
+  propertiesClientFk: foreignKey({ columns: [t.companyId, t.clientId], foreignColumns: [clients.companyId, clients.id] }).onDelete("cascade"),
+}));
+
+export const propertyContacts = pgTable("property_contacts", {
+  id: wfId(),
+  companyId: wfCompany(),
+  propertyId: uuid("property_id").notNull(),
+  clientId: uuid("client_id"),
+  externalName: text("external_name"),
+  externalEmail: text("external_email"),
+  externalPhone: text("external_phone"),
+  notes: text("notes"),
+  role: text("role").notNull(),
+  ...wfStamps(),
+}, (t) => ({
+  propertyContactsCompanyIdIdx: index("property_contacts_company_id_idx").on(t.companyId),
+  propertyContactsCompanyIdUidx: unique("property_contacts_company_id_uidx").on(t.companyId, t.id),
+  propertyContactsRoleCheck: check("property_contacts_role_check", sql`${t.role} IN ('owner', 'realtor', 'beneficiary', 'property_manager', 'tenant', 'other')`),
+  propertyContactsPropertyFk: foreignKey({ columns: [t.companyId, t.propertyId], foreignColumns: [properties.companyId, properties.id] }).onDelete("cascade"),
+  propertyContactsClientFk: foreignKey({ columns: [t.companyId, t.clientId], foreignColumns: [clients.companyId, clients.id] }).onDelete("restrict"),
+}));
+
+export const propertyIssues = pgTable("property_issues", {
+  id: wfId(),
+  companyId: wfCompany(),
+  propertyId: uuid("property_id").notNull(),
+  area: text("area").notNull(),
+  itemKey: text("item_key").notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  firstNotedAt: timestamp("first_noted_at", { withTimezone: true }).notNull().defaultNow(),
+  lastNotedAt: timestamp("last_noted_at", { withTimezone: true }).notNull().defaultNow(),
+  occurrenceCount: integer("occurrence_count").notNull().default(1),
+  status: text("status").notNull().default("open"),
+  resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  resolvedNote: text("resolved_note"),
+  severity: text("severity").notNull().default("minor"),
+  autoDetected: boolean("auto_detected").notNull().default(true),
+  ...wfStamps(),
+}, (t) => ({
+  propertyIssuesCompanyIdIdx: index("property_issues_company_id_idx").on(t.companyId),
+  propertyIssuesCompanyIdUidx: unique("property_issues_company_id_uidx").on(t.companyId, t.id),
+  propertyIssuesStatusCheck: check("property_issues_status_check", sql`${t.status} IN ('open', 'monitoring', 'resolved', 'referred')`),
+  propertyIssuesSeverityCheck: check("property_issues_severity_check", sql`${t.severity} IN ('minor', 'moderate', 'major', 'critical')`),
+  propertyIssuesPropertyFk: foreignKey({ columns: [t.companyId, t.propertyId], foreignColumns: [properties.companyId, properties.id] }).onDelete("cascade"),
+}));
+
+// Work, visits and job records
+export const workOrders = pgTable("work_orders", {
+  id: wfId(),
+  companyId: wfCompany(),
+  clientId: uuid("client_id").notNull(),
+  propertyId: uuid("property_id"),
+  title: text("title").notNull(),
+  scope: text("scope"),
+  siteNotes: text("site_notes"),
+  safetyNotes: text("safety_notes"),
+  status: text("status").notNull().default("draft"),
+  totalCents: integer("total_cents").notNull().default(0),
+  notes: text("notes"),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  createdBy: uuid("created_by"),
+  ...wfStamps(),
+}, (t) => ({
+  workOrdersCompanyIdIdx: index("work_orders_company_id_idx").on(t.companyId),
+  workOrdersCompanyIdUidx: unique("work_orders_company_id_uidx").on(t.companyId, t.id),
+  workOrdersStatusCheck: check("work_orders_status_check", sql`${t.status} IN ('draft', 'scheduled', 'in_progress', 'completed', 'cancelled')`),
+  workOrdersTotalCheck: check("work_orders_total_cents_check", sql`${t.totalCents} >= 0`),
+  workOrdersClientFk: foreignKey({ columns: [t.companyId, t.clientId], foreignColumns: [clients.companyId, clients.id] }).onDelete("restrict"),
+  workOrdersPropertyFk: foreignKey({ columns: [t.companyId, t.propertyId], foreignColumns: [properties.companyId, properties.id] }),
+}));
+
+export const visits = pgTable("visits", {
+  id: wfId(),
+  companyId: wfCompany(),
+  workOrderId: uuid("work_order_id").notNull(),
+  assignedUserId: uuid("assigned_user_id"),
+  status: text("status").notNull().default("scheduled"),
+  scheduledStart: timestamp("scheduled_start", { withTimezone: true }).notNull(),
+  scheduledEnd: timestamp("scheduled_end", { withTimezone: true }).notNull(),
+  arrivedAt: timestamp("arrived_at", { withTimezone: true }),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  techNotes: text("tech_notes"),
+  ...wfStamps(),
+}, (t) => ({
+  visitsCompanyIdIdx: index("visits_company_id_idx").on(t.companyId),
+  visitsCompanyIdUidx: unique("visits_company_id_uidx").on(t.companyId, t.id),
+  visitsStatusCheck: check("visits_status_check", sql`${t.status} IN ('scheduled', 'arrived', 'in_progress', 'completed', 'cancelled')`),
+  visitsWorkOrderFk: foreignKey({ columns: [t.companyId, t.workOrderId], foreignColumns: [workOrders.companyId, workOrders.id] }).onDelete("cascade"),
+}));
+
+export const visitChecklistItems = pgTable("visit_checklist_items", {
+  id: wfId(),
+  companyId: wfCompany(),
+  visitId: uuid("visit_id").notNull(),
+  section: text("section").notNull(),
+  itemKey: text("item_key").notNull(),
+  label: text("label").notNull(),
+  disposition: text("disposition"),
+  note: text("note"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  ...wfStamps(),
+}, (t) => ({
+  visitChecklistItemsCompanyIdIdx: index("visit_checklist_items_company_id_idx").on(t.companyId),
+  visitChecklistItemsCompanyIdUidx: unique("visit_checklist_items_company_id_uidx").on(t.companyId, t.id),
+  visitChecklistItemsVisitItemUniq: unique("visit_checklist_items_visit_item_uniq").on(t.companyId, t.visitId, t.itemKey),
+  visitChecklistItemsDispositionCheck: check("visit_checklist_items_disposition_check", sql`${t.disposition} IS NULL OR ${t.disposition} IN ('ok', 'fix_now', 'monitor', 'optional', 'refer')`),
+  visitChecklistItemsVisitFk: foreignKey({ columns: [t.companyId, t.visitId], foreignColumns: [visits.companyId, visits.id] }).onDelete("cascade"),
+}));
+
+export const visitMedia = pgTable("visit_media", {
+  id: wfId(),
+  companyId: wfCompany(),
+  visitId: uuid("visit_id").notNull(),
+  category: text("category").notNull(),
+  filename: text("filename").notNull(),
+  originalName: text("original_name").notNull(),
+  mimeType: text("mime_type").notNull(),
+  sizeBytes: integer("size_bytes").notNull(),
+  createdBy: uuid("created_by").notNull(),
+  ...wfStamps(),
+}, (t) => ({
+  visitMediaCompanyIdIdx: index("visit_media_company_id_idx").on(t.companyId),
+  visitMediaCompanyIdUidx: unique("visit_media_company_id_uidx").on(t.companyId, t.id),
+  visitMediaCategoryCheck: check("visit_media_category_check", sql`${t.category} IN ('before', 'after', 'receipt')`),
+  visitMediaSizeCheck: check("visit_media_size_bytes_check", sql`${t.sizeBytes} >= 0`),
+  visitMediaVisitFk: foreignKey({ columns: [t.companyId, t.visitId], foreignColumns: [visits.companyId, visits.id] }).onDelete("cascade"),
+}));
+
+export const jobNotes = pgTable("job_notes", {
+  id: wfId(),
+  companyId: wfCompany(),
+  workOrderId: uuid("work_order_id"),
+  visitId: uuid("visit_id"),
+  body: text("body").notNull(),
+  authorUserId: uuid("author_user_id"),
+  ...wfStamps(),
+}, (t) => ({
+  jobNotesCompanyIdIdx: index("job_notes_company_id_idx").on(t.companyId),
+  jobNotesCompanyIdUidx: unique("job_notes_company_id_uidx").on(t.companyId, t.id),
+  jobNotesParentCheck: check("job_notes_one_parent_chk", sql`${t.workOrderId} IS NOT NULL OR ${t.visitId} IS NOT NULL`),
+  jobNotesWorkOrderFk: foreignKey({ columns: [t.companyId, t.workOrderId], foreignColumns: [workOrders.companyId, workOrders.id] }).onDelete("cascade"),
+  jobNotesVisitFk: foreignKey({ columns: [t.companyId, t.visitId], foreignColumns: [visits.companyId, visits.id] }).onDelete("cascade"),
+}));
+
+export const jobSignoffs = pgTable("job_signoffs", {
+  id: wfId(),
+  companyId: wfCompany(),
+  visitId: uuid("visit_id").notNull(),
+  signerName: text("signer_name").notNull(),
+  signedAt: timestamp("signed_at", { withTimezone: true }).notNull().defaultNow(),
+  notes: text("notes"),
+  recordedBy: uuid("recorded_by"),
+  ...wfStamps(),
+}, (t) => ({
+  jobSignoffsCompanyIdIdx: index("job_signoffs_company_id_idx").on(t.companyId),
+  jobSignoffsCompanyIdUidx: unique("job_signoffs_company_id_uidx").on(t.companyId, t.id),
+  jobSignoffsVisitFk: foreignKey({ columns: [t.companyId, t.visitId], foreignColumns: [visits.companyId, visits.id] }).onDelete("cascade"),
+}));
+
+export const jobMaterialLines = pgTable("job_material_lines", {
+  id: wfId(),
+  companyId: wfCompany(),
+  workOrderId: uuid("work_order_id").notNull(),
+  name: text("name").notNull(),
+  quantity: decimal("quantity", { precision: 12, scale: 3 }).notNull().default("1"),
+  unitLabel: text("unit_label"),
+  storeSection: text("store_section"),
+  status: text("status").notNull().default("needed"),
+  source: text("source").notNull().default("manual"),
+  sku: text("sku"),
+  notes: text("notes"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  ...wfStamps(),
+}, (t) => ({
+  jobMaterialLinesCompanyIdIdx: index("job_material_lines_company_id_idx").on(t.companyId),
+  jobMaterialLinesCompanyIdUidx: unique("job_material_lines_company_id_uidx").on(t.companyId, t.id),
+  jobMaterialLinesStatusCheck: check("job_material_lines_status_check", sql`${t.status} IN ('needed', 'purchased', 'on_truck', 'not_needed')`),
+  jobMaterialLinesSourceCheck: check("job_material_lines_source_check", sql`${t.source} IN ('estimate', 'kit', 'ai', 'manual')`),
+  jobMaterialLinesWorkOrderFk: foreignKey({ columns: [t.companyId, t.workOrderId], foreignColumns: [workOrders.companyId, workOrders.id] }).onDelete("cascade"),
+}));
+
+// Stock, purchasing and staff
+export const inventoryItems = pgTable("inventory_items", {
+  id: wfId(),
+  companyId: wfCompany(),
+  name: text("name").notNull(),
+  sku: text("sku"),
+  unitLabel: text("unit_label"),
+  storeSection: text("store_section"),
+  quantity: decimal("quantity", { precision: 12, scale: 3 }).notNull().default("0"),
+  reorderLevel: decimal("reorder_level", { precision: 12, scale: 3 }).notNull().default("0"),
+  ...wfStamps(),
+}, (t) => ({
+  inventoryItemsCompanyIdIdx: index("inventory_items_company_id_idx").on(t.companyId),
+  inventoryItemsCompanyIdUidx: unique("inventory_items_company_id_uidx").on(t.companyId, t.id),
+  inventoryItemsQuantityCheck: check("inventory_items_quantity_check", sql`${t.quantity} >= 0`),
+  inventoryItemsReorderCheck: check("inventory_items_reorder_level_check", sql`${t.reorderLevel} >= 0`),
+}));
+
+export const purchaseOrders = pgTable("purchase_orders", {
+  id: wfId(),
+  companyId: wfCompany(),
+  supplierName: text("supplier_name").notNull(),
+  status: text("status").notNull().default("draft"),
+  totalCents: integer("total_cents").notNull().default(0),
+  notes: text("notes"),
+  orderedAt: timestamp("ordered_at", { withTimezone: true }),
+  ...wfStamps(),
+}, (t) => ({
+  purchaseOrdersCompanyIdIdx: index("purchase_orders_company_id_idx").on(t.companyId),
+  purchaseOrdersCompanyIdUidx: unique("purchase_orders_company_id_uidx").on(t.companyId, t.id),
+  purchaseOrdersStatusCheck: check("purchase_orders_status_check", sql`${t.status} IN ('draft', 'sent', 'received', 'cancelled')`),
+  purchaseOrdersTotalCheck: check("purchase_orders_total_cents_check", sql`${t.totalCents} >= 0`),
+}));
+
+export const supplierBills = pgTable("supplier_bills", {
+  id: wfId(),
+  companyId: wfCompany(),
+  purchaseOrderId: uuid("purchase_order_id"),
+  supplierName: text("supplier_name").notNull(),
+  billNumber: text("bill_number"),
+  amountCents: integer("amount_cents").notNull(),
+  dueDate: date("due_date"),
+  status: text("status").notNull().default("received"),
+  receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
+  ...wfStamps(),
+}, (t) => ({
+  supplierBillsCompanyIdIdx: index("supplier_bills_company_id_idx").on(t.companyId),
+  supplierBillsCompanyIdUidx: unique("supplier_bills_company_id_uidx").on(t.companyId, t.id),
+  supplierBillsStatusCheck: check("supplier_bills_status_check", sql`${t.status} IN ('received', 'matched', 'disputed', 'paid')`),
+  supplierBillsAmountCheck: check("supplier_bills_amount_cents_check", sql`${t.amountCents} >= 0`),
+  supplierBillsPurchaseOrderFk: foreignKey({ columns: [t.companyId, t.purchaseOrderId], foreignColumns: [purchaseOrders.companyId, purchaseOrders.id] }),
+}));
+
+export const endOfLeaseChecklists = pgTable("end_of_lease_checklists", {
+  id: wfId(),
+  companyId: wfCompany(),
+  propertyId: uuid("property_id"),
+  title: text("title").notNull(),
+  status: text("status").notNull().default("open"),
+  items: jsonb("items").notNull().default(sql`'[]'::jsonb`),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  ...wfStamps(),
+}, (t) => ({
+  endOfLeaseCompanyIdIdx: index("end_of_lease_checklists_company_id_idx").on(t.companyId),
+  endOfLeaseCompanyIdUidx: unique("end_of_lease_checklists_company_id_uidx").on(t.companyId, t.id),
+  endOfLeaseStatusCheck: check("end_of_lease_checklists_status_check", sql`${t.status} IN ('open', 'complete')`),
+  endOfLeasePropertyFk: foreignKey({ columns: [t.companyId, t.propertyId], foreignColumns: [properties.companyId, properties.id] }),
+}));
+
+export const crewRosters = pgTable("crew_rosters", {
+  id: wfId(),
+  companyId: wfCompany(),
+  rosterDate: date("roster_date").notNull(),
+  teamName: text("team_name").notNull(),
+  members: jsonb("members").notNull().default(sql`'[]'::jsonb`),
+  status: text("status").notNull().default("draft"),
+  ...wfStamps(),
+}, (t) => ({
+  crewRostersCompanyIdIdx: index("crew_rosters_company_id_idx").on(t.companyId),
+  crewRostersCompanyIdUidx: unique("crew_rosters_company_id_uidx").on(t.companyId, t.id),
+  crewRostersStatusCheck: check("crew_rosters_status_check", sql`${t.status} IN ('draft', 'published')`),
+}));
+
+export const timesheets = pgTable("timesheets", {
+  id: wfId(),
+  companyId: wfCompany(),
+  userId: uuid("user_id").notNull(),
+  workDate: date("work_date").notNull(),
+  startedAt: timestamp("started_at", { withTimezone: true }),
+  endedAt: timestamp("ended_at", { withTimezone: true }),
+  hours: decimal("hours", { precision: 6, scale: 2 }).notNull().default("0"),
+  status: text("status").notNull().default("open"),
+  ...wfStamps(),
+}, (t) => ({
+  timesheetsCompanyIdIdx: index("timesheets_company_id_idx").on(t.companyId),
+  timesheetsCompanyIdUidx: unique("timesheets_company_id_uidx").on(t.companyId, t.id),
+  timesheetsHoursCheck: check("timesheets_hours_check", sql`${t.hours} >= 0`),
+  timesheetsStatusCheck: check("timesheets_status_check", sql`${t.status} IN ('open', 'submitted', 'approved')`),
+}));
+
+export const timesheetFlags = pgTable("timesheet_flags", {
+  id: wfId(),
+  companyId: wfCompany(),
+  timesheetId: uuid("timesheet_id").notNull(),
+  reason: text("reason").notNull(),
+  status: text("status").notNull().default("open"),
+  raisedBy: uuid("raised_by"),
+  ...wfStamps(),
+}, (t) => ({
+  timesheetFlagsCompanyIdIdx: index("timesheet_flags_company_id_idx").on(t.companyId),
+  timesheetFlagsCompanyIdUidx: unique("timesheet_flags_company_id_uidx").on(t.companyId, t.id),
+  timesheetFlagsStatusCheck: check("timesheet_flags_status_check", sql`${t.status} IN ('open', 'resolved')`),
+  timesheetFlagsTimesheetFk: foreignKey({ columns: [t.companyId, t.timesheetId], foreignColumns: [timesheets.companyId, timesheets.id] }).onDelete("cascade"),
+}));
+
+export const staffTasks = pgTable("staff_tasks", {
+  id: wfId(),
+  companyId: wfCompany(),
+  kind: text("kind").notNull().default("staff"),
+  title: text("title").notNull(),
+  description: text("description"),
+  assigneeUserId: uuid("assignee_user_id"),
+  workOrderId: uuid("work_order_id"),
+  visitId: uuid("visit_id"),
+  status: text("status").notNull().default("open"),
+  priority: text("priority").notNull().default("normal"),
+  dueAt: timestamp("due_at", { withTimezone: true }),
+  ...wfStamps(),
+}, (t) => ({
+  staffTasksCompanyIdIdx: index("staff_tasks_company_id_idx").on(t.companyId),
+  staffTasksCompanyIdUidx: unique("staff_tasks_company_id_uidx").on(t.companyId, t.id),
+  staffTasksKindCheck: check("staff_tasks_kind_check", sql`${t.kind} IN ('staff', 'technician')`),
+  staffTasksStatusCheck: check("staff_tasks_status_check", sql`${t.status} IN ('open', 'in_progress', 'done', 'cancelled')`),
+  staffTasksPriorityCheck: check("staff_tasks_priority_check", sql`${t.priority} IN ('low', 'normal', 'high', 'urgent')`),
+  staffTasksWorkOrderFk: foreignKey({ columns: [t.companyId, t.workOrderId], foreignColumns: [workOrders.companyId, workOrders.id] }),
+  staffTasksVisitFk: foreignKey({ columns: [t.companyId, t.visitId], foreignColumns: [visits.companyId, visits.id] }),
+}));
+
+export const businessHours = pgTable("business_hours", {
+  id: wfId(),
+  companyId: wfCompany(),
+  userId: uuid("user_id"),
+  dayOfWeek: integer("day_of_week").notNull(),
+  opensAt: time("opens_at").notNull(),
+  closesAt: time("closes_at").notNull(),
+  capacity: integer("capacity").notNull().default(1),
+  ...wfStamps(),
+}, (t) => ({
+  businessHoursCompanyIdIdx: index("business_hours_company_id_idx").on(t.companyId),
+  businessHoursCompanyIdUidx: unique("business_hours_company_id_uidx").on(t.companyId, t.id),
+  businessHoursDayCheck: check("business_hours_day_of_week_check", sql`${t.dayOfWeek} BETWEEN 0 AND 6`),
+  businessHoursCapacityCheck: check("business_hours_capacity_check", sql`${t.capacity} >= 1`),
+  businessHoursWindowCheck: check("business_hours_window_chk", sql`${t.closesAt} > ${t.opensAt}`),
+}));
+
+// Contracts and plans
+export const serviceAgreements = pgTable("service_agreements", {
+  id: wfId(),
+  companyId: wfCompany(),
+  clientId: uuid("client_id").notNull(),
+  propertyId: uuid("property_id"),
+  name: text("name").notNull(),
+  status: text("status").notNull().default("active"),
+  startsOn: date("starts_on"),
+  endsOn: date("ends_on"),
+  priceCents: integer("price_cents").notNull().default(0),
+  ...wfStamps(),
+}, (t) => ({
+  serviceAgreementsCompanyIdIdx: index("service_agreements_company_id_idx").on(t.companyId),
+  serviceAgreementsCompanyIdUidx: unique("service_agreements_company_id_uidx").on(t.companyId, t.id),
+  serviceAgreementsStatusCheck: check("service_agreements_status_check", sql`${t.status} IN ('active', 'lapsed', 'cancelled')`),
+  serviceAgreementsPriceCheck: check("service_agreements_price_cents_check", sql`${t.priceCents} >= 0`),
+  serviceAgreementsClientFk: foreignKey({ columns: [t.companyId, t.clientId], foreignColumns: [clients.companyId, clients.id] }).onDelete("restrict"),
+  serviceAgreementsPropertyFk: foreignKey({ columns: [t.companyId, t.propertyId], foreignColumns: [properties.companyId, properties.id] }),
+}));
+
+export const maintenancePlans = pgTable("maintenance_plans", {
+  id: wfId(),
+  companyId: wfCompany(),
+  clientId: uuid("client_id").notNull(),
+  propertyId: uuid("property_id"),
+  name: text("name").notNull(),
+  frequency: text("frequency").notNull(),
+  services: text("services").array().notNull().default(sql`'{}'::text[]`),
+  priceCents: integer("price_cents").notNull().default(0),
+  status: text("status").notNull().default("active"),
+  nextScheduledDate: date("next_scheduled_date"),
+  notes: text("notes"),
+  createdBy: uuid("created_by"),
+  ...wfStamps(),
+}, (t) => ({
+  maintenancePlansCompanyIdIdx: index("maintenance_plans_company_id_idx").on(t.companyId),
+  maintenancePlansCompanyIdUidx: unique("maintenance_plans_company_id_uidx").on(t.companyId, t.id),
+  maintenancePlansFrequencyCheck: check("maintenance_plans_frequency_check", sql`${t.frequency} IN ('monthly', 'quarterly', 'biannual', 'annual')`),
+  maintenancePlansStatusCheck: check("maintenance_plans_status_check", sql`${t.status} IN ('active', 'paused', 'cancelled')`),
+  maintenancePlansPriceCheck: check("maintenance_plans_price_cents_check", sql`${t.priceCents} >= 0`),
+  maintenancePlansClientFk: foreignKey({ columns: [t.companyId, t.clientId], foreignColumns: [clients.companyId, clients.id] }).onDelete("cascade"),
+  maintenancePlansPropertyFk: foreignKey({ columns: [t.companyId, t.propertyId], foreignColumns: [properties.companyId, properties.id] }),
+}));
+
+export const estimates = pgTable("estimates", {
+  id: wfId(),
+  companyId: wfCompany(),
+  clientId: uuid("client_id").notNull(),
+  propertyId: uuid("property_id"),
+  workOrderId: uuid("work_order_id"),
+  status: text("status").notNull().default("draft"),
+  subtotalCents: integer("subtotal_cents").notNull().default(0),
+  taxCents: integer("tax_cents").notNull().default(0),
+  totalCents: integer("total_cents").notNull().default(0),
+  notes: text("notes"),
+  internalNotes: text("internal_notes"),
+  sentAt: timestamp("sent_at", { withTimezone: true }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  createdBy: uuid("created_by"),
+  ...wfStamps(),
+}, (t) => ({
+  estimatesCompanyIdIdx: index("estimates_company_id_idx").on(t.companyId),
+  estimatesCompanyIdUidx: unique("estimates_company_id_uidx").on(t.companyId, t.id),
+  estimatesStatusCheck: check("estimates_status_check", sql`${t.status} IN ('draft', 'sent', 'approved', 'declined', 'expired')`),
+  estimatesAmountsCheck: check("estimates_amounts_check", sql`${t.subtotalCents} >= 0 AND ${t.taxCents} >= 0 AND ${t.totalCents} >= 0`),
+  estimatesClientFk: foreignKey({ columns: [t.companyId, t.clientId], foreignColumns: [clients.companyId, clients.id] }).onDelete("restrict"),
+  estimatesPropertyFk: foreignKey({ columns: [t.companyId, t.propertyId], foreignColumns: [properties.companyId, properties.id] }),
+  estimatesWorkOrderFk: foreignKey({ columns: [t.companyId, t.workOrderId], foreignColumns: [workOrders.companyId, workOrders.id] }),
+}));
+
+// Sales, money follow-up and customer feedback
+export const quoteRequests = pgTable("quote_requests", {
+  id: wfId(),
+  companyId: wfCompany(),
+  clientId: uuid("client_id"),
+  clientName: text("client_name").notNull(),
+  summary: text("summary").notNull(),
+  status: text("status").notNull().default("new"),
+  requestedAt: timestamp("requested_at", { withTimezone: true }).notNull().defaultNow(),
+  ...wfStamps(),
+}, (t) => ({
+  quoteRequestsCompanyIdIdx: index("quote_requests_company_id_idx").on(t.companyId),
+  quoteRequestsCompanyIdUidx: unique("quote_requests_company_id_uidx").on(t.companyId, t.id),
+  quoteRequestsStatusCheck: check("quote_requests_status_check", sql`${t.status} IN ('new', 'reviewed', 'converted', 'closed')`),
+  quoteRequestsClientFk: foreignKey({ columns: [t.companyId, t.clientId], foreignColumns: [clients.companyId, clients.id] }),
+}));
+
+export const opportunities = pgTable("opportunities", {
+  id: wfId(),
+  companyId: wfCompany(),
+  clientId: uuid("client_id"),
+  title: text("title").notNull(),
+  stage: text("stage").notNull().default("new"),
+  valueCents: integer("value_cents").notNull().default(0),
+  source: text("source"),
+  notes: text("notes"),
+  ...wfStamps(),
+}, (t) => ({
+  opportunitiesCompanyIdIdx: index("opportunities_company_id_idx").on(t.companyId),
+  opportunitiesCompanyIdUidx: unique("opportunities_company_id_uidx").on(t.companyId, t.id),
+  opportunitiesStageCheck: check("opportunities_stage_check", sql`${t.stage} IN ('new', 'qualified', 'quoted', 'won', 'lost')`),
+  opportunitiesValueCheck: check("opportunities_value_cents_check", sql`${t.valueCents} >= 0`),
+  opportunitiesClientFk: foreignKey({ columns: [t.companyId, t.clientId], foreignColumns: [clients.companyId, clients.id] }),
+}));
+
+export const disputes = pgTable("disputes", {
+  id: wfId(),
+  companyId: wfCompany(),
+  clientId: uuid("client_id"),
+  invoiceRef: varchar("invoice_ref", { length: 128 }),
+  kind: text("kind").notNull().default("general"),
+  summary: text("summary").notNull(),
+  status: text("status").notNull().default("open"),
+  resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  ...wfStamps(),
+}, (t) => ({
+  disputesCompanyIdIdx: index("disputes_company_id_idx").on(t.companyId),
+  disputesCompanyIdUidx: unique("disputes_company_id_uidx").on(t.companyId, t.id),
+  disputesKindCheck: check("disputes_kind_check", sql`${t.kind} IN ('general', 'invoice')`),
+  disputesInvoiceRefCheck: check("disputes_invoice_ref_chk", sql`${t.kind} = 'general' OR ${t.invoiceRef} IS NOT NULL`),
+  disputesStatusCheck: check("disputes_status_check", sql`${t.status} IN ('open', 'under_review', 'resolved', 'closed')`),
+  disputesClientFk: foreignKey({ columns: [t.companyId, t.clientId], foreignColumns: [clients.companyId, clients.id] }),
+}));
+
+export const collectionNotes = pgTable("collection_notes", {
+  id: wfId(),
+  companyId: wfCompany(),
+  clientId: uuid("client_id"),
+  invoiceRef: varchar("invoice_ref", { length: 128 }).notNull(),
+  body: text("body").notNull(),
+  authorUserId: uuid("author_user_id"),
+  ...wfStamps(),
+}, (t) => ({
+  collectionNotesCompanyIdIdx: index("collection_notes_company_id_idx").on(t.companyId),
+  collectionNotesCompanyIdUidx: unique("collection_notes_company_id_uidx").on(t.companyId, t.id),
+  collectionNotesClientFk: foreignKey({ columns: [t.companyId, t.clientId], foreignColumns: [clients.companyId, clients.id] }),
+}));
+
+export const reviews = pgTable("reviews", {
+  id: wfId(),
+  companyId: wfCompany(),
+  clientId: uuid("client_id"),
+  rating: integer("rating").notNull(),
+  comment: text("comment"),
+  source: text("source"),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }).notNull().defaultNow(),
+  ...wfStamps(),
+}, (t) => ({
+  reviewsCompanyIdIdx: index("reviews_company_id_idx").on(t.companyId),
+  reviewsCompanyIdUidx: unique("reviews_company_id_uidx").on(t.companyId, t.id),
+  reviewsRatingCheck: check("reviews_rating_check", sql`${t.rating} BETWEEN 1 AND 5`),
+  reviewsClientFk: foreignKey({ columns: [t.companyId, t.clientId], foreignColumns: [clients.companyId, clients.id] }),
+}));
+
+export const reviewAlerts = pgTable("review_alerts", {
+  id: wfId(),
+  companyId: wfCompany(),
+  reviewId: uuid("review_id").notNull(),
+  summary: text("summary").notNull(),
+  status: text("status").notNull().default("open"),
+  ...wfStamps(),
+}, (t) => ({
+  reviewAlertsCompanyIdIdx: index("review_alerts_company_id_idx").on(t.companyId),
+  reviewAlertsCompanyIdUidx: unique("review_alerts_company_id_uidx").on(t.companyId, t.id),
+  reviewAlertsStatusCheck: check("review_alerts_status_check", sql`${t.status} IN ('open', 'acknowledged', 'closed')`),
+  reviewAlertsReviewFk: foreignKey({ columns: [t.companyId, t.reviewId], foreignColumns: [reviews.companyId, reviews.id] }).onDelete("cascade"),
+}));
+
+export const feedbackResponses = pgTable("feedback_responses", {
+  id: wfId(),
+  companyId: wfCompany(),
+  visitId: uuid("visit_id"),
+  clientId: uuid("client_id"),
+  rating: integer("rating"),
+  comment: text("comment"),
+  respondedAt: timestamp("responded_at", { withTimezone: true }).notNull().defaultNow(),
+  ...wfStamps(),
+}, (t) => ({
+  feedbackResponsesCompanyIdIdx: index("feedback_responses_company_id_idx").on(t.companyId),
+  feedbackResponsesCompanyIdUidx: unique("feedback_responses_company_id_uidx").on(t.companyId, t.id),
+  feedbackResponsesRatingCheck: check("feedback_responses_rating_check", sql`${t.rating} IS NULL OR ${t.rating} BETWEEN 1 AND 5`),
+  feedbackResponsesVisitFk: foreignKey({ columns: [t.companyId, t.visitId], foreignColumns: [visits.companyId, visits.id] }),
+  feedbackResponsesClientFk: foreignKey({ columns: [t.companyId, t.clientId], foreignColumns: [clients.companyId, clients.id] }),
+}));
+
+export const complaints = pgTable("complaints", {
+  id: wfId(),
+  companyId: wfCompany(),
+  clientId: uuid("client_id"),
+  propertyId: uuid("property_id"),
+  workOrderId: uuid("work_order_id"),
+  summary: text("summary").notNull(),
+  category: text("category"),
+  status: text("status").notNull().default("open"),
+  raisedBy: uuid("raised_by"),
+  ...wfStamps(),
+}, (t) => ({
+  complaintsCompanyIdIdx: index("complaints_company_id_idx").on(t.companyId),
+  complaintsCompanyIdUidx: unique("complaints_company_id_uidx").on(t.companyId, t.id),
+  complaintsStatusCheck: check("complaints_status_check", sql`${t.status} IN ('open', 'investigating', 'resolved', 'closed')`),
+  complaintsClientFk: foreignKey({ columns: [t.companyId, t.clientId], foreignColumns: [clients.companyId, clients.id] }),
+  complaintsPropertyFk: foreignKey({ columns: [t.companyId, t.propertyId], foreignColumns: [properties.companyId, properties.id] }),
+  complaintsWorkOrderFk: foreignKey({ columns: [t.companyId, t.workOrderId], foreignColumns: [workOrders.companyId, workOrders.id] }),
+}));
+
+// Compliance
+export const complianceCertificates = pgTable("compliance_certificates", {
+  id: wfId(),
+  companyId: wfCompany(),
+  propertyId: uuid("property_id"),
+  certificateType: text("certificate_type").notNull(),
+  reference: text("reference"),
+  issuedOn: date("issued_on"),
+  expiresOn: date("expires_on"),
+  status: text("status").notNull().default("valid"),
+  ...wfStamps(),
+}, (t) => ({
+  complianceCertificatesCompanyIdIdx: index("compliance_certificates_company_id_idx").on(t.companyId),
+  complianceCertificatesCompanyIdUidx: unique("compliance_certificates_company_id_uidx").on(t.companyId, t.id),
+  complianceCertificatesStatusCheck: check("compliance_certificates_status_check", sql`${t.status} IN ('valid', 'expiring', 'expired')`),
+  complianceCertificatesPropertyFk: foreignKey({ columns: [t.companyId, t.propertyId], foreignColumns: [properties.companyId, properties.id] }),
+}));
+
+export const complianceDocuments = pgTable("compliance_documents", {
+  id: wfId(),
+  companyId: wfCompany(),
+  propertyId: uuid("property_id"),
+  title: text("title").notNull(),
+  documentType: text("document_type"),
+  expiresOn: date("expires_on"),
+  storageRef: text("storage_ref"),
+  ...wfStamps(),
+}, (t) => ({
+  complianceDocumentsCompanyIdIdx: index("compliance_documents_company_id_idx").on(t.companyId),
+  complianceDocumentsCompanyIdUidx: unique("compliance_documents_company_id_uidx").on(t.companyId, t.id),
+  complianceDocumentsPropertyFk: foreignKey({ columns: [t.companyId, t.propertyId], foreignColumns: [properties.companyId, properties.id] }),
+}));
+
+// Pools and water tests
+export const poolProfiles = pgTable("pool_profiles", {
+  id: wfId(),
+  companyId: wfCompany(),
+  propertyId: uuid("property_id"),
+  name: text("name").notNull(),
+  volumeLitres: integer("volume_litres"),
+  sanitiser: text("sanitiser"),
+  notes: text("notes"),
+  ...wfStamps(),
+}, (t) => ({
+  poolProfilesCompanyIdIdx: index("pool_profiles_company_id_idx").on(t.companyId),
+  poolProfilesCompanyIdUidx: unique("pool_profiles_company_id_uidx").on(t.companyId, t.id),
+  poolProfilesVolumeCheck: check("pool_profiles_volume_litres_check", sql`${t.volumeLitres} IS NULL OR ${t.volumeLitres} > 0`),
+  poolProfilesPropertyFk: foreignKey({ columns: [t.companyId, t.propertyId], foreignColumns: [properties.companyId, properties.id] }),
+}));
+
+export const poolEquipment = pgTable("pool_equipment", {
+  id: wfId(),
+  companyId: wfCompany(),
+  poolProfileId: uuid("pool_profile_id").notNull(),
+  kind: text("kind").notNull(),
+  make: text("make"),
+  model: text("model"),
+  serial: text("serial"),
+  installedOn: date("installed_on"),
+  status: text("status").notNull().default("ok"),
+  ...wfStamps(),
+}, (t) => ({
+  poolEquipmentCompanyIdIdx: index("pool_equipment_company_id_idx").on(t.companyId),
+  poolEquipmentCompanyIdUidx: unique("pool_equipment_company_id_uidx").on(t.companyId, t.id),
+  poolEquipmentStatusCheck: check("pool_equipment_status_check", sql`${t.status} IN ('ok', 'fault', 'retired')`),
+  poolEquipmentPoolFk: foreignKey({ columns: [t.companyId, t.poolProfileId], foreignColumns: [poolProfiles.companyId, poolProfiles.id] }).onDelete("cascade"),
+}));
+
+export const poolEquipmentFaults = pgTable("pool_equipment_faults", {
+  id: wfId(),
+  companyId: wfCompany(),
+  poolEquipmentId: uuid("pool_equipment_id").notNull(),
+  summary: text("summary").notNull(),
+  severity: text("severity").notNull().default("minor"),
+  status: text("status").notNull().default("open"),
+  reportedAt: timestamp("reported_at", { withTimezone: true }).notNull().defaultNow(),
+  ...wfStamps(),
+}, (t) => ({
+  poolEquipmentFaultsCompanyIdIdx: index("pool_equipment_faults_company_id_idx").on(t.companyId),
+  poolEquipmentFaultsCompanyIdUidx: unique("pool_equipment_faults_company_id_uidx").on(t.companyId, t.id),
+  poolEquipmentFaultsSeverityCheck: check("pool_equipment_faults_severity_check", sql`${t.severity} IN ('minor', 'moderate', 'major', 'critical')`),
+  poolEquipmentFaultsStatusCheck: check("pool_equipment_faults_status_check", sql`${t.status} IN ('open', 'resolved')`),
+  poolEquipmentFaultsEquipmentFk: foreignKey({ columns: [t.companyId, t.poolEquipmentId], foreignColumns: [poolEquipment.companyId, poolEquipment.id] }).onDelete("cascade"),
+}));
+
+export const waterTests = pgTable("water_tests", {
+  id: wfId(),
+  companyId: wfCompany(),
+  poolProfileId: uuid("pool_profile_id").notNull(),
+  scheduledFor: timestamp("scheduled_for", { withTimezone: true }).notNull(),
+  status: text("status").notNull().default("scheduled"),
+  ...wfStamps(),
+}, (t) => ({
+  waterTestsCompanyIdIdx: index("water_tests_company_id_idx").on(t.companyId),
+  waterTestsCompanyIdUidx: unique("water_tests_company_id_uidx").on(t.companyId, t.id),
+  waterTestsStatusCheck: check("water_tests_status_check", sql`${t.status} IN ('scheduled', 'completed', 'cancelled')`),
+  waterTestsPoolFk: foreignKey({ columns: [t.companyId, t.poolProfileId], foreignColumns: [poolProfiles.companyId, poolProfiles.id] }).onDelete("cascade"),
+}));
+
+export const waterTestResults = pgTable("water_test_results", {
+  id: wfId(),
+  companyId: wfCompany(),
+  waterTestId: uuid("water_test_id"),
+  poolProfileId: uuid("pool_profile_id").notNull(),
+  testedAt: timestamp("tested_at", { withTimezone: true }).notNull().defaultNow(),
+  freeChlorine: decimal("free_chlorine", { precision: 5, scale: 2 }),
+  ph: decimal("ph", { precision: 4, scale: 2 }),
+  totalAlkalinityPpm: integer("total_alkalinity_ppm"),
+  notes: text("notes"),
+  ...wfStamps(),
+}, (t) => ({
+  waterTestResultsCompanyIdIdx: index("water_test_results_company_id_idx").on(t.companyId),
+  waterTestResultsCompanyIdUidx: unique("water_test_results_company_id_uidx").on(t.companyId, t.id),
+  waterTestResultsPhCheck: check("water_test_results_ph_check", sql`${t.ph} IS NULL OR (${t.ph} >= 0 AND ${t.ph} <= 14)`),
+  waterTestResultsTestFk: foreignKey({ columns: [t.companyId, t.waterTestId], foreignColumns: [waterTests.companyId, waterTests.id] }),
+  waterTestResultsPoolFk: foreignKey({ columns: [t.companyId, t.poolProfileId], foreignColumns: [poolProfiles.companyId, poolProfiles.id] }).onDelete("cascade"),
+}));
+
 export const insertChatbotSchema = createInsertSchema(chatbots).omit({
   companyId: true,
   id: true,
