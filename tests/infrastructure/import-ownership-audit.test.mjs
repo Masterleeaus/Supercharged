@@ -7,6 +7,7 @@ import {
   auditImportOwnership,
   extractLiteralImports,
   resolveRelativeImport,
+  traceStaticEntrypoints,
 } from "../../scripts/audit-import-ownership.mjs";
 
 async function fixture(run) {
@@ -78,5 +79,36 @@ test("audit skips generated files, dependencies and symlinked code", async () =>
     assert.equal(report.sourceFiles, 2);
     assert.equal(report.resolvedRelativeEdges, 1);
     assert.equal(readFileSync(join(root, "server/two.mjs"), "utf8"), before);
+  });
+});
+
+test("entrypoint trace handles cycles and transitive local imports without classifying unlinked modules live", () => {
+  const edges = [
+    { importer: "server/index.ts", target: "server/route.ts" },
+    { importer: "server/route.ts", target: "server/shared.ts" },
+    { importer: "server/shared.ts", target: "server/route.ts" },
+    { importer: "server/unlinked.ts", target: "server/hidden.ts" },
+  ];
+  assert.deepEqual(traceStaticEntrypoints(edges, ["server/index.ts"]), [
+    "server/index.ts", "server/route.ts", "server/shared.ts",
+  ]);
+  assert.deepEqual(traceStaticEntrypoints(edges, ["client/src/main.tsx"]), ["client/src/main.tsx"]);
+});
+
+test("audit reports direct static entrypoint chains and missing entrypoints separately", async () => {
+  await fixture(async ({ root, make }) => {
+    make("server/index.ts", 'import "./integrations/titan-revenue/route.mjs";');
+    make("server/integrations/titan-revenue/route.mjs", 'import "./core.mjs";');
+    make("server/integrations/titan-revenue/core.mjs", "export const value = 1;");
+    make("server/integrations/titan-revenue/unreferenced.mjs", "export const value = 2;");
+    const report = auditImportOwnership(root, {
+      entrypoints: ["server/index.ts", "client/src/main.tsx"],
+    });
+    assert.deepEqual(report.entrypoints, ["server/index.ts"]);
+    assert.deepEqual(report.missingEntrypoints, ["client/src/main.tsx"]);
+    assert.equal(report.staticReachableFiles, 3);
+    assert.equal(report.ownership.find((x) => x.path.endsWith("core.mjs")).staticEntrypointPathFound, true);
+    assert.equal(report.ownership.find((x) => x.path.endsWith("unreferenced.mjs")).staticEntrypointPathFound, false);
+    assert.equal(report.ownership.every((x) => x.live === "unverified"), true);
   });
 });
