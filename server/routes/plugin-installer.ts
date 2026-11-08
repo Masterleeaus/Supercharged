@@ -482,9 +482,13 @@ router.delete('/uninstall/:name',
       try {
         fs.renameSync(targetDir, backupDir);
       } catch (renameErr: any) {
+        // Disablement was persisted but the plugin files remain. Request a
+        // restart so this process no longer presents the module as active.
+        scheduleServerRestart(`Plugin '${manifest.displayName}' disabled after failed uninstall`);
         return res.status(500).json({
           success: false,
-          error: 'Failed to remove plugin files',
+          error: 'Plugin disablement saved, but files could not be removed',
+          data: { name, enabled: false, requiresRestart: true, filesPreserved: true },
         });
       }
 
