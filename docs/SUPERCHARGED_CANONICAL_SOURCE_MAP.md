@@ -199,3 +199,14 @@ No merge, deletion, tenant data migration, privilege change, template schema cha
 - Explicitly retained `live: unverified` throughout. Static reachability is not proof of runtime availability, and a missing edge is not a reason to delete donor/vendor code. No code paths, license headers, vendor copies or source archives removed.
 
 **Next:** run static import audit against a complete checkout, resolve route/loader/plugin registry owners and analyze selected divergent donor implementations before any runtime file consolidation.
+
+## Pass 14 — dynamic plugin manifests and runtime boundary
+
+- Verified completed Pass 13 GitHub Actions: production build succeeded; **5,975 tests passed / 3 failed / 13 skipped**. All four new import graph assertions and previous PR audit/branding tests passed. The same three workforce tests, migration inventory, and informational typecheck remained failing. Earlier pass summary undercounted the four added Pass 13 test cases as two.
+- Inspected the real `server/plugins/loader.ts`, the `server/index.ts` → `server/routes.ts` registration chain, and three existing plugin manifests. The loader dynamically resolves `plugins/<name>/plugin.json` and its declared `entryPoint`/`registerFunction`, with DB enable checks and compiled JavaScript fallback. A plugin can still refuse registration under its own gates.
+- Added `scripts/audit-plugin-manifests.mjs`, a read-only CLI to inspect manifest format/name/directory, entrypoint presence, TypeScript-to-JS fallback candidates, invalid/missing registration names, duplicate plugin names, and unsafe entrypoint traversal. It never imports plugin code or changes flags; `enabled`, `registered`, `runtime` explicitly remain **unverified**.
+- Added six Node fixture tests at `tests/infrastructure/plugin-manifest-inventory.test.mjs` for that discovery inventory. These tests await the current CI run.
+- Grounded descriptions: `comms` and `workforce-runtime` manifests state they are internal enable-gated; `titan-workforce-bridge` is explicitly preview-only. This is *manifest intent*, not live functionality.
+- Added manifest/runtime findings and CLI instructions to `docs/SUPERCHARGED_BLOB_DUPLICATION_AUDIT.md`; source, donor, vendor and plugin directories remain unmodified.
+
+**Next:** verify current CI and investigate dynamic runtime plugin registration and divergent donor ownership without treating static absence as grounds for deletion.
