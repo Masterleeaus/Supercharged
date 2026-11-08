@@ -118,6 +118,7 @@ export interface ToolDefinition {
    * Any other value is refused at registration.
    */
   category?: ToolCategory;
+  timeoutMs?: number;
   schema: ToolSchema;
   /** Data kinds this tool relies on (keys of FRESHNESS_LIMITS). Informational unless freshnessOf is set. */
   requiresFresh?: readonly FreshnessKind[];
