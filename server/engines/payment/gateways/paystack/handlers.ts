@@ -11,6 +11,7 @@ import { emailService } from '../../../../services/email-service';
 import { generateInvoiceForTransaction } from '../../invoice-service';
 import { PaymentAuditService } from '../../audit';
 import { getPaystackCurrency, verifyPaystackTransaction } from './service';
+import { logger } from '../../../../utils/logger';
 
 export interface HandlerResult {
   success: boolean;
@@ -140,7 +141,7 @@ async function handleSubscriptionPayment(
   const subscriptionCode = data.subscription?.subscription_code || data.authorization?.authorization_code;
 
   if (existingSub) {
-    console.log(`[Paystack] Updating existing subscription ${existingSub.id} for user ${userId}`);
+    logger.info(`[Paystack] Updating existing subscription ${existingSub.id} for user ${userId}`);
     await storage.updateUserSubscription(existingSub.id, {
       planId,
       status: 'active',
@@ -235,7 +236,7 @@ export async function handleSubscriptionCreate(
   const customerCode = data.customer?.customer_code;
   const subscriptionCode = data.subscription_code;
 
-  console.log(`✅ [Paystack] Subscription created: ${subscriptionCode} for customer ${customerCode}`);
+  logger.info(`✅ [Paystack] Subscription created: ${subscriptionCode} for customer ${customerCode}`);
 
   return { success: true, action: 'subscription_created' };
 }
@@ -307,7 +308,7 @@ export async function handleSubscriptionNotRenew(
 export async function handleInvoiceCreate(
   data: any
 ): Promise<HandlerResult> {
-  console.log(`📄 [Paystack] Invoice created: ${data.id || data.reference}`);
+  logger.info(`📄 [Paystack] Invoice created: ${data.id || data.reference}`);
   return { success: true, action: 'invoice_created' };
 }
 
@@ -349,14 +350,14 @@ export async function handleInvoicePaymentFailed(
 export async function handleTransferSuccess(
   data: any
 ): Promise<HandlerResult> {
-  console.log(`✅ [Paystack] Transfer successful: ${data.reference}`);
+  logger.info(`✅ [Paystack] Transfer successful: ${data.reference}`);
   return { success: true, action: 'transfer_success' };
 }
 
 export async function handleTransferFailed(
   data: any
 ): Promise<HandlerResult> {
-  console.log(`❌ [Paystack] Transfer failed: ${data.reference}`);
+  logger.error(`❌ [Paystack] Transfer failed: ${data.reference}`);
   return { success: true, action: 'transfer_failed' };
 }
 
@@ -498,13 +499,13 @@ export async function handleChargeback(
 export async function handlePaymentRequestPending(
   data: any
 ): Promise<HandlerResult> {
-  console.log(`⏳ [Paystack] Payment request pending: ${data.id}`);
+  logger.info(`⏳ [Paystack] Payment request pending: ${data.id}`);
   return { success: true, action: 'payment_request_pending' };
 }
 
 export async function handlePaymentRequestSuccess(
   data: any
 ): Promise<HandlerResult> {
-  console.log(`✅ [Paystack] Payment request successful: ${data.id}`);
+  logger.info(`✅ [Paystack] Payment request successful: ${data.id}`);
   return { success: true, action: 'payment_request_success' };
 }

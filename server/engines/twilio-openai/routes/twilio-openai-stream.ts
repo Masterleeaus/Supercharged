@@ -68,16 +68,16 @@ export function setupTwilioOpenAIStreamHandler(httpServer: HttpServer): void {
         return;
       }
       
-      console.log(`[TwilioOpenAI Stream] Handling WebSocket upgrade for call: ${callSid}`);
+      logger.info(`[TwilioOpenAI Stream] Handling WebSocket upgrade for call: ${callSid}`);
       
       sharedWss!.handleUpgrade(request, socket, head, (ws: WebSocket) => {
-        console.log(`[TwilioOpenAI Stream] WebSocket connected for call: ${callSid}`);
+        logger.info(`[TwilioOpenAI Stream] WebSocket connected for call: ${callSid}`);
         handleTwilioStreamConnection(ws, callSid);
       });
     }
   });
 
-  console.log('✅ Twilio-OpenAI WebSocket stream endpoint registered');
+  logger.info('✅ Twilio-OpenAI WebSocket stream endpoint registered');
 }
 
 function handleTwilioStreamConnection(ws: WebSocket, callSid: string): void {
@@ -90,12 +90,12 @@ function handleTwilioStreamConnection(ws: WebSocket, callSid: string): void {
       const event: TwilioMediaStreamEvent = JSON.parse(data);
 
       if (event.event === 'connected') {
-        console.log(`[TwilioOpenAI Stream] Connected event for ${callSid}`);
+        logger.info(`[TwilioOpenAI Stream] Connected event for ${callSid}`);
       }
 
       if (event.event === 'start' && event.start) {
         streamSid = event.start.streamSid;
-        console.log(`[TwilioOpenAI Stream] Stream started: ${streamSid}`);
+        logger.info(`[TwilioOpenAI Stream] Stream started: ${streamSid}`);
         
         // Check if session already exists (outbound calls create session before call)
         const existingSession = TwilioOpenAIAudioBridge.getSession(callSid);
@@ -105,7 +105,7 @@ function handleTwilioStreamConnection(ws: WebSocket, callSid: string): void {
           sessionInitialized = true;
         } else {
           // Incoming call - session needs to be created now that stream is connected
-          console.log(`[TwilioOpenAI Stream] No existing session for ${callSid}, initializing for incoming call`);
+          logger.info(`[TwilioOpenAI Stream] No existing session for ${callSid}, initializing for incoming call`);
           await initializeSession(callSid, ws, streamSid);
           sessionInitialized = true;
         }
@@ -142,7 +142,7 @@ function handleTwilioStreamConnection(ws: WebSocket, callSid: string): void {
   });
 
   ws.on('close', async (code: number, reason: Buffer) => {
-    console.log(`[TwilioOpenAI Stream] WebSocket closed for ${callSid}: ${code} ${reason?.toString() || ''}`);
+    logger.info(`[TwilioOpenAI Stream] WebSocket closed for ${callSid}: ${code} ${reason?.toString() || ''}`);
     
     try {
       const result = await TwilioOpenAIAudioBridge.endSession(callSid);

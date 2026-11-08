@@ -12,6 +12,7 @@ import { emailService } from '../../../../services/email-service';
 import { generateInvoiceForTransaction } from '../../invoice-service';
 import { PaymentAuditService } from '../../audit';
 import { getStripeCurrency, getStripeClient } from './service';
+import { logger } from '../../../../utils/logger';
 
 /**
  * Safely parse a Unix timestamp (in seconds) to a Date object.
@@ -66,7 +67,7 @@ async function handleSubscriptionCheckout(
   const stripeSubscription = await stripe.subscriptions.retrieve(subscriptionId);
   
   // Log Stripe subscription data for debugging
-  console.log(`[Stripe] Subscription retrieved: id=${subscriptionId}, current_period_start=${(stripeSubscription as any).current_period_start}, current_period_end=${(stripeSubscription as any).current_period_end}`);
+  logger.info(`[Stripe] Subscription retrieved: id=${subscriptionId}, current_period_start=${(stripeSubscription as any).current_period_start}, current_period_end=${(stripeSubscription as any).current_period_end}`);
   
   const periodStart = safeUnixToDate((stripeSubscription as any).current_period_start);
   const periodEnd = safeUnixToDate((stripeSubscription as any).current_period_end);
@@ -96,7 +97,7 @@ async function handleSubscriptionCheckout(
   
   if (existingSubscription) {
     // Update existing subscription instead of creating a duplicate
-    console.log(`[Stripe] Updating existing subscription ${existingSubscription.id} for user ${metadata.userId}`);
+    logger.info(`[Stripe] Updating existing subscription ${existingSubscription.id} for user ${metadata.userId}`);
     await storage.updateUserSubscription(existingSubscription.id, {
       planId: subscriptionData.planId,
       status: subscriptionData.status,
@@ -122,7 +123,7 @@ async function handleSubscriptionCheckout(
       if (!error.message?.includes('unique') && !error.message?.includes('duplicate')) {
         throw error;
       }
-      console.log(`[Stripe] Subscription ${subscriptionId} already exists, skipping creation`);
+      logger.warn(`[Stripe] Subscription ${subscriptionId} already exists, skipping creation`);
       const existingSub = await storage.getUserSubscription(metadata.userId);
       userSubId = existingSub?.id;
     }

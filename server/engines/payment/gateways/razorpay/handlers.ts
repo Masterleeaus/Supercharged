@@ -11,6 +11,7 @@ import { emailService } from '../../../../services/email-service';
 import { generateInvoiceForTransaction } from '../../invoice-service';
 import { PaymentAuditService } from '../../audit';
 import { getRazorpayCurrency, fetchRazorpayPayment } from './service';
+import { logger } from '../../../../utils/logger';
 
 export interface HandlerResult {
   success: boolean;
@@ -21,7 +22,7 @@ export interface HandlerResult {
 }
 
 export async function handleSubscriptionAuthenticated(): Promise<HandlerResult> {
-  console.log('✅ [Razorpay] Subscription authenticated');
+  logger.info('✅ [Razorpay] Subscription authenticated');
   return { success: true, action: 'subscription_authenticated' };
 }
 
@@ -55,7 +56,7 @@ export async function handleSubscriptionActivated(
 
   if (existingSub) {
     // Update existing subscription instead of creating a duplicate
-    console.log(`[Razorpay] Updating existing subscription ${existingSub.id} for user ${userId}`);
+    logger.info(`[Razorpay] Updating existing subscription ${existingSub.id} for user ${userId}`);
     await storage.updateUserSubscription(existingSub.id, {
       planId,
       status: 'active',
@@ -94,7 +95,7 @@ export async function handleSubscriptionActivated(
       if (!isDuplicate) {
         throw error;
       }
-      console.log(`[Razorpay] Subscription ${subscription.id} already exists, skipping creation`);
+      logger.warn(`[Razorpay] Subscription ${subscription.id} already exists, skipping creation`);
     }
   }
 

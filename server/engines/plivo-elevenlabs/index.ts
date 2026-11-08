@@ -29,6 +29,7 @@ export { setupPlivoElevenLabsStream } from './routes/stream';
 import { setupPlivoElevenLabsWebhooks } from './routes/webhooks';
 import { setupPlivoElevenLabsStream } from './routes/stream';
 import { getWebhookBaseUrl } from './config/config';
+import { logger } from '../../utils/logger';
 
 /**
  * Initialize the Plivo-ElevenLabs SIP trunk engine (HTTP routes only)
@@ -36,15 +37,15 @@ import { getWebhookBaseUrl } from './config/config';
 export function initPlivoElevenLabsEngine(app: Express): void {
   const baseUrl = getWebhookBaseUrl();
   
-  console.log('🔗 Initializing Plivo-ElevenLabs SIP Trunk Engine');
-  console.log(`   Base URL: ${baseUrl}`);
-  console.log('   Webhook: /api/plivo-elevenlabs/voice/answer');
-  console.log('   Stream: /api/plivo-elevenlabs/stream/:callUuid');
-  console.log('   Incoming: /api/plivo-elevenlabs/incoming');
+  logger.info('🔗 Initializing Plivo-ElevenLabs SIP Trunk Engine');
+  logger.info(`   Base URL: ${baseUrl}`);
+  logger.info('   Webhook: /api/plivo-elevenlabs/voice/answer');
+  logger.info('   Stream: /api/plivo-elevenlabs/stream/:callUuid');
+  logger.info('   Incoming: /api/plivo-elevenlabs/incoming');
   
   setupPlivoElevenLabsWebhooks(app, baseUrl);
   
-  console.log('✅ Plivo-ElevenLabs SIP Trunk HTTP routes registered');
+  logger.info('✅ Plivo-ElevenLabs SIP Trunk HTTP routes registered');
 }
 
 /**
@@ -53,5 +54,5 @@ export function initPlivoElevenLabsEngine(app: Express): void {
  */
 export function initPlivoElevenLabsStream(httpServer: HttpServer): void {
   setupPlivoElevenLabsStream(httpServer);
-  console.log('✅ Plivo-ElevenLabs SIP Trunk WebSocket stream registered');
+  logger.info('✅ Plivo-ElevenLabs SIP Trunk WebSocket stream registered');
 }
