@@ -12,6 +12,7 @@ for (const method of ['log', 'info', 'warn']) console[method] = () => {};
 
 const { TOOL_ACCESS } = await import('../../server/workforce/catalogue/tool-access.ts');
 const { createReadToolDefinitions } = await import('../../server/workforce/tools/read-handlers.ts');
+const { GROUP00_TOOL_IDS } = await import('../../server/workforce/tools/handlers/group-00.ts');
 
 const READ_VERBS = new Set(['list', 'get', 'search', 'view', 'lookup', 'check', 'read', 'availability', 'status']);
 
@@ -33,8 +34,10 @@ test('every TOOL_ACCESS value is read or write', () => {
 
 test('bound read tool definitions declare access read', () => {
   const definitions = createReadToolDefinitions(new Proxy({}, { get: () => async () => [] }));
-  assert.ok(definitions.length > 0, 'expected bound read tool definitions');
-  const notRead = definitions.filter((def) => def.access !== 'read').map((def) => `${def.id}=${String(def.access)}`);
+  // Group 00 holds writes too. Its access is checked in tools-real-00.test.mjs, so only the read specs are checked here.
+  const readSpecs = definitions.filter((def) => !GROUP00_TOOL_IDS.includes(def.id));
+  assert.ok(readSpecs.length > 0, 'expected bound read tool definitions');
+  const notRead = readSpecs.filter((def) => def.access !== 'read').map((def) => `${def.id}=${String(def.access)}`);
   assert.deepEqual(notRead, [], `bound read tools not declared read: ${notRead.join(', ')}`);
 });
 

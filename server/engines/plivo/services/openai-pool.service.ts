@@ -14,6 +14,7 @@ import { eq, and, desc, asc, sql } from "drizzle-orm";
 import type { InsertOpenaiCredential, OpenaiCredential } from "@shared/schema";
 import type { ModelTier } from '../types';
 import { NotificationService } from "../../../services/notification-service";
+import { logger } from '../../../utils/logger';
 
 const lastNotificationThreshold = new Map<number, number>();
 
@@ -36,7 +37,7 @@ export class OpenAIPoolService {
       })
       .returning();
 
-    console.log(`✅ Added OpenAI credential: ${credential.name} (tier: ${credential.modelTier})`);
+    logger.info(`✅ Added OpenAI credential: ${credential.name} (tier: ${credential.modelTier})`);
     return credential;
   }
 
@@ -60,7 +61,7 @@ export class OpenAIPoolService {
       throw new Error('Credential not found');
     }
 
-    console.log(`✅ Updated OpenAI credential: ${updated.name}`);
+    logger.info(`✅ Updated OpenAI credential: ${updated.name}`);
     return updated;
   }
 
@@ -85,7 +86,7 @@ export class OpenAIPoolService {
         return false;
       }
 
-      console.log('✅ OpenAI API key validated');
+      logger.info('✅ OpenAI API key validated');
       return true;
     } catch (error: any) {
       if (error.name === 'AbortError') {
@@ -257,12 +258,12 @@ export class OpenAIPoolService {
       if (result.rows && result.rows.length > 0) {
         const row = result.rows[0] as any;
         const tierMatch = tier && row.model_tier !== tier ? ` (fallback from '${tier}')` : '';
-        console.log(`[OpenAI Pool] Reserved slot on ${row.name} (tier: ${row.model_tier}${tierMatch}, load: ${row.current_load}/${row.max_concurrency})`);
+        logger.info(`[OpenAI Pool] Reserved slot on ${row.name} (tier: ${row.model_tier}${tierMatch}, load: ${row.current_load}/${row.max_concurrency})`);
         
         return this.mapRowToCredential(row);
       }
 
-      console.log(`[OpenAI Pool] No available capacity${tier ? ` for tier ${tier}` : ''} - all credentials at max load or none configured`);
+      logger.warn(`[OpenAI Pool] No available capacity${tier ? ` for tier ${tier}` : ''} - all credentials at max load or none configured`);
       return null;
     } catch (error) {
       console.error(`[OpenAI Pool] Failed to reserve slot:`, error);
@@ -287,11 +288,11 @@ export class OpenAIPoolService {
 
       if (result.rows && result.rows.length > 0) {
         const row = result.rows[0] as any;
-        console.log(`🔒 [OpenAI Pool] Reserved slot on ${row.name} (load: ${row.current_load}/${row.max_concurrency})`);
+        logger.info(`🔒 [OpenAI Pool] Reserved slot on ${row.name} (load: ${row.current_load}/${row.max_concurrency})`);
         return this.mapRowToCredential(row);
       }
 
-      console.log(`⚠️ [OpenAI Pool] Credential ${credentialId} has no capacity or is inactive`);
+      logger.info(`⚠️ [OpenAI Pool] Credential ${credentialId} has no capacity or is inactive`);
       return null;
     } catch (error) {
       console.error(`❌ [OpenAI Pool] Failed to reserve slot on credential ${credentialId}:`, error);
@@ -311,7 +312,7 @@ export class OpenAIPoolService {
       })
       .where(eq(openaiCredentials.id, credentialId));
     
-    console.log(`🔓 [OpenAI Pool] Released slot on credential ${credentialId}`);
+    logger.info(`🔓 [OpenAI Pool] Released slot on credential ${credentialId}`);
   }
 
   /**
@@ -531,7 +532,7 @@ export class OpenAIPoolService {
     }
 
     await db.delete(openaiCredentials).where(eq(openaiCredentials.id, id));
-    console.log(`🗑️ [OpenAI Pool] Deleted credential: ${credential.name}`);
+    logger.info(`🗑️ [OpenAI Pool] Deleted credential: ${credential.name}`);
   }
 
   /**
@@ -552,7 +553,7 @@ export class OpenAIPoolService {
         .where(eq(openaiCredentials.id, credential.id));
     }
 
-    console.log(`🏥 [OpenAI Pool] Health checks completed for ${credentials.length} credentials`);
+    logger.info(`🏥 [OpenAI Pool] Health checks completed for ${credentials.length} credentials`);
   }
 
   /**
@@ -590,7 +591,7 @@ export class OpenAIPoolService {
           newCount: actualCount,
         });
         
-        console.log(`🔄 [OpenAI Pool] Recalculated ${credential.name}: ${oldCount} → ${actualCount} agents`);
+        logger.info(`🔄 [OpenAI Pool] Recalculated ${credential.name}: ${oldCount} → ${actualCount} agents`);
       }
     }
     

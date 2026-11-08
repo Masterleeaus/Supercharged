@@ -289,7 +289,7 @@ router.put('/:eventType', requireAdminPermission('communications', 'email_settin
   } catch (error) {
     console.error('Error updating email notification setting:', error);
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: 'Invalid request data', details: error.errors });
+      return res.status(400).json({ error: 'Invalid request data', details: error.issues });
     }
     res.status(500).json({ error: 'Failed to update email notification setting' });
   }
@@ -330,7 +330,7 @@ router.put('/', requireAdminPermission('communications', 'email_settings', 'upda
   } catch (error) {
     console.error('Error bulk updating email notification settings:', error);
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: 'Invalid request data', details: error.errors });
+      return res.status(400).json({ error: 'Invalid request data', details: error.issues });
     }
     res.status(500).json({ error: 'Failed to update email notification settings' });
   }
@@ -372,7 +372,7 @@ router.post('/save-smtp', requireAdminPermission('communications', 'email_settin
   } catch (error) {
     console.error('Error saving SMTP settings:', error);
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: 'Invalid SMTP settings', details: error.errors });
+      return res.status(400).json({ error: 'Invalid SMTP settings', details: error.issues });
     }
     res.status(500).json({ error: 'Failed to save SMTP settings' });
   }

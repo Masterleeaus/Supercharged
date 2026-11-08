@@ -1,4 +1,5 @@
 'use strict';
+import { logger } from '../utils/logger';
 import { db } from '../db';
 import { isNotNull, eq } from 'drizzle-orm';
 import { phoneNumbers, sipPhoneNumbers, sipTrunks } from '@shared/schema';
@@ -46,7 +47,7 @@ export async function resyncElevenLabsPhoneCredentials(): Promise<{
     return { synced: 0, failed: 0, errors: [] };
   }
 
-  console.log(`[ElevenLabs Resync] Re-syncing Twilio credentials for ${registered.length} phone number(s)`);
+  logger.info(`[ElevenLabs Resync] Re-syncing Twilio credentials for ${registered.length} phone number(s)`);
 
   const results = await Promise.allSettled(
     registered.map(async (phone) => {
@@ -67,7 +68,7 @@ export async function resyncElevenLabsPhoneCredentials(): Promise<{
     }
   });
 
-  console.log(`[ElevenLabs Resync] Done — synced ${synced}, failed ${errors.length}`);
+  logger.info(`[ElevenLabs Resync] Done — synced ${synced}, failed ${errors.length}`);
   return { synced, failed: errors.length, errors };
 }
 
@@ -128,9 +129,9 @@ async function _resyncSinglePhoneCredentialsImpl(phoneDbId: string): Promise<{
   }
 
   try {
-    console.log(`[ElevenLabs Resync] Targeted resync for ${phone.phoneNumber} (db: ${phoneDbId})`);
+    logger.info(`[ElevenLabs Resync] Targeted resync for [redacted] (db: ${phoneDbId})`);
     await _resyncOnePhone(phone, twilioAccountSid, twilioAuthToken);
-    console.log(`[ElevenLabs Resync] ✅ Targeted resync complete for ${phone.phoneNumber}`);
+    logger.info(`[ElevenLabs Resync] ✅ Targeted resync complete for [redacted]`);
     return { success: true };
   } catch (err: any) {
     const msg = err?.message ?? String(err);
@@ -168,14 +169,14 @@ async function _resyncOnePhone(
 
   const elevenLabsService = new ElevenLabsService(credential.apiKey);
 
-  console.log(`[ElevenLabs Resync] Deleting old registration ${oldId} for ${phone.phoneNumber} (cred: ${credential.id})`);
+  logger.info(`[ElevenLabs Resync] Deleting old registration ${oldId} for [redacted] (cred: ${credential.id})`);
   try {
     await elevenLabsService.deletePhoneNumber(oldId);
   } catch (deleteErr: any) {
     console.warn(`[ElevenLabs Resync] Delete failed (continuing): ${deleteErr.message}`);
   }
 
-  console.log(`[ElevenLabs Resync] Re-registering ${phone.phoneNumber} with fresh Twilio credentials`);
+  logger.info(`[ElevenLabs Resync] Re-registering [redacted] with fresh Twilio credentials`);
   const result = await elevenLabsService.syncPhoneNumberToElevenLabs({
     phoneNumber: phone.phoneNumber,
     twilioAccountSid,
@@ -193,7 +194,7 @@ async function _resyncOnePhone(
     })
     .where(eq(phoneNumbers.id, phone.id));
 
-  console.log(`[ElevenLabs Resync] ✅ ${phone.phoneNumber} -> new id ${result.phone_number_id} (cred: ${credential.id})`);
+  logger.info(`[ElevenLabs Resync] ✅ [redacted] -> new id ${result.phone_number_id} (cred: ${credential.id})`);
 }
 
 const ELEVENLABS_API_BASE = 'https://api.elevenlabs.io/v1';
@@ -289,9 +290,9 @@ export async function resyncSipPhoneCredentials(
 
   try {
     const oldId = sipPhone.externalElevenLabsPhoneId;
-    console.log(`[ElevenLabs SIP Resync] Resyncing ${sipPhone.phoneNumber} (old: ${oldId}, cred: ${credential.id})`);
+    logger.info(`[ElevenLabs SIP Resync] Resyncing [redacted] (old: ${oldId}, cred: ${credential.id})`);
 
-    console.log(`[ElevenLabs SIP Resync] Deleting old registration ${oldId}`);
+    logger.info(`[ElevenLabs SIP Resync] Deleting old registration ${oldId}`);
     try {
       const delResponse = await fetch(`${ELEVENLABS_API_BASE}/convai/phone-numbers/${oldId}`, {
         method: 'DELETE',
@@ -345,7 +346,7 @@ export async function resyncSipPhoneCredentials(
       outbound_trunk_config: outboundConfig,
     };
 
-    console.log(`[ElevenLabs SIP Resync] Re-importing ${sipPhone.phoneNumber} with fresh trunk config`);
+    logger.info(`[ElevenLabs SIP Resync] Re-importing [redacted] with fresh trunk config`);
     const importResponse = await fetch(`${ELEVENLABS_API_BASE}/convai/phone-numbers`, {
       method: 'POST',
       headers: {
@@ -397,7 +398,7 @@ export async function resyncSipPhoneCredentials(
       })
       .where(eq(sipPhoneNumbers.id, sipPhone.id));
 
-    console.log(`[ElevenLabs SIP Resync] ✅ ${sipPhone.phoneNumber} -> new id ${newPhoneId} (cred: ${credential.id})`);
+    logger.info(`[ElevenLabs SIP Resync] ✅ [redacted] -> new id ${newPhoneId} (cred: ${credential.id})`);
     return { success: true, newElevenLabsPhoneId: newPhoneId };
   } catch (err: any) {
     const msg = err?.message ?? String(err);

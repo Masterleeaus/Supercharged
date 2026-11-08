@@ -2,6 +2,7 @@
  * Sanitize LLM model ID for ElevenLabs API compatibility
  * Maps unsupported models to supported equivalents.
  */
+import { logger } from './logger';
 export function sanitizeLlmModel(modelId: string | undefined): string {
   if (!modelId) return 'gpt-4o-mini';
 
@@ -15,7 +16,7 @@ export function sanitizeLlmModel(modelId: string | undefined): string {
 
   const sanitized = UNSUPPORTED_MAPPINGS[modelId] || modelId;
   if (sanitized !== modelId) {
-    console.log(`🧹 [ElevenLabs] Sanitized unsupported model: ${modelId} -> ${sanitized}`);
+    logger.info(`🧹 [ElevenLabs] Sanitized unsupported model: ${modelId} -> ${sanitized}`);
   }
   return sanitized;
 }

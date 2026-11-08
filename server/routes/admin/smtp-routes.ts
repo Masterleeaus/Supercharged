@@ -4,6 +4,7 @@ import { storage } from '../../storage';
 import { AdminRequest, requireAdminPermission } from '../../middleware/admin-auth';
 import nodemailer from 'nodemailer';
 import { emailService, smtpTlsOptions } from '../../services/email-service';
+import { logger } from '../../utils/logger';
 
 export function registerSmtpRoutes(router: Router) {
   router.get('/smtp', requireAdminPermission('communications', 'email_settings', 'read'), async (req: AdminRequest, res: Response) => {
@@ -47,7 +48,7 @@ export function registerSmtpRoutes(router: Router) {
       
       // Reinitialize the email service with new settings so OTP and other emails work
       const reinitialized = await emailService.reinitializeFromDatabase();
-      console.log(`📧 Email service reinitialized after SMTP settings update: ${reinitialized}`);
+      logger.info(`📧 Email service reinitialized after SMTP settings update: ${reinitialized}`);
       
       res.json({ success: true, emailServiceReinitialized: reinitialized });
     } catch (error) {
@@ -98,7 +99,7 @@ export function registerSmtpRoutes(router: Router) {
       });
       
       await emailService.reinitializeFromDatabase();
-      console.log('📧 Email service reinitialized after successful SMTP test');
+      logger.info('📧 Email service reinitialized after successful SMTP test');
       
       res.json({ success: true, message: 'Test email sent successfully' });
     } catch (error: any) {

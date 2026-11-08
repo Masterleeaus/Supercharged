@@ -30,6 +30,7 @@ import { storage } from "../storage";
 import { db } from "../db";
 import { agents, knowledgeBase, knowledgeChunks } from "@shared/schema";
 import { eq, and, sql } from "drizzle-orm";
+import { logger } from '../utils/logger';
 
 // Extend Request to include userId
 interface AuthRequest extends Request {
@@ -625,7 +626,7 @@ export function createRAGKnowledgeRoutes(
 
       const { query, agent_id, knowledge_base_ids, user_id } = req.body;
 
-      console.log(`[RAG Tool] Received query: "${query}" for agent ${agent_id}`);
+      logger.info(`[RAG Tool] Received query: "${query}" for agent ${agent_id}`);
 
       if (!query || !knowledge_base_ids || !user_id || typeof agent_id !== "string" || !agent_id) {
         return res.status(400).json({
@@ -658,7 +659,7 @@ export function createRAGKnowledgeRoutes(
 
       const formattedResponse = RAGKnowledgeService.formatResultsForAgent(results, 400);
 
-      console.log(`[RAG Tool] Found ${results.length} results, returning formatted response`);
+      logger.info(`[RAG Tool] Found ${results.length} results, returning formatted response`);
 
       res.json({
         response: formattedResponse,

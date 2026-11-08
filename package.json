@@ -20,7 +20,7 @@
     "@diploy/core": "file:packages/diploy-core",
     "@elevenlabs/elevenlabs-js": "^2.25.1",
     "@eslint/js": "^9.39.1",
-    "@hookform/resolvers": "^3.10.0",
+    "@hookform/resolvers": "^5.9.2",
     "@jridgewell/trace-mapping": "^0.3.25",
     "@neondatabase/serverless": "^0.10.4",
     "@openai/agents": "^0.3.9",
@@ -122,8 +122,8 @@
     "pdf-lib": "^1.17.1",
     "pdfkit": "^0.17.2",
     "pg": "^8.16.3",
-    "prom-client": "^15.1.3",
     "plivo": "4.75.1",
+    "prom-client": "^15.1.3",
     "pm2": "^7.0.1",
     "postcss": "^8.5.6",
     "prettier": "^3.7.1",
@@ -151,7 +151,7 @@
     "wouter": "^3.3.5",
     "ws": "^8.20.1",
     "yamljs": "^0.3.0",
-    "zod": "^3.24.2",
+    "zod": "^4.6.7",
     "zod-validation-error": "^5.0.0"
   },
   "devDependencies": {

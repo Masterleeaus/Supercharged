@@ -61,11 +61,11 @@ export function setCurrentCorrelationId(id: string | undefined): void {
  *   app.use(correlationIdMiddleware);
  *   
  *   // In routes:
- *   console.log(`[${req.correlationId}] Processing request...`);
+ *   logger.info(`[${req.correlationId}] Processing request...`);
  *   
  *   // In services:
  *   import { getCurrentCorrelationId } from './middleware/correlation-id';
- *   console.log(`[${getCurrentCorrelationId()}] Service operation...`);
+ *   logger.info(`[${getCurrentCorrelationId()}] Service operation...`);
  */
 export function correlationIdMiddleware(
   req: Request,
@@ -115,7 +115,7 @@ export function getCorrelationHeaders(): Record<string, string> {
  * Use for consistent log formatting across the application
  * 
  * @example
- * console.log(formatLogWithCorrelation('Processing payment'));
+ * logger.info(formatLogWithCorrelation('Processing payment'));
  * // Output: [abc123-def456-ghi789] Processing payment
  */
 export function formatLogWithCorrelation(message: string): string {

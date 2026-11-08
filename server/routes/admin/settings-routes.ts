@@ -25,6 +25,7 @@ import {
   resetMercadoPagoClient,
 } from '../../services/mercadopago-service';
 import { resyncElevenLabsPhoneCredentials } from '../../services/elevenlabs-phone-resync';
+import { logger } from '../../utils/logger';
 
 export function registerSettingsRoutes(router: Router) {
   router.get('/settings', requireAdminPermission('settings', 'system_settings', 'read'), async (req: AdminRequest, res: Response) => {
@@ -263,7 +264,7 @@ export function registerSettingsRoutes(router: Router) {
       if (key === 'twilio_account_sid' || key === 'twilio_auth_token') {
         resyncElevenLabsPhoneCredentials().then(summary => {
           if (summary.synced > 0 || summary.failed > 0) {
-            console.log(`[Settings] Twilio credential change: re-synced ${summary.synced} ElevenLabs phone number(s), ${summary.failed} failed`);
+            logger.warn(`[Settings] Twilio credential change: re-synced ${summary.synced} ElevenLabs phone number(s), ${summary.failed} failed`);
           }
           if (summary.errors.length > 0) {
             console.error('[Settings] ElevenLabs resync errors:', summary.errors);

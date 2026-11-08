@@ -38,6 +38,7 @@ import { generateInvoiceForTransaction } from '../services/invoice-service';
 import { FRONTEND_URL } from '../engines/payment/webhook-helper';
 import { applyRefund } from '../services/credit-service';
 import { createReplayGuard } from '../middleware/webhook-replay';
+import { logger } from '../utils/logger';
 
 const router: Router = express.Router();
 
@@ -69,7 +70,7 @@ async function getOrCreateValidStripeCustomer(
       return stripeCustomerId;
     } catch (error: any) {
       if (error.code === 'resource_missing') {
-        console.log(`⚠️ [Stripe] Customer ${stripeCustomerId} not found, creating new customer for user ${userId}`);
+        logger.warn(`⚠️ [Stripe] Customer ${stripeCustomerId} not found, creating new customer for user ${userId}`);
         // Clear the invalid customer ID
         stripeCustomerId = null;
         await storage.updateUser(userId, { stripeCustomerId: null });
@@ -86,7 +87,7 @@ async function getOrCreateValidStripeCustomer(
     metadata: { userId }
   });
   
-  console.log(`✅ [Stripe] Created new customer ${customer.id} for user ${userId}`);
+  logger.info(`✅ [Stripe] Created new customer ${customer.id} for user ${userId}`);
   await storage.updateUser(userId, { stripeCustomerId: customer.id });
   return customer.id;
 }
@@ -433,7 +434,7 @@ router.post('/change-plan', authenticateToken, async (req: AuthRequest, res: Res
       planType: newPlan.name,
     });
 
-    console.log(`✅ User ${userId} changed plan to ${newPlan.name} (${period})`);
+    logger.info(`✅ User ${userId} changed plan to ${newPlan.name} (${period})`);
 
     res.json({ 
       success: true,
@@ -481,7 +482,7 @@ router.post('/reactivate-subscription', authenticateToken, async (req: AuthReque
       cancelAtPeriodEnd: false,
     });
 
-    console.log(`✅ User ${userId} reactivated their subscription`);
+    logger.info(`✅ User ${userId} reactivated their subscription`);
 
     res.json({ 
       success: true,
@@ -615,7 +616,7 @@ router.post('/webhook', webhookRateLimiter, async (req, res) => {
             if (!error.message?.includes('unique') && !error.message?.includes('duplicate')) {
               throw error;
             }
-            console.log(`Subscription ${subscriptionId} already exists, skipping creation`);
+            logger.warn(`Subscription ${subscriptionId} already exists, skipping creation`);
             const existingSub = await storage.getUserSubscription(metadata.userId);
             userSubId = existingSub?.id;
           }
@@ -650,13 +651,13 @@ router.post('/webhook', webhookRateLimiter, async (req, res) => {
                 status: 'completed',
                 completedAt: new Date(),
               });
-              console.log(`✅ [Stripe] Logged subscription transaction for user ${metadata.userId}`);
+              logger.info(`✅ [Stripe] Logged subscription transaction for user ${metadata.userId}`);
               
               // Generate invoice and send purchase confirmation email
               try {
                 await generateInvoiceForTransaction(newTransaction.id);
                 await emailService.sendPurchaseConfirmation(newTransaction.id);
-                console.log(`✅ [Stripe] Purchase confirmation email sent for transaction ${newTransaction.id}`);
+                logger.info(`✅ [Stripe] Purchase confirmation email sent for transaction ${newTransaction.id}`);
               } catch (emailError: any) {
                 console.error(`❌ [Stripe] Failed to send purchase confirmation email:`, emailError);
               }
@@ -700,13 +701,13 @@ router.post('/webhook', webhookRateLimiter, async (req, res) => {
                     status: 'completed',
                     completedAt: new Date(),
                   });
-                  console.log(`✅ [Stripe] Logged credits transaction for user ${metadata.userId}`);
+                  logger.info(`✅ [Stripe] Logged credits transaction for user ${metadata.userId}`);
                   
                   // Generate invoice and send purchase confirmation email
                   try {
                     await generateInvoiceForTransaction(creditTransaction.id);
                     await emailService.sendPurchaseConfirmation(creditTransaction.id);
-                    console.log(`✅ [Stripe] Purchase confirmation email sent for credits transaction ${creditTransaction.id}`);
+                    logger.info(`✅ [Stripe] Purchase confirmation email sent for credits transaction ${creditTransaction.id}`);
                   } catch (emailError: any) {
                     console.error(`❌ [Stripe] Failed to send credits purchase confirmation email:`, emailError);
                   }
@@ -719,7 +720,7 @@ router.post('/webhook', webhookRateLimiter, async (req, res) => {
               if (!error.message?.includes('unique') && !error.message?.includes('duplicate')) {
                 throw error;
               }
-              console.log(`Payment ${paymentIntentId} already processed, skipping credit addition`);
+              logger.warn(`Payment ${paymentIntentId} already processed, skipping credit addition`);
             }
           }
         }
@@ -851,10 +852,10 @@ router.post('/webhook', webhookRateLimiter, async (req, res) => {
                       })
                       .where(eq(agents.id, agent.id));
                     
-                    console.log(`Updated agent ${agent.id} from Pro model to ${defaultFreeModel} (${activeFreeModels[0].name}) due to plan downgrade`);
+                    logger.info(`Updated agent ${agent.id} from Pro model to ${defaultFreeModel} (${activeFreeModels[0].name}) due to plan downgrade`);
                   }
                   
-                  console.log(`Successfully downgraded ${agentsToUpdate.length} agent(s) to free tier LLM model ${defaultFreeModel} for user ${userId}`);
+                  logger.info(`Successfully downgraded ${agentsToUpdate.length} agent(s) to free tier LLM model ${defaultFreeModel} for user ${userId}`);
                 }
               }
             } catch (error) {
@@ -899,7 +900,7 @@ router.post('/webhook', webhookRateLimiter, async (req, res) => {
                 planExpiresAt: newPeriodEnd,
               });
               
-              console.log(`✅ Invoice payment succeeded for user ${userId}, extended until ${newPeriodEnd}`);
+              logger.info(`✅ Invoice payment succeeded for user ${userId}, extended until ${newPeriodEnd}`);
 
               // Log payment transaction for subscription renewal
               const plan = userSub.planId ? await storage.getPlan(userSub.planId) : null;
@@ -922,13 +923,13 @@ router.post('/webhook', webhookRateLimiter, async (req, res) => {
                     status: 'completed',
                     completedAt: new Date(),
                   });
-                  console.log(`✅ [Stripe] Logged renewal transaction for user ${userId}`);
+                  logger.info(`✅ [Stripe] Logged renewal transaction for user ${userId}`);
                   
                   // Generate invoice and send purchase confirmation email for renewal
                   try {
                     await generateInvoiceForTransaction(renewalTransaction.id);
                     await emailService.sendPurchaseConfirmation(renewalTransaction.id);
-                    console.log(`✅ [Stripe] Renewal confirmation email sent for transaction ${renewalTransaction.id}`);
+                    logger.info(`✅ [Stripe] Renewal confirmation email sent for transaction ${renewalTransaction.id}`);
                   } catch (emailError: any) {
                     console.error(`❌ [Stripe] Failed to send renewal confirmation email:`, emailError);
                   }
@@ -972,12 +973,12 @@ router.post('/webhook', webhookRateLimiter, async (req, res) => {
                 try {
                   const failedAmount = ((invoice.amount_due || 0) / 100).toFixed(2);
                   await emailService.sendPaymentFailed(userId, failedAmount, 'Subscription renewal payment failed');
-                  console.log(`✅ [Stripe] Payment failed email sent to user ${userId}`);
+                  logger.info(`✅ [Stripe] Payment failed email sent to user ${userId}`);
                 } catch (emailError: any) {
                   console.error(`❌ [Stripe] Failed to send payment failed email:`, emailError);
                 }
                 
-                console.log(`⚠️ User ${userId} subscription marked as past_due due to payment failure`);
+                logger.warn(`⚠️ User ${userId} subscription marked as past_due due to payment failure`);
               }
             }
           } catch (error) {
@@ -992,7 +993,7 @@ router.post('/webhook', webhookRateLimiter, async (req, res) => {
         const dispute = event.data.object as Stripe.Dispute;
         const chargeId = typeof dispute.charge === 'string' ? dispute.charge : dispute.charge?.id;
         
-        console.log(`🚨 [Stripe] Chargeback/Dispute created: ${dispute.id} for charge ${chargeId}`);
+        logger.warn(`🚨 [Stripe] Chargeback/Dispute created: ${dispute.id} for charge ${chargeId}`);
         
         if (chargeId) {
           try {
@@ -1016,7 +1017,7 @@ router.post('/webhook', webhookRateLimiter, async (req, res) => {
                 
                 if (refundResult.success && !refundResult.alreadyProcessed) {
                   creditsReversed = refundResult.creditsReversed;
-                  console.log(`🔄 [Stripe] Reversed ${creditsReversed} credits for user ${userId}. Transaction logged.`);
+                  logger.info(`🔄 [Stripe] Reversed ${creditsReversed} credits for user ${userId}. Transaction logged.`);
                 }
               }
               
@@ -1053,12 +1054,12 @@ router.post('/webhook', webhookRateLimiter, async (req, res) => {
               // Send account suspended email
               try {
                 await emailService.sendAccountSuspended(userId, `Chargeback dispute: ${dispute.reason || 'Unknown reason'}`);
-                console.log(`✅ [Stripe] Account suspended email sent to user ${userId}`);
+                logger.info(`✅ [Stripe] Account suspended email sent to user ${userId}`);
               } catch (emailError: any) {
                 console.error(`❌ [Stripe] Failed to send account suspended email:`, emailError);
               }
               
-              console.log(`⛔ [Stripe] User ${userId} suspended due to chargeback. Dispute ID: ${dispute.id}, Reason: ${dispute.reason}`);
+              logger.warn(`⛔ [Stripe] User ${userId} suspended due to chargeback. Dispute ID: ${dispute.id}, Reason: ${dispute.reason}`);
             } else {
               console.warn(`⚠️ [Stripe] No transaction found for charge ${chargeId}`);
             }
@@ -1073,7 +1074,7 @@ router.post('/webhook', webhookRateLimiter, async (req, res) => {
         // Handle external refunds (not initiated via our admin API)
         const charge = event.data.object as Stripe.Charge;
         
-        console.log(`🔄 [Stripe] Charge refunded event: ${charge.id}`);
+        logger.info(`🔄 [Stripe] Charge refunded event: ${charge.id}`);
         
         // Only process if fully refunded externally
         if (charge.refunded) {
@@ -1085,7 +1086,7 @@ router.post('/webhook', webhookRateLimiter, async (req, res) => {
             if (transaction) {
               const existingRefunds = await storage.getTransactionRefunds(transaction.id);
               if (existingRefunds.length > 0) {
-                console.log(`ℹ️ [Stripe] Refund already exists for charge ${charge.id}, skipping`);
+                logger.warn(`ℹ️ [Stripe] Refund already exists for charge ${charge.id}, skipping`);
                 break;
               }
               
@@ -1106,7 +1107,7 @@ router.post('/webhook', webhookRateLimiter, async (req, res) => {
                 
                 if (refundResult.success && !refundResult.alreadyProcessed) {
                   creditsReversed = refundResult.creditsReversed;
-                  console.log(`🔄 [Stripe] Reversed ${creditsReversed} credits for user ${userId}. Transaction logged.`);
+                  logger.info(`🔄 [Stripe] Reversed ${creditsReversed} credits for user ${userId}. Transaction logged.`);
                 }
               }
               
@@ -1136,7 +1137,7 @@ router.post('/webhook', webhookRateLimiter, async (req, res) => {
                 status: 'refunded',
               });
               
-              console.log(`✅ [Stripe] External refund processed for user ${userId}. Charge: ${charge.id}`);
+              logger.info(`✅ [Stripe] External refund processed for user ${userId}. Charge: ${charge.id}`);
             }
           } catch (error: any) {
             console.error('Error processing external refund:', error);
@@ -1146,7 +1147,7 @@ router.post('/webhook', webhookRateLimiter, async (req, res) => {
       }
 
       default:
-        console.log(`Unhandled event type: ${event.type}`);
+        logger.warn(`Unhandled event type: ${event.type}`);
     }
 
     res.json({ received: true });

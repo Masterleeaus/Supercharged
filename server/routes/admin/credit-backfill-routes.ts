@@ -57,7 +57,7 @@ export function registerCreditBackfillRoutes(router: Router) {
         res.json({ success: true, data: result });
       } catch (err: any) {
         if (err instanceof z.ZodError) {
-          return res.status(400).json({ success: false, error: 'Invalid request', details: err.errors });
+          return res.status(400).json({ success: false, error: 'Invalid request', details: err.issues });
         }
         console.error('[CreditBackfill] scan error:', err);
         res.status(500).json({ success: false, error: 'Failed to run scan' });
@@ -81,7 +81,7 @@ export function registerCreditBackfillRoutes(router: Router) {
         res.json({ success: true, data: result });
       } catch (err: any) {
         if (err instanceof z.ZodError) {
-          return res.status(400).json({ success: false, error: 'Invalid request', details: err.errors });
+          return res.status(400).json({ success: false, error: 'Invalid request', details: err.issues });
         }
         console.error('[CreditBackfill] run error:', err);
         res.status(500).json({ success: false, error: 'Failed to run backfill' });

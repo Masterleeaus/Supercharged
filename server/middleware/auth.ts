@@ -15,6 +15,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
+import { logger } from '../utils/logger';
 import type { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
@@ -144,7 +145,7 @@ export function checkUserActive(storage: any) {
 
       // Check if user account is suspended
       if (user.isActive === false) {
-        console.log(`Access blocked: User ${req.userId} account is suspended`);
+        logger.info(`Access blocked: User ${req.userId} account is suspended`);
         return res.status(403).json({ 
           error: "Your account has been suspended. Please contact support for assistance.",
           code: "ACCOUNT_SUSPENDED"
@@ -185,7 +186,7 @@ export async function preloadJwtExpiry(storage: any): Promise<void> {
     const days = typeof setting?.value === 'number' ? setting.value : 7;
     cachedJwtExpiry = `${days}d`;
     jwtExpiryCacheTime = Date.now();
-    console.log(`🔐 [Auth] JWT expiry preloaded: ${cachedJwtExpiry}`);
+    logger.info(`🔐 [Auth] JWT expiry preloaded: ${cachedJwtExpiry}`);
   } catch (error) {
     console.error('[Auth] Failed to preload jwt_expiry_days, using default 7d:', error);
   }
@@ -223,7 +224,7 @@ export function checkActiveMembership(storage: any) {
   return async (req: AuthRequest, res: Response, next: NextFunction) => {
     // Skip in development mode for testing
     if (process.env.NODE_ENV === 'development') {
-      console.log('Development mode: Bypassing membership check');
+      logger.info('Development mode: Bypassing membership check');
       return next();
     }
 
@@ -235,25 +236,25 @@ export function checkActiveMembership(storage: any) {
 
       // Bypass membership check for admin/superadmin
       if (user.role === 'admin' || req.userRole === 'admin') {
-        console.log(`Bypassing membership check for admin/superadmin user ${req.userId}`);
+        logger.info(`Bypassing membership check for admin/superadmin user ${req.userId}`);
         return next();
       }
 
       // Method 1: Check if user has an active subscription in userSubscriptions table
       const subscription = await storage.getUserSubscription(req.userId!);
       if (subscription && subscription.status === 'active' && new Date(subscription.currentPeriodEnd) > new Date()) {
-        console.log(`User ${req.userId} has active subscription via userSubscriptions table`);
+        logger.info(`User ${req.userId} has active subscription via userSubscriptions table`);
         return next();
       }
 
       // Method 2: Check user's planType and planExpiresAt fields (fallback)
       if (user.planType !== 'free' && user.planExpiresAt && new Date(user.planExpiresAt) > new Date()) {
-        console.log(`User ${req.userId} has active membership via users table`);
+        logger.info(`User ${req.userId} has active membership via users table`);
         return next();
       }
 
       // No active membership found
-      console.log(`User ${req.userId} does not have active Pro membership. planType=${user.planType}, planExpiresAt=${user.planExpiresAt}, subscription=${subscription?.status}`);
+      logger.info(`User ${req.userId} does not have active Pro membership. planType=${user.planType}, planExpiresAt=${user.planExpiresAt}, subscription=${subscription?.status}`);
       return res.status(403).json({ 
         error: 'Active Pro membership required. Please subscribe to a plan to access this feature.' 
       });

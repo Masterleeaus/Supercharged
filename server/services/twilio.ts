@@ -15,6 +15,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
+import { logger } from '../utils/logger';
 import { getTwilioClient, getTwilioAccountSid } from "./twilio-connector";
 import { getDomain } from "../utils/domain";
 import { withServiceErrorHandling } from '../utils/service-error-wrapper';
@@ -31,9 +32,9 @@ const TWILIO_MODE = process.env.TWILIO_MODE || 'live';
 const SHOULD_MOCK_TWILIO = TWILIO_MODE === 'mock';
 
 if (SHOULD_MOCK_TWILIO) {
-  console.log("🔧 Twilio running in MOCK mode - using simulated phone numbers");
+  logger.info("🔧 Twilio running in MOCK mode - using simulated phone numbers");
 } else {
-  console.log("📞 Twilio running in LIVE mode - using real Twilio connector");
+  logger.info("📞 Twilio running in LIVE mode - using real Twilio connector");
 }
 
 interface TwilioPhoneNumber {
@@ -121,7 +122,7 @@ export class TwilioService {
 
     // Use mock numbers in mock mode
     if (this.shouldMock) {
-      console.log("Mock mode: Returning mock phone numbers");
+      logger.info("Mock mode: Returning mock phone numbers");
       const areaCode = params.areaCode || "415";
       const locality = params.inLocality || "San Francisco";
       const region = params.inRegion || "CA";
@@ -169,7 +170,7 @@ export class TwilioService {
     if (isTollFree) {
       // Toll-free numbers: only 'contains' filter is supported by Twilio
       if (params.contains) listOptions.contains = params.contains;
-      console.log(`📞 [Search] Fetching toll-free numbers for ${country}`);
+      logger.info(`📞 [Search] Fetching toll-free numbers for ${country}`);
       const numbers = await client.availablePhoneNumbers(country).tollFree.list(listOptions);
       return numbers.map((num: any) => ({
         phoneNumber: num.phoneNumber,
@@ -186,7 +187,7 @@ export class TwilioService {
 
     if (isMobile) {
       if (params.contains) listOptions.contains = params.contains;
-      console.log(`📞 [Search] Fetching mobile numbers for ${country}`);
+      logger.info(`📞 [Search] Fetching mobile numbers for ${country}`);
       const numbers = await client.availablePhoneNumbers(country).mobile.list(listOptions);
       return numbers.map((num: any) => ({
         phoneNumber: num.phoneNumber,
@@ -203,7 +204,7 @@ export class TwilioService {
 
     if (isNational) {
       if (params.contains) listOptions.contains = params.contains;
-      console.log(`📞 [Search] Fetching national numbers for ${country}`);
+      logger.info(`📞 [Search] Fetching national numbers for ${country}`);
       const numbers = await client.availablePhoneNumbers(country).national.list(listOptions);
       return numbers.map((num: any) => ({
         phoneNumber: num.phoneNumber,
@@ -225,7 +226,7 @@ export class TwilioService {
     if (params.inLocality) listOptions.inLocality = params.inLocality;
     if (params.inRegion) listOptions.inRegion = params.inRegion;
     
-    console.log(`📞 [Search] Fetching local numbers for ${country}`);
+    logger.info(`📞 [Search] Fetching local numbers for ${country}`);
     let numbers: any[] = [];
     try {
       numbers = await client.availablePhoneNumbers(country).local.list(listOptions);
@@ -238,7 +239,7 @@ export class TwilioService {
       const fallbackOptions: any = { limit: params.limit || 20 };
       if (params.contains) fallbackOptions.contains = params.contains;
       
-      console.log(`📞 [Search] No local numbers found. Fetching mobile numbers for ${country}`);
+      logger.info(`📞 [Search] No local numbers found. Fetching mobile numbers for ${country}`);
       try {
         const mobileNumbers = await client.availablePhoneNumbers(country).mobile.list(fallbackOptions);
         if (mobileNumbers.length > 0) {
@@ -258,7 +259,7 @@ export class TwilioService {
         console.warn(`Mobile fallback search failed for ${country}: ${err.message}`);
       }
 
-      console.log(`📞 [Search] No mobile numbers found. Fetching national numbers for ${country}`);
+      logger.info(`📞 [Search] No mobile numbers found. Fetching national numbers for ${country}`);
       try {
         const nationalNumbers = await client.availablePhoneNumbers(country).national.list(fallbackOptions);
         if (nationalNumbers.length > 0) {
@@ -304,7 +305,7 @@ export class TwilioService {
     
     // Use mock purchase in mock mode
     if (this.shouldMock) {
-      console.log("Mock mode: Simulating phone number purchase");
+      logger.info("Mock mode: Simulating phone number purchase");
       const mockNumber = {
         phoneNumber: phoneNumber,
         friendlyName: resolvedFriendlyName || phoneNumber,
@@ -328,7 +329,7 @@ export class TwilioService {
     // Webhook is only configured when an incoming connection is created
     // This prevents unauthorized incoming calls from incurring costs
     
-    console.log(`📞 [Phone Purchase] Purchasing number WITHOUT webhook (incoming calls disabled until configured)`);
+    logger.warn(`📞 [Phone Purchase] Purchasing number WITHOUT webhook (incoming calls disabled until configured)`);
     
     // Build purchase options - include addressSid/bundleSid for regulatory compliance
     const purchaseOptions: any = {
@@ -342,13 +343,13 @@ export class TwilioService {
     // the bundle — the caller is responsible for providing the correct bundle-linked address.
     if (addressSid) {
       purchaseOptions.addressSid = addressSid;
-      console.log(`📞 [Phone Purchase] Including AddressSid for regulatory compliance: ${addressSid.substring(0, 8)}...`);
+      logger.info(`📞 [Phone Purchase] Including AddressSid for regulatory compliance: ${addressSid.substring(0, 8)}...`);
     }
     
     // Add bundle for mobile numbers in certain countries requiring regulatory bundles
     if (bundleSid) {
       purchaseOptions.bundleSid = bundleSid;
-      console.log(`📞 [Phone Purchase] Including BundleSid for regulatory compliance: ${bundleSid.substring(0, 8)}...`);
+      logger.info(`📞 [Phone Purchase] Including BundleSid for regulatory compliance: ${bundleSid.substring(0, 8)}...`);
     }
     
     // Purchase phone number WITHOUT voice webhook - incoming calls won't be handled
@@ -356,7 +357,7 @@ export class TwilioService {
 
     // Mask phone number in logs (show last 4 digits only)
     const maskedNumber = `***${phoneNumber.slice(-4)}`;
-    console.log(`✅ [Phone Purchase] Number ${maskedNumber} purchased (incoming calls disabled)`);
+    logger.info(`✅ [Phone Purchase] Number ${maskedNumber} purchased (incoming calls disabled)`);
 
     return {
       phoneNumber: result.phoneNumber,
@@ -369,7 +370,7 @@ export class TwilioService {
   async listOwnedNumbers(): Promise<TwilioPhoneNumber[]> {
     // Return mock owned numbers in mock mode
     if (this.shouldMock) {
-      console.log("Mock mode: Returning mock owned numbers");
+      logger.info("Mock mode: Returning mock owned numbers");
       return mockOwnedNumbers.map(num => ({
         ...num,
         pricing: {
@@ -404,7 +405,7 @@ export class TwilioService {
   async releasePhoneNumber(sid: string): Promise<void> {
     // Handle mock release in mock mode
     if (this.shouldMock) {
-      console.log("Mock mode: Simulating phone number release");
+      logger.info("Mock mode: Simulating phone number release");
       const index = mockOwnedNumbers.findIndex(n => n.sid === sid);
       if (index !== -1) {
         mockOwnedNumbers.splice(index, 1);
@@ -420,7 +421,7 @@ export class TwilioService {
 
   async updatePhoneNumber(sid: string, params: { friendlyName?: string; voiceUrl?: string }): Promise<void> {
     if (this.shouldMock) {
-      console.log("Mock mode: Simulating phone number update");
+      logger.info("Mock mode: Simulating phone number update");
       return;
     }
     
@@ -435,7 +436,7 @@ export class TwilioService {
    */
   async listAddresses(isoCountry?: string): Promise<TwilioAddress[]> {
     if (this.shouldMock) {
-      console.log("Mock mode: Returning empty addresses list");
+      logger.info("Mock mode: Returning empty addresses list");
       return [];
     }
     
@@ -475,7 +476,7 @@ export class TwilioService {
     friendlyName?: string;
   }): Promise<TwilioAddress> {
     if (this.shouldMock) {
-      console.log("Mock mode: Simulating address creation");
+      logger.info("Mock mode: Simulating address creation");
       return {
         sid: `AD${Date.now()}`,
         friendlyName: params.friendlyName || params.customerName,
@@ -521,7 +522,7 @@ export class TwilioService {
    */
   async deleteAddress(sid: string): Promise<void> {
     if (this.shouldMock) {
-      console.log("Mock mode: Simulating address deletion");
+      logger.info("Mock mode: Simulating address deletion");
       return;
     }
     
@@ -534,7 +535,7 @@ export class TwilioService {
    */
   async getAddress(sid: string): Promise<TwilioAddress | null> {
     if (this.shouldMock) {
-      console.log("Mock mode: Returning null for address fetch");
+      logger.info("Mock mode: Returning null for address fetch");
       return null;
     }
     
@@ -632,7 +633,7 @@ export class TwilioService {
           addressRequired = anyAddressCountries.has(isoCountry) ? 'any' : 'local';
         }
 
-        console.log(`📋 [Regulatory] API for ${isoCountry}: ${regulations.length} regulation(s), hasDocumentReq=${hasDocumentReq}, hasAddressReq=${hasAddressReq}, bundleRequired=${bundleRequired}`);
+        logger.info(`📋 [Regulatory] API for ${isoCountry}: ${regulations.length} regulation(s), hasDocumentReq=${hasDocumentReq}, hasAddressReq=${hasAddressReq}, bundleRequired=${bundleRequired}`);
       }
 
       let result: CountryRequirements = {
@@ -645,16 +646,16 @@ export class TwilioService {
       const fallback = this.getFallbackRequirements(isoCountry);
 
       if (!result.bundleRequired && fallback.bundleRequired) {
-        console.log(`📋 [Regulatory] API returned no bundle requirement for ${isoCountry}, but fallback map says bundle is required. Using fallback.`);
+        logger.warn(`📋 [Regulatory] API returned no bundle requirement for ${isoCountry}, but fallback map says bundle is required. Using fallback.`);
         result.bundleRequired = true;
       }
       if (result.addressRequired === 'none' && fallback.addressRequired !== 'none') {
-        console.log(`📋 [Regulatory] API returned no address requirement for ${isoCountry}, but fallback map says '${fallback.addressRequired}'. Using fallback.`);
+        logger.warn(`📋 [Regulatory] API returned no address requirement for ${isoCountry}, but fallback map says '${fallback.addressRequired}'. Using fallback.`);
         result.addressRequired = fallback.addressRequired;
       }
 
       this.regulatoryCache.set(cacheKey, { data: result, timestamp: Date.now() });
-      console.log(`📋 [Regulatory] Requirements for ${isoCountry}/${numberType}: address=${result.addressRequired}, bundle=${result.bundleRequired}`);
+      logger.info(`📋 [Regulatory] Requirements for ${isoCountry}/${numberType}: address=${result.addressRequired}, bundle=${result.bundleRequired}`);
       return result;
     } catch (error: any) {
       console.warn(`📋 [Regulatory] Could not fetch regulations for ${isoCountry}/${numberType}: ${error.message}. Using fallback.`);
@@ -769,7 +770,7 @@ export class TwilioService {
    */
   async getApprovedBundleForCountry(isoCountry: string, numberType?: string): Promise<{ bundleSid: string; friendlyName: string } | null> {
     if (this.shouldMock) {
-      console.log("Mock mode: Returning mock bundle");
+      logger.info("Mock mode: Returning mock bundle");
       return { bundleSid: 'BU_MOCK_BUNDLE', friendlyName: 'Mock Bundle' };
     }
 
@@ -786,13 +787,13 @@ export class TwilioService {
 
       if (bundles.length > 0) {
         const bundle = bundles[0];
-        console.log(`📋 [Regulatory] Found approved bundle for ${isoCountry} (type: ${numberType || 'any'}): ${bundle.sid} (${bundle.friendlyName})`);
+        logger.info(`📋 [Regulatory] Found approved bundle for ${isoCountry} (type: ${numberType || 'any'}): ${bundle.sid} (${bundle.friendlyName})`);
         return { bundleSid: bundle.sid, friendlyName: bundle.friendlyName || 'Regulatory Bundle' };
       }
 
       // Do NOT fall back to a bundle of a different type — using a mismatched bundle causes
       // Twilio error 21649 ("Bundle does not have the correct regulation type").
-      console.log(`📋 [Regulatory] No approved ${numberType || 'any-type'} bundle found for ${isoCountry}`);
+      logger.warn(`📋 [Regulatory] No approved ${numberType || 'any-type'} bundle found for ${isoCountry}`);
       return null;
     } catch (error: any) {
       console.error(`📋 [Regulatory] Error fetching bundles for ${isoCountry}:`, error.message);
@@ -819,12 +820,12 @@ export class TwilioService {
       const client = await this.getTwilioClientInstance();
 
       // Step 1: Query bundle item assignments to find the linked end-user
-      console.log(`📋 [Regulatory] Fetching item assignments for bundle ${bundleSid.substring(0, 8)}...`);
+      logger.info(`📋 [Regulatory] Fetching item assignments for bundle ${bundleSid.substring(0, 8)}...`);
       const items = await client.numbers.v2.regulatoryCompliance
         .bundles(bundleSid)
         .itemAssignments.list({ limit: 20 });
 
-      console.log(`📋 [Regulatory] Bundle items found: ${items.map((i: any) => i.objectSid).join(', ') || 'none'}`);
+      logger.info(`📋 [Regulatory] Bundle items found: ${items.map((i: any) => i.objectSid).join(', ') || 'none'}`);
 
       for (const item of items) {
         const objectSid = (item as any).objectSid as string | undefined;
@@ -838,7 +839,7 @@ export class TwilioService {
 
         if (objectSid.startsWith('AD')) {
           // Address is directly assigned as a bundle item — return it as-is
-          console.log(`📋 [Regulatory] Found address directly assigned to bundle: ${objectSid.substring(0, 8)}...`);
+          logger.info(`📋 [Regulatory] Found address directly assigned to bundle: ${objectSid.substring(0, 8)}...`);
           return objectSid;
         } else if (objectSid.startsWith('IT')) {
           try {
@@ -847,11 +848,11 @@ export class TwilioService {
               .fetch();
 
             const attrs = (endUser as any).attributes || {};
-            console.log(`📋 [Regulatory] End-user ${objectSid.substring(0, 8)} attributes keys: ${Object.keys(attrs).join(', ') || 'empty'}`);
+            logger.info(`📋 [Regulatory] End-user ${objectSid.substring(0, 8)} attributes keys: ${Object.keys(attrs).join(', ') || 'empty'}`);
             // Twilio may expose address as address_sids array or address_sid string
             const addrSids: string[] = attrs.address_sids || (attrs.address_sid ? [attrs.address_sid] : []);
             if (addrSids.length > 0) {
-              console.log(`📋 [Regulatory] Found address inside bundle via end-user: ${addrSids[0].substring(0, 8)}...`);
+              logger.info(`📋 [Regulatory] Found address inside bundle via end-user: ${addrSids[0].substring(0, 8)}...`);
               return addrSids[0];
             }
           } catch (euErr: any) {
@@ -864,24 +865,24 @@ export class TwilioService {
               .fetch();
 
             const attrs = (doc as any).attributes || {};
-            console.log(`📋 [Regulatory] Supporting doc ${objectSid.substring(0, 8)} (${(doc as any).type}) attributes keys: ${Object.keys(attrs).join(', ') || 'empty'}`);
+            logger.info(`📋 [Regulatory] Supporting doc ${objectSid.substring(0, 8)} (${(doc as any).type}) attributes keys: ${Object.keys(attrs).join(', ') || 'empty'}`);
             const addrSids: string[] = attrs.address_sids || (attrs.address_sid ? [attrs.address_sid] : []);
             if (addrSids.length > 0) {
-              console.log(`📋 [Regulatory] Found address inside bundle via supporting-document: ${addrSids[0].substring(0, 8)}...`);
+              logger.info(`📋 [Regulatory] Found address inside bundle via supporting-document: ${addrSids[0].substring(0, 8)}...`);
               return addrSids[0];
             }
           } catch (docErr: any) {
             console.warn(`📋 [Regulatory] Could not fetch supporting-document ${objectSid}: ${docErr.message}`);
           }
         } else {
-          console.log(`📋 [Regulatory] Skipping unrecognised item SID prefix: ${objectSid.substring(0, 2)}... (${objectSid.substring(0, 8)})`);
+          logger.warn(`📋 [Regulatory] Skipping unrecognised item SID prefix: ${objectSid.substring(0, 2)}... (${objectSid.substring(0, 8)})`);
         }
       }
 
       // No address found inside the bundle items — return null.
       // Do NOT fall back to standalone account addresses: a non-bundle address causes
       // Twilio error 21651 "Address not contained in bundle".
-      console.log(`📋 [Regulatory] No address_sids found in bundle items for ${bundleSid.substring(0, 8)} (${isoCountry}) — returning null`);
+      logger.warn(`📋 [Regulatory] No address_sids found in bundle items for ${bundleSid.substring(0, 8)} (${isoCountry}) — returning null`);
       return null;
     } catch (error: any) {
       console.warn(`📋 [Regulatory] Error fetching bundle address for ${isoCountry}: ${error.message}`);
@@ -921,7 +922,7 @@ export class TwilioService {
    */
   async getPhoneNumberPricing(phoneNumber: string): Promise<{ purchasePrice: string; monthlyPrice: string; priceUnit: string }> {
     if (this.shouldMock) {
-      console.log("Mock mode: Returning mock pricing");
+      logger.info("Mock mode: Returning mock pricing");
       return {
         purchasePrice: '1.00',
         monthlyPrice: '1.15',
@@ -951,7 +952,7 @@ export class TwilioService {
         numberType = 'toll free';
       }
 
-      console.log(`💰 [Pricing] Fetching pricing for ${isoCountry} ${numberType} number`);
+      logger.info(`💰 [Pricing] Fetching pricing for ${isoCountry} ${numberType} number`);
 
       // Fetch pricing from Twilio Pricing API v1 (correct version for phone numbers)
       const pricingData: any = await client.pricing.v1
@@ -959,7 +960,7 @@ export class TwilioService {
         .countries(isoCountry)
         .fetch();
 
-      console.log(`📋 [Pricing] Received pricing data for ${isoCountry}:`, JSON.stringify(pricingData, null, 2));
+      logger.info(`📋 [Pricing] Received pricing data for ${isoCountry}:`, JSON.stringify(pricingData, null, 2));
 
       // Twilio Node SDK transforms REST API fields from snake_case to camelCase
       // So phoneNumberPrices array contains: { numberType, basePrice, currentPrice }
@@ -981,7 +982,7 @@ export class TwilioService {
       // The monthly price is the MRC (Monthly Recurring Charge)
       const monthlyPrice = priceInfo.currentPrice || priceInfo.basePrice || '1.15';
       
-      console.log(`✅ [Pricing] ${isoCountry} ${numberType}: $${monthlyPrice}/${pricingData.priceUnit}`);
+      logger.info(`✅ [Pricing] ${isoCountry} ${numberType}: $${monthlyPrice}/${pricingData.priceUnit}`);
 
       return {
         purchasePrice: monthlyPrice, // First month charged on purchase
@@ -1005,7 +1006,7 @@ export class TwilioService {
    */
   async configurePhoneWebhook(sid: string): Promise<void> {
     if (this.shouldMock) {
-      console.log("Mock mode: Simulating webhook configuration");
+      logger.info("Mock mode: Simulating webhook configuration");
       return;
     }
     
@@ -1015,7 +1016,7 @@ export class TwilioService {
     
     // Mask SID in logs (show last 8 chars only)
     const maskedSid = `***${sid.slice(-8)}`;
-    console.log(`📞 [Webhook Config] Configuring webhook for SID ${maskedSid}: ${voiceWebhookUrl}`);
+    logger.info(`📞 [Webhook Config] Configuring webhook for SID ${maskedSid}: ${voiceWebhookUrl}`);
     
     const client = await this.getTwilioClientInstance();
     
@@ -1026,7 +1027,7 @@ export class TwilioService {
       voiceFallbackMethod: 'POST',
     });
     
-    console.log(`✅ [Webhook Config] Webhook configured successfully for SID ${maskedSid}`);
+    logger.info(`✅ [Webhook Config] Webhook configured successfully for SID ${maskedSid}`);
   }
 
   /**
@@ -1035,7 +1036,7 @@ export class TwilioService {
    */
   async configurePhoneWebhookForElevenLabs(sid: string, phoneNumber: string): Promise<void> {
     if (this.shouldMock) {
-      console.log("Mock mode: Simulating ElevenLabs webhook configuration");
+      logger.info("Mock mode: Simulating ElevenLabs webhook configuration");
       return;
     }
     
@@ -1044,7 +1045,7 @@ export class TwilioService {
     
     // Mask SID in logs (show last 8 chars only)
     const maskedSid = `***${sid.slice(-8)}`;
-    console.log(`📞 [Twilio Config] Configuring ElevenLabs native inbound for SID ${maskedSid}`);
+    logger.info(`📞 [Twilio Config] Configuring ElevenLabs native inbound for SID ${maskedSid}`);
     
     const client = await this.getTwilioClientInstance();
     
@@ -1052,16 +1053,16 @@ export class TwilioService {
     // This ensures Twilio routes the call to US region where ElevenLabs config exists
     // Note: If no explicit route exists, Twilio defaults to us1, so 404 is acceptable
     try {
-      console.log(`📞 [Twilio Routes] Setting voice region to 'us1' for ${phoneNumber}`);
+      logger.info(`📞 [Twilio Routes] Setting voice region to 'us1' for [redacted]`);
       await client.routes.v2.phoneNumbers(phoneNumber).update({
         voiceRegion: 'us1'
       });
-      console.log(`✅ [Twilio Routes] Voice region set to 'us1'`);
+      logger.info(`✅ [Twilio Routes] Voice region set to 'us1'`);
     } catch (routeError: any) {
       // Routes API may return 404 if no explicit routing exists - this means it defaults to us1
       // which is what we want, so we can safely ignore this error
       if (routeError.status === 404) {
-        console.log(`📞 [Twilio Routes] No explicit route exists - defaulting to 'us1' (OK)`);
+        logger.info(`📞 [Twilio Routes] No explicit route exists - defaulting to 'us1' (OK)`);
       } else {
         console.warn(`⚠️ [Twilio Routes] Could not set voice region: ${routeError.message}`);
         // Continue anyway - the webhook config is more important
@@ -1076,7 +1077,7 @@ export class TwilioService {
       voiceFallbackMethod: 'POST',
     });
     
-    console.log(`✅ [Twilio Config] ElevenLabs native inbound configured for SID ${maskedSid}`);
+    logger.info(`✅ [Twilio Config] ElevenLabs native inbound configured for SID ${maskedSid}`);
   }
 
   /**
@@ -1085,13 +1086,13 @@ export class TwilioService {
    */
   async clearPhoneWebhook(sid: string): Promise<void> {
     if (this.shouldMock) {
-      console.log("Mock mode: Simulating webhook removal");
+      logger.info("Mock mode: Simulating webhook removal");
       return;
     }
     
     // Mask SID in logs (show last 8 chars only)
     const maskedSid = `***${sid.slice(-8)}`;
-    console.log(`📞 [Twilio Config] Clearing webhook for SID ${maskedSid}`);
+    logger.info(`📞 [Twilio Config] Clearing webhook for SID ${maskedSid}`);
     
     const client = await this.getTwilioClientInstance();
     
@@ -1101,7 +1102,7 @@ export class TwilioService {
       voiceFallbackUrl: '',
     });
     
-    console.log(`✅ [Twilio Config] Webhook cleared for SID ${maskedSid}`);
+    logger.info(`✅ [Twilio Config] Webhook cleared for SID ${maskedSid}`);
   }
 
   async makeCall(params: {
@@ -1111,7 +1112,7 @@ export class TwilioService {
   }): Promise<{ callSid: string }> {
     // Handle mock call in mock mode
     if (this.shouldMock) {
-      console.log("Mock mode: Simulating outbound call", params);
+      logger.info("Mock mode: Simulating outbound call");
       return { callSid: `CA_MOCK_${Date.now()}` };
     }
     
@@ -1143,7 +1144,7 @@ export class TwilioService {
     recordingUrl: string | null;
   } | null> {
     if (this.shouldMock) {
-      console.log("Mock mode: Returning mock call details");
+      logger.info("Mock mode: Returning mock call details");
       return {
         sid: callSid,
         from: '+15551234567',
@@ -1203,7 +1204,7 @@ export class TwilioService {
     url: string;
   }>> {
     if (this.shouldMock) {
-      console.log("Mock mode: Returning mock recordings");
+      logger.info("Mock mode: Returning mock recordings");
       return [];
     }
 

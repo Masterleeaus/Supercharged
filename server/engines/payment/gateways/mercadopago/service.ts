@@ -9,6 +9,7 @@ import crypto from 'crypto';
 import { storage } from '../../../../storage';
 import { PaymentError } from '../../../../utils/errors';
 import { GLOBAL_SETTINGS_KEYS, getCurrencySymbol } from '../../types';
+import { logger } from '../../../../utils/logger';
 
 let mercadoPagoClient: MercadoPagoConfig | null = null;
 
@@ -145,7 +146,7 @@ export async function lockMercadoPagoCurrency(): Promise<{ success: boolean; err
   
   await storage.updateGlobalSetting('mercadopago_currency_locked', true);
   
-  console.log(`🔒 [MercadoPago] Currency locked to ${currentConfig.currency}`);
+  logger.info(`🔒 [MercadoPago] Currency locked to ${currentConfig.currency}`);
   return { success: true };
 }
 
@@ -208,7 +209,7 @@ export async function createMercadoPagoPreference(options: MercadoPagoPreference
     },
   });
   
-  console.log(`✅ [MercadoPago] Created preference ${result.id}`);
+  logger.info(`✅ [MercadoPago] Created preference ${result.id}`);
   return result;
 }
 
@@ -257,7 +258,7 @@ export async function createMercadoPagoSubscriptionPlan(options: MercadoPagoSubs
     },
   });
   
-  console.log(`✅ [MercadoPago] Created subscription plan ${result.id}`);
+  logger.info(`✅ [MercadoPago] Created subscription plan ${result.id}`);
   return result;
 }
 
@@ -298,7 +299,7 @@ export async function createMercadoPagoSubscription(options: MercadoPagoSubscrip
     },
   });
   
-  console.log(`✅ [MercadoPago] Created subscription ${result.id}`);
+  logger.info(`✅ [MercadoPago] Created subscription ${result.id}`);
   return result;
 }
 
@@ -326,7 +327,7 @@ export async function cancelMercadoPagoSubscription(subscriptionId: string): Pro
     },
   });
   
-  console.log(`✅ [MercadoPago] Cancelled subscription ${subscriptionId}`);
+  logger.info(`✅ [MercadoPago] Cancelled subscription ${subscriptionId}`);
   return result;
 }
 
@@ -375,7 +376,7 @@ export async function verifyMercadoPagoWebhookSignature(
     
     const verified = calculatedHash === hash;
     if (verified) {
-      console.log('✅ [MercadoPago] Webhook signature verified');
+      logger.info('✅ [MercadoPago] Webhook signature verified');
     } else {
       console.warn('⚠️ [MercadoPago] Webhook signature verification failed');
     }

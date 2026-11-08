@@ -39,11 +39,11 @@ async function fetchWhatsappTemplateNames(userId: string): Promise<string[]> {
       if (metaSettings && metaSettings.isActive) {
         const templates = await metaWhatsAppService.getTemplates(userId);
         const names = templates.map((t: any) => t.name);
-        console.log(`📋 [WhatsApp Templates] Fetched ${names.length} Meta template(s) for user ${userId}`);
+        logger.info(`📋 [WhatsApp Templates] Fetched ${names.length} Meta template(s) for user ${userId}`);
         return names;
       }
     } catch (metaErr: any) {
-      console.log(`⚠️  [WhatsApp Templates] Meta fetch failed: ${metaErr.message}`);
+      logger.warn(`⚠️  [WhatsApp Templates] Meta fetch failed: ${metaErr.message}`);
     }
 
     try {
@@ -51,16 +51,16 @@ async function fetchWhatsappTemplateNames(userId: string): Promise<string[]> {
       if (wwSettings && wwSettings.isActive) {
         const templates = await whatswayService.getTemplates(userId);
         const names = templates.map((t: any) => t.name);
-        console.log(`📋 [WhatsApp Templates] Fetched ${names.length} WhatsWay template(s) for user ${userId}`);
+        logger.info(`📋 [WhatsApp Templates] Fetched ${names.length} WhatsWay template(s) for user ${userId}`);
         return names;
       }
     } catch (wwErr: any) {
-      console.log(`⚠️  [WhatsApp Templates] WhatsWay fetch failed: ${wwErr.message}`);
+      logger.warn(`⚠️  [WhatsApp Templates] WhatsWay fetch failed: ${wwErr.message}`);
     }
 
     return [];
   } catch (err: any) {
-    console.log(`⚠️  [WhatsApp Templates] Messaging plugin not available: ${err.message}`);
+    logger.warn(`⚠️  [WhatsApp Templates] Messaging plugin not available: ${err.message}`);
     return [];
   }
 }
@@ -217,11 +217,11 @@ export function createAgentRoutes(ctx: RouteContext): Router {
 
       if (type === 'incoming') {
         if (isCustomVoiceEngine) {
-          console.log(`📞 Creating Custom Voice Engine agent with voice: ${openaiVoice || 'aura-asteria-en'}`);
+          logger.info(`📞 Creating Custom Voice Engine agent with voice: ${openaiVoice || 'aura-asteria-en'}`);
         } else if (isOpenAIProvider) {
           // OpenAI-based agents use OpenAI voices - openaiVoice has a default in schema ('alloy')
           // No validation needed as schema provides default
-          console.log(`📞 Creating ${telephonyProvider} agent with OpenAI voice: ${openaiVoice || 'alloy'}`);
+          logger.info(`📞 Creating ${telephonyProvider} agent with OpenAI voice: ${openaiVoice || 'alloy'}`);
         } else {
           // Twilio/ElevenLabs agents require elevenLabsVoiceId
           if (!elevenLabsVoiceId) {
@@ -294,10 +294,10 @@ export function createAgentRoutes(ctx: RouteContext): Router {
 
         if (modelRecord.length > 0) {
           effectiveLlmModelId = modelRecord[0].modelId;
-          console.log(`📝 Using user-selected LLM model: ${llmModel} → ${effectiveLlmModelId}`);
+          logger.info(`📝 Using user-selected LLM model: ${llmModel} → ${effectiveLlmModelId}`);
         } else {
           effectiveLlmModelId = llmModel;
-          console.log(`📝 Using user-provided LLM model ID: ${effectiveLlmModelId}`);
+          logger.info(`📝 Using user-provided LLM model ID: ${effectiveLlmModelId}`);
         }
 
         // Sanitize the model ID for ElevenLabs compatibility
@@ -306,7 +306,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         const defaultSetting = await storage.getGlobalSetting('default_llm_free');
         if (defaultSetting?.value) {
           const displayName = String(defaultSetting.value).replace(/^"|"$/g, '');
-          console.log(`📝 Admin default LLM display name: ${displayName}`);
+          logger.info(`📝 Admin default LLM display name: ${displayName}`);
 
           const modelRecord = await db
             .select({ modelId: llmModels.modelId })
@@ -316,9 +316,9 @@ export function createAgentRoutes(ctx: RouteContext): Router {
 
           if (modelRecord.length > 0) {
             effectiveLlmModelId = modelRecord[0].modelId;
-            console.log(`📝 Resolved to model ID: ${effectiveLlmModelId}`);
+            logger.info(`📝 Resolved to model ID: ${effectiveLlmModelId}`);
           } else {
-            console.log(`⚠️  Could not find model for "${displayName}", using default: ${effectiveLlmModelId}`);
+            logger.warn(`⚠️  Could not find model for "${displayName}", using default: ${effectiveLlmModelId}`);
           }
         }
       }
@@ -346,7 +346,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         try {
           const knowledgeBases: Array<{ type: string; title: string; elevenLabsDocId: string }> = [];
           if (knowledgeBaseIds && Array.isArray(knowledgeBaseIds) && knowledgeBaseIds.length > 0) {
-            console.log(`📚 Preparing ${knowledgeBaseIds.length} knowledge base(s) for agent creation`);
+            logger.info(`📚 Preparing ${knowledgeBaseIds.length} knowledge base(s) for agent creation`);
 
             for (const kbId of knowledgeBaseIds) {
               try {
@@ -362,7 +362,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
                   continue;
                 }
 
-                console.log(`   Adding KB "${kbItem.title}" (${kbItem.elevenLabsDocId})`);
+                logger.info(`   Adding KB "${kbItem.title}" (${kbItem.elevenLabsDocId})`);
                 knowledgeBases.push({
                   type: kbItem.type,
                   title: kbItem.title,
@@ -408,7 +408,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
 
       // Log OpenAI-based agent creation
       if (type === 'incoming' && isOpenAIProvider) {
-        console.log(`📞 [${telephonyProvider} Agent Create] Creating ${telephonyProvider} agent "${name}" with OpenAI voice: ${openaiVoice || 'alloy'}`);
+        logger.info(`📞 [${telephonyProvider} Agent Create] Creating ${telephonyProvider} agent "${name}" with OpenAI voice: ${openaiVoice || 'alloy'}`);
       }
 
       if (type === 'flow') {
@@ -420,10 +420,10 @@ export function createAgentRoutes(ctx: RouteContext): Router {
 
         // Voice validation depends on telephony provider for flow agents
         if (isCustomVoiceEngine) {
-          console.log(`📞 [Flow Agent Create] Creating Custom Voice Engine flow agent with voice: ${openaiVoice || 'aura-asteria-en'}`);
+          logger.info(`📞 [Flow Agent Create] Creating Custom Voice Engine flow agent with voice: ${openaiVoice || 'aura-asteria-en'}`);
         } else if (isOpenAIProvider) {
           // OpenAI-based flow agents use OpenAI voices - openaiVoice has a default in schema ('alloy')
-          console.log(`📞 [Flow Agent Create] Creating ${telephonyProvider} flow agent with OpenAI voice: ${openaiVoice || 'alloy'}`);
+          logger.info(`📞 [Flow Agent Create] Creating ${telephonyProvider} flow agent with OpenAI voice: ${openaiVoice || 'alloy'}`);
         } else {
           // ElevenLabs/Twilio flow agents require elevenLabsVoiceId
           if (!elevenLabsVoiceId) {
@@ -443,7 +443,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         // For OpenAI-based flow agents (Plivo or Twilio+OpenAI) or Custom Voice Engine, skip ElevenLabs agent creation
         // These flow agents will use OpenAI Realtime API or custom websocket server directly during calls
         if (isOpenAIProvider || isCustomVoiceEngine) {
-          console.log(`📞 [Flow Agent Create] Skipping ElevenLabs agent creation for ${telephonyProvider} flow agent`);
+          logger.info(`📞 [Flow Agent Create] Skipping ElevenLabs agent creation for ${telephonyProvider} flow agent`);
           // elevenLabsAgentId remains null for OpenAI-based and Custom Voice Engine flow agents
         } else {
           // ElevenLabs/Twilio flow agents - delegate to FlowAgentService for proper two-phase creation
@@ -471,7 +471,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
 
             elevenLabsAgentId = result.elevenLabsAgentId;
             usedCredentialId = result.credentialId;
-            console.log(`✅ [Flow Agent Create] ElevenLabs agent created via FlowAgentService: ${elevenLabsAgentId}`);
+            logger.info(`✅ [Flow Agent Create] ElevenLabs agent created via FlowAgentService: ${elevenLabsAgentId}`);
           } catch (error: any) {
             console.error("Error creating ElevenLabs Flow agent:", error);
             const statusCode = error.status || 500;
@@ -526,7 +526,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
       if (usedCredentialId) {
         try {
           await ElevenLabsPoolService.updateAssignmentCount(usedCredentialId, true);
-          console.log(`📊 [Agent Create] Incremented agent count for credential ${usedCredentialId}`);
+          logger.info(`📊 [Agent Create] Incremented agent count for credential ${usedCredentialId}`);
         } catch (countError) {
           console.warn("Failed to update credential agent count:", countError);
         }
@@ -538,7 +538,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
             .update(flows)
             .set({ agentId: agent.id })
             .where(eq(flows.id, flowId));
-          console.log(`✅ [Flow Agent Create] Flow ${flowId} now references agent ${agent.id}`);
+          logger.info(`✅ [Flow Agent Create] Flow ${flowId} now references agent ${agent.id}`);
 
           await ElevenLabsPoolService.syncExistingAgents();
         } catch (poolError) {
@@ -560,7 +560,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
       // The webhook URL uses the ElevenLabs agent ID which is available at this point
       if (type === 'incoming' && appointmentBookingEnabled && elevenLabsAgentId && usedCredentialId) {
         try {
-          console.log(`📅 [Agent Create] Adding appointment booking tool for ElevenLabs agent ${elevenLabsAgentId}`);
+          logger.info(`📅 [Agent Create] Adding appointment booking tool for ElevenLabs agent ${elevenLabsAgentId}`);
           const credential = await ElevenLabsPoolService.getCredentialForAgent(agent.id);
           if (credential) {
             const appointmentElevenLabsService = new ElevenLabsService(credential.apiKey);
@@ -573,7 +573,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
               databaseAgentId: agent.id,
               skipWorkflowRebuild: true,
             });
-            console.log(`✅ [Agent Create] Appointment booking tool added (with system tools preserved)`);
+            logger.info(`✅ [Agent Create] Appointment booking tool added (with system tools preserved)`);
           }
         } catch (appointmentError) {
           console.warn("Failed to add appointment booking tool (non-fatal):", appointmentError);
@@ -582,7 +582,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
 
       if (type === 'incoming' && (messagingEmailEnabled || messagingWhatsappEnabled) && elevenLabsAgentId && usedCredentialId) {
         try {
-          console.log(`📨 [Agent Create] Adding messaging tools for ElevenLabs agent ${elevenLabsAgentId}`);
+          logger.info(`📨 [Agent Create] Adding messaging tools for ElevenLabs agent ${elevenLabsAgentId}`);
 
           let whatsappTemplateNames: string[] = [];
           if (messagingWhatsappEnabled) {
@@ -607,7 +607,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
               databaseAgentId: agent.id,
               skipWorkflowRebuild: true,
             });
-            console.log(`✅ [Agent Create] Messaging tools added`);
+            logger.info(`✅ [Agent Create] Messaging tools added`);
           }
         } catch (messagingError) {
           console.warn("Failed to add messaging tools (non-fatal):", messagingError);
@@ -616,7 +616,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
 
       if (elevenLabsAgentId && isRAGEnabled() && knowledgeBaseIds && knowledgeBaseIds.length > 0) {
         try {
-          console.log(`📚 [Agent Create] Setting up RAG workspace tool for agent ${agent.id}`);
+          logger.info(`📚 [Agent Create] Setting up RAG workspace tool for agent ${agent.id}`);
 
           const systemTools: any[] = [];
 
@@ -628,7 +628,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
                 if (await isAgentOnSipPhoneNumber(agent.id)) {
                   agentTransferType = "sip_refer";
                   sipTrunkAddress = await getSipTrunkOutboundAddress(agent.id);
-                  console.log(`   📞 [Agent Create] SIP agent detected - using sip_refer transfer type (trunk: ${sipTrunkAddress})`);
+                  logger.info(`   📞 [Agent Create] SIP agent detected - using sip_refer transfer type (trunk: ${sipTrunkAddress})`);
                 }
               } catch (sipErr: any) {
                 logger.warn('SIP trunk check failed during agent create; using conference transfer', { agentId: agent.id, error: sipErr?.message }, 'AgentRoutes');
@@ -639,7 +639,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
                 const phoneNum = transferPhoneNumber.startsWith('+') ? transferPhoneNumber : `+${transferPhoneNumber}`;
                 const sipUri = `sip:${phoneNum}@${sipTrunkAddress}`;
                 transferDestination = { type: "sip_uri", sip_uri: sipUri };
-                console.log(`   📞 [Agent Create] SIP REFER: ${phoneNum} → ${sipUri}`);
+                logger.info(`   📞 [Agent Create] SIP REFER transfer configured`);
               } else {
                 transferDestination = { type: "phone", phone_number: transferPhoneNumber };
               }
@@ -693,7 +693,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
             systemTools,
             type === 'incoming' ? (appointmentBookingEnabled || false) : false
           );
-          console.log(`✅ [Agent Create] RAG tool setup complete`);
+          logger.info(`✅ [Agent Create] RAG tool setup complete`);
 
           updatedAgent = await storage.getAgent(agent.id) || agent;
         } catch (ragError) {
@@ -707,7 +707,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
             const { VoiceSyncService } = await import("../services/voice-sync");
 
             if (elevenLabsVoiceId.startsWith('21m00') || elevenLabsVoiceId.length < 20) {
-              console.log(`🔊 Voice ${elevenLabsVoiceId} is a default voice, skipping sync`);
+              logger.info(`🔊 Voice ${elevenLabsVoiceId} is a default voice, skipping sync`);
               return;
             }
 
@@ -722,15 +722,15 @@ export function createAgentRoutes(ctx: RouteContext): Router {
             const matchingVoice = sharedVoices.voices.find(v => v.voice_id === elevenLabsVoiceId);
 
             if (matchingVoice?.public_owner_id) {
-              console.log(`🔊 Starting async voice sync for ${elevenLabsVoiceId} (${matchingVoice.name})`);
+              logger.info(`🔊 Starting async voice sync for ${elevenLabsVoiceId} (${matchingVoice.name})`);
               const result = await VoiceSyncService.syncVoiceToAllCredentials(
                 elevenLabsVoiceId,
                 matchingVoice.public_owner_id,
                 matchingVoice.name
               );
-              console.log(`🔊 Voice sync complete: ${result.synced} synced, ${result.failed} failed`);
+              logger.warn(`🔊 Voice sync complete: ${result.synced} synced, ${result.failed} failed`);
             } else {
-              console.log(`🔊 Voice ${elevenLabsVoiceId} not found in shared library, skipping pool sync`);
+              logger.warn(`🔊 Voice ${elevenLabsVoiceId} not found in shared library, skipping pool sync`);
             }
           } catch (syncError) {
             console.warn(`⚠️ Async voice sync failed (non-fatal):`, syncError instanceof Error ? syncError.message : syncError);
@@ -780,8 +780,8 @@ export function createAgentRoutes(ctx: RouteContext): Router {
       }
 
       try {
-        console.log(`📝 [Version History] Agent update for ${agent.id} (${agent.type})`);
-        console.log(`   Request body keys: ${Object.keys(req.body).join(', ')}`);
+        logger.info(`📝 [Version History] Agent update for ${agent.id} (${agent.type})`);
+        logger.info(`   Request body keys: ${Object.keys(req.body).join(', ')}`);
 
         const latestVersion = await storage.getLatestAgentVersion(agent.id);
         const nextVersionNumber = (latestVersion?.versionNumber || 0) + 1;
@@ -850,7 +850,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         }
 
         if (changedFields.length > 0) {
-          console.log(`   ✅ Creating version ${nextVersionNumber}: ${changedFields.join(', ')}`);
+          logger.info(`   ✅ Creating version ${nextVersionNumber}: ${changedFields.join(', ')}`);
           await storage.createAgentVersion({
             agentId: agent.id,
             versionNumber: nextVersionNumber,
@@ -861,7 +861,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
             note: null,
           });
         } else {
-          console.log(`   ⏭️ No changes detected, skipping version creation`);
+          logger.info(`   ⏭️ No changes detected, skipping version creation`);
         }
       } catch (versionError) {
         console.warn("Failed to create agent version:", versionError);
@@ -1075,10 +1075,10 @@ export function createAgentRoutes(ctx: RouteContext): Router {
           if (credential) {
             const agentElevenLabsService = new ElevenLabsService(credential.apiKey);
             await agentElevenLabsService.deleteAgent(agent.elevenLabsAgentId);
-            console.log(`✅ Deleted agent ${agent.name} from ElevenLabs (${agent.elevenLabsAgentId})`);
+            logger.info(`✅ Deleted agent ${agent.name} from ElevenLabs (${agent.elevenLabsAgentId})`);
           } else {
             await elevenLabsService.deleteAgent(agent.elevenLabsAgentId);
-            console.log(`✅ Deleted agent ${agent.name} from ElevenLabs using default credential`);
+            logger.info(`✅ Deleted agent ${agent.name} from ElevenLabs using default credential`);
           }
         } catch (elevenLabsError: any) {
           console.error(`⚠️ Failed to delete from ElevenLabs (will still delete from database):`, elevenLabsError.message);
@@ -1088,7 +1088,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
       if (agent.elevenLabsCredentialId) {
         try {
           await ElevenLabsPoolService.updateAssignmentCount(agent.elevenLabsCredentialId, false);
-          console.log(`📊 [Agent Delete] Decremented agent count for credential ${agent.elevenLabsCredentialId}`);
+          logger.info(`📊 [Agent Delete] Decremented agent count for credential ${agent.elevenLabsCredentialId}`);
         } catch (countError) {
           console.warn("Failed to update credential agent count:", countError);
         }
@@ -1578,7 +1578,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
       let response;
 
       if (realtimeOnlyVoices.includes(voiceId)) {
-        console.log(`🎙️ Voice preview: requesting ${voiceId} via Chat Completions audio endpoint`);
+        logger.info(`🎙️ Voice preview: requesting ${voiceId} via Chat Completions audio endpoint`);
         
         const audioModels = [
           "gpt-4o-mini-audio-preview",
@@ -1628,7 +1628,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
 
       // Standard path or fallback path (if chat completion call failed for realtime-only voices)
       const finalVoiceId = realtimeOnlyVoices.includes(voiceId) ? "alloy" : voiceId;
-      console.log(`🎙️ Voice preview: requesting ${finalVoiceId} via TTS API`);
+      logger.info(`🎙️ Voice preview: requesting ${finalVoiceId} via TTS API`);
 
       response = await fetch("https://api.openai.com/v1/audio/speech", {
         method: "POST",

@@ -24,6 +24,7 @@
  * Tool Type: "webhook" (server-side) - ElevenLabs calls our endpoint directly
  */
 
+import { logger } from '../utils/logger';
 import { getDomain } from '../utils/domain';
 import { getAppointmentWebhookSecret } from './appointment-elevenlabs-tool';
 
@@ -72,10 +73,10 @@ export function getPlayAudioWebhookTool(
 
   const toolName = `play_audio_${nodeId.slice(-8)}`;
 
-  console.log(`🔊 [PlayAudio Tool] Creating webhook tool for agent ${elevenLabsAgentId}`);
-  console.log(`   Tool name: ${toolName}`);
-  console.log(`   Audio URL: ${audioUrl}`);
-  console.log(`   Webhook URL: ${domain}/api/elevenlabs/tools/play-audio/[REDACTED]/${elevenLabsAgentId}`);
+  logger.info(`🔊 [PlayAudio Tool] Creating webhook tool for agent ${elevenLabsAgentId}`);
+  logger.info(`   Tool name: ${toolName}`);
+  logger.info(`   Audio URL: ${audioUrl}`);
+  logger.info(`   Webhook URL: ${domain}/api/elevenlabs/tools/play-audio/[REDACTED]/${elevenLabsAgentId}`);
   
   return {
     type: "webhook",

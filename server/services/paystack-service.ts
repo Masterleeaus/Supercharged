@@ -14,6 +14,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
+import { logger } from '../utils/logger';
 import Paystack from '@paystack/paystack-sdk';
 import crypto from 'crypto';
 import { storage } from '../storage';
@@ -160,7 +161,7 @@ export async function createPaystackPlan(options: PaystackPlanOptions): Promise<
     throw new PaymentError('paystack', `Failed to create plan: ${response.message}`, undefined, { operation: 'createPlan' });
   }
   
-  console.log(`✅ [Paystack] Created plan ${response.data?.plan_code}`);
+  logger.info(`✅ [Paystack] Created plan ${response.data?.plan_code}`);
   return response.data;
 }
 
@@ -214,7 +215,7 @@ export async function createPaystackSubscription(options: PaystackSubscriptionOp
     throw new PaymentError('paystack', `Failed to create subscription: ${response.message}`, undefined, { operation: 'createSubscription' });
   }
   
-  console.log(`✅ [Paystack] Created subscription ${response.data?.subscription_code}`);
+  logger.info(`✅ [Paystack] Created subscription ${response.data?.subscription_code}`);
   return response.data;
 }
 
@@ -247,7 +248,7 @@ export async function disablePaystackSubscription(subscriptionCode: string, emai
     throw new PaymentError('paystack', `Failed to disable subscription: ${response.message}`, undefined, { operation: 'disableSubscription' });
   }
   
-  console.log(`✅ [Paystack] Disabled subscription ${subscriptionCode}`);
+  logger.info(`✅ [Paystack] Disabled subscription ${subscriptionCode}`);
   return response.data;
 }
 
@@ -266,7 +267,7 @@ export async function enablePaystackSubscription(subscriptionCode: string, email
     throw new PaymentError('paystack', `Failed to enable subscription: ${response.message}`, undefined, { operation: 'enableSubscription' });
   }
   
-  console.log(`✅ [Paystack] Enabled subscription ${subscriptionCode}`);
+  logger.info(`✅ [Paystack] Enabled subscription ${subscriptionCode}`);
   return response.data;
 }
 
@@ -305,7 +306,7 @@ export async function initializePaystackTransaction(options: PaystackTransaction
     throw new PaymentError('paystack', `Failed to initialize transaction: ${response.message}`, undefined, { operation: 'initializeTransaction' });
   }
   
-  console.log(`✅ [Paystack] Initialized transaction with reference ${response.data?.reference}`);
+  logger.info(`✅ [Paystack] Initialized transaction with reference ${response.data?.reference}`);
   return response.data;
 }
 
@@ -361,7 +362,7 @@ export async function createPaystackCustomer(options: PaystackCustomerOptions): 
     throw new PaymentError('paystack', `Failed to create customer: ${response.message}`, undefined, { operation: 'createCustomer' });
   }
   
-  console.log(`✅ [Paystack] Created customer ${response.data?.customer_code}`);
+  logger.info(`✅ [Paystack] Created customer ${response.data?.customer_code}`);
   return response.data;
 }
 
