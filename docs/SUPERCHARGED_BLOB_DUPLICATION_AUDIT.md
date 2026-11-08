@@ -118,3 +118,13 @@ The four associated Node test cases in `tests/infrastructure/source-duplicate-au
 - The repository's `package.json` claims `MIT`, whereas the original source headers and LICENSE/installation text contain CodeCanyon/Envato attribution. These conflicting provenance signals require licensing resolution before redistribution (issue #37).
 
 **No donor, vendor, dist, revenue, or field-link files were removed or rewritten.** Runtime ownership and license checks must precede consolidation.
+
+## Static import ownership scanner (Pass 12)
+
+Use `node scripts/audit-import-ownership.mjs --json` to inspect source-file **literal relative imports** in a checked-out repository, or `node scripts/audit-import-ownership.mjs --root=/path/to/repo --json` for another checkout. Without `--json`, the tool prints a short inbound importer list for the targeted integration paths. The report includes resolved edges, unresolved relative specifiers, and dynamic import/glob call sites.
+
+The scanner reads `.js`, `.jsx`, `.ts`, `.tsx`, `.mjs` and `.cjs` files, excludes checked-in `dist/` and transient packages/caches, and does not follow symbolic links. It maps literal static import/re-export, side-effect imports, `require()`, and literal `import()` to local source files by common suffix/index candidates; imports through aliases, package exports, runtime-generated strings, conditionals, glob patterns and bundled artifacts may not be fully resolved.
+
+**Crucial:** a direct importer edge is **not** proof of execution from the production entrypoint. Files with no static inbound edges may still be reached by a dynamic loader, test harness, plugin discovery, server runtime configuration, or compiled packaging. Therefore neither this scanner nor the exact SHA report recommends deletion by itself.
+
+Four fixture-driven Node tests exercise parsing, suffix/index resolution, imported integration paths, donor exclusion, unresolved and dynamic call reporting, symlink skipping, and read-only scanning. The tests are pending GitHub Actions on the latest head.
