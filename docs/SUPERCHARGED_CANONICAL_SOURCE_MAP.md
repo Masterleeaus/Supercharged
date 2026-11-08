@@ -179,3 +179,13 @@ No merge, deletion, tenant data migration, privilege change, template schema cha
 - Detailed the scanner CLI and inspected import/provenance observations in `docs/SUPERCHARGED_BLOB_DUPLICATION_AUDIT.md`.
 
 **Incomplete:** verified import graph for the rest of the repository, divergent donor merge, runtime integration verification, legal reconciliation, failing existing CI tasks. PR draft; issue #54 open.
+
+## Pass 12 — build-aware import ownership groundwork
+
+- Confirmed Pass 11 CI on GitHub: production build passed; **5,967 passed / 3 failed / 13 skipped**, including all four new source-duplication audit tests. Persistent failed tests remain workforce composition/schema/timeout; migration inventory and informational typecheck separately failed.
+- Added `scripts/audit-import-ownership.mjs`, a read-only working-tree parser for static literal ESM/CJS imports and exports; records resolved relative edges, unresolved local imports, dynamic import expressions, `import.meta.glob` sites, and direct importers for `server/integrations/titan-revenue/` and `server/integrations/field-link/vendor/`. It excludes checked-in `dist`, transient folders and symlink traversals. Marked `live: unverified` on all ownership results.
+- Added four deterministic tests at `tests/infrastructure/import-ownership-audit.test.mjs` for importer parsing, extension/index resolution, local integration edge tracking vs donor archives, unresolved imports, dynamic reporting and read-only symlink/exclusion behavior. Await current-head CI before claiming pass.
+- Confirmed build ownership in `vite.config.ts`: client root is `client/`, output `dist/public/`; `package.json` uses Vite, esbuild of `server/index.ts`, and `scripts/build-server-deps.js`. The dev Vite server bypasses the standalone Vite config. These facts distinguish generated outputs from canonical frontend/server sources.
+- This is a conservative static graph, **not runtime reachability evidence**, because aliases, loaders, dynamic module names, provider configuration, plugin discovery and packaging can add edges. Do not remove any donor or vendor files yet.
+
+**Remaining:** execute CLI in a complete checkout, resolve dynamic/alias ownership and direct runtime edges, compare divergent donor features, preserve vendor license terms, and verify installed application/CI acceptance.
