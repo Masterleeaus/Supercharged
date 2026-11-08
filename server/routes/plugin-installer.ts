@@ -224,6 +224,20 @@ router.post('/install',
       const backupDir = path.join(pluginsDir, `${pluginName}.backup.${Date.now()}`);
       const isUpgrade = fs.existsSync(targetDir) && fs.existsSync(path.join(targetDir, 'plugin.json'));
 
+      // Reject the entire archive before replacing any existing plugin files.
+      for (const entry of zip.getEntries()) {
+        if (entry.isDirectory) continue;
+        let entryPath = entry.entryName;
+        if (rootDir && entryPath.startsWith(rootDir + '/')) {
+          entryPath = entryPath.substring(rootDir.length + 1);
+        }
+        if (!entryPath || !isSafeZipEntry(entryPath, targetDir)) {
+          return res.status(400).json({
+            success: false,
+            error: 'Unsafe plugin archive entry; existing files preserved',
+          });
+        }
+      }
       const steps: Array<{ step: string; status: 'success' | 'failed' | 'skipped'; message: string }> = [];
 
       if (!fs.existsSync(pluginsDir)) {
@@ -399,6 +413,33 @@ router.post('/install',
         steps.push({ step: 'migrations', status: 'skipped', message: 'Migrations skipped by user request' });
       }
 
+      // Never activate a plugin after a failed extraction/migration.
+      // SQL migrations already applied cannot be rolled back by file recovery.
+      if (steps.some(step => step.status === 'failed')) {
+        if (isUpgrade && fs.existsSync(backupDir)) {
+          try {
+            if (fs.existsSync(targetDir)) fs.rmSync(targetDir, { recursive: true, force: true });
+            fs.cpSync(backupDir, targetDir, { recursive: true });
+            steps.push({ step: 'rollback_files', status: 'success', message: 'Original plugin files restored; review any applied database migrations' });
+          } catch (rollbackErr: any) {
+            logger.error('Plugin rollback failed', { plugin: pluginName, code: rollbackErr?.code }, 'PluginInstaller');
+            steps.push({ step: 'rollback_files', status: 'failed', message: 'Original plugin recovery failed; backup retained' });
+          }
+        } else if (!isUpgrade) {
+          try {
+            if (fs.existsSync(targetDir)) fs.rmSync(targetDir, { recursive: true, force: true });
+            steps.push({ step: 'cleanup_files', status: 'success', message: 'Incomplete new plugin files removed' });
+          } catch {
+            steps.push({ step: 'cleanup_files', status: 'failed', message: 'Incomplete new plugin requires manual cleanup' });
+          }
+        }
+        return res.status(500).json({
+          success: false,
+          error: 'Plugin installation failed; activation skipped',
+          data: { name: pluginName, isUpgrade, backupPreserved: isUpgrade, databaseRollback: false, steps },
+        });
+      }
+
       try {
         await setPluginEnabled(pluginName, true);
         steps.push({ step: 'register', status: 'success', message: 'Plugin enabled for next startup; runtime registration pending restart' });
@@ -406,7 +447,7 @@ router.post('/install',
         steps.push({ step: 'register', status: 'failed', message: `Registration failed: ${regErr.message}` });
       }
 
-      if (isUpgrade && fs.existsSync(backupDir)) {
+      if (isUpgrade && fs.existsSync(backupDir) && steps.every(step => step.status !== 'failed')) {
         try {
           fs.rmSync(backupDir, { recursive: true, force: true });
         } catch (err: any) {
