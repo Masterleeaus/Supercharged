@@ -645,7 +645,7 @@ export function createPublicRoutes(ctx: RouteContext): Router {
         }
       }
 
-      res.setHeader('Cache-Control', 'public, max-age=300');
+      res.setHeader('Cache-Control', 'no-store'); // Reflect admin branding updates without a five-minute stale response.
       res.json(branding);
     } catch (error) {
       console.error('Error fetching branding:', error);
