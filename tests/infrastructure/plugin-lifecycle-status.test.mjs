@@ -15,7 +15,7 @@ test("enable and disable both require restart when registration state differs", 
   assert.equal(pendingRestart(false, true), true);
   assert.equal(pendingRestart(false, false), false);
   assert.equal(pendingRestart(true, true), false);
-  assert.match(loader, /requiresRestart: plugin\.enabled !== plugin\.registered/);
+  assert.match(loader, /requiresRestart: !plugin\.error && plugin\.enabled !== plugin\.registered/);
 });
 
 test("loader preserves current-process registration and exposes configured state separately", () => {
@@ -29,6 +29,7 @@ test("public plugin health identifies pending restart instead of reporting a hea
   assert.match(routes, /status: 'ok' \| 'error' \| 'disabled' \| 'pending_restart'/);
   assert.match(routes, /if \(plugin\.enabled !== plugin\.registered\) \{/);
   assert.match(routes, /status = 'pending_restart'/);
+  assert.match(routes, /if \(plugin\.error \|\| missingTables\.length > 0\)/);
 });
 
 test("plugin installer does not claim to have registered a newly enabled plugin before restart", () => {
