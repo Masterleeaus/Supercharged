@@ -139,6 +139,7 @@ export interface RunRecord {
 }
 
 export type RunRefusal =
+  | 'outcome_uncertain'
   | 'company_id_required'
   | 'company_id_invalid'
   | 'run_not_found'
@@ -420,6 +421,24 @@ export function createRunEngine(options: RunEngineOptions): RunEngine {
     return move(companyId, run, 'budget_exhausted', reason);
   }
 
+  /**
+   * True when a write of this tool with these params has an in-flight marker (outcome 'uncertain') that no settle record
+   * (tool.execution executed, or failed without the uncertain flag) has closed. Such a call may have acted already, so
+   * it is not replayed. Counts rather than order, so it does not depend on the store's read order.
+   */
+  async function hasUnresolvedWrite(companyId: CompanyId, runId: string, toolId: string, paramsSha256: string): Promise<boolean> {
+    let open = 0;
+    for (const event of await store.listAudit(companyId, runId)) {
+      const data = event.data as Record<string, unknown> | undefined;
+      if (!data || data.toolId !== toolId || data.paramsSha256 !== paramsSha256) continue;
+      if (event.kind === 'tool.decision' && data.outcome === 'uncertain') open += 1;
+      if (event.kind === 'tool.execution' && (data.outcome === 'executed' || (data.outcome === 'failed' && data.uncertain !== true))) {
+        open -= 1;
+      }
+    }
+    return open > 0;
+  }
+
   /** Runs the call, with retries for transient failures only. Counts every attempt against the tool-call budget. */
   async function attempt(
     companyId: CompanyId,
@@ -471,6 +490,25 @@ export function createRunEngine(options: RunEngineOptions): RunEngine {
       if (!live || live.status !== current.status || live.version !== current.version) {
         if (port && reserved) await port.release(reserved);
         throw new RunVersionConflictError(current.id);
+      }
+
+      // An earlier attempt of this same write may have been cut off mid-call. Its outcome is uncertain, so it is not
+      // replayed here. A human or reconciliation has to settle it first.
+      let paramsSha256: string | null = null;
+      try {
+        paramsSha256 = hashToolParams(call.params);
+      } catch {
+        paramsSha256 = null; // The registry refuses non-serialisable params itself.
+      }
+      if (paramsSha256 !== null && (await hasUnresolvedWrite(companyId, current.id, call.toolId, paramsSha256))) {
+        if (port && reserved) await port.release(reserved);
+        await audit('tool.decision', companyId, current.id, {
+          toolId: call.toolId,
+          paramsSha256,
+          outcome: 'refused',
+          reason: 'outcome_uncertain',
+        });
+        return { ok: false, reason: 'outcome_uncertain', run: current, tool: null };
       }
 
       const tool = await registry.invoke({

@@ -1079,6 +1079,18 @@ export function createToolRegistry(options: ToolRegistryOptions): ToolRegistry {
         if (claimed !== true) return refuse(companyId, base, 'approval_consumed', 'Approval was already used. Nothing ran.');
       }
 
+      // In-flight marker for a write, recorded before the handler can act. If the process dies mid-call, no settle record
+      // (tool.execution) follows it. The run engine reads the open marker as an uncertain outcome and does not replay
+      // the call (run.ts, hasUnresolvedWrite). If the marker cannot be written, nothing runs.
+      if ((definition.access ?? 'write') === 'write') {
+        const marked = await auditSafely({
+          companyId,
+          runId,
+          data: { ...auditFields(base), outcome: 'uncertain', reason: 'in_flight' },
+        });
+        if (!marked) return refuse(companyId, base, 'audit_unavailable', 'Decision could not be recorded. Nothing ran.');
+      }
+
       const outcome = await execute(companyId, base, definition, params, idempotent);
 
       // Completion is recorded only after a successful run. A failed run leaves the key claimed but not completed,
