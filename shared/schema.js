@@ -622,6 +622,13 @@ const globalSettings = pgTable("global_settings", {
   updatedBy: varchar("updated_by").references(() => users.id),
   updatedAt: timestamp("updated_at").notNull().defaultNow()
 });
+const companyQuietHours = pgTable("company_quiet_hours", {
+  companyId: uuid("company_id").primaryKey(),
+  startHour: integer("start_hour").notNull(),
+  endHour: integer("end_hour").notNull(),
+  timezone: varchar("timezone", { length: 64 }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+});
 const llmModels = pgTable("llm_models", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   modelId: text("model_id").notNull().unique(),
@@ -2952,6 +2959,7 @@ const insertChatbotMessageSchema = createInsertSchema(chatbotMessages).omit({
 
 export {
   companies,
+  companyQuietHours,
   chatbots,
   chatbotConversations,
   chatbotMessages,

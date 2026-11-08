@@ -19,9 +19,10 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer } from 'ws';
 import { storage } from "./storage";
-import { db } from "./db";
+import { db, pool } from "./db";
 import { phoneNumbers, agents, calls, creditTransactions, paymentTransactions, phoneNumberRentals, campaigns, contacts, incomingConnections, llmModels, twilioCountries, users, knowledgeBase, userSubscriptions } from "@shared/schema";
 import { eq, desc, and, isNull, sql, or } from "drizzle-orm";
+import type { TenantPool } from "./infrastructure/database/tenant-context";
 import { authenticateToken, authenticateAnyToken, requireRole, generateTokenAsync, checkActiveMembership, checkUserActive, type AuthRequest } from "./middleware/auth";
 import { authRateLimiter, strictRateLimiter, paymentRateLimiter } from "./middleware/rateLimiter";
 import { validateTwilioWebhook } from "./middleware/webhookValidation";
@@ -2758,7 +2759,7 @@ When using a tool:
       store: createDrizzleCampaignStore(),
       approvals: campaignApprovals,
       transport: campaignTransport,
-      companySettings: createCompanySettingsStore(),
+      companySettings: createCompanySettingsStore({ pool: pool as unknown as TenantPool }),
       suppression: createSuppressionList({ audit: commsAudit.audit, clock: () => new Date().toISOString() }),
       requireRole: requireRole("admin", "manager") as unknown as import('express').RequestHandler,
     }),
