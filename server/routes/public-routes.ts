@@ -613,7 +613,7 @@ export function createPublicRoutes(ctx: RouteContext): Router {
     try {
       const brandingKeys = ['app_name', 'app_tagline', 'logo_url', 'logo_url_light', 'logo_url_dark', 'favicon_url', 'branding_updated_at', 'admin_email', 'app_location', 'social_twitter_url', 'social_linkedin_url', 'social_github_url', 'theme_primary', 'theme_primary_foreground', 'theme_accent', 'theme_background', 'theme_sidebar', 'theme_website_accent', 'theme_website_foreground'];
       const branding: Record<string, any> = {
-        app_name: '',
+        app_name: 'Supercharged',
         app_tagline: '',
         logo_url: null,
         logo_url_light: null,
@@ -646,7 +646,7 @@ export function createPublicRoutes(ctx: RouteContext): Router {
     } catch (error) {
       console.error('Error fetching branding:', error);
       res.json({
-        app_name: '',
+        app_name: 'Supercharged',
         app_tagline: '',
         logo_url: null,
         favicon_url: null,
