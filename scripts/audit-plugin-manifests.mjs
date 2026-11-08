@@ -43,6 +43,7 @@ export function inspectPluginManifests(root = ROOT) {
     const entryPoint = typeof manifest.entryPoint === "string" ? manifest.entryPoint : null;
     const registerFunction = typeof manifest.registerFunction === "string" ? manifest.registerFunction : null;
     if (name !== entry.name) result.issues.push({ manifestPath, code: "directory_name_mismatch" });
+    if (!registerFunction || !/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(registerFunction)) result.issues.push({ manifestPath, code: "invalid_register_function" });
     if (!entryPoint || entryPoint.startsWith("/") || entryPoint.split(/[\\/]/).includes("..")) {
       result.issues.push({ manifestPath, code: "unsafe_or_missing_entrypoint" });
     }
