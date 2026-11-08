@@ -1079,7 +1079,7 @@ export default function LoginPage() {
                   className="w-full h-full border-0"
                   allow="autoplay; encrypted-media; picture-in-picture"
                   allowFullScreen
-                  title="AgentLabs Demo Video"
+                  title={`${branding.app_name || "Supercharged"} Demo Video`}
                 />
               )}
             </div>
