@@ -58,3 +58,12 @@ test("main application registers its server with the shutdown service", () => {
   assert.match(service, /export function registerServer\(server: Server\)/);
   assert.match(service, /export async function gracefulShutdown\(/);
 });
+
+test("plugin admin and installer responses do not promise supervisor-independent restart", () => {
+  const admin = readFileSync(new URL("../../server/routes/plugin-routes.ts", import.meta.url), "utf8");
+  const installer = readFileSync(new URL("../../server/routes/plugin-installer.ts", import.meta.url), "utf8");
+  assert.doesNotMatch(admin, /Server will restart automatically/);
+  assert.doesNotMatch(installer, /Server will restart automatically/);
+  assert.match(admin, /configured process manager is required/);
+  assert.match(installer, /configured process manager/);
+});
