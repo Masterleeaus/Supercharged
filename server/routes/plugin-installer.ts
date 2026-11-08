@@ -444,7 +444,29 @@ router.post('/install',
         await setPluginEnabled(pluginName, true);
         steps.push({ step: 'register', status: 'success', message: 'Plugin enabled for next startup; runtime registration pending restart' });
       } catch (regErr: any) {
-        steps.push({ step: 'register', status: 'failed', message: `Registration failed: ${regErr.message}` });
+        steps.push({ step: 'register', status: 'failed', message: `Activation setting failed: ${regErr.message}` });
+        if (isUpgrade && fs.existsSync(backupDir)) {
+          try {
+            if (fs.existsSync(targetDir)) fs.rmSync(targetDir, { recursive: true, force: true });
+            fs.cpSync(backupDir, targetDir, { recursive: true });
+            steps.push({ step: 'rollback_files', status: 'success', message: 'Original plugin files restored; review any applied database migrations' });
+          } catch (rollbackErr: any) {
+            logger.error('Plugin activation rollback failed', { plugin: pluginName, code: rollbackErr?.code }, 'PluginInstaller');
+            steps.push({ step: 'rollback_files', status: 'failed', message: 'Original files could not be restored; backup retained' });
+          }
+        } else if (!isUpgrade) {
+          try {
+            if (fs.existsSync(targetDir)) fs.rmSync(targetDir, { recursive: true, force: true });
+            steps.push({ step: 'cleanup_files', status: 'success', message: 'New plugin files removed after activation failure' });
+          } catch {
+            steps.push({ step: 'cleanup_files', status: 'failed', message: 'New plugin requires manual cleanup' });
+          }
+        }
+        return res.status(503).json({
+          success: false,
+          error: 'Plugin activation could not be saved; files restored where possible',
+          data: { name: pluginName, isUpgrade, backupPreserved: isUpgrade, databaseRollback: false, steps },
+        });
       }
 
       if (isUpgrade && fs.existsSync(backupDir) && steps.every(step => step.status !== 'failed')) {
