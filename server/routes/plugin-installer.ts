@@ -467,10 +467,15 @@ router.delete('/uninstall/:name',
         return res.status(403).json({ success: false, error: `Plugin '${name}' is a core plugin and cannot be uninstalled` });
       }
 
+      // If disablement cannot be saved, preserve files and abort removal.
       try {
         await setPluginEnabled(name, false);
       } catch (err: any) {
-        logger.warn('Could not disable plugin before uninstall; continuing', { plugin: name, error: err?.message }, 'PluginInstaller');
+        logger.error('Could not persist plugin disable state; uninstall aborted', { plugin: name, code: err?.code }, 'PluginInstaller');
+        return res.status(503).json({
+          success: false,
+          error: 'Could not disable plugin before uninstall; files have been preserved',
+        });
       }
 
       const backupDir = path.join(pluginsDir, `${name}.uninstalled.${Date.now()}`);
