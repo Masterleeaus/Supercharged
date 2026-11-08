@@ -29,7 +29,7 @@ const GLOBAL_SETTINGS_SEED_DATA = [
   },
   {
     key: "company_tagline",
-    value: "AI-Powered Bulk Calling Platform",
+    value: "Business communications and operations",
     description: "Company tagline for branding",
   },
   {
