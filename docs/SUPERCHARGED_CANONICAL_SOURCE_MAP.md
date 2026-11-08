@@ -81,3 +81,17 @@ The groups sum to **2,612**. Counts are tracked files, not lines of code or prov
 - Original Diploy/Envato copyright notices are maintained unchanged, pending the distinct rights reconciliation tracked by #37.
 
 **Execution limitations:** The connected GitHub API allowed exact tree enumeration and source reads/writes, but there was no network-enabled local checkout or installed dependencies in this pass. No claim is made that compilation, tests, integration behavior or production deployment passed.
+
+## Pass 4 — bootstrap identity and additional UI audit
+
+- Reconciled default branch before edits: no newer commits behind at start of pass.
+- `client/index.html` previously loaded `agentlabs-branding:v1`, while the active `BrandingProvider` writes `agentlabs-branding:v3`. The HTML now reads only the active key, applies the same 24-hour TTL, and refuses invalid/future timestamps. Historical key names are retained to avoid a storage migration without tests.
+- `BrandingProvider` now rejects invalid/future timestamps rather than accepting them indefinitely.
+- `LoginPage.tsx` no longer labels the demo iframe as AgentLabs; the accessible title uses the active configured app name, falling back to Supercharged.
+- The hard-coded demo account (`demo@diploy.in`) is **not** rebranded: those strings may be credential identifiers. Whether demo mode should be shipped at all is a separate security/product decision; no credentials were changed.
+- Original Diploy legal notices in source remain untouched as required by issue #37.
+- No first-party install manifest file was present in the full main tree listing. The chatbot PWA asset folder is present, but no installability or separate bundle behavior was verified.
+- Added `tests/branding/supercharged-brand-cache.test.mjs`: exercises the actual HTML bootstrap using Node's VM, checks stale/malformed/future cached data, configured tenant identity, matching provider TTL logic, and public API source defaults. Not run in a checkout this pass.
+
+### Pending to finish #54
+Inventory remaining localized strings, application-controlled default `app_name` records, public notifications/emails, service-worker/PWA release packaging and actual deploy configuration. Complete donor dependency graph and rights review before removing generated/donor code. Run Node tests, typecheck and build; no production readiness claim.
