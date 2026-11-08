@@ -30,6 +30,13 @@ export interface ReminderConfig {
   locale?: string;
 }
 
+export interface ReminderSentEvent {
+  companyId: string;
+  appointmentId: string;
+  channel: ReminderChannel;
+  sentAt: Date;
+}
+
 export interface ReminderDispatcherDeps {
   bookings: Pick<BookingService, "listCalendars" | "listAppointments">;
   ledger: ReminderLedgerStore;
@@ -38,6 +45,11 @@ export interface ReminderDispatcherDeps {
   http: HttpClient;
   config: ReminderConfig;
   now?: () => Date;
+  /**
+   * Called once per reminder, after the send succeeds and its ledger row is marked sent. Not called for a failed
+   * or skipped send. A throw is logged and does not undo the send.
+   */
+  onSent?: (event: ReminderSentEvent) => Promise<void> | void;
 }
 
 export interface ReminderRunSummary {
@@ -172,6 +184,13 @@ export function createReminderDispatcher(deps: ReminderDispatcherDeps): Reminder
                 externalMessageId: result.externalMessageId,
               }, now());
               summary.sent += 1;
+              if (deps.onSent) {
+                try {
+                  await deps.onSent({ companyId: scope, appointmentId: appointment.id, channel, sentAt: now() });
+                } catch (hookError) {
+                  console.error("[reminders] onSent hook failed", hookError instanceof Error ? hookError.message : "unknown");
+                }
+              }
             } else if (result.retryable) {
               await deps.ledger.release(scope, appointment.id, channel);
               summary.failed += 1;
