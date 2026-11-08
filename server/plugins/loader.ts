@@ -21,6 +21,7 @@ import { db } from '../db';
 import { globalSettings } from '@shared/schema';
 import { eq, sql } from 'drizzle-orm';
 import { canImportTypeScript, resetCanImportTypeScript } from '../utils/plugin-import';
+import { logger } from '../utils/logger';
 import { isRegistrationAccepted, registrationReason } from './register-result';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -300,11 +301,15 @@ export async function loadPlugins(app: Express, options: PluginLoaderOptions): P
           try {
             const plivoMod = await import('../engines/plivo/services/plivo-call.service');
             PlivoCallServiceRef = plivoMod.PlivoCallService;
-          } catch {}
+          } catch (err: any) {
+            logger.warn('Plivo call service not loaded for rest-api plugin; continuing without it', { reason: err?.code ?? 'import_failed' }, 'PluginLoader');
+          }
           try {
             const twilioMod = await import('../engines/twilio-openai/services/twilio-openai-call.service');
             TwilioOpenAICallServiceRef = twilioMod.TwilioOpenAICallService;
-          } catch {}
+          } catch (err: any) {
+            logger.warn('Twilio OpenAI call service not loaded for rest-api plugin; continuing without it', { reason: err?.code ?? 'import_failed' }, 'PluginLoader');
+          }
           enrichedOptions = {
             ...(options as any),
             callServices: {

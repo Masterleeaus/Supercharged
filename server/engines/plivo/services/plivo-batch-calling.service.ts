@@ -925,7 +925,7 @@ export class PlivoBatchCallingService {
       try {
         await PlivoCallService.endCall(callId);
       } catch (e) {
-        // Ignore errors when force-ending calls
+        // Best-effort force end: the call may already have ended, so an error here is expected.
       }
     }
 

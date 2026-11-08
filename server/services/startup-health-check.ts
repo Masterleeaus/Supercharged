@@ -15,6 +15,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
+import { logger } from '../utils/logger';
 import { db } from '../db';
 import { sql, eq } from 'drizzle-orm';
 import { elevenLabsCredentials } from '@shared/schema';
@@ -181,7 +182,8 @@ async function validateSchemaColumns(): Promise<string[]> {
           issues.push(`Missing column: ${table}.${col}`);
         }
       }
-    } catch (error) {
+    } catch (error: any) {
+      logger.warn('Could not inspect table columns during startup health check', { table, error: error?.message }, 'StartupHealth');
     }
   }
   

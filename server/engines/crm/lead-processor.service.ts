@@ -1397,7 +1397,7 @@ Return ONLY the JSON object. No explanation, no markdown formatting.`;
         return parsed;
       }
     } catch {
-      // Not JSON, ignore
+      // Not JSON: the summary is plain text, so there are no structured insights (null is returned below).
     }
     
     return null;

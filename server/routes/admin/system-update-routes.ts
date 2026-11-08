@@ -8,6 +8,7 @@ import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import { createRateLimiter } from '../../middleware/rateLimiter';
 import { logAuditEvent } from '../../services/audit-log';
+import { logger } from '../../utils/logger';
 
 const updateUpload = multer({
   storage: multer.memoryStorage(),
@@ -275,7 +276,9 @@ export function registerSystemUpdateRoutes(router: Router) {
               await db.execute(sql`
                 UPDATE system_updates SET status = 'rolled_back' WHERE id = ${updateId}
               `);
-            } catch {}
+            } catch (err: any) {
+              logger.error('Could not mark system update as rolled back', err, 'SystemUpdate');
+            }
           })
           .catch((err) => {
             console.error('[SystemUpdate] Async rollback error:', err);
@@ -371,7 +374,9 @@ export function registerSystemUpdateRoutes(router: Router) {
           await db.execute(sql`
             UPDATE system_updates SET backup_path = NULL WHERE id = ${updateId}
           `);
-        } catch {}
+        } catch (err: any) {
+          logger.warn('Could not clear backup_path on system update', { updateId, error: err?.message }, 'SystemUpdate');
+        }
 
         await logAuditEvent({
           action: 'admin.settings_update',
