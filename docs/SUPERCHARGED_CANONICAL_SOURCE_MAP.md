@@ -120,3 +120,16 @@ Inventory remaining localized strings, application-controlled default `app_name`
 - **Verified GitHub Actions on pass-5 head**: production build succeeded; 5,947 tests passed, three failed (13 skipped); the six bootstrap and three email branding tests passed. The same three workforce suite failures remained, plus failing migration inventory and informational typecheck. Pass-6 tests still require a completed CI check.
 
 No merge, deletion, tenant data migration, privilege change, template schema change or third-party attribution removal was performed.
+
+## Pass 7 — live tenant branding and SEO accuracy
+
+- Verified completed pass-6 CI: all 11 added branding tests passed; overall suite **5,949 passed / 3 failed / 13 skipped**. Production build passed, while informational typecheck, migration inventory and three known workforce tests remained failing.
+- `BrandingProvider.getBrandingSignature` omitted `app_tagline` and three social URLs, even though the provider compares signatures to decide whether to apply/cache new server data. These keys are now included so edits to those settings refresh live branding without requiring unrelated changes.
+- `BrandingProvider.readCache` now rejects invalid cache structures without a `data` object or string `app_name`. This protects reloads against malformed storage.
+- Favicon effect now restores the default `/favicon.png` when the configured business favicon is removed. Previously the old customer favicon could persist in the open browser tab.
+- `LandingPage` now uses `branding.app_name` for the fallback SEO title, keeping company-configured names instead of stamping Supercharged onto white-labelled sites. The fallback SEO description is a neutral communications/operations description.
+- Seeded social/site/homepage SEO descriptions and pricing copy no longer promise a free trial, free credits, or capabilities not checked against the actual package. These changes affect new defaults, not existing administrator-controlled SEO records.
+- Added `tests/branding/supercharged-provider-and-seo.test.mjs` (4 checks) to exercise the actual brand signature implementation, verify favicon reset, reject invalid cached payloads and protect tenant-aware metadata. The test extraction supports CRLF in the source file.
+- None of these changes alters authentication identifiers, customer branding values, data migration, licensing notices, PWA donor files or existing server persistence.
+
+**Open:** verify current-head CI and runtime cross-company isolation, complete canonical source merge and legal license review; issue #54 and its draft PR must remain open.
