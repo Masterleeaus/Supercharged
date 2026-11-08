@@ -210,3 +210,14 @@ No merge, deletion, tenant data migration, privilege change, template schema cha
 - Added manifest/runtime findings and CLI instructions to `docs/SUPERCHARGED_BLOB_DUPLICATION_AUDIT.md`; source, donor, vendor and plugin directories remain unmodified.
 
 **Next:** verify current CI and investigate dynamic runtime plugin registration and divergent donor ownership without treating static absence as grounds for deletion.
+
+## Pass 15 — runtime plugin discovery containment
+
+- Verified completed Pass 14 GitHub Actions: production build **passed**, **5,981 tests passed / 3 failed / 13 skipped**, and all six new manifest-audit tests passed. Workforce composition/schema/timeout, migration inventory, and informational typecheck remain red.
+- Found a concrete runtime discovery weakness: `server/plugins/loader.ts` read manifests from discovered `plugins/<folder>/plugin.json` but subsequently derived dynamic import directories from unverified `manifest.name`. It also accepted entrypoint strings without checking path escape before file import.
+- Runtime discovery now skips symlinked plugin directories and manifest files; requires a correctly shaped plugin name exactly equal to the discovered directory; rejects missing, absolute, parent/relative traversal, backslash and wrong-extension entrypoints; and verifies `registerFunction` is a valid exported-identifier name.
+- Before dynamic import, the loader resolves the real filesystem paths of both its initial selected entrypoint and any compiled fallback and requires they remain under the resolved plugin root. This protects against symlinked entry files escaping the plugin directory. Existing valid `plugin.json` semantics, database enable switches, TS/JS fallbacks and explicit registration-success rule are preserved.
+- Added five source-contract regression tests in `tests/infrastructure/plugin-loader-safety.test.mjs`. These tests assert the safety invariants but are *not a substitute for an integration test that runs the loader against a database and malicious fixture plugins*. Current-head CI confirmation is still pending.
+- Existing source/legal notices, donor archives, historical package and cache names, and user plugin settings remain untouched. No plugins were activated, removed or migrated.
+
+**Remaining:** validate registration end-to-end, check actual runtime authorization/tenant boundaries, compare divergent donors, resolve license permissions, and repair unrelated CI failures before merging issue #54.
