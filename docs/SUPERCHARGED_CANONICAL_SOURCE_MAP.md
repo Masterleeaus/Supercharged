@@ -267,3 +267,15 @@ Pass 17 refinement: runtime load errors or missing required tables take preceden
 - Preserved existing manifests, names, backups, database tables and third-party/donor source. No uninstall operation or live restart was performed.
 
 **Next:** finish CI verification; audit plugin reinstall/upgrade rollback and startup loader failure handling, then test the deactivation paths end to end under a process supervisor.
+
+## Pass 20 — upgrade preflight, rollback and backup retention
+
+- Verified Pass 19 GitHub Actions at completed head: Build **passed**; **6,006 tests passed / 3 failed / 13 skipped**. All 68 dedicated PR regression tests passed. The remaining test failures concern workforce tool composition/schema/timeout; migration inventory and informational typecheck fail separately.
+- Inspected `server/routes/plugin-installer.ts` install/upgrade. ZIP entries were validated **during extraction, after deletion of existing target files**, so unsafe later entries could leave a partial installation. Install now preflights the full archive and rejects unsafe entries with HTTP 400 **before backup or destructive target changes**.
+- Migration errors were recorded in `steps`, but the installer still attempted `setPluginEnabled(pluginName, true)` and later deleted the backup unconditionally. Now **any recorded failed step** stops activation, restores original files from backup for upgrades (or removes incomplete first-time plugin files), and responds HTTP 500 with the step record. Backup files are retained when recovery or activation fails.
+- Failed persistence of the enablement flag also triggers upgrade file recovery (or new-install cleanup) and HTTP 503, rather than leaving a changed plugin tree with uncertain activation state.
+- **Database schema rollback is not implemented.** The error response explicitly includes `databaseRollback:false`, and recovery messages warn that already-applied SQL migrations require separate review. Backing up files does not reverse migrations or external side effects.
+- Added five upgrade-recovery source-contract regression tests at `tests/infrastructure/plugin-upgrade-recovery.test.mjs` for ZIP preflight ordering, failure gate, file recovery and retained backup, backup-deletion condition, and truthful success/restart scheduling. These tests await completed CI.
+- Preserved original donor/vendor source, existing plugin capabilities, backups and license notices. No live plugin install or database migration was performed.
+
+**Next:** verify Pass 20 CI, test archive traversal and partial-failure behaviour through an isolated installer harness, and assess a staging/atomic rename strategy that safely preserves running installations.
