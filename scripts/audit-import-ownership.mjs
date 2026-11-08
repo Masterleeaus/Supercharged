@@ -59,7 +59,7 @@ export function resolveRelativeImport(importer, specifier, knownPaths) {
  * A negative result is NOT proof that an import is unused: alias and dynamic
  * loaders, plugins, runtime evaluation and generated output are excluded.
  */
-export function traceStaticEntrypoints(edges, entrypoints) {
+export function traceStaticEntrypoints([...edges, ...aliasEdges], entrypoints) {
   const outgoing = new Map();
   for (const { importer, target } of edges) {
     if (!outgoing.has(importer)) outgoing.set(importer, new Set());
@@ -78,11 +78,32 @@ export function traceStaticEntrypoints(edges, entrypoints) {
   return [...visited].sort();
 }
 
+/**
+ * Mirror the explicit Vite/tsconfig source aliases without resolving packages.
+ * Additional aliases must be verified against the actual build configuration.
+ */
+export function resolveConfiguredAlias(specifier, knownPaths) {
+  const aliases = [
+    ["@/", "client/src/"],
+    ["@shared/", "shared/"],
+  ];
+  for (const [prefix, root] of aliases) {
+    if (!specifier.startsWith(prefix)) continue;
+    const base = root + specifier.slice(prefix.length);
+    for (const suffix of SUFFIXES) {
+      if (knownPaths.has(base + suffix)) return base + suffix;
+    }
+  }
+  return null;
+}
+
 export function auditImportOwnership(root = ROOT, options = {}) {
   const actual = realpathSync(resolve(root));
   const files = [...walk(actual)];
   const fileSet = new Set(files);
   const edges = [];
+  const aliasEdges = [];
+  const unresolvedAliases = [];
   const unresolved = [];
   const dynamicSites = [];
   for (const importer of files) {
@@ -91,14 +112,19 @@ export function auditImportOwnership(root = ROOT, options = {}) {
     const parsed = extractLiteralImports(source);
     if (parsed.dynamic || parsed.glob) dynamicSites.push({ importer, dynamic: parsed.dynamic, glob: parsed.glob });
     for (const { specifier } of parsed.imports) {
-      if (!specifier.startsWith(".")) continue;
-      const target = resolveRelativeImport(importer, specifier, fileSet);
-      if (target) edges.push({ importer, target, specifier });
-      else unresolved.push({ importer, specifier });
+      if (specifier.startsWith(".")) {
+        const target = resolveRelativeImport(importer, specifier, fileSet);
+        if (target) edges.push({ importer, target, specifier });
+        else unresolved.push({ importer, specifier });
+      } else if (specifier.startsWith("@/") || specifier.startsWith("@shared/")) {
+        const target = resolveConfiguredAlias(specifier, fileSet);
+        if (target) aliasEdges.push({ importer, target, specifier });
+        else unresolvedAliases.push({ importer, specifier });
+      }
     }
   }
   const inbound = new Map();
-  for (const edge of edges) {
+  for (const edge of [...edges, ...aliasEdges]) {
     const list = inbound.get(edge.target) || [];
     list.push(edge.importer);
     inbound.set(edge.target, list);
@@ -125,9 +151,12 @@ export function auditImportOwnership(root = ROOT, options = {}) {
   return {
     sourceFiles: files.length,
     resolvedRelativeEdges: edges.length,
+    resolvedAliasEdges: aliasEdges.length,
     unresolvedRelativeEdges: unresolved.length,
+    unresolvedAliasEdges: unresolvedAliases.length,
     dynamicSites,
     unresolved,
+    unresolvedAliases,
     entrypoints,
     missingEntrypoints,
     staticReachableFiles: staticReachable.size,
