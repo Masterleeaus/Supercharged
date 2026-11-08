@@ -44,10 +44,8 @@ import { flows, insertPromptTemplateSchema, promptTemplates } from "@shared/sche
 // Table insert shape for createPromptTemplate; the drizzle-zod insert type resolves to {}.
 type PromptTemplateInsertRow = typeof promptTemplates.$inferInsert & { companyId?: string };
 import { googleSheetsRouter } from "./services/google-sheets/google-sheets.routes";
-import { platformLanguagesPublicRouter } from "./routes/platform-languages-routes";
 import { createRAGKnowledgeRoutes } from "./routes/rag-knowledge-routes";
-import crmRoutes from "./routes/crm-routes";
-import { widgetRoutes, publicWidgetRoutes } from "./modules/widget";
+import { widgetRoutes } from "./modules/widget";
 import multer from "multer";
 // Team Management Middleware - allows team members to access user data with their parent's userId
 // Uses adapter for optional plugin loading
@@ -87,6 +85,7 @@ import { registerPaymentRoutes } from "./routes/core/payment-routes";
 import { registerAdminRouterRoutes } from "./routes/core/admin-router-routes";
 import { registerUserServiceRoutes } from "./routes/core/user-service-routes";
 import { registerChatbotWiringRoutes } from "./routes/core/chatbot-wiring-routes";
+import { registerCrmPublicRoutes } from "./routes/core/crm-public-routes";
 
 const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
@@ -195,17 +194,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Routes: chatbot wiring, see server/routes/core/chatbot-wiring-routes.ts
   registerChatbotWiringRoutes(app, { routeContext });
 
-  // CRM routes - Lead Management (isolated module)
-  // Use hybrid auth to allow both users and team members
-  app.use("/api/crm", routeContext.authenticateHybrid as unknown as import('express').RequestHandler, crmRoutes);
-
-  // Public Platform Languages route - for i18n dynamic loading (no auth required)
-  // Must be registered BEFORE publicWidgetRoutes to ensure specific path matches first
-  app.use("/api/public/platform-languages", platformLanguagesPublicRouter);
-
-  // Website Widget routes - Embeddable voice widgets (isolated module)
-  // Public widget routes must be registered BEFORE authenticated routes to allow external website embedding
-  app.use("/api/public", publicWidgetRoutes);
+  // Routes: CRM, public platform languages and public widget, see server/routes/core/crm-public-routes.ts
+  registerCrmPublicRoutes(app, { routeContext });
 
   // WebSocket stream handlers — handle both direct WebSocket upgrades AND reverse proxy scenarios
   // When behind a reverse proxy (nginx) that strips Upgrade/Connection headers, Express receives
