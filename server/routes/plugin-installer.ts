@@ -419,7 +419,7 @@ router.post('/install',
       res.json({
         success: allSuccess,
         message: allSuccess
-          ? `Plugin '${manifest.displayName}' v${manifest.version} installed successfully. Server will restart automatically to activate.`
+          ? `Plugin '${manifest.displayName}' v${manifest.version} installed successfully. Server restart requested to activate. A configured process manager must start the service again.`
           : `Plugin '${manifest.displayName}' installed with some issues. Check the steps below.`,
         data: {
           name: pluginName,
@@ -485,7 +485,7 @@ router.delete('/uninstall/:name',
 
       res.json({
         success: true,
-        message: `Plugin '${manifest.displayName}' uninstalled. Server will restart automatically to apply changes. Database tables have been preserved.`,
+        message: `Plugin '${manifest.displayName}' uninstalled. Server restart requested. A configured process manager is required to bring the service back online. Database tables have been preserved.`,
         data: {
           name,
           displayName: manifest.displayName,
