@@ -155,3 +155,15 @@ No merge, deletion, tenant data migration, privilege change, template schema cha
 - No third-party notices, historical cache keys, datastore records, donor code or deployment artifacts were modified.
 
 **Not yet production-ready:** runtime tenant isolation, entitlement and installation verification, legal ownership review, migration baseline repair and source consolidation still pending.
+
+## Pass 10 — user-facing root identity, canonical duplicate verification
+
+- Verified Pass 9's completed GitHub Actions: production build passed, 5,960 tests passed / 3 failed / 13 skipped, and all 22 branding tests passed. The same workforce tool composition, explicit schema and timeout tests remain failing; migration inventory and informational typecheck are red.
+- Corrected the live administrator branding editor's `placeholder="AgentLabs"` to `Supercharged`. The form still persists customer-chosen app names.
+- Changed product-oriented headings, marketing overview and selected prose in root `README.md` and `INSTALLATION.md` to Supercharged. Flagged inherited capabilities and release examples as **unverified**, preserving compatibility-sensitive PM2 names, archive paths and DB names; no license notices removed.
+- Added `tests/branding/supercharged-product-docs.test.mjs` with three regression checks for the admin form, new product identity, inherited capability caveats and historical deployment examples.
+- Performed exact Git blob SHA comparison on the complete 3,003-entry / 2,612-file main-tree snapshot: **2,536 unique blobs, 64 duplicate SHA groups (140 file path slots), including 25 active/donor groups, 35 active/dist groups and four other groups**.
+- Saved the complete 64-group paths/hash-prefix inventory to `docs/SUPERCHARGED_BLOB_DUPLICATION_AUDIT.md`, including exact revenue journey and field-link runtime authority donor twins. Directory-based `active` classification is *not* evidence a path is loaded. No destructive deduplication: determine imports, ownership, licenses and unique divergent features first.
+- The three new document/branding regression tests are pending GitHub Actions on this pass. The audit does not establish production readiness or installable PWA capabilities.
+
+**Remaining:** import/loader analysis, separate semantic comparison of divergent copies, licensing approval, remaining UI/help/demos and production execution validation, CI baseline repair. PR draft; issue #54 open.
