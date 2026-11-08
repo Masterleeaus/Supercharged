@@ -639,6 +639,8 @@ export function createPublicRoutes(ctx: RouteContext): Router {
       for (const key of brandingKeys) {
         const setting = await storage.getGlobalSetting(key);
         if (setting) {
+          // A blank stored name must not override the product identity.
+          if (key === 'app_name' && (typeof setting.value !== 'string' || !setting.value.trim())) continue;
           branding[key] = setting.value;
         }
       }
