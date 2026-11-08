@@ -37,7 +37,7 @@ function setupDefaultWiring() {
 async function queuedJob(ctx) {
   const s = ctx.service;
   const audience = await s.defineAudience(CO_A, { name: 'VIP', channel: 'email', tagsAll: ['vip'] });
-  await s.addContact(CO_A, { channel: 'email', address: 'ana@example.com', tags: ['vip'] });
+  await s.addContact(CO_A, { channel: 'email', address: 'ana@example.com', tags: ['vip'], timezone: 'UTC' });
   await s.recordOptIn(CO_A, { channel: 'email', address: 'ana@example.com', source: 'web form' });
   const campaign = await s.createCampaign(CO_A, { name: 'Spring offer', channel: 'email', audienceId: audience.id });
   const step = await s.addStep(CO_A, campaign.id, { subject: 'Hello', body: 'Spring offer inside.' });
