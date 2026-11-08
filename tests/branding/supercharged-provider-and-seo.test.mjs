@@ -7,7 +7,7 @@ const provider = readFileSync(new URL("../../client/src/components/BrandingProvi
 const landing = readFileSync(new URL("../../client/src/pages/LandingPage.tsx", import.meta.url), "utf8");
 const seoSeeds = readFileSync(new URL("../../server/seed-seo-settings.ts", import.meta.url), "utf8");
 
-const signatureSource = provider.match(/function getBrandingSignature\(data: BrandingData\): string \{[\s\S]*?\n\}/)?.[0];
+const signatureSource = provider.match(/function getBrandingSignature\(data: BrandingData\): string \{[\s\S]*?\r?\n\}/)?.[0];
 assert.ok(signatureSource, "branding signature implementation must exist");
 const getSignature = vm.runInNewContext(
   `(${signatureSource.replace("(data: BrandingData): string", "(data)")})`,
