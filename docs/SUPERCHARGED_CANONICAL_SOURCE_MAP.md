@@ -109,3 +109,14 @@ Inventory remaining localized strings, application-controlled default `app_name`
 - CI on the previous pass reported 5,944 passed / 3 failed (13 skipped) and a successful production build; the six browser-branding regression tests passed. Failures are in workforce registration/schema/timeout tests, with separate migration and informational typecheck failures. The Pass 5 tests are newly committed and still require CI execution.
 
 **Still open:** remaining locale files, actual rendered email flows, notifications, full install/PWA provenance and donor comparison. Tests and build must be verified for the current PR head before merging.
+
+## Pass 6 — notification defaults, all locales and CI verification
+
+- Inspected the active `NotificationService` and the UI notification components (bell, banners, administrator broadcast), plus the chatbot events notification adapter. None of their inspected text contains a former first-party product label outside retained Diploy copyright notices.
+- The actual notification service's `DEFAULT_APP_NAME` was still an empty string. It now falls back to `Supercharged`, treating blank or whitespace-only stored names as unset. Nonblank configured names take precedence.
+- Parsed each of the **12 locale JSON files** (English plus Arabic, German, Spanish, French, Hindi, Italian, Japanese, Polish, Portuguese, Russian and Swedish) successfully. A case-insensitive literal search found no `AgentLabs`, `Agent Labs` or `Diploy` names in those translation files. This does **not** mean that every translated marketing claim has been updated.
+- Inspected `client/public/chatbot-pwa/NOTICE.md` and two Titan Train app manifests: the PWA assets are sourced from a Clean-Hub donor, with explicit provenance restrictions. Do not rewrite/remove this NOTICE or declare this a Supercharged installable PWA without verifying the real deployment/manifest pipeline.
+- Added `tests/branding/supercharged-notifications-and-locales.test.mjs` to enforce the notification default and English/11 other locale JSON identity checks.
+- **Verified GitHub Actions on pass-5 head**: production build succeeded; 5,947 tests passed, three failed (13 skipped); the six bootstrap and three email branding tests passed. The same three workforce suite failures remained, plus failing migration inventory and informational typecheck. Pass-6 tests still require a completed CI check.
+
+No merge, deletion, tenant data migration, privilege change, template schema change or third-party attribution removal was performed.
