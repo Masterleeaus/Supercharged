@@ -344,7 +344,7 @@ test('audit has no update or delete surface, and no statement changes an audit r
 });
 
 test('draft migration: DRAFT header, IF NOT EXISTS everywhere, company_id NOT NULL, no foreign keys', () => {
-  const sql = readFileSync(new URL('../../migrations/DRAFT_workforce_runs.sql', import.meta.url), 'utf8');
+  const sql = readFileSync(new URL('../../migrations/archive/DRAFT_workforce_runs.sql', import.meta.url), 'utf8');
   const header = sql.split('\n').slice(0, 3).join('\n');
   assert.match(header, /DRAFT/);
   assert.match(header, /NOT APPLIED/);

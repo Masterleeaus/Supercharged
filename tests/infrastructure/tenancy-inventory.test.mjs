@@ -14,10 +14,10 @@ const read = (rel) => readFileSync(root + rel, 'utf8');
 
 const schema = read('shared/schema.ts');
 const inventory = read('docs/TENANCY-INVENTORY.md');
-const draft = read('migrations/DRAFT_company_scope.sql');
+const draft = read('migrations/archive/DRAFT_company_scope.sql');
 const runner = read('scripts/run-safe-migration.mjs');
 
-const extension = read('migrations/DRAFT_company_scope_extension.sql');
+const extension = read('migrations/archive/DRAFT_company_scope_extension.sql');
 
 const schemaTables = [...schema.matchAll(/pgTable\("(\w+)"/g)].map((m) => m[1]);
 
@@ -35,7 +35,7 @@ const tenantTables = rows.filter((r) => r.cls === 'tenant').map((r) => r.table);
 // backfill and no STEP A/B/C/D work in the company-scope draft. Every other tenant table stays
 // in the expected set below.
 const CHATBOT_TABLES = ['chatbots', 'chatbot_conversations', 'chatbot_messages'];
-const chatbotDraft = read('migrations/DRAFT_chatbot.sql');
+const chatbotDraft = read('migrations/archive/DRAFT_chatbot.sql');
 
 // A tenant table counts as covered if EITHER draft protects it (decision from Jason).
 // DRAFT_company_scope_extension.sql protects the eight tables from DRAFT_chatbot.sql and the
@@ -166,9 +166,9 @@ test('DRAFT_chatbot.sql creates all three chatbot tables with company_id NOT NUL
 });
 
 test('every extension table already carries company_id NOT NULL in its own draft', () => {
-  const ownDrafts = [chatbotDraft, ...readdirSync(root + 'migrations')
+  const ownDrafts = [chatbotDraft, ...readdirSync(root + 'migrations/archive')
     .filter((f) => /^DRAFT_workforce_.*\.sql$/.test(f))
-    .map((f) => read('migrations/' + f))].join('\n');
+    .map((f) => read('migrations/archive/' + f))].join('\n');
   for (const t of extensionTables) {
     const block = [...ownDrafts.matchAll(/CREATE TABLE IF NOT EXISTS (\w+) \(([\s\S]*?)\n\);/g)].find((m) => m[1] === t);
     assert.ok(block, `no own draft creates ${t}`);
