@@ -95,3 +95,17 @@ The groups sum to **2,612**. Counts are tracked files, not lines of code or prov
 
 ### Pending to finish #54
 Inventory remaining localized strings, application-controlled default `app_name` records, public notifications/emails, service-worker/PWA release packaging and actual deploy configuration. Complete donor dependency graph and rights review before removing generated/donor code. Run Node tests, typecheck and build; no production readiness claim.
+
+## Pass 5 — email, notification, locale and public PWA follow-up
+
+- Audited `server/services/email-service.ts`, `server/services/notification-service.ts`, `server/seed-email-templates.ts`, `plugins/messaging/services/email-template.service.ts`, English localization, active login and landing navigation, and the chatbot PWA folder.
+- The email service previously defaulted `appName` to an empty string. Its product fallback is now `Supercharged`; a configured `app_name` and configured SMTP sender name still take precedence. The default tagline was changed to `Business communications and operations`.
+- Seeded welcome emails (HTML and plaintext) now describe customer communication capabilities without referring to the old bulk-calling-only product identity. The HTML header uses the neutral descriptor while preserving the `{{companyName}}` placeholder, its subject, and all template variables.
+- Initial global settings seeds use the same neutral descriptor in `company_tagline`. Existing stored settings are not force-updated.
+- Notification service and English locale had no literal legacy AgentLabs brand name in the inspected source. Other languages and generated assets have not yet been individually reviewed.
+- The `plugins/messaging/services/email-template.service.ts` comment explicitly labels the optional AgentLabs compatibility shim. No rename was made: the shim is a compatibility boundary, not a consumer-facing title.
+- `LoginPage.tsx` still contains the inherited `demo@diploy.in` credentials in its optional demo mode. Those are identity-sensitive and were deliberately left unchanged pending a test-auth review.
+- Added `tests/branding/supercharged-email-defaults.test.mjs` with three regression checks for fallback identity, seeded tagline consistency, configured sender precedence and the tenant-name placeholder.
+- CI on the previous pass reported 5,944 passed / 3 failed (13 skipped) and a successful production build; the six browser-branding regression tests passed. Failures are in workforce registration/schema/timeout tests, with separate migration and informational typecheck failures. The Pass 5 tests are newly committed and still require CI execution.
+
+**Still open:** remaining locale files, actual rendered email flows, notifications, full install/PWA provenance and donor comparison. Tests and build must be verified for the current PR head before merging.
