@@ -2,7 +2,7 @@
 import { Router, Response } from "express";
 import { db } from "../../db";
 import { type AuthRequest } from "../../middleware/auth";
-import { flows } from "@shared/schema";
+import { flows, type FlowEdge, type FlowNode } from "@shared/schema";
 import { eq, and, or, sql, isNull } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { flowTemplates } from "../../services/flow-templates";
@@ -64,7 +64,10 @@ export function registerFlowTemplateRoutes(router: Router): void {
 
       const newFlowId = nanoid();
       const now = new Date();
-      // TODO: Drizzle type inference - template nodes/edges are typed but Drizzle insert expects exact match
+      // TODO: Drizzle type inference - the cast is kept only on nodes and edges. The template data in
+      // services/flow-templates.ts does not match FlowNode/FlowEdge: nodes put `type` at the top level
+      // (FlowNode has it under data) and some config keys (e.g. endMessage, description) are not in
+      // NodeConfig. Fixing that means changing the template data, so the cast stays.
       const [newFlow] = await db
         .insert(flows)
         .values({
@@ -73,13 +76,13 @@ export function registerFlowTemplateRoutes(router: Router): void {
           companyId,
           name: name || template.name,
           description: template.description || null,
-          nodes: template.nodes,
-          edges: template.edges,
+          nodes: template.nodes as FlowNode[],
+          edges: template.edges as FlowEdge[],
           isActive: false,
           isTemplate: false,
           createdAt: now,
           updatedAt: now,
-        } as typeof flows.$inferInsert)
+        })
         .returning();
 
       res.json(newFlow);

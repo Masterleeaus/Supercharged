@@ -51,15 +51,18 @@ export function registerWebhookRoutes(router: Router): void {
       }
 
       const webhookId = nanoid();
-      // TODO: Drizzle type inference - Zod validated data doesn't perfectly match insert type
+      // TODO: Drizzle type inference - the cast is kept only on campaignIds. drizzle-zod 0.7 types the
+      // jsonb column as `string[] | Json`, so Zod output accepts any JSON value, while the column is
+      // `string[] | null`. Tightening the Zod schema would change validation, so the cast stays.
       const [newWebhook] = await db
         .insert(webhooks)
         .values({
           id: webhookId,
           userId,
           ...validatedData,
+          campaignIds: validatedData.campaignIds as string[] | null | undefined,
           companyId,
-        } as typeof webhooks.$inferInsert)
+        })
         .returning();
 
       res.json(newWebhook);

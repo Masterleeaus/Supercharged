@@ -97,8 +97,6 @@ export function registerFlowRoutes(router: Router): void {
       const validatedData = createFlowSchema.parse(req.body);
 
       const flowId = nanoid();
-      // TODO: Drizzle type inference - validatedData from Zod schema doesn't perfectly match
-      // the insert type due to optional fields and defaults. Using explicit type assertion.
       const [newFlow] = await db
         .insert(flows)
         .values({
@@ -106,7 +104,7 @@ export function registerFlowRoutes(router: Router): void {
           userId,
           ...validatedData,
           companyId,
-        } as typeof flows.$inferInsert)
+        })
         .returning();
 
       // Enforce 1-to-1 mapping on flow creation
