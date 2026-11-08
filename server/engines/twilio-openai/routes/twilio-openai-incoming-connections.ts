@@ -5,6 +5,7 @@ import { eq, and, isNull, inArray } from "drizzle-orm";
 import { authenticateToken, type AuthRequest } from "../../../middleware/auth";
 import { getCompanyScope, CompanyScopeError } from "../../../middleware/company-scope";
 import { getDomain } from "../../../utils/domain";
+import { logger } from '../../../utils/logger';
 
 const router = Router();
 
@@ -257,7 +258,7 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const { twilioService } = await import("../../../services/twilio");
       await twilioService.updatePhoneNumber(phoneNumber[0].twilioSid!, { voiceUrl: webhookUrl });
-      console.log(`[Twilio-OpenAI] Updated webhook for ${phoneNumber[0].phoneNumber} to ${webhookUrl}`);
+      logger.info(`[Twilio-OpenAI] Updated webhook to ${webhookUrl}`);
     } catch (webhookError: any) {
       console.error("[Twilio-OpenAI] Failed to update webhook:", webhookError);
     }
@@ -309,7 +310,7 @@ router.post("/:id/resync-webhook", authenticateToken, async (req: AuthRequest, r
     try {
       const { twilioService } = await import("../../../services/twilio");
       await twilioService.updatePhoneNumber(connection[0].twilioSid!, { voiceUrl: webhookUrl });
-      console.log(`[Twilio-OpenAI] Resynced webhook for ${connection[0].phoneNumber} to ${webhookUrl}`);
+      logger.info(`[Twilio-OpenAI] Resynced webhook to ${webhookUrl}`);
       res.json({ message: "Webhook URL updated successfully", webhookUrl });
     } catch (webhookError: any) {
       console.error("[Twilio-OpenAI] Failed to resync webhook:", webhookError);

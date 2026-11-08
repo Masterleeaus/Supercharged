@@ -18,6 +18,7 @@ export {
 } from '../../../../services/paypal-service';
 
 import { getPayPalClient } from '../../../../services/paypal-service';
+import { logger } from '../../../../utils/logger';
 
 async function getSetting(key: string): Promise<any> {
   const setting = await storage.getGlobalSetting(key);
@@ -143,7 +144,7 @@ export async function lockPayPalCurrency(): Promise<{ success: boolean; error?: 
   
   await storage.updateGlobalSetting('paypal_currency_locked', true);
   
-  console.log(`🔒 [PayPal] Currency locked to ${currentConfig.currency}`);
+  logger.info(`🔒 [PayPal] Currency locked to ${currentConfig.currency}`);
   return { success: true };
 }
 
@@ -207,7 +208,7 @@ export async function createPayPalOrder(options: PayPalOrderOptions): Promise<an
     },
   });
   
-  console.log(`✅ [PayPal] Created order ${response.data.id}`);
+  logger.info(`✅ [PayPal] Created order ${response.data.id}`);
   return response.data;
 }
 
@@ -218,7 +219,7 @@ export async function capturePayPalOrder(orderId: string): Promise<any> {
   }
   
   const response = await client.post(`/v2/checkout/orders/${orderId}/capture`, {});
-  console.log(`✅ [PayPal] Captured order ${orderId}`);
+  logger.info(`✅ [PayPal] Captured order ${orderId}`);
   return response.data;
 }
 
@@ -258,7 +259,7 @@ export async function createPayPalSubscription(options: PayPalSubscriptionOption
     application_context: options.applicationContext,
   });
   
-  console.log(`✅ [PayPal] Created subscription ${response.data.id}`);
+  logger.info(`✅ [PayPal] Created subscription ${response.data.id}`);
   return response.data;
 }
 
@@ -282,7 +283,7 @@ export async function cancelPayPalSubscription(subscriptionId: string, reason?: 
     reason: reason || 'Subscription cancelled by user',
   });
   
-  console.log(`✅ [PayPal] Cancelled subscription ${subscriptionId}`);
+  logger.info(`✅ [PayPal] Cancelled subscription ${subscriptionId}`);
 }
 
 export async function verifyPayPalWebhookSignature(
@@ -324,7 +325,7 @@ export async function verifyPayPalWebhookSignature(
 
     const verified = verificationResponse.data?.verification_status === 'SUCCESS';
     if (verified) {
-      console.log('✅ [PayPal] Webhook signature verified');
+      logger.info('✅ [PayPal] Webhook signature verified');
     } else {
       console.warn('⚠️ [PayPal] Webhook signature verification failed');
     }

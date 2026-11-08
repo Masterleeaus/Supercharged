@@ -90,8 +90,7 @@ export function setupPlivoWebhooks(app: Express, baseUrl: string, smsDeps?: SmsR
   async function handleIncomingCall(req: Request, res: Response) {
     try {
       // Log raw request for debugging
-      console.log('📞 [Plivo Incoming] Raw request received:', {
-        body: req.body,
+      logger.info('📞 [Plivo Incoming] Raw request received:', {
         headers: {
           'content-type': req.headers['content-type'],
           'user-agent': req.headers['user-agent'],

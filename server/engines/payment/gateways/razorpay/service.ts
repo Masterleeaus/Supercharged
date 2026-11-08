@@ -18,6 +18,7 @@ export {
 } from '../../../../services/razorpay-service';
 
 import { getRazorpayClient } from '../../../../services/razorpay-service';
+import { logger } from '../../../../utils/logger';
 
 async function getSetting(key: string): Promise<any> {
   const setting = await storage.getGlobalSetting(key);
@@ -158,7 +159,7 @@ export async function createRazorpayPlan(options: RazorpayPlanOptions): Promise<
     notes: options.notes || {},
   });
   
-  console.log(`✅ [Razorpay] Created plan ${plan.id} for ${options.name}`);
+  logger.info(`✅ [Razorpay] Created plan ${plan.id} for ${options.name}`);
   return plan;
 }
 
@@ -203,7 +204,7 @@ export async function createRazorpaySubscription(options: RazorpaySubscriptionOp
   }
   
   const subscription = await razorpay.subscriptions.create(subscriptionOptions);
-  console.log(`✅ [Razorpay] Created subscription ${subscription.id}`);
+  logger.info(`✅ [Razorpay] Created subscription ${subscription.id}`);
   return subscription;
 }
 
@@ -226,7 +227,7 @@ export async function cancelRazorpaySubscription(
   }
   
   const subscription = await razorpay.subscriptions.cancel(subscriptionId, cancelAtCycleEnd);
-  console.log(`✅ [Razorpay] Cancelled subscription ${subscriptionId}`);
+  logger.info(`✅ [Razorpay] Cancelled subscription ${subscriptionId}`);
   return subscription;
 }
 
@@ -252,7 +253,7 @@ export async function createRazorpayOrder(options: RazorpayOrderOptions): Promis
     notes: options.notes || {},
   });
   
-  console.log(`✅ [Razorpay] Created order ${order.id}`);
+  logger.info(`✅ [Razorpay] Created order ${order.id}`);
   return order;
 }
 
@@ -306,7 +307,7 @@ export async function verifyPaymentSignature(params: {
   const isValid = expectedSignature === params.razorpay_signature;
   
   if (isValid) {
-    console.log(`✅ [Razorpay] Payment signature verified for payment ${params.razorpay_payment_id}`);
+    logger.info(`✅ [Razorpay] Payment signature verified for payment ${params.razorpay_payment_id}`);
   } else {
     console.error(`❌ [Razorpay] Payment signature verification failed for payment ${params.razorpay_payment_id}`);
   }
@@ -331,7 +332,7 @@ export async function verifyWebhookSignature(
   
   const isValid = expectedSignature === signature;
   if (isValid) {
-    console.log('✅ [Razorpay] Webhook signature verified');
+    logger.info('✅ [Razorpay] Webhook signature verified');
   } else {
     console.warn('⚠️ [Razorpay] Webhook signature verification failed');
   }
