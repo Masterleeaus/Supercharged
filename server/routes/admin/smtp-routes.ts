@@ -3,7 +3,7 @@ import { Router, Response } from 'express';
 import { storage } from '../../storage';
 import { AdminRequest, requireAdminPermission } from '../../middleware/admin-auth';
 import nodemailer from 'nodemailer';
-import { emailService } from '../../services/email-service';
+import { emailService, smtpTlsOptions } from '../../services/email-service';
 
 export function registerSmtpRoutes(router: Router) {
   router.get('/smtp', requireAdminPermission('communications', 'email_settings', 'read'), async (req: AdminRequest, res: Response) => {
@@ -83,9 +83,7 @@ export function registerSmtpRoutes(router: Router) {
         secure: portNum === 465 || smtpSecure?.value === true || smtpSecure?.value === 'true',
         requireTLS: portNum === 587,
         auth: { user: smtpUsername.value as string, pass: smtpPassword.value as string },
-        tls: {
-          rejectUnauthorized: false,
-        },
+        tls: smtpTlsOptions(),
         connectionTimeout: 15000,
         greetingTimeout: 15000,
         socketTimeout: 15000,

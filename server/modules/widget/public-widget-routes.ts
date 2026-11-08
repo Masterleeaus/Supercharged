@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from "express";
 import { widgetService } from "./widget-service";
 import { widgetStorage } from "./widget-storage";
 import { nanoid } from "nanoid";
+import { randomBytes } from "crypto";
 import { db } from "../../db";
 import { creditTransactions, users, calls, agents, appointments, appointmentSettings, elevenLabsCredentials, openaiCredentials } from "@shared/schema";
 import { eq, sql, and } from "drizzle-orm";
@@ -1360,7 +1361,7 @@ router.post('/widget/session/:sessionId/book-appointment', async (req: Request, 
       return res.status(403).json({ success: false, message: 'Forbidden' });
     }
 
-    const appointmentId = `appt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const appointmentId = `appt_${Date.now()}_${randomBytes(6).toString('hex')}`;
 
     const [appointment] = await db.insert(appointments).values({
       id: appointmentId,

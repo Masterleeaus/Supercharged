@@ -9,6 +9,7 @@
  * ============================================================
  */
 
+import { randomBytes } from 'crypto';
 import { ElevenLabsBridgeService, CreateBridgeSessionParams } from './elevenlabs-bridge.service';
 import { getSipWebhookUrl } from '../config/config';
 import { db } from '../../../db';
@@ -65,7 +66,7 @@ export class PlivoElevenLabsOutboundService {
       plivoAuthToken,
     } = params;
     
-    const callUuid = `plivo-el-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    const callUuid = `plivo-el-${Date.now()}-${randomBytes(6).toString('hex')}`;
     
     console.log(`[Plivo-ElevenLabs Outbound] Initiating call ${callUuid} to ${toNumber}`);
     

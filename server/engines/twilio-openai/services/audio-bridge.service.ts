@@ -19,6 +19,7 @@ import { promisify } from 'util';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import { randomBytes } from 'crypto';
 import type {
   AgentConfig,
   AgentTool,
@@ -1704,7 +1705,7 @@ BACKGROUND NOISE HANDLING:
    * Supports MP3, WAV, and other common audio formats
    */
   private static async convertAudioToMulaw(audioBuffer: Buffer, inputFormat: string): Promise<Buffer | null> {
-    const tempId = `audio_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    const tempId = `audio_${Date.now()}_${randomBytes(6).toString('hex')}`;
     const tempDir = os.tmpdir();
     const inputPath = path.join(tempDir, `${tempId}.${inputFormat}`);
     const outputPath = path.join(tempDir, `${tempId}_mulaw.raw`);
