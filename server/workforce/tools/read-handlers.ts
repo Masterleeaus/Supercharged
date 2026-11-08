@@ -14,6 +14,8 @@ import { z } from 'zod';
 import { requireCompanyId } from '../../services/ai-runtime/company.ts';
 import type { CompanyId } from '../../services/ai-runtime/types.ts';
 import type { ToolDefinition, ToolSchema } from '../runtime/tool-registry.ts';
+import type { SqlExecutor } from '../runtime/pg-store.ts';
+import { createGroup00ToolDefinitions } from './handlers/group-00.ts';
 
 export const MAX_READ_ROWS = 50;
 
@@ -288,15 +290,21 @@ export function createReadToolSpecs(store: ReadStore): ReadToolSpec[] {
   return [bookingsList, bookingsGet, invoicesList, invoicesGet, paymentsList];
 }
 
-/** Registry definitions for every bound read tool. Each runs with access 'read' and risk 'low'. */
-export function createReadToolDefinitions(store: ReadStore): ToolDefinition[] {
-  return createReadToolSpecs(store).map((spec) => ({
-    id: spec.id,
-    risk: 'low',
-    access: 'read',
-    schema: spec.schema,
-    handler: (params, context) => spec.run(context.companyId, params),
-  }));
+/**
+ * Registry definitions for every bound read tool, plus the handler group 00 (reads and writes on the workforce
+ * tables). Each read spec runs with access 'read' and risk 'low'. group00Db is the read executor for group 00.
+ */
+export function createReadToolDefinitions(store: ReadStore, group00Db?: SqlExecutor): ToolDefinition[] {
+  return [
+    ...createReadToolSpecs(store).map((spec) => ({
+      id: spec.id,
+      risk: 'low' as const,
+      access: 'read' as const,
+      schema: spec.schema,
+      handler: (params: Record<string, unknown>, context: { companyId: CompanyId }) => spec.run(context.companyId, params),
+    })),
+    ...createGroup00ToolDefinitions(group00Db),
+  ];
 }
 
 /** Minimal shape of the registry that registerReadTools needs. */
@@ -304,7 +312,7 @@ export interface ReadToolRegistry {
   register(definition: ToolDefinition): void;
 }
 
-/** Registers every bound read tool. The store is the only data access, and it is passed in by the composition root. */
-export function registerReadTools(registry: ReadToolRegistry, store: ReadStore): void {
-  for (const definition of createReadToolDefinitions(store)) registry.register(definition);
+/** Registers every bound read tool and group 00. The store and group00Db are passed in by the composition root. */
+export function registerReadTools(registry: ReadToolRegistry, store: ReadStore, group00Db?: SqlExecutor): void {
+  for (const definition of createReadToolDefinitions(store, group00Db)) registry.register(definition);
 }
