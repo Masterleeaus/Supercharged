@@ -254,7 +254,7 @@ export default function Login() {
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-md bg-foreground text-background">
-              <span className="text-xl font-bold">AL</span>
+              <span className="text-xl font-bold" aria-label="Supercharged">S</span>
             </div>
           </div>
           <CardTitle className="text-2xl">{t('auth.platform')}</CardTitle>
