@@ -42,8 +42,6 @@ import { flows, insertPromptTemplateSchema, promptTemplates } from "@shared/sche
 
 // Table insert shape for createPromptTemplate; the drizzle-zod insert type resolves to {}.
 type PromptTemplateInsertRow = typeof promptTemplates.$inferInsert & { companyId?: string };
-import { googleSheetsRouter } from "./services/google-sheets/google-sheets.routes";
-import { createRAGKnowledgeRoutes } from "./routes/rag-knowledge-routes";
 import multer from "multer";
 // Team Management Middleware - allows team members to access user data with their parent's userId
 // Uses adapter for optional plugin loading
@@ -85,6 +83,7 @@ import { registerUserServiceRoutes } from "./routes/core/user-service-routes";
 import { registerChatbotWiringRoutes } from "./routes/core/chatbot-wiring-routes";
 import { registerCrmPublicRoutes } from "./routes/core/crm-public-routes";
 import { registerStreamWidgetRoutes } from "./routes/core/stream-widget-routes";
+import { registerIntegrationRoutes } from "./routes/core/integration-routes";
 
 const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
@@ -199,18 +198,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Routes: stream upgrade fallbacks and authenticated widget, see server/routes/core/stream-widget-routes.ts
   registerStreamWidgetRoutes(app, { httpServer, routeContext });
 
-  // RAG Knowledge Base routes (scalable alternative to ElevenLabs 20MB KB)
-  // Mounted unconditionally: no env check here. USE_RAG_KNOWLEDGE is read only by isRAGEnabled()
-  // (services/rag-elevenlabs-tool.ts), which defaults to on and is off only when set to false, 0 or no.
-  const ragKnowledgeRoutes = createRAGKnowledgeRoutes(routeContext.authenticateHybrid, { requireCompanyScope: requireCompanyScope() });
-  app.use("/api/rag-knowledge", ragKnowledgeRoutes);
-
-  // Google Sheets authenticated endpoints (auth, status, disconnect, sheets list)
-  app.use("/api/integrations/google", authenticateToken as unknown as import('express').RequestHandler, googleSheetsRouter);
-
-  // Google Calendar authenticated endpoints (auth, exchange, status, disconnect)
-  const { googleCalendarRouter } = await import("./services/google-calendar/google-calendar.routes");
-  app.use("/api/google-calendar", authenticateToken as unknown as import('express').RequestHandler, googleCalendarRouter);
+  // Routes: RAG knowledge, Google Sheets and Google Calendar, see server/routes/core/integration-routes.ts
+  await registerIntegrationRoutes(app, { routeContext });
 
   // This must be registered on the httpServer to properly handle Twilio WebSocket streams
   httpServer.on('upgrade', (request, socket, head) => {
