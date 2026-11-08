@@ -9,6 +9,7 @@ import crypto from 'crypto';
 import { storage } from '../../../../storage';
 import { PaymentError } from '../../../../utils/errors';
 import { GLOBAL_SETTINGS_KEYS, getCurrencySymbol } from '../../types';
+import { logger } from '../../../../utils/logger';
 
 let paystackInstance: Paystack | null = null;
 
@@ -158,7 +159,7 @@ export async function createPaystackPlan(options: PaystackPlanOptions): Promise<
   });
   
   if (plan.status && plan.data) {
-    console.log(`✅ [Paystack] Created plan ${plan.data.plan_code} for ${options.name}`);
+    logger.info(`✅ [Paystack] Created plan ${plan.data.plan_code} for ${options.name}`);
     return plan.data;
   }
   
@@ -200,7 +201,7 @@ export async function createPaystackSubscription(options: PaystackSubscriptionOp
   } as any);
   
   if (subscription.status && subscription.data) {
-    console.log(`✅ [Paystack] Created subscription ${subscription.data.subscription_code}`);
+    logger.info(`✅ [Paystack] Created subscription ${subscription.data.subscription_code}`);
     return subscription.data;
   }
   
@@ -236,7 +237,7 @@ export async function enablePaystackSubscription(
   });
   
   if (response.status) {
-    console.log(`✅ [Paystack] Enabled subscription ${subscriptionCode}`);
+    logger.info(`✅ [Paystack] Enabled subscription ${subscriptionCode}`);
     return response.data;
   }
   
@@ -258,7 +259,7 @@ export async function disablePaystackSubscription(
   });
   
   if (response.status) {
-    console.log(`✅ [Paystack] Disabled subscription ${subscriptionCode}`);
+    logger.info(`✅ [Paystack] Disabled subscription ${subscriptionCode}`);
     return response.data;
   }
   
@@ -299,7 +300,7 @@ export async function initializePaystackTransaction(options: PaystackTransaction
   } as any);
   
   if (transaction.status && transaction.data) {
-    console.log(`✅ [Paystack] Initialized transaction ${transaction.data.reference}`);
+    logger.info(`✅ [Paystack] Initialized transaction ${transaction.data.reference}`);
     return transaction.data;
   }
   
@@ -353,7 +354,7 @@ export async function verifyWebhookSignature(
   
   const isValid = hash === signature;
   if (isValid) {
-    console.log('✅ [Paystack] Webhook signature verified');
+    logger.info('✅ [Paystack] Webhook signature verified');
   } else {
     console.warn('⚠️ [Paystack] Webhook signature verification failed');
   }
@@ -380,7 +381,7 @@ export async function createPaystackCustomer(
   });
   
   if (customer.status && customer.data) {
-    console.log(`✅ [Paystack] Created customer ${customer.data.customer_code}`);
+    logger.info(`✅ [Paystack] Created customer ${customer.data.customer_code}`);
     return customer.data;
   }
   

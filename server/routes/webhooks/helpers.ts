@@ -7,6 +7,7 @@ import { webhookDeliveryService } from '../../services/webhook-delivery';
 import crypto from 'crypto';
 import WebSocket from 'ws';
 import { CreditDeductionResult } from '../../services/credit-service';
+import { logger } from '../../utils/logger';
 
 export const MAX_WEBHOOK_ATTEMPTS = 3;
 
@@ -113,7 +114,7 @@ export async function formatAndSaveTranscript(
   conversationHistory: Array<{ role: 'user' | 'agent', text: string, timestamp: Date }>
 ): Promise<void> {
   if (!callId || conversationHistory.length === 0) {
-    console.log(`[Transcript] Skipping save - callId: ${!!callId}, history length: ${conversationHistory.length}`);
+    logger.warn(`[Transcript] Skipping save - callId: ${!!callId}, history length: ${conversationHistory.length}`);
     return;
   }
 
@@ -133,19 +134,19 @@ export async function formatAndSaveTranscript(
     const isExistingMeaningful = totalTurns >= 2 && userTurnCount >= 1 && agentTurnCount >= 1;
     
     if (isExistingMeaningful) {
-      console.log(`[Transcript] Skipping save - call ${callId} already has meaningful synced transcript (${totalTurns} turns, ${existingTranscript.length} chars)`);
+      logger.warn(`[Transcript] Skipping save - call ${callId} already has meaningful synced transcript (${totalTurns} turns, ${existingTranscript.length} chars)`);
       return;
     }
     
     if (existingTranscript && !isExistingMeaningful) {
-      console.log(`[Transcript] Overwriting non-meaningful transcript (${existingTranscript.length} chars, ${userTurnCount} user turns, ${agentTurnCount} agent turns)`);
+      logger.info(`[Transcript] Overwriting non-meaningful transcript (${existingTranscript.length} chars, ${userTurnCount} user turns, ${agentTurnCount} agent turns)`);
     }
     
     const formattedTranscript = conversationHistory
       .map(msg => `[${msg.role.toUpperCase()}]: ${msg.text}`)
       .join('\n');
     
-    console.log(`💾 [Saving Transcript] Call ${callId} - ${conversationHistory.length} messages`);
+    logger.info(`💾 [Saving Transcript] Call ${callId} - ${conversationHistory.length} messages`);
     
     const updates: Record<string, any> = {
       transcript: formattedTranscript,
@@ -166,7 +167,7 @@ export async function formatAndSaveTranscript(
       .set(updates)
       .where(eq(calls.id, callId));
     
-    console.log(`✅ [Transcript Saved] Call ${callId}`);
+    logger.info(`✅ [Transcript Saved] Call ${callId}`);
   } catch (error) {
     console.error(`❌ [Transcript Save Error] Call ${callId}:`, error);
   }
@@ -268,7 +269,7 @@ export async function scheduleContactRetry(
     // was already the last allowed attempt — do not schedule another retry.
     const maxAttempts = campaign.retryMaxAttempts ?? 3;
     if (currentCount >= maxAttempts) {
-      console.log(`📊 [Retry] Contact ${contactId} has reached max attempts (${currentCount}/${maxAttempts})`);
+      logger.warn(`📊 [Retry] Contact ${contactId} has reached max attempts (${currentCount}/${maxAttempts})`);
       return;
     }
 
@@ -281,7 +282,7 @@ export async function scheduleContactRetry(
       .set({ nextRetryAt })
       .where(eq(contacts.id, contactId));
 
-    console.log(`🔄 [Retry] Contact ${contactId} scheduled for retry at ${nextRetryAt.toISOString()} (attempt ${currentCount} of ${maxAttempts})`);
+    logger.info(`🔄 [Retry] Contact ${contactId} scheduled for retry at ${nextRetryAt.toISOString()} (attempt ${currentCount} of ${maxAttempts})`);
   } catch (err: any) {
     console.error(`⚠️ [Retry] scheduleContactRetry failed for contact ${contactId}: ${err.message}`);
   }
@@ -289,7 +290,7 @@ export async function scheduleContactRetry(
 
 export async function updateCampaignStats(callId: string, callStatus: string): Promise<void> {
   try {
-    console.log(`📊 [Campaign Stats] Updating stats for call ${callId} with status ${callStatus}`);
+    logger.info(`📊 [Campaign Stats] Updating stats for call ${callId} with status ${callStatus}`);
     
     const [call] = await db.select().from(calls).where(eq(calls.id, callId)).limit(1);
     
@@ -313,7 +314,7 @@ export async function updateCampaignStats(callId: string, callStatus: string): P
         })
         .where(eq(campaigns.id, call.campaignId));
       
-      console.log(`📊 [Campaign Stats Updated] Campaign ${call.campaignId}: ${completedCallsCount}/${campaignCalls.length} calls completed`);
+      logger.info(`📊 [Campaign Stats Updated] Campaign ${call.campaignId}: ${completedCallsCount}/${campaignCalls.length} calls completed`);
 
       // Update contact attempt tracking and schedule retry if eligible
       if (call.contactId && call.campaignId) {
@@ -398,7 +399,7 @@ export async function updateCampaignStats(callId: string, callStatus: string): P
                 }
 
                 await webhookDeliveryService.triggerEvent(call.companyId ?? null, call.userId, flowEventType, flowPayload, call.campaignId);
-                console.log(`✅ [Webhook] Triggered ${flowEventType} for call ${call.id}, flow ${flow.name}`);
+                logger.info(`✅ [Webhook] Triggered ${flowEventType} for call ${call.id}, flow ${flow.name}`);
               }
             }
           } catch (flowWebhookError: any) {
@@ -416,23 +417,23 @@ export async function fireWebhook(webhookId: string, callId: string, attempt: nu
   try {
     const webhook = await storage.getWebhook(webhookId);
     if (!webhook || !webhook.isActive) {
-      console.log(`🔕 [Webhook] Webhook ${webhookId} not found or inactive`);
+      logger.warn(`🔕 [Webhook] Webhook ${webhookId} not found or inactive`);
       return;
     }
 
     const call = await storage.getCall(callId);
     if (!call) {
-      console.log(`❌ [Webhook] Call ${callId} not found`);
+      logger.error(`❌ [Webhook] Call ${callId} not found`);
       return;
     }
 
     if (!call.campaignId) {
-      console.log(`❌ [Webhook] Call ${callId} has no campaign ID`);
+      logger.error(`❌ [Webhook] Call ${callId} has no campaign ID`);
       return;
     }
     const campaign = await storage.getCampaign(call.campaignId);
     if (!campaign) {
-      console.log(`❌ [Webhook] Campaign ${call.campaignId} not found`);
+      logger.error(`❌ [Webhook] Campaign ${call.campaignId} not found`);
       return;
     }
 
@@ -474,7 +475,7 @@ export async function fireWebhook(webhookId: string, callId: string, attempt: nu
       .update(JSON.stringify(payload))
       .digest('hex');
 
-    console.log(`📤 [Webhook] Firing webhook to ${webhook.url} (attempt ${attempt}/${MAX_WEBHOOK_ATTEMPTS})`);
+    logger.info(`📤 [Webhook] Firing webhook ${webhook.id} (attempt ${attempt}/${MAX_WEBHOOK_ATTEMPTS})`);
 
     const startTime = Date.now();
     const response = await fetch(webhook.url, {
@@ -505,7 +506,7 @@ export async function fireWebhook(webhookId: string, callId: string, attempt: nu
         maxAttempts: MAX_WEBHOOK_ATTEMPTS,
       });
       
-      console.log(`✅ [Webhook] Successfully delivered to ${webhook.url}`);
+      logger.info(`✅ [Webhook] Successfully delivered webhook ${webhook.id}`);
     } else {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
@@ -541,7 +542,7 @@ export async function fireWebhook(webhookId: string, callId: string, attempt: nu
 
     if (attempt < MAX_WEBHOOK_ATTEMPTS) {
       const delay = Math.pow(2, attempt) * 1000;
-      console.log(`🔄 [Webhook] Retrying in ${delay}ms...`);
+      logger.warn(`🔄 [Webhook] Retrying in ${delay}ms...`);
       setTimeout(() => fireWebhook(webhookId, callId, attempt + 1), delay);
     }
   }
@@ -568,7 +569,7 @@ export async function deductCallCreditsForElevenLabs(callId: string, duration: n
     const minutes = Math.ceil(duration / 60);
     const creditsToDeduct = Math.ceil(minutes * creditPricePerMinute);
     
-    console.log(`💳 [Credit Deduction] Duration: ${duration}s (${minutes} min) × ${creditPricePerMinute} = ${creditsToDeduct} credits (rounded up)`);
+    logger.info(`💳 [Credit Deduction] Duration: ${duration}s (${minutes} min) × ${creditPricePerMinute} = ${creditsToDeduct} credits (rounded up)`);
     
     const [call] = await db.select().from(calls).where(eq(calls.id, callId)).limit(1);
     
@@ -578,7 +579,7 @@ export async function deductCallCreditsForElevenLabs(callId: string, duration: n
     }
     
     if (call.widgetId) {
-      console.log(`⏭️ [Credit Deduction] Skipping for widget call ${callId} - already billed via widget session`);
+      logger.warn(`⏭️ [Credit Deduction] Skipping for widget call ${callId} - already billed via widget session`);
       return { success: true, creditsDeducted: 0, alreadyDeducted: true };
     }
     
@@ -622,7 +623,7 @@ export async function deductCallCreditsForElevenLabs(callId: string, duration: n
           .update(calls)
           .set({ creditsUsed: creditsToDeduct })
           .where(eq(calls.id, callId));
-        console.log(`💳 [Credit Deduction] Updated calls.creditsUsed to ${creditsToDeduct} for call ${callId}`);
+        logger.info(`💳 [Credit Deduction] Updated calls.creditsUsed to ${creditsToDeduct} for call ${callId}`);
       }
       return result;
     } else {
@@ -660,7 +661,7 @@ export async function deductCallCreditsForSip(
     const minutes = Math.ceil(duration / 60);
     const creditsToDeduct = Math.ceil(minutes * creditPricePerMinute);
     
-    console.log(`💳 [SIP Credit Deduction] Duration: ${duration}s (${minutes} min) × ${creditPricePerMinute} = ${creditsToDeduct} credits (rounded up)`);
+    logger.info(`💳 [SIP Credit Deduction] Duration: ${duration}s (${minutes} min) × ${creditPricePerMinute} = ${creditsToDeduct} credits (rounded up)`);
     
     const [sipCall] = await db.select().from(sipCalls).where(eq(sipCalls.id, sipCallId)).limit(1);
     
@@ -691,7 +692,7 @@ export async function deductCallCreditsForSip(
           SET credits_used = ${creditsToDeduct}, updated_at = NOW()
           WHERE id = ${sipCallId}
         `);
-        console.log(`✅ [SIP Credit Deduction] Updated sip_calls.credits_used: ${creditsToDeduct}`);
+        logger.info(`✅ [SIP Credit Deduction] Updated sip_calls.credits_used: ${creditsToDeduct}`);
       }
       
       return result;
@@ -731,7 +732,7 @@ export async function triggerCallCompletedWebhook(params: {
     const isIncoming = params.callDirection === 'incoming' || params.callDirection === 'inbound';
     const eventType = isIncoming ? 'inbound_call.completed' : 'call.completed';
 
-    console.log(`🔔 [Webhook] Triggering ${eventType} for call ${params.callId}`);
+    logger.info(`🔔 [Webhook] Triggering ${eventType} for call ${params.callId}`);
 
     // Fetch the agent details
     let agentData = null;
@@ -836,7 +837,7 @@ export async function triggerCallCompletedWebhook(params: {
     };
 
     await webhookDeliveryService.triggerEvent(params.companyId ?? null, params.userId, eventType, payload, params.campaignId);
-    console.log(`✅ [Webhook] Successfully triggered ${eventType} for call ${params.callId}`);
+    logger.info(`✅ [Webhook] Successfully triggered ${eventType} for call ${params.callId}`);
   } catch (error: any) {
     console.error(`❌ [Webhook] Error triggering completed call webhook:`, error.message);
   }

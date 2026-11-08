@@ -46,8 +46,16 @@ const extensionTables = [...extension
   .filter((line) => !line.trim().startsWith('--'))
   .join('\n')
   .matchAll(/ALTER TABLE public\.(\w+) ENABLE ROW LEVEL SECURITY;/g)].map((m) => m[1]);
+// Tenant tables created by migrations/0014_workforce_tool_tables.sql with company_id NOT NULL.
+// That migration covers them directly: they are not in any archived draft, and they need no
+// backfill because they are new. Only tables whose CREATE block has that column count.
+const workforceMigration = read('migrations/0014_workforce_tool_tables.sql');
+const ownMigrationTables = [...workforceMigration.matchAll(/CREATE TABLE IF NOT EXISTS (\w+) \(([\s\S]*?)\n\);/g)]
+  .filter((m) => /^\s*company_id\s+uuid\s+NOT NULL\b/m.test(m[2]))
+  .map((m) => m[1])
+  .filter((t) => tenantTables.includes(t));
 // Tenant tables that only the original draft must cover (STEP A/B/C/D).
-const companyScopeTenantTables = tenantTables.filter((t) => !extensionTables.includes(t));
+const companyScopeTenantTables = tenantTables.filter((t) => !extensionTables.includes(t) && !ownMigrationTables.includes(t));
 
 /** Lines of SQL that are not comments, so commented-out statements do not count. */
 const liveSql = draft
@@ -72,14 +80,14 @@ function tablesMatching(pattern) {
   return [...liveSql.matchAll(pattern)].map((m) => m[1]);
 }
 
-test('schema.ts declares 91 tables, all unique', () => {
-  assert.equal(schemaTables.length, 91);
-  assert.equal(new Set(schemaTables).size, 91);
+test('schema.ts declares 130 tables, all unique', () => {
+  assert.equal(schemaTables.length, 130);
+  assert.equal(new Set(schemaTables).size, 130);
 });
 
 test('inventory has exactly one row per schema table, with a valid class', () => {
   const names = rows.map((r) => r.table);
-  assert.equal(rows.length, 91, `expected 91 rows, got ${rows.length}`);
+  assert.equal(rows.length, 130, `expected 130 rows, got ${rows.length}`);
   assert.equal(new Set(names).size, names.length, 'duplicate table row');
   assert.deepEqual([...names].sort(), [...schemaTables].sort(), 'inventory and schema.ts differ');
   for (const r of rows) {
@@ -87,10 +95,10 @@ test('inventory has exactly one row per schema table, with a valid class', () =>
   }
 });
 
-test('row numbers run 1..91 in schema order', () => {
+test('row numbers run 1..130 in schema order', () => {
   assert.deepEqual(
     rows.map((r) => r.n),
-    Array.from({ length: 91 }, (_, i) => i + 1),
+    Array.from({ length: 130 }, (_, i) => i + 1),
   );
   assert.deepEqual(rows.map((r) => r.table), schemaTables);
 });
@@ -111,8 +119,8 @@ test('the counts section matches the rows', () => {
   assert.match(inventory, new RegExp(`- global: ${count('global')}\\n`));
   assert.match(inventory, new RegExp(`- ambiguous: ${count('ambiguous')}\\n`));
   assert.match(inventory, new RegExp(`- root: ${count('root')} \\(companies\\)\\n`));
-  assert.equal(count('tenant') + count('global') + count('ambiguous') + count('root'), 91);
-  assert.match(inventory, /- total: 91\n/);
+  assert.equal(count('tenant') + count('global') + count('ambiguous') + count('root'), 130);
+  assert.match(inventory, /- total: 130\n/);
 });
 
 test('draft adds company_id to exactly the tenant tables, all in STEP A', () => {
@@ -122,8 +130,8 @@ test('draft adds company_id to exactly the tenant tables, all in STEP A', () => 
   assert.equal(new Set(added).size, added.length, 'duplicate ADD COLUMN');
   // No ADD COLUMN for company_id appears outside STEP A (users is commented out as BLOCKED).
   assert.equal(tablesMatching(/ALTER TABLE public\.(\w+) ADD COLUMN IF NOT EXISTS company_id/g).length, added.length);
-  // Combined set: the original draft's STEP A plus the extension's tables cover every tenant table, with no overlap.
-  assert.deepEqual([...added, ...extensionTables].sort(), [...tenantTables].sort(), 'combined drafts do not cover every tenant table');
+  // Combined set: STEP A, the extension and migration 0014 cover every tenant table, with no overlap.
+  assert.deepEqual([...added, ...extensionTables, ...ownMigrationTables].sort(), [...tenantTables].sort(), 'drafts and 0014 do not cover every tenant table');
   assert.equal(added.filter((t) => extensionTables.includes(t)).length, 0, 'table covered by both drafts');
 });
 
@@ -139,8 +147,8 @@ test('every tenant table gets a backfill UPDATE, an FK in STEP C and NOT NULL on
   assert.deepEqual([...backfilled].sort(), [...companyScopeTenantTables].sort(), 'backfill set differs from tenant set');
   assert.deepEqual([...fks].sort(), [...companyScopeTenantTables].sort(), 'FK set differs from tenant set');
   assert.deepEqual([...notNull].sort(), [...companyScopeTenantTables].sort(), 'NOT NULL set differs from tenant set');
-  // Combined set: backfill from the original draft plus RLS from the extension covers every tenant table.
-  assert.deepEqual([...backfilled, ...extensionTables].sort(), [...tenantTables].sort(), 'combined drafts do not cover every tenant table');
+  // Combined set: backfill from the original draft, RLS from the extension, and 0014 (no backfill needed) cover every tenant table.
+  assert.deepEqual([...backfilled, ...extensionTables, ...ownMigrationTables].sort(), [...tenantTables].sort(), 'drafts and 0014 do not cover every tenant table');
   for (const t of extensionTables) {
     assert.match(extension, new RegExp(`ALTER TABLE public\\.${t} FORCE ROW LEVEL SECURITY;`), `${t} lacks FORCE ROW LEVEL SECURITY in the extension`);
   }
@@ -176,11 +184,11 @@ test('every extension table already carries company_id NOT NULL in its own draft
   }
 });
 
-test('tables covered by no draft are exactly the non-tenant rows (no tenant table is unprotected)', () => {
+test('tables covered by no draft or migration are exactly the non-tenant rows (no tenant table is unprotected)', () => {
   // Taken from the draft statements themselves, not from the derived lists above.
   const addedInDraft = tablesMatching(/ALTER TABLE public\.(\w+) ADD COLUMN IF NOT EXISTS company_id/g);
   const backfilledInDraft = tablesMatching(/UPDATE public\.(\w+) AS t SET company_id/g);
-  const covered = new Set([...addedInDraft, ...backfilledInDraft, ...extensionTables, 'companies']);
+  const covered = new Set([...addedInDraft, ...backfilledInDraft, ...extensionTables, ...ownMigrationTables, 'companies']);
   const uncovered = schemaTables.filter((t) => !covered.has(t)).sort();
   const expected = rows.filter((r) => r.cls !== 'tenant' && r.table !== 'companies').map((r) => r.table).sort();
   assert.deepEqual(uncovered, expected, 'a tenant table is covered by no draft');

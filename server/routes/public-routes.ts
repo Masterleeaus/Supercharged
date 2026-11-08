@@ -25,6 +25,7 @@ import fs from 'fs';
 import path from 'path';
 import { runAllSeedsForInstaller } from '../seed-all';
 import { applyEmbedCors } from '../middleware/embed-cors';
+import { logger } from '../utils/logger';
 
 /**
  * Creates public routes for unauthenticated endpoints.
@@ -214,11 +215,11 @@ export function createPublicRoutes(ctx: RouteContext): Router {
         return res.status(400).json({ message: "Invalid email address" });
       }
 
-      console.log("╔════════════════════════════════════════════════════════════╗");
-      console.log("║           🚀 Installing Platform                           ║");
-      console.log("╚════════════════════════════════════════════════════════════╝");
+      logger.info("╔════════════════════════════════════════════════════════════╗");
+      logger.info("║           🚀 Installing Platform                           ║");
+      logger.info("╚════════════════════════════════════════════════════════════╝");
 
-      console.log("\n📦 Step 1: Seeding database with required data...");
+      logger.info("\n📦 Step 1: Seeding database with required data...");
       const seedResult = await runAllSeedsForInstaller();
 
       if (!seedResult.success) {
@@ -229,10 +230,10 @@ export function createPublicRoutes(ctx: RouteContext): Router {
         });
       }
 
-      console.log("✅ Database seeding complete!");
-      console.log(`   Seeded: ${Object.entries(seedResult.summary).map(([k, v]) => `${k}: ${v}`).join(', ')}`);
+      logger.info("✅ Database seeding complete!");
+      logger.info(`   Seeded: ${Object.entries(seedResult.summary).map(([k, v]) => `${k}: ${v}`).join(', ')}`);
 
-      console.log("\n👤 Step 2: Creating admin account...");
+      logger.info("\n👤 Step 2: Creating admin account...");
       const hashedPassword = await bcrypt.hash(adminPassword, 10);
 
       const [admin] = await db.insert(users).values({
@@ -245,12 +246,12 @@ export function createPublicRoutes(ctx: RouteContext): Router {
         isActive: true,
       }).returning();
 
-      console.log(`✅ Admin created: ${admin.email}`);
-      console.log(`   Role: ${admin.role}`);
-      console.log(`   Plan: ${admin.planType}`);
-      console.log(`   Credits: ${admin.credits}`);
+      logger.info(`✅ Admin created: ${admin.id}`);
+      logger.info(`   Role: ${admin.role}`);
+      logger.info(`   Plan: ${admin.planType}`);
+      logger.info(`   Credits: ${admin.credits}`);
 
-      console.log("\n⚙️  Step 3: Configuring platform settings...");
+      logger.info("\n⚙️  Step 3: Configuring platform settings...");
       const settingsToCreate = [
         { key: 'company_name', value: companyName, description: 'Company name displayed across the platform' },
         { key: 'support_email', value: adminEmail, description: 'Support email for customer inquiries' },
@@ -264,21 +265,21 @@ export function createPublicRoutes(ctx: RouteContext): Router {
             ON CONFLICT (key) DO UPDATE 
             SET value = EXCLUDED.value, updated_at = NOW()
           `);
-          console.log(`   ✅ Set ${setting.key}`);
+          logger.info(`   ✅ Set ${setting.key}`);
         } catch (error: any) {
           console.warn(`   ⚠️ Failed to set ${setting.key}: ${error.message}`);
         }
       }
-      console.log("✅ Platform settings configured!");
+      logger.info("✅ Platform settings configured!");
 
-      console.log("\n╔════════════════════════════════════════════════════════════╗");
-      console.log("║           🎉 Installation Complete!                        ║");
-      console.log("╚════════════════════════════════════════════════════════════╝");
-      console.log(`\n📋 Installation Summary:`);
-      console.log(`   Admin Email: ${admin.email}`);
-      console.log(`   Company: ${companyName}`);
-      console.log(`   Database Seeds: ${Object.keys(seedResult.summary).length} categories`);
-      console.log(`   Ready to use!\n`);
+      logger.info("\n╔════════════════════════════════════════════════════════════╗");
+      logger.info("║           🎉 Installation Complete!                        ║");
+      logger.info("╚════════════════════════════════════════════════════════════╝");
+      logger.info(`\n📋 Installation Summary:`);
+      logger.info(`   Admin ID: ${admin.id}`);
+      logger.info(`   Company: ${companyName}`);
+      logger.info(`   Database Seeds: ${Object.keys(seedResult.summary).length} categories`);
+      logger.info(`   Ready to use!\n`);
 
       res.json({
         success: true,
@@ -987,7 +988,7 @@ ${allUrls.map(u => {
       const validationResult = contactSchema.safeParse(req.body);
       if (!validationResult.success) {
         return res.status(400).json({
-          error: validationResult.error.errors[0]?.message || "Invalid form data"
+          error: validationResult.error.issues[0]?.message || "Invalid form data"
         });
       }
 
@@ -1075,7 +1076,7 @@ ${allUrls.map(u => {
         return res.status(500).json({ error: "Failed to send message. Please try again later." });
       }
 
-      console.log(`✉️ [Contact] Form submission sent to ${adminEmail} from ${email}`);
+      logger.info(`✉️ [Contact] Form submission sent to admin`);
 
       res.json({ success: true, message: "Thank you! We'll get back to you soon." });
     } catch (error: any) {

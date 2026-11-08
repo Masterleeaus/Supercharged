@@ -32,6 +32,7 @@ import axios from 'axios';
 import { applyRefund, type RefundGateway } from "../services/credit-service";
 import { generateRefundNoteForRefund, refundNoteService } from "../services/refund-note-service";
 import { isYookassaEnabled, processYookassaRefund } from "../engines/payment/gateways/yookassa/service";
+import { logger } from '../utils/logger';
 
 const router = Router();
 
@@ -66,7 +67,7 @@ async function processStripeRefund(
       amount: amountInCents,
     });
 
-    console.log(`✅ [Stripe] Created refund ${refund.id} for payment intent ${gatewayTransactionId}`);
+    logger.info(`✅ [Stripe] Created refund ${refund.id} for payment intent ${gatewayTransactionId}`);
     return { success: true, gatewayRefundId: refund.id };
   } catch (error: any) {
     console.error(`❌ [Stripe] Refund failed:`, error.message);
@@ -91,7 +92,7 @@ async function processRazorpayRefund(
       amount: amountInPaise,
     });
 
-    console.log(`✅ [Razorpay] Created refund ${refund.id} for payment ${gatewayTransactionId}`);
+    logger.info(`✅ [Razorpay] Created refund ${refund.id} for payment ${gatewayTransactionId}`);
     return { success: true, gatewayRefundId: refund.id };
   } catch (error: any) {
     console.error(`❌ [Razorpay] Refund failed:`, error.message);
@@ -117,7 +118,7 @@ async function processPayPalRefund(
       },
     });
 
-    console.log(`✅ [PayPal] Created refund ${response.data.id} for capture ${gatewayTransactionId}`);
+    logger.info(`✅ [PayPal] Created refund ${response.data.id} for capture ${gatewayTransactionId}`);
     return { success: true, gatewayRefundId: response.data.id };
   } catch (error: any) {
     console.error(`❌ [PayPal] Refund failed:`, error.message);
@@ -161,7 +162,7 @@ async function processPaystackRefund(
       return { success: false, error: response.data.message || 'Refund failed' };
     }
 
-    console.log(`✅ [Paystack] Created refund for transaction ${gatewayTransactionId}`);
+    logger.info(`✅ [Paystack] Created refund for transaction ${gatewayTransactionId}`);
     return { success: true, gatewayRefundId: response.data.data?.id?.toString() };
   } catch (error: any) {
     console.error(`❌ [Paystack] Refund failed:`, error.message);
@@ -188,7 +189,7 @@ async function processMercadoPagoRefund(
       },
     });
 
-    console.log(`✅ [MercadoPago] Created refund ${response.id} for payment ${gatewayTransactionId}`);
+    logger.info(`✅ [MercadoPago] Created refund ${response.id} for payment ${gatewayTransactionId}`);
     return { success: true, gatewayRefundId: response.id?.toString() };
   } catch (error: any) {
     console.error(`❌ [MercadoPago] Refund failed:`, error.message);
@@ -235,9 +236,9 @@ router.post("/:transactionId", authenticateToken, requireRole("admin"), async (r
       return res.status(404).json({ message: "User associated with transaction not found" });
     }
 
-    console.log(`🔄 [Refund] Processing ${transaction.gateway} refund for transaction ${transactionId}`);
-    console.log(`   Amount: ${amount} ${transaction.currency}`);
-    console.log(`   Admin: ${adminId}`);
+    logger.info(`🔄 [Refund] Processing ${transaction.gateway} refund for transaction ${transactionId}`);
+    logger.info(`   Amount: ${amount} ${transaction.currency}`);
+    logger.info(`   Admin: ${adminId}`);
 
     let gatewayResult: GatewayRefundResult;
 
@@ -348,7 +349,7 @@ router.post("/:transactionId", authenticateToken, requireRole("admin"), async (r
         
         if (refundResult.success) {
           creditsReversed = refundResult.creditsReversed;
-          console.log(`✅ [Refund] Reversed ${creditsReversed} credits from user ${user.id}. New balance: ${refundResult.newBalance}. Transaction logged.`);
+          logger.info(`✅ [Refund] Reversed ${creditsReversed} credits from user ${user.id}. New balance: ${refundResult.newBalance}. Transaction logged.`);
         } else {
           console.error(`❌ [Refund] Failed to reverse credits: ${refundResult.error}`);
         }
@@ -381,12 +382,12 @@ router.post("/:transactionId", authenticateToken, requireRole("admin"), async (r
         status: newStatus,
       });
 
-      console.log(`✅ [Refund] Transaction ${transactionId} status updated to ${newStatus}`);
+      logger.info(`✅ [Refund] Transaction ${transactionId} status updated to ${newStatus}`);
       
       // Generate refund note PDF
       try {
         const updatedRefund = await generateRefundNoteForRefund(refund.id);
-        console.log(`📄 [Refund] Generated refund note: ${updatedRefund.refundNoteNumber}`);
+        logger.info(`📄 [Refund] Generated refund note: ${updatedRefund.refundNoteNumber}`);
       } catch (pdfError: any) {
         console.error(`⚠️ [Refund] Failed to generate refund note PDF:`, pdfError.message);
       }

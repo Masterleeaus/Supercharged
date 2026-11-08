@@ -34,6 +34,7 @@ import { openaiPoolManager } from '../../../infrastructure';
 import { db } from '../../../db';
 import { twilioOpenaiCalls, agents, appointments } from '@shared/schema';
 import { eq, and } from 'drizzle-orm';
+import { logger } from '../../../utils/logger';
 
 const execAsync = promisify(exec);
 const fsWriteFile = promisify(fs.writeFile);
@@ -47,8 +48,8 @@ export class TwilioOpenAIAudioBridge {
   static async createSession(params: CreateSessionParams): Promise<AudioBridgeSession> {
     const { callSid, openaiApiKey, agentConfig, twilioWs, streamSid, fromNumber, toNumber, callDirection } = params;
 
-    console.log(`[TwilioOpenAI Bridge] Creating session for call ${callSid} (direction: ${callDirection || 'unknown'})`);
-    console.log(`[TwilioOpenAI Bridge] Voice: ${agentConfig.voice}, Model: ${agentConfig.model}`);
+    logger.warn(`[TwilioOpenAI Bridge] Creating session for call ${callSid} (direction: ${callDirection || 'unknown'})`);
+    logger.info(`[TwilioOpenAI Bridge] Voice: ${agentConfig.voice}, Model: ${agentConfig.model}`);
 
     const session: AudioBridgeSession = {
       callSid,
@@ -93,7 +94,7 @@ export class TwilioOpenAIAudioBridge {
     // Check if we can reserve a slot in the OpenAI pool
     const credentialId = params.credentialId || 'twilio-openai-default';
     if (!openaiPoolManager.canReserveSlot(credentialId)) {
-      console.log(`[TwilioOpenAI Bridge] OpenAI pool limit reached for credential ${credentialId}`);
+      logger.warn(`[TwilioOpenAI Bridge] OpenAI pool limit reached for credential ${credentialId}`);
       throw new Error('OpenAI connection limit reached. Please try again later.');
     }
 
@@ -115,7 +116,7 @@ export class TwilioOpenAIAudioBridge {
 
       const wsUrl = `${this.OPENAI_REALTIME_URL}?model=${agentConfig.model}`;
 
-      console.log(`[TwilioOpenAI Bridge] Connecting to OpenAI: ${agentConfig.model}`);
+      logger.info(`[TwilioOpenAI Bridge] Connecting to OpenAI: ${agentConfig.model}`);
 
       const ws = new WebSocket(wsUrl, {
         headers: {
@@ -134,7 +135,7 @@ export class TwilioOpenAIAudioBridge {
 
       ws.on('open', () => {
         clearTimeout(connectionTimeoutId);
-        console.log(`[TwilioOpenAI Bridge] OpenAI connected for ${callSid}`);
+        logger.info(`[TwilioOpenAI Bridge] OpenAI connected for ${callSid}`);
         session.status = 'connected';
 
         // Register connection with the pool manager
@@ -165,7 +166,7 @@ export class TwilioOpenAIAudioBridge {
       });
 
       ws.on('close', (code, reason) => {
-        console.log(`[TwilioOpenAI Bridge] OpenAI closed for ${callSid}: ${code} ${reason}`);
+        logger.info(`[TwilioOpenAI Bridge] OpenAI closed for ${callSid}: ${code} ${reason}`);
         session.status = 'disconnected';
         openaiPoolManager.removeConnection(session.callSid);
         this.fireEndCallback(session);
@@ -198,7 +199,7 @@ export class TwilioOpenAIAudioBridge {
     const vadSilenceDurationMs = vadSettings.silenceDurationMs ?? 900;
     const vadEagerness = vadSettings.eagerness ?? 'low';
 
-    console.log(`[TwilioOpenAI Bridge] VAD settings: type=${vadType}, threshold=${vadThreshold}, prefix=${vadPrefixPaddingMs}ms, silence=${vadSilenceDurationMs}ms`);
+    logger.info(`[TwilioOpenAI Bridge] VAD settings: type=${vadType}, threshold=${vadThreshold}, prefix=${vadPrefixPaddingMs}ms, silence=${vadSilenceDurationMs}ms`);
 
     const turnDetection = vadType === 'semantic_vad'
       ? {
@@ -252,16 +253,16 @@ BACKGROUND NOISE HANDLING:
       },
     };
 
-    console.log(`[TwilioOpenAI Bridge] Configuring session with ${tools.length} tools`);
+    logger.info(`[TwilioOpenAI Bridge] Configuring session with ${tools.length} tools`);
     if (tools.length > 0) {
-      console.log(`[TwilioOpenAI Bridge] Tools configured:`, tools.map(t => t.name).join(', '));
+      logger.info(`[TwilioOpenAI Bridge] Tools configured:`, tools.map(t => t.name).join(', '));
     }
     openaiWs.send(JSON.stringify(sessionConfig));
 
     // First message is now sent when Twilio stream starts (see handleTwilioMedia 'start' event)
     // This ensures the audio is not lost before the stream is ready
     if (agentConfig.firstMessage) {
-      console.log(`[TwilioOpenAI Bridge] First message configured, will send when Twilio stream starts for ${session.callSid}`);
+      logger.info(`[TwilioOpenAI Bridge] First message configured, will send when Twilio stream starts for ${session.callSid}`);
     }
   }
 
@@ -272,7 +273,7 @@ BACKGROUND NOISE HANDLING:
     if (!session.agentConfig.firstMessage) return;
 
     session.firstMessageSent = true;
-    console.log(`[TwilioOpenAI Bridge] Twilio stream ready, sending first message for ${session.callSid}`);
+    logger.info(`[TwilioOpenAI Bridge] Twilio stream ready, sending first message for ${session.callSid}`);
     this.sendAgentMessage(session, session.agentConfig.firstMessage);
   }
 
@@ -285,19 +286,19 @@ BACKGROUND NOISE HANDLING:
 
     if (pendingAudioQueue.length === 0) return;
 
-    console.log(`[TwilioOpenAI Bridge] Processing ${pendingAudioQueue.length} pending audio requests for ${callSid}`);
+    logger.info(`[TwilioOpenAI Bridge] Processing ${pendingAudioQueue.length} pending audio requests for ${callSid}`);
 
     // Process all queued audio requests
     while (pendingAudioQueue.length > 0) {
       const request = pendingAudioQueue.shift();
       if (!request) break;
 
-      console.log(`[TwilioOpenAI Bridge] Playing queued audio: ${request.audioUrl}`);
+      logger.info(`[TwilioOpenAI Bridge] Playing queued audio`);
 
       try {
         const result = await this.executePlayAudio(session, request.audioUrl);
         if (result.success) {
-          console.log(`[TwilioOpenAI Bridge] Queued audio played successfully`);
+          logger.info(`[TwilioOpenAI Bridge] Queued audio played successfully`);
         } else {
           console.error(`[TwilioOpenAI Bridge] Queued audio playback failed: ${result.error}`);
         }
@@ -311,7 +312,7 @@ BACKGROUND NOISE HANDLING:
       }
     }
 
-    console.log(`[TwilioOpenAI Bridge] Finished processing pending audio queue for ${callSid}`);
+    logger.info(`[TwilioOpenAI Bridge] Finished processing pending audio queue for ${callSid}`);
   }
 
   /**
@@ -323,7 +324,7 @@ BACKGROUND NOISE HANDLING:
     const { openaiWs, callSid } = session;
     if (!openaiWs || openaiWs.readyState !== WebSocket.OPEN) return;
 
-    console.log(`[TwilioOpenAI Bridge] Sending first message for ${callSid}: "${text.substring(0, 50)}..."`);
+    logger.info(`[TwilioOpenAI Bridge] Sending first message for ${callSid}`);
 
     // Use response.create with instructions to speak the exact greeting
     // This is the official way to have the agent say a specific first message
@@ -344,11 +345,11 @@ BACKGROUND NOISE HANDLING:
       switch (message.type) {
         case 'session.created':
           session.openaiSessionId = message.session?.id || `session-${Date.now()}`;
-          console.log(`[TwilioOpenAI Bridge] Session created: ${session.openaiSessionId}`);
+          logger.info(`[TwilioOpenAI Bridge] Session created: ${session.openaiSessionId}`);
           break;
 
         case 'session.updated':
-          console.log(`[TwilioOpenAI Bridge] Session updated for ${callSid}`);
+          logger.info(`[TwilioOpenAI Bridge] Session updated for ${callSid}`);
           break;
 
         case 'response.audio.delta':
@@ -373,9 +374,9 @@ BACKGROUND NOISE HANDLING:
         case 'response.audio.done':
         case 'response.output_audio.done':
           session.lastActivityTimestamp = Date.now();
-          console.log(`[TwilioOpenAI Bridge] Audio response complete for ${callSid}`);
+          logger.info(`[TwilioOpenAI Bridge] Audio response complete for ${callSid}`);
           if (session.autoEndCallPending) {
-            console.log(`[TwilioOpenAI Bridge] Auto-ending call post-task completion for ${callSid}...`);
+            logger.info(`[TwilioOpenAI Bridge] Auto-ending call post-task completion for ${callSid}...`);
             setTimeout(() => {
               this.disconnectSession(callSid);
             }, 1500);
@@ -400,7 +401,7 @@ BACKGROUND NOISE HANDLING:
             if (session.onTranscriptCallback) {
               session.onTranscriptCallback(message.transcript, true);
             }
-            console.log(`[TwilioOpenAI Bridge] Agent: "${message.transcript.substring(0, 100)}..."`);
+            logger.info(`[TwilioOpenAI Bridge] Agent transcript received`);
           }
           break;
 
@@ -411,7 +412,7 @@ BACKGROUND NOISE HANDLING:
               text: message.transcript,
               timestamp: new Date(),
             });
-            console.log(`[TwilioOpenAI Bridge] User: "${message.transcript.substring(0, 100)}..."`);
+            logger.info(`[TwilioOpenAI Bridge] User transcript received`);
           }
           break;
 
@@ -419,14 +420,14 @@ BACKGROUND NOISE HANDLING:
           session.lastUserSpeechTime = Date.now();
           session.lastActivityTimestamp = Date.now();
           session.silenceWarningSent = false;
-          console.log(`[TwilioOpenAI Bridge] User started speaking (barge-in detected)`);
+          logger.info(`[TwilioOpenAI Bridge] User started speaking (barge-in detected)`);
           // CRITICAL: Immediately cancel current response and clear audio buffer
           // This prevents the "rushing through" behavior when user interrupts
           this.handleBargeIn(session);
           break;
 
         case 'input_audio_buffer.speech_stopped':
-          console.log(`[TwilioOpenAI Bridge] User stopped speaking`);
+          logger.info(`[TwilioOpenAI Bridge] User stopped speaking`);
           break;
 
         case 'response.function_call_arguments.done':
@@ -457,7 +458,7 @@ BACKGROUND NOISE HANDLING:
 
         default:
           if (message.type && !message.type.includes('delta')) {
-            console.log(`[TwilioOpenAI Bridge] Event: ${message.type}`);
+            logger.info(`[TwilioOpenAI Bridge] Event: ${message.type}`);
           }
       }
     } catch (error: any) {
@@ -480,12 +481,12 @@ BACKGROUND NOISE HANDLING:
 
     // Deduplicate: skip if we've already processed this tool call
     if (session.processedToolCallIds.has(callId)) {
-      console.log(`[TwilioOpenAI Bridge] Skipping duplicate tool call: ${toolName} (${callId})`);
+      logger.warn(`[TwilioOpenAI Bridge] Skipping duplicate tool call: ${toolName} (${callId})`);
       return;
     }
     session.processedToolCallIds.add(callId);
 
-    console.log(`[TwilioOpenAI Bridge] Tool call: ${toolName} for ${callSid}`);
+    logger.info(`[TwilioOpenAI Bridge] Tool call: ${toolName} for ${callSid}`);
 
     try {
       let params: Record<string, unknown> = {};
@@ -501,7 +502,7 @@ BACKGROUND NOISE HANDLING:
 
       // Handle end_call as a special built-in tool
       if (toolName === 'end_call') {
-        console.log(`[TwilioOpenAI Bridge] Built-in end_call tool invoked for ${callSid}`);
+        logger.info(`[TwilioOpenAI Bridge] Built-in end_call tool invoked for ${callSid}`);
         result = {
           action: 'end_call',
           reason: (params.reason as string) || 'Call ended by agent',
@@ -510,7 +511,7 @@ BACKGROUND NOISE HANDLING:
       }
       // Handle transfer_call and transfer_* as built-in tools for flow agents
       else if (toolName === 'transfer_call' || toolName.startsWith('transfer_')) {
-        console.log(`[TwilioOpenAI Bridge] Built-in transfer tool invoked: ${toolName} for ${callSid}`);
+        logger.info(`[TwilioOpenAI Bridge] Built-in transfer tool invoked: ${toolName} for ${callSid}`);
 
         // Get target number from params or tool metadata
         let targetNumber = (params.destination as string) || (params.phoneNumber as string) || '';
@@ -524,11 +525,11 @@ BACKGROUND NOISE HANDLING:
             if (tool.name === toolName) {
               if (toolAny._transferNumber) {
                 targetNumber = toolAny._transferNumber as string;
-                console.log(`[TwilioOpenAI Bridge] Found transfer number from matching tool ${toolName}: ${targetNumber}`);
+                logger.info(`[TwilioOpenAI Bridge] Found transfer number from matching tool ${toolName}`);
                 break;
               } else if (toolAny._metadata && (toolAny._metadata as Record<string, unknown>).phoneNumber) {
                 targetNumber = (toolAny._metadata as Record<string, unknown>).phoneNumber as string;
-                console.log(`[TwilioOpenAI Bridge] Found transfer number from matching tool ${toolName} metadata: ${targetNumber}`);
+                logger.info(`[TwilioOpenAI Bridge] Found transfer number from matching tool ${toolName} metadata`);
                 break;
               }
             }
@@ -541,11 +542,11 @@ BACKGROUND NOISE HANDLING:
               if (tool.name === 'transfer_call' || tool.name.startsWith('transfer_')) {
                 if (toolAny._transferNumber) {
                   targetNumber = toolAny._transferNumber as string;
-                  console.log(`[TwilioOpenAI Bridge] Found transfer number from tool ${tool.name} _transferNumber: ${targetNumber}`);
+                  logger.info(`[TwilioOpenAI Bridge] Found transfer number from tool ${tool.name} _transferNumber`);
                   break;
                 } else if (toolAny._metadata && (toolAny._metadata as Record<string, unknown>).phoneNumber) {
                   targetNumber = (toolAny._metadata as Record<string, unknown>).phoneNumber as string;
-                  console.log(`[TwilioOpenAI Bridge] Found transfer number from tool ${tool.name} _metadata: ${targetNumber}`);
+                  logger.info(`[TwilioOpenAI Bridge] Found transfer number from tool ${tool.name} _metadata`);
                   break;
                 }
               }
@@ -579,19 +580,19 @@ BACKGROUND NOISE HANDLING:
             if (tool.name === toolName) {
               if (toolAny._metadata && (toolAny._metadata as Record<string, unknown>).audioUrl) {
                 audioUrl = (toolAny._metadata as Record<string, unknown>).audioUrl as string;
-                console.log(`[TwilioOpenAI Bridge] Found audioUrl from tool ${toolName} _metadata: ${audioUrl}`);
+                logger.info(`[TwilioOpenAI Bridge] Found audioUrl from tool ${toolName} _metadata`);
                 break;
               }
             }
           }
         }
 
-        console.log(`[TwilioOpenAI Bridge] Play audio tool invoked for ${callSid}: ${audioUrl}`);
+        logger.info(`[TwilioOpenAI Bridge] Play audio tool invoked for ${callSid}`);
 
         if (audioUrl) {
           // Check if stream is ready, if not queue the request
           if (!session.twilioStreamReady || !session.streamSid) {
-            console.log(`[TwilioOpenAI Bridge] Stream not ready, queueing audio playback for ${callSid}`);
+            logger.warn(`[TwilioOpenAI Bridge] Stream not ready, queueing audio playback for ${callSid}`);
             session.pendingAudioQueue.push({
               audioUrl,
               callId,
@@ -627,17 +628,17 @@ BACKGROUND NOISE HANDLING:
       }
       // Handle collect_caller_email tool - stores email in call metadata for post-call trigger
       else if (toolName === 'collect_caller_email') {
-        console.log(`[TwilioOpenAI Bridge] collect_caller_email tool invoked for ${callSid}`);
+        logger.info(`[TwilioOpenAI Bridge] collect_caller_email tool invoked for ${callSid}`);
         result = await this.handleCollectCallerEmail(session, callSid, params);
       }
       // Handle send_email messaging tool
       else if (toolName === 'send_email') {
-        console.log(`[TwilioOpenAI Bridge] Messaging send_email tool invoked for ${callSid}`);
+        logger.info(`[TwilioOpenAI Bridge] Messaging send_email tool invoked for ${callSid}`);
         result = await this.handleSendEmail(session, params);
       }
       // Handle send_whatsapp messaging tool
       else if (toolName === 'send_whatsapp') {
-        console.log(`[TwilioOpenAI Bridge] Messaging send_whatsapp tool invoked for ${callSid}`);
+        logger.info(`[TwilioOpenAI Bridge] Messaging send_whatsapp tool invoked for ${callSid}`);
         result = await this.handleSendWhatsApp(session, params);
       } else {
         const handler = session.toolHandlers.get(toolName);
@@ -651,7 +652,7 @@ BACKGROUND NOISE HANDLING:
         }
       }
 
-      console.log(`[TwilioOpenAI Bridge] Tool ${toolName} result:`, JSON.stringify(result).substring(0, 200));
+      logger.info(`[TwilioOpenAI Bridge] Tool ${toolName} result`);
 
       // Update call metadata for successful tool executions (for CRM Lead Processor)
       if (typeof result === 'object' && result !== null) {
@@ -699,7 +700,7 @@ BACKGROUND NOISE HANDLING:
         // Track successful transfers
         if (actionResult.action === 'transfer') {
           const targetNumber = actionResult.phoneNumber as string;
-          console.log(`[TwilioOpenAI Bridge] Executing transfer to ${targetNumber}`);
+          logger.info(`[TwilioOpenAI Bridge] Executing transfer`);
 
           const transferResult = await this.executeTransfer(session, targetNumber);
           if (!transferResult.success) {
@@ -733,10 +734,10 @@ BACKGROUND NOISE HANDLING:
         if (actionResult.action === 'end_call') {
           // Don't hang up if transfer is in progress (session already marked as disconnected)
           if (session.status === 'disconnected') {
-            console.log(`[TwilioOpenAI Bridge] Ignoring end_call - session already disconnecting/transferring`);
+            logger.warn(`[TwilioOpenAI Bridge] Ignoring end_call - session already disconnecting/transferring`);
             result = { ignored: true, reason: 'Session already disconnecting or transfer in progress' };
           } else {
-            console.log(`[TwilioOpenAI Bridge] Executing end call: ${actionResult.reason}`);
+            logger.info(`[TwilioOpenAI Bridge] Executing end call`);
             const hangupResult = await this.executeHangup(session);
             if (!hangupResult.success) {
               result = {
@@ -813,7 +814,7 @@ BACKGROUND NOISE HANDLING:
         .set({ metadata: updatedMetadata })
         .where(eq(twilioOpenaiCalls.id, existingCall.id));
 
-      console.log(`[TwilioOpenAI Bridge] Updated call metadata for ${callSid}:`, Object.keys(metadataUpdates));
+      logger.info(`[TwilioOpenAI Bridge] Updated call metadata for ${callSid}:`, Object.keys(metadataUpdates));
     } catch (error: any) {
       console.error(`[TwilioOpenAI Bridge] Failed to update call metadata:`, error.message);
     }
@@ -871,19 +872,19 @@ BACKGROUND NOISE HANDLING:
 
     switch (event.event) {
       case 'connected':
-        console.log(`[TwilioOpenAI Bridge] Twilio stream connected for ${callSid}`);
+        logger.info(`[TwilioOpenAI Bridge] Twilio stream connected for ${callSid}`);
         break;
 
       case 'start':
         if (event.start) {
           session.streamSid = event.start.streamSid;
           session.twilioStreamReady = true;
-          console.log(`[TwilioOpenAI Bridge] Stream started: ${event.start.streamSid}, callSid: ${event.start.callSid}`);
+          logger.info(`[TwilioOpenAI Bridge] Stream started: ${event.start.streamSid}, callSid: ${event.start.callSid}`);
           this.trySendFirstMessage(session);
 
           // Process any pending audio requests that were queued before stream was ready
           if (session.pendingAudioQueue.length > 0) {
-            console.log(`[TwilioOpenAI Bridge] Processing ${session.pendingAudioQueue.length} queued audio requests`);
+            logger.info(`[TwilioOpenAI Bridge] Processing ${session.pendingAudioQueue.length} queued audio requests`);
             this.processPendingAudioQueue(session);
           }
         }
@@ -899,12 +900,12 @@ BACKGROUND NOISE HANDLING:
         break;
 
       case 'stop':
-        console.log(`[TwilioOpenAI Bridge] Stream stopped for ${callSid}`);
+        logger.info(`[TwilioOpenAI Bridge] Stream stopped for ${callSid}`);
         break;
 
       case 'mark':
         if (event.mark) {
-          console.log(`[TwilioOpenAI Bridge] Mark received: ${event.mark.name}`);
+          logger.info(`[TwilioOpenAI Bridge] Mark received: ${event.mark.name}`);
         }
         break;
     }
@@ -915,7 +916,7 @@ BACKGROUND NOISE HANDLING:
     if (session) {
       session.twilioWs = twilioWs;
       session.streamSid = streamSid;
-      console.log(`[TwilioOpenAI Bridge] Twilio WebSocket set for ${callSid}, streamSid: ${streamSid}`);
+      logger.info(`[TwilioOpenAI Bridge] Twilio WebSocket set for ${callSid}, streamSid: ${streamSid}`);
     }
   }
 
@@ -954,7 +955,7 @@ BACKGROUND NOISE HANDLING:
       return;
     }
 
-    console.log(`[TwilioOpenAI Bridge] Injecting message: "${message.substring(0, 50)}..."`);
+    logger.info(`[TwilioOpenAI Bridge] Injecting message`);
 
     session.openaiWs.send(JSON.stringify({
       type: 'conversation.item.create',
@@ -976,7 +977,7 @@ BACKGROUND NOISE HANDLING:
       return;
     }
 
-    console.log(`[TwilioOpenAI Bridge] Interrupting response for ${callSid}`);
+    logger.info(`[TwilioOpenAI Bridge] Interrupting response for ${callSid}`);
 
     session.openaiWs.send(JSON.stringify({
       type: 'response.cancel',
@@ -1002,7 +1003,7 @@ BACKGROUND NOISE HANDLING:
       return;
     }
 
-    console.log(`[TwilioOpenAI Bridge] Handling barge-in for ${callSid}`);
+    logger.info(`[TwilioOpenAI Bridge] Handling barge-in for ${callSid}`);
 
     // 1. Cancel the current response from OpenAI
     // This tells OpenAI to stop generating more audio/text
@@ -1017,7 +1018,7 @@ BACKGROUND NOISE HANDLING:
         event: 'clear',
         streamSid: streamSid,
       }));
-      console.log(`[TwilioOpenAI Bridge] Cleared Twilio audio buffer for ${callSid}`);
+      logger.info(`[TwilioOpenAI Bridge] Cleared Twilio audio buffer for ${callSid}`);
     }
 
     // 3. Optionally clear OpenAI's input audio buffer to start fresh
@@ -1035,7 +1036,7 @@ BACKGROUND NOISE HANDLING:
       return { duration: 0, transcript: '', transcriptParts: [] };
     }
 
-    console.log(`[TwilioOpenAI Bridge] Ending session for ${callSid}`);
+    logger.info(`[TwilioOpenAI Bridge] Ending session for ${callSid}`);
 
     // Remove connection from the pool manager
     openaiPoolManager.removeConnection(callSid);
@@ -1078,7 +1079,7 @@ BACKGROUND NOISE HANDLING:
     session.callSid = newCallSid;
     this.activeSessions.delete(oldCallSid);
     this.activeSessions.set(newCallSid, session);
-    console.log(`[TwilioOpenAI Bridge] Remapped session from ${oldCallSid} to ${newCallSid}`);
+    logger.info(`[TwilioOpenAI Bridge] Remapped session from ${oldCallSid} to ${newCallSid}`);
     return true;
   }
 
@@ -1104,12 +1105,12 @@ BACKGROUND NOISE HANDLING:
       const silenceDuration = now - (session.lastActivityTimestamp || now);
 
       if (silenceDuration > 22000 && session.silenceWarningSent) {
-        console.log(`[TwilioOpenAI Bridge] Prolonged silence timeout (22s) for ${session.callSid}. Disconnecting.`);
+        logger.warn(`[TwilioOpenAI Bridge] Prolonged silence timeout (22s) for ${session.callSid}. Disconnecting.`);
         this.injectMessageToOpenAI(session, "No response detected, disconnecting call. Goodbye.");
         setTimeout(() => this.disconnectSession(session.callSid), 2000);
         if (session.silenceTimer) clearInterval(session.silenceTimer);
       } else if (silenceDuration > 12000 && !session.silenceWarningSent) {
-        console.log(`[TwilioOpenAI Bridge] Silence warning (12s) for ${session.callSid}.`);
+        logger.warn(`[TwilioOpenAI Bridge] Silence warning (12s) for ${session.callSid}.`);
         session.silenceWarningSent = true;
         this.injectMessageToOpenAI(session, "Are you there? If you are unable to respond, I will disconnect the call shortly.");
       }
@@ -1146,7 +1147,7 @@ BACKGROUND NOISE HANDLING:
     try {
       // Wait for AI to finish speaking the transfer announcement
       // This prevents the call from being transferred mid-sentence
-      console.log(`[TwilioOpenAI Bridge] Waiting 2.5s for AI to complete transfer announcement...`);
+      logger.info(`[TwilioOpenAI Bridge] Waiting 2.5s for AI to complete transfer announcement...`);
       await new Promise(resolve => setTimeout(resolve, 2500));
 
       const client = await getTwilioClient();
@@ -1166,11 +1167,11 @@ BACKGROUND NOISE HANDLING:
       if (callDirection === 'inbound') {
         // Inbound: toNumber is the Twilio number the customer called
         callerId = toNumber;
-        console.log(`[TwilioOpenAI Bridge] Inbound call - using toNumber as caller ID: ${callerId}`);
+        logger.info(`[TwilioOpenAI Bridge] Inbound call - using toNumber as caller ID`);
       } else {
         // Outbound: fromNumber is the Twilio number we called from
         callerId = fromNumber;
-        console.log(`[TwilioOpenAI Bridge] Outbound call - using fromNumber as caller ID: ${callerId}`);
+        logger.info(`[TwilioOpenAI Bridge] Outbound call - using fromNumber as caller ID`);
       }
 
       if (!callerId) {
@@ -1178,16 +1179,16 @@ BACKGROUND NOISE HANDLING:
         throw new Error(`Cannot transfer call - Twilio caller ID is missing for ${callDirection} call`);
       }
 
-      console.log(`[TwilioOpenAI Bridge] Transfer using Twilio caller ID: ${callerId}`);
+      logger.info(`[TwilioOpenAI Bridge] Transfer using Twilio caller ID`);
       const twiml = generateTransferTwiML(targetNumber, callerId);
 
-      console.log(`[TwilioOpenAI Bridge] Updating call ${callSid} with transfer TwiML to ${targetNumber} (callerId: ${callerId})`);
+      logger.info(`[TwilioOpenAI Bridge] Updating call ${callSid} with transfer TwiML`);
 
       await client.calls(callSid).update({
         twiml: twiml,
       });
 
-      console.log(`[TwilioOpenAI Bridge] Transfer initiated successfully for ${callSid}`);
+      logger.info(`[TwilioOpenAI Bridge] Transfer initiated successfully for ${callSid}`);
 
       if (session.openaiWs && session.openaiWs.readyState === WebSocket.OPEN) {
         session.openaiWs.close(1000, 'Call transferred');
@@ -1218,13 +1219,13 @@ BACKGROUND NOISE HANDLING:
 
       const twiml = generateHangupTwiML('Thank you for calling. Goodbye!');
 
-      console.log(`[TwilioOpenAI Bridge] Hanging up call ${callSid}`);
+      logger.info(`[TwilioOpenAI Bridge] Hanging up call ${callSid}`);
 
       await client.calls(callSid).update({
         twiml: twiml,
       });
 
-      console.log(`[TwilioOpenAI Bridge] Hangup successful for ${callSid}`);
+      logger.info(`[TwilioOpenAI Bridge] Hangup successful for ${callSid}`);
 
       session.status = 'disconnected';
       session.endedAt = new Date();
@@ -1267,7 +1268,7 @@ BACKGROUND NOISE HANDLING:
     }
     try {
       await this.updateCallMetadata(callSid, { callerEmail: emailAddress });
-      console.log(`[TwilioOpenAI Bridge] Stored callerEmail in metadata: ${emailAddress}`);
+      logger.info(`[TwilioOpenAI Bridge] Stored callerEmail in metadata`);
       return { success: true, message: `Email address ${emailAddress} stored for post-call follow-up.` };
     } catch (err: any) {
       console.error(`[TwilioOpenAI Bridge] Failed to store callerEmail: ${err.message}`);
@@ -1375,7 +1376,7 @@ BACKGROUND NOISE HANDLING:
         { callId: ctx.callId, agentId: ctx.agentId }
       );
 
-      console.log(`[TwilioOpenAI Bridge] send_email result: success=${result.success} to=${recipientEmail}`);
+      logger.info(`[TwilioOpenAI Bridge] send_email result: success=${result.success}`);
 
       // Side-effect: persist callerEmail to call metadata for post-call trigger awareness
       if (result.success && session.callSid) {
@@ -1467,7 +1468,7 @@ BACKGROUND NOISE HANDLING:
             const buttonComponents = MetaWhatsAppService.buildButtonComponents(templateDef.components, ctx.fixedButtonVariables);
             if (buttonComponents.length > 0) {
               components = [...components, ...buttonComponents];
-              console.log(`[TwilioOpenAI Bridge] Auto-added ${buttonComponents.length} button component(s) for template "${templateName}"`);
+              logger.info(`[TwilioOpenAI Bridge] Auto-added ${buttonComponents.length} button component(s) for template "${templateName}"`);
             }
           }
         } catch (tmplError: any) {
@@ -1510,7 +1511,7 @@ BACKGROUND NOISE HANDLING:
         console.warn(`[TwilioOpenAI Bridge] Failed to store WhatsApp in conversations: ${convError.message}`);
       }
 
-      console.log(`[TwilioOpenAI Bridge] send_whatsapp result: success=true to=${recipientPhone}`);
+      logger.info(`[TwilioOpenAI Bridge] send_whatsapp result: success=true`);
       return { success: true, message: `WhatsApp message sent successfully to ${recipientPhone}` };
     } catch (error: any) {
       console.error(`[TwilioOpenAI Bridge] send_whatsapp error: ${error.message}`);
@@ -1527,10 +1528,10 @@ BACKGROUND NOISE HANDLING:
   private static async executePlayAudio(session: AudioBridgeSession, audioUrl: string): Promise<{ success: boolean; error?: string }> {
     const { callSid, twilioWs, streamSid, twilioStreamReady } = session;
 
-    console.log(`[TwilioOpenAI Bridge] ===== INITIATING AUDIO PLAYBACK =====`);
-    console.log(`[TwilioOpenAI Bridge] Call SID: ${callSid}`);
-    console.log(`[TwilioOpenAI Bridge] Audio URL: ${audioUrl}`);
-    console.log(`[TwilioOpenAI Bridge] Stream ready: ${twilioStreamReady}, streamSid: ${streamSid}`);
+    logger.info(`[TwilioOpenAI Bridge] ===== INITIATING AUDIO PLAYBACK =====`);
+    logger.info(`[TwilioOpenAI Bridge] Call SID: ${callSid}`);
+    logger.info(`[TwilioOpenAI Bridge] Audio source resolved`);
+    logger.info(`[TwilioOpenAI Bridge] Stream ready: ${twilioStreamReady}, streamSid: ${streamSid}`);
 
     // Verify stream is ready before attempting playback
     if (!twilioStreamReady) {
@@ -1554,18 +1555,18 @@ BACKGROUND NOISE HANDLING:
       if (audioUrl.startsWith('/')) {
         const baseUrl = getDomain();
         fullAudioUrl = `${baseUrl}${audioUrl}`;
-        console.log(`[TwilioOpenAI Bridge] Converted relative URL to: ${fullAudioUrl}`);
+        logger.info(`[TwilioOpenAI Bridge] Converted relative URL`);
       }
 
       // Fetch the audio file
-      console.log(`[TwilioOpenAI Bridge] Fetching audio file...`);
+      logger.info(`[TwilioOpenAI Bridge] Fetching audio file...`);
       const response = await axios.get(fullAudioUrl, {
         responseType: 'arraybuffer',
         timeout: 30000,
       });
 
       const audioBuffer = Buffer.from(response.data);
-      console.log(`[TwilioOpenAI Bridge] Audio file fetched, size: ${audioBuffer.length} bytes`);
+      logger.info(`[TwilioOpenAI Bridge] Audio file fetched, size: ${audioBuffer.length} bytes`);
 
       // For Twilio Media Streams, audio must be mulaw 8kHz
       // If the file is a WAV with mulaw encoding, extract the audio data
@@ -1584,16 +1585,16 @@ BACKGROUND NOISE HANDLING:
         if (dataIndex > 0 && dataIndex + 8 < audioBuffer.length) {
           // Skip 'data' + 4 bytes of chunk size
           mulawData = audioBuffer.slice(dataIndex + 8);
-          console.log(`[TwilioOpenAI Bridge] Extracted audio data from WAV, size: ${mulawData.length} bytes`);
+          logger.info(`[TwilioOpenAI Bridge] Extracted audio data from WAV, size: ${mulawData.length} bytes`);
         } else {
           // Fallback: skip first 44 bytes (standard header)
           mulawData = audioBuffer.slice(44);
-          console.log(`[TwilioOpenAI Bridge] Using fallback WAV extraction, size: ${mulawData.length} bytes`);
+          logger.warn(`[TwilioOpenAI Bridge] Using fallback WAV extraction, size: ${mulawData.length} bytes`);
         }
       } else if (contentType.includes('audio/mpeg') || contentType.includes('audio/mp3') ||
         audioUrl.endsWith('.mp3') || audioUrl.includes('.mp3')) {
         // MP3 file - convert to mulaw 8kHz WAV using ffmpeg
-        console.log(`[TwilioOpenAI Bridge] MP3 format detected - converting to mulaw 8kHz...`);
+        logger.info(`[TwilioOpenAI Bridge] MP3 format detected - converting to mulaw 8kHz...`);
 
         const convertedData = await this.convertAudioToMulaw(audioBuffer, 'mp3');
         if (!convertedData) {
@@ -1603,17 +1604,17 @@ BACKGROUND NOISE HANDLING:
           };
         }
         mulawData = convertedData;
-        console.log(`[TwilioOpenAI Bridge] Converted MP3 to mulaw, size: ${mulawData.length} bytes`);
+        logger.info(`[TwilioOpenAI Bridge] Converted MP3 to mulaw, size: ${mulawData.length} bytes`);
       } else {
         // Assume it's already raw mulaw data
         mulawData = audioBuffer;
-        console.log(`[TwilioOpenAI Bridge] Using audio data directly, size: ${mulawData.length} bytes`);
+        logger.info(`[TwilioOpenAI Bridge] Using audio data directly, size: ${mulawData.length} bytes`);
       }
 
       // Stream audio in chunks (160 bytes = 20ms of 8kHz mulaw audio)
       const chunkSize = 160;
       const totalChunks = Math.ceil(mulawData.length / chunkSize);
-      console.log(`[TwilioOpenAI Bridge] Streaming ${totalChunks} audio chunks...`);
+      logger.info(`[TwilioOpenAI Bridge] Streaming ${totalChunks} audio chunks...`);
 
       let chunksSent = 0;
       for (let offset = 0; offset < mulawData.length; offset += chunkSize) {
@@ -1654,13 +1655,13 @@ BACKGROUND NOISE HANDLING:
       // Calculate playback duration and wait for audio to finish
       // Mulaw 8kHz = 8000 samples/second, 1 byte per sample
       const audioDurationMs = Math.ceil((mulawData.length / 8000) * 1000);
-      console.log(`[TwilioOpenAI Bridge] Audio duration: ${audioDurationMs}ms, waiting for playback...`);
+      logger.info(`[TwilioOpenAI Bridge] Audio duration: ${audioDurationMs}ms, waiting for playback...`);
 
       // Wait for estimated playback duration plus buffer
       await new Promise(resolve => setTimeout(resolve, audioDurationMs + 500));
 
-      console.log(`[TwilioOpenAI Bridge] ===== SUCCESS - Audio playback complete =====`);
-      console.log(`[TwilioOpenAI Bridge] Sent ${chunksSent} chunks, mark: ${markName}`);
+      logger.info(`[TwilioOpenAI Bridge] ===== SUCCESS - Audio playback complete =====`);
+      logger.info(`[TwilioOpenAI Bridge] Sent ${chunksSent} chunks, mark: ${markName}`);
 
       return { success: true };
 
@@ -1713,18 +1714,18 @@ BACKGROUND NOISE HANDLING:
     try {
       // Write input file
       await fsWriteFile(inputPath, audioBuffer);
-      console.log(`[TwilioOpenAI Bridge] Wrote temp audio file: ${inputPath} (${audioBuffer.length} bytes)`);
+      logger.info(`[TwilioOpenAI Bridge] Wrote temp audio file: ${inputPath} (${audioBuffer.length} bytes)`);
 
       // Convert using ffmpeg to raw mulaw 8kHz mono
       // -f mulaw outputs raw mulaw without WAV header
       const ffmpegCmd = `ffmpeg -y -i "${inputPath}" -ar 8000 -ac 1 -f mulaw "${outputPath}"`;
-      console.log(`[TwilioOpenAI Bridge] Running ffmpeg conversion...`);
+      logger.info(`[TwilioOpenAI Bridge] Running ffmpeg conversion...`);
 
       await execAsync(ffmpegCmd);
 
       // Read converted output
       const mulawData = await fsReadFile(outputPath);
-      console.log(`[TwilioOpenAI Bridge] Conversion complete: ${mulawData.length} bytes of mulaw audio`);
+      logger.info(`[TwilioOpenAI Bridge] Conversion complete: ${mulawData.length} bytes of mulaw audio`);
 
       // Clean up temp files
       await fsUnlink(inputPath).catch(() => { });

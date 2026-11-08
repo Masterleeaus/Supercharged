@@ -44,7 +44,7 @@ export function createUserAddressRoutes(ctx: RouteContext): Router {
       if (!parsed.success) {
         return res.status(400).json({ 
           error: "Invalid address data", 
-          details: parsed.error.errors 
+          details: parsed.error.issues 
         });
       }
       

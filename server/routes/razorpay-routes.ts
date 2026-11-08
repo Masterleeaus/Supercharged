@@ -38,6 +38,7 @@ import { queueFailedWebhook } from '../services/webhook-retry-service';
 import { emailService } from '../services/email-service';
 import { generateInvoiceForTransaction } from '../services/invoice-service';
 import { applyRefund } from '../services/credit-service';
+import { logger } from '../utils/logger';
 
 const router: Router = express.Router();
 
@@ -239,7 +240,7 @@ router.post('/verify-subscription', authenticateToken, async (req: AuthRequest, 
         status: 'completed',
         completedAt: new Date(),
       });
-      console.log(`✅ [Razorpay] Logged subscription transaction for user ${userId}`);
+      logger.info(`✅ [Razorpay] Logged subscription transaction for user ${userId}`);
     } catch (txError: any) {
       console.error('Failed to log payment transaction:', txError);
     }
@@ -381,7 +382,7 @@ router.post('/verify-order', authenticateToken, async (req: AuthRequest, res: Re
           status: 'completed',
           completedAt: new Date(),
         });
-        console.log(`✅ [Razorpay] Logged credits transaction for user ${userId}`);
+        logger.info(`✅ [Razorpay] Logged credits transaction for user ${userId}`);
       } catch (txError: any) {
         console.error('Failed to log payment transaction:', txError);
       }
@@ -389,7 +390,7 @@ router.post('/verify-order', authenticateToken, async (req: AuthRequest, res: Re
       if (!error.message?.includes('unique') && !error.message?.includes('duplicate')) {
         throw error;
       }
-      console.log(`Payment ${razorpay_payment_id} already processed, skipping credit addition`);
+      logger.warn(`Payment ${razorpay_payment_id} already processed, skipping credit addition`);
     }
 
     const user = await storage.getUser(userId);
@@ -454,11 +455,11 @@ router.post('/webhook', webhookRateLimiter, async (req: Request, res: Response) 
     const eventType = event.event;
     const payload = event.payload;
 
-    console.log(`📥 [Razorpay Webhook] Received event: ${eventType}`);
+    logger.info(`📥 [Razorpay Webhook] Received event: ${eventType}`);
 
     switch (eventType) {
       case 'subscription.authenticated': {
-        console.log('✅ [Razorpay] Subscription authenticated');
+        logger.info('✅ [Razorpay] Subscription authenticated');
         break;
       }
 
@@ -526,13 +527,13 @@ router.post('/webhook', webhookRateLimiter, async (req: Request, res: Response) 
                   status: 'completed',
                   completedAt: new Date(),
                 });
-                console.log(`✅ [Razorpay Webhook] Logged subscription transaction for user ${userId}`);
+                logger.info(`✅ [Razorpay Webhook] Logged subscription transaction for user ${userId}`);
                 
                 // Generate invoice and send purchase confirmation email
                 try {
                   await generateInvoiceForTransaction(newTransaction.id);
                   await emailService.sendPurchaseConfirmation(newTransaction.id);
-                  console.log(`✅ [Razorpay] Purchase confirmation email sent for transaction ${newTransaction.id}`);
+                  logger.info(`✅ [Razorpay] Purchase confirmation email sent for transaction ${newTransaction.id}`);
                 } catch (emailError: any) {
                   console.error(`❌ [Razorpay] Failed to send purchase confirmation email:`, emailError);
                 }
@@ -600,13 +601,13 @@ router.post('/webhook', webhookRateLimiter, async (req: Request, res: Response) 
                     status: 'completed',
                     completedAt: new Date(),
                   });
-                  console.log(`✅ [Razorpay Webhook] Logged renewal transaction for user ${userId}`);
+                  logger.info(`✅ [Razorpay Webhook] Logged renewal transaction for user ${userId}`);
                   
                   // Generate invoice and send purchase confirmation email for renewal
                   try {
                     await generateInvoiceForTransaction(renewalTransaction.id);
                     await emailService.sendPurchaseConfirmation(renewalTransaction.id);
-                    console.log(`✅ [Razorpay] Renewal confirmation email sent for transaction ${renewalTransaction.id}`);
+                    logger.info(`✅ [Razorpay] Renewal confirmation email sent for transaction ${renewalTransaction.id}`);
                   } catch (emailError: any) {
                     console.error(`❌ [Razorpay] Failed to send renewal confirmation email:`, emailError);
                   }
@@ -771,13 +772,13 @@ router.post('/webhook', webhookRateLimiter, async (req: Request, res: Response) 
                     status: 'completed',
                     completedAt: new Date(),
                   });
-                  console.log(`✅ [Razorpay Webhook] Logged credits transaction for user ${userId}`);
+                  logger.info(`✅ [Razorpay Webhook] Logged credits transaction for user ${userId}`);
                   
                   // Generate invoice and send purchase confirmation email
                   try {
                     await generateInvoiceForTransaction(creditTransaction.id);
                     await emailService.sendPurchaseConfirmation(creditTransaction.id);
-                    console.log(`✅ [Razorpay] Credits purchase confirmation email sent for transaction ${creditTransaction.id}`);
+                    logger.info(`✅ [Razorpay] Credits purchase confirmation email sent for transaction ${creditTransaction.id}`);
                   } catch (emailError: any) {
                     console.error(`❌ [Razorpay] Failed to send credits purchase confirmation email:`, emailError);
                   }
@@ -796,7 +797,7 @@ router.post('/webhook', webhookRateLimiter, async (req: Request, res: Response) 
       }
 
       case 'payment.captured': {
-        console.log('✅ [Razorpay] Payment captured');
+        logger.info('✅ [Razorpay] Payment captured');
         break;
       }
 
@@ -811,7 +812,7 @@ router.post('/webhook', webhookRateLimiter, async (req: Request, res: Response) 
           if (userId) {
             const failedAmount = ((payment?.amount || 0) / 100).toFixed(2);
             await emailService.sendPaymentFailed(userId, failedAmount, payment?.error_description || 'Payment failed');
-            console.log(`✅ [Razorpay] Payment failed email sent to user ${userId}`);
+            logger.info(`✅ [Razorpay] Payment failed email sent to user ${userId}`);
           }
         } catch (emailError: any) {
           console.error(`❌ [Razorpay] Failed to send payment failed email:`, emailError);
@@ -824,7 +825,7 @@ router.post('/webhook', webhookRateLimiter, async (req: Request, res: Response) 
         const refund = payload.refund?.entity;
         const paymentId = refund?.payment_id;
         
-        console.log(`🔄 [Razorpay] External refund created: ${refund?.id} for payment ${paymentId}`);
+        logger.info(`🔄 [Razorpay] External refund created: ${refund?.id} for payment ${paymentId}`);
         
         if (paymentId && refund) {
           try {
@@ -835,7 +836,7 @@ router.post('/webhook', webhookRateLimiter, async (req: Request, res: Response) 
               // Check if we already have a refund for this transaction
               const existingRefunds = await storage.getTransactionRefunds(transaction.id);
               if (existingRefunds.length > 0) {
-                console.log(`ℹ️ [Razorpay] Refund already exists for payment ${paymentId}, skipping`);
+                logger.warn(`ℹ️ [Razorpay] Refund already exists for payment ${paymentId}, skipping`);
                 break;
               }
               
@@ -855,7 +856,7 @@ router.post('/webhook', webhookRateLimiter, async (req: Request, res: Response) 
                 
                 if (refundResult.success && !refundResult.alreadyProcessed) {
                   creditsReversed = refundResult.creditsReversed;
-                  console.log(`🔄 [Razorpay] Reversed ${creditsReversed} credits for user ${userId}. Transaction logged.`);
+                  logger.info(`🔄 [Razorpay] Reversed ${creditsReversed} credits for user ${userId}. Transaction logged.`);
                 }
               }
               
@@ -882,7 +883,7 @@ router.post('/webhook', webhookRateLimiter, async (req: Request, res: Response) 
                 status: 'refunded',
               });
               
-              console.log(`✅ [Razorpay] External refund processed for user ${userId}. Payment: ${paymentId}`);
+              logger.info(`✅ [Razorpay] External refund processed for user ${userId}. Payment: ${paymentId}`);
             }
           } catch (error: any) {
             console.error('Error processing external refund:', error);
@@ -896,7 +897,7 @@ router.post('/webhook', webhookRateLimiter, async (req: Request, res: Response) 
         const dispute = payload.dispute?.entity;
         const paymentId = dispute?.payment_id;
         
-        console.log(`🚨 [Razorpay] Dispute created: ${dispute?.id} for payment ${paymentId}`);
+        logger.warn(`🚨 [Razorpay] Dispute created: ${dispute?.id} for payment ${paymentId}`);
         
         if (paymentId && dispute) {
           try {
@@ -920,7 +921,7 @@ router.post('/webhook', webhookRateLimiter, async (req: Request, res: Response) 
                 
                 if (refundResult.success && !refundResult.alreadyProcessed) {
                   creditsReversed = refundResult.creditsReversed;
-                  console.log(`🔄 [Razorpay] Reversed ${creditsReversed} credits for user ${userId}. Transaction logged.`);
+                  logger.info(`🔄 [Razorpay] Reversed ${creditsReversed} credits for user ${userId}. Transaction logged.`);
                 }
               }
               
@@ -956,12 +957,12 @@ router.post('/webhook', webhookRateLimiter, async (req: Request, res: Response) 
               // Send account suspended email
               try {
                 await emailService.sendAccountSuspended(userId, `Chargeback dispute: ${dispute.reason_code || 'Unknown reason'}`);
-                console.log(`✅ [Razorpay] Account suspended email sent to user ${userId}`);
+                logger.info(`✅ [Razorpay] Account suspended email sent to user ${userId}`);
               } catch (emailError: any) {
                 console.error(`❌ [Razorpay] Failed to send account suspended email:`, emailError);
               }
               
-              console.log(`⛔ [Razorpay] User ${userId} suspended due to chargeback. Dispute ID: ${dispute.id}, Reason: ${dispute.reason_code}`);
+              logger.warn(`⛔ [Razorpay] User ${userId} suspended due to chargeback. Dispute ID: ${dispute.id}, Reason: ${dispute.reason_code}`);
             } else {
               console.warn(`⚠️ [Razorpay] No transaction found for payment ${paymentId}`);
             }
@@ -973,7 +974,7 @@ router.post('/webhook', webhookRateLimiter, async (req: Request, res: Response) 
       }
 
       default:
-        console.log(`ℹ️ [Razorpay] Unhandled event type: ${eventType}`);
+        logger.warn(`ℹ️ [Razorpay] Unhandled event type: ${eventType}`);
     }
 
     res.json({ received: true });
