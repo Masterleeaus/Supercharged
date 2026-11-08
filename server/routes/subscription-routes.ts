@@ -199,7 +199,7 @@ export function createSubscriptionRoutes(ctx: RouteContext): Router {
       });
       
       if (!validationResult.success) {
-        const errors = validationResult.error.errors.map(e => e.message).join(", ");
+        const errors = validationResult.error.issues.map(e => e.message).join(", ");
         return res.status(400).json({ error: errors });
       }
       

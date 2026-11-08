@@ -102,7 +102,7 @@ router.post('/stages', requireAuth, async (req: AuthRequest, res: Response) => {
   } catch (error: any) {
     console.error('[CRM] Error creating stage:', error);
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: 'Invalid data', details: error.errors });
+      return res.status(400).json({ error: 'Invalid data', details: error.issues });
     }
     res.status(500).json({ error: 'Failed to create stage' });
   }

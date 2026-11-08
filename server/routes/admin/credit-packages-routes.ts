@@ -57,10 +57,10 @@ export function registerCreditPackagesRoutes(router: Router) {
       try {
         packageData = insertCreditPackageSchema.parse(bodyData);
       } catch (validationError: any) {
-        if (validationError.errors) {
+        if (validationError.issues) {
           return res.status(400).json({ 
             error: 'Validation failed', 
-            details: validationError.errors 
+            details: validationError.issues 
           });
         }
         throw validationError;
@@ -131,10 +131,10 @@ export function registerCreditPackagesRoutes(router: Router) {
       try {
         updateData = insertCreditPackageSchema.partial().parse(bodyData);
       } catch (validationError: any) {
-        if (validationError.errors) {
+        if (validationError.issues) {
           return res.status(400).json({ 
             error: 'Validation failed', 
-            details: validationError.errors 
+            details: validationError.issues 
           });
         }
         throw validationError;

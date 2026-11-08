@@ -107,10 +107,10 @@ export function registerPlansRoutes(router: Router) {
       try {
         planData = insertPlanSchema.parse(bodyData);
       } catch (validationError: any) {
-        if (validationError.errors) {
+        if (validationError.issues) {
           return res.status(400).json({ 
             error: 'Validation failed', 
-            details: validationError.errors 
+            details: validationError.issues 
           });
         }
         throw validationError;
@@ -415,7 +415,7 @@ export function registerPlansRoutes(router: Router) {
     } catch (error: any) {
       console.error('Error creating plan:', error);
       if (error.name === 'ZodError') {
-        return res.status(400).json({ error: 'Validation failed', details: error.errors });
+        return res.status(400).json({ error: 'Validation failed', details: error.issues });
       }
       res.status(500).json({ error: 'Failed to create plan' });
     }
@@ -432,10 +432,10 @@ export function registerPlansRoutes(router: Router) {
       try {
         updateData = insertPlanSchema.partial().parse(bodyData);
       } catch (validationError: any) {
-        if (validationError.errors) {
+        if (validationError.issues) {
           return res.status(400).json({ 
             error: 'Validation failed', 
-            details: validationError.errors 
+            details: validationError.issues 
           });
         }
         throw validationError;
@@ -741,7 +741,7 @@ export function registerPlansRoutes(router: Router) {
       if (error.name === 'ZodError') {
         return res.status(400).json({ 
           error: 'Validation failed', 
-          details: error.errors 
+          details: error.issues 
         });
       }
       res.status(500).json({ 

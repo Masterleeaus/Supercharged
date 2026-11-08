@@ -64,7 +64,7 @@ export function registerElevenlabsPoolRoutes(router: Router) {
     } catch (error: any) {
       console.error('Error adding ElevenLabs credential:', error);
       if (error.name === 'ZodError') {
-        return res.status(400).json({ error: 'Invalid input', details: error.errors });
+        return res.status(400).json({ error: 'Invalid input', details: error.issues });
       }
       res.status(500).json({ error: 'Failed to add credential' });
     }
