@@ -128,3 +128,11 @@ The scanner reads `.js`, `.jsx`, `.ts`, `.tsx`, `.mjs` and `.cjs` files, exclude
 **Crucial:** a direct importer edge is **not** proof of execution from the production entrypoint. Files with no static inbound edges may still be reached by a dynamic loader, test harness, plugin discovery, server runtime configuration, or compiled packaging. Therefore neither this scanner nor the exact SHA report recommends deletion by itself.
 
 Four fixture-driven Node tests exercise parsing, suffix/index resolution, imported integration paths, donor exclusion, unresolved and dynamic call reporting, symlink skipping, and read-only scanning. The tests are pending GitHub Actions on the latest head.
+
+## Pass 13 — conservative transitive ownership
+
+The import auditor now computes transitive, **literal-path** reachability from available source entrypoints `server/index.ts`, `client/src/main.tsx`, and `scripts/build-server-deps.js`. It reports which explicit roots were found, missing roots, total statically traversed files, and whether a targeted integration file has a chain of resolved imports from those roots.
+
+It also resolves the verified Vite aliases `@/` → `client/src/` and `@shared/` → `shared/` (as configured in `vite.config.ts`), reporting resolved and unresolved alias imports separately. This improves browser/client coverage over relative imports alone. It does not resolve arbitrary third-party package names, plugin registries, route registration through runtime reflection, aliases unknown to the build, worker import maps, or loader-generated paths.
+
+A file that is not statically reachable may still be required at runtime; every ownership row continues to report `live: "unverified"`. The auditor **never deletes source or treats lack of inbound imports as grounds for removal**. Six dedicated import scanner tests cover parsing, extension resolution, cycles, entrypoints, Vite aliases and unresolved imports. New tests require a completed CI check.
