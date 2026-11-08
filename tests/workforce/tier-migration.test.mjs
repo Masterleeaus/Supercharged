@@ -11,7 +11,7 @@ import { dirname, join } from 'node:path';
 import { migrateAutonomy, migrateRecord, AUTONOMY_TIERS } from '../../server/workforce/catalogue/tier-migration.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const SQL = readFileSync(join(HERE, '..', '..', 'migrations', 'DRAFT_workforce_tier_migration.sql'), 'utf8');
+const SQL = readFileSync(join(HERE, '..', '..', 'migrations', 'archive', 'DRAFT_workforce_tier_migration.sql'), 'utf8');
 
 const OLD_MAP = {
   observe_only: 'assist',

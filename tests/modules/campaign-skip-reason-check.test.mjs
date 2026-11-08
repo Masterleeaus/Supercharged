@@ -13,7 +13,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
-const sql = readFileSync(`${ROOT}migrations/DRAFT_campaigns.sql`, 'utf8');
+const sql = readFileSync(`${ROOT}migrations/archive/DRAFT_campaigns.sql`, 'utf8');
 const types = readFileSync(`${ROOT}server/modules/campaigns/types.ts`, 'utf8');
 
 function quotedValues(text) {

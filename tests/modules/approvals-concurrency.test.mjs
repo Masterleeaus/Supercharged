@@ -833,7 +833,7 @@ test('approval view surfaces the status, including revoked; an unknown status re
 // -- draft migration ---------------------------------------------------------
 
 test('DRAFT_approvals_one_pending.sql carries the guard, the revoked check and the partial unique index', () => {
-  const sql = readFileSync(new URL('DRAFT_approvals_one_pending.sql', MIGRATIONS), 'utf8');
+  const sql = readFileSync(new URL('archive/DRAFT_approvals_one_pending.sql', MIGRATIONS), 'utf8');
   assert.match(sql, /DRAFT - NOT APPLIED/);
   assert.match(sql, /RAISE EXCEPTION/);
   assert.match(sql, /'revoked'\)/);

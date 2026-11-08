@@ -84,8 +84,8 @@ describe('resubmit guard', { skip: SKIP }, () => {
     await admin.end();
 
     pool = new pg.Pool({ connectionString: DB_URL, max: 8, options: `-c search_path=${schema}` });
-    await pool.query(readFileSync(new URL('DRAFT_approvals.sql', MIGRATIONS), 'utf8'));
-    await pool.query(readFileSync(new URL('DRAFT_approvals_resubmit_guard.sql', MIGRATIONS), 'utf8'));
+    await pool.query(readFileSync(new URL('archive/DRAFT_approvals.sql', MIGRATIONS), 'utf8'));
+    await pool.query(readFileSync(new URL('archive/DRAFT_approvals_resubmit_guard.sql', MIGRATIONS), 'utf8'));
     service = new ApprovalService({ tenant: runner });
   });
 

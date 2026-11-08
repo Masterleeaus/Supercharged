@@ -52,5 +52,5 @@ Effect: requests that send neither Origin nor Referer are refused. Non-browser c
 
 ## Not proposed here (noted only)
 
-- `public-widget-routes.ts` lines 21-29 set `Access-Control-Allow-Origin: *` on every public widget route. The new `/embed/*` routes do not use this middleware. Narrowing the existing wildcard needs a per-widget origin lookup and is a separate change.
+- `public-widget-routes.ts` no longer sends a wildcard. It uses a fail-closed allowlist, `getWidgetAllowedOrigins()` and the CORS middleware near the top of the file, read from the `WIDGET_ALLOWED_ORIGINS` environment variable (comma-separated, for example `https://example.com,https://app.example.org`). When the request `Origin` is on the list, the response sends `Access-Control-Allow-Origin` with that origin and `Vary: Origin`. Any other origin, or an unset or empty variable, gets no CORS header, so the browser blocks cross-origin reads. Same-origin requests are not affected. The new `/embed/*` routes do not use this middleware. A per-widget origin lookup is still a separate change.
 - `widget-service.ts` line 259 builds an embed snippet that points at `${baseUrl}/widget/embed.js`. No such route exists in server/modules/widget/. The new `embed-script.js` is the intended replacement.
