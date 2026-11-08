@@ -269,7 +269,7 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response) => {
   } catch (error: any) {
     console.error("[Twilio-OpenAI] Error creating incoming connection:", error);
     if (error.name === "ZodError") {
-      return res.status(400).json({ message: "Validation error", errors: error.errors });
+      return res.status(400).json({ message: "Validation error", errors: error.issues });
     }
     res.status(500).json({ message: "Failed to create incoming connection" });
   }

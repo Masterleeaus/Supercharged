@@ -149,10 +149,10 @@ export function registerUsersRoutes(router: Router) {
           planType: normalizePlanType(parsed.planType)
         };
       } catch (validationError: any) {
-        if (validationError.errors) {
+        if (validationError.issues) {
           return res.status(400).json({ 
             error: 'Validation failed', 
-            details: validationError.errors 
+            details: validationError.issues 
           });
         }
         throw validationError;
@@ -311,7 +311,7 @@ export function registerUsersRoutes(router: Router) {
     } catch (error: any) {
       console.error('Error creating user:', error);
       if (error.name === 'ZodError') {
-        return res.status(400).json({ error: 'Invalid input data', details: error.errors });
+        return res.status(400).json({ error: 'Invalid input data', details: error.issues });
       }
       res.status(500).json({ error: 'Failed to create user' });
     }

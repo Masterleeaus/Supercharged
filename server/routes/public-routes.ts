@@ -988,7 +988,7 @@ ${allUrls.map(u => {
       const validationResult = contactSchema.safeParse(req.body);
       if (!validationResult.success) {
         return res.status(400).json({
-          error: validationResult.error.errors[0]?.message || "Invalid form data"
+          error: validationResult.error.issues[0]?.message || "Invalid form data"
         });
       }
 
