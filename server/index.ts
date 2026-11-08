@@ -638,6 +638,10 @@ app.use((req, res, next) => {
     server.listen(listenOptions, () => {
       log(`serving on port ${port}`);
 
+      // PM2 wait_ready (ecosystem.config.cjs): tell PM2 the server is listening. Sent before the
+      // background starters below, so a failure in one of them cannot suppress it. No-op outside PM2.
+      signalReady();
+
       // Start phone number billing cron job
       startPhoneBillingCron();
 
@@ -670,9 +674,6 @@ app.use((req, res, next) => {
       }).catch(() => {
         // BullMQ module not available, continue without it
       });
-
-      // Signal PM2 that the process is ready to receive connections
-      signalReady();
 
       console.log('✅ [Production] Server fully initialized and listening');
       resolve();

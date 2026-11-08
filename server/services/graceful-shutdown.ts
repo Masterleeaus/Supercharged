@@ -149,7 +149,7 @@ export function setupGlobalHandlers(): void {
  * Call this after the server is fully initialized
  */
 export function signalReady(): void {
-  if (process.send) {
+  if (typeof process.send === 'function') {
     process.send('ready');
     console.log('📡 [PM2] Signaled ready to process manager');
   }
