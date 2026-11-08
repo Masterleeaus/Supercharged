@@ -1,8 +1,8 @@
+-- DRAFT - DO NOT RUN. Not part of the numbered migration sequence.
 -- OPEN DECISION: table-name conflict. The name campaigns is already used by the live legacy
 -- voice-call table (shared/schema.ts, keyed by user_id). This file's CREATE TABLE IF NOT EXISTS campaigns
 -- would silently no-op on a database that has the legacy table. Owner must choose a new name or a merge plan.
 -- DO NOT PROMOTE this file until that decision is resolved.
--- DRAFT - DO NOT RUN. Not part of the numbered migration sequence.
 -- Matches server/modules/campaigns/types.ts. Review before promoting to a numbered migration.
 -- Idempotent (IF NOT EXISTS) so a later re-run is safe.
 -- Tenant key is company_id; there is no companies table yet, so no foreign key to one.
