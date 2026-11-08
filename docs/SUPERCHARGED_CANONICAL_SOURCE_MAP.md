@@ -256,3 +256,14 @@ Pass 17 refinement: runtime load errors or missing required tables take preceden
 - Preserved plugin enablement semantics, permissions, manifests, existing source/vendor licensing, and donor archives. No runtime plugin was installed, restarted or remotely deployed during this pass.
 
 **Still pending:** live process-manager restart and graceful resource cleanup verification, plugin enable/disable active-route behaviour, source donor consolidation and licensing, and CI baseline repairs. PR draft and issue #54 open.
+
+## Pass 19 — checked restart and fail-closed plugin uninstall
+
+- Verified completed Pass 18 CI: **Build passed, 6,001 tests passed, 4 failed, 13 skipped**. Of the four failing tests, one was the newly added shutdown helper static assertion matching a *comment* containing `process.exit()`, not an executable direct exit. The other three were unchanged workforce tool composition/schema/timeout failures. Four other newly added Pass 18 tests passed.
+- Removed the code-like `process.exit()` text from the shutdown helper comment, leaving the executable implementation unchanged and retaining the no-direct-exit assertion. This resolves the false-positive source-text match; latest CI is still required to confirm.
+- Audited `server/routes/plugin-installer.ts` uninstall. It previously **continued file removal after `setPluginEnabled(name, false)` failed**, risking inconsistent plugin activation state. Uninstall now returns HTTP **503** with files preserved if the disabled flag cannot be persisted.
+- If disabling succeeds but moving plugin files to the backup fails, uninstall now returns **500** with `enabled:false`, `requiresRestart:true`, `filesPreserved:true`; it requests a graceful restart so the already-persisted disabled configuration can take effect.
+- Added four regression tests at `tests/infrastructure/plugin-uninstall-failclosed.test.mjs` for persisted-disable sequencing, partial rename failure, successful backup/restart scheduling, and the central shutdown path. Tests pending completed CI.
+- Preserved existing manifests, names, backups, database tables and third-party/donor source. No uninstall operation or live restart was performed.
+
+**Next:** finish CI verification; audit plugin reinstall/upgrade rollback and startup loader failure handling, then test the deactivation paths end to end under a process supervisor.
