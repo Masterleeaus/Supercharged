@@ -24,6 +24,7 @@
  * - Edge forward_condition types: unconditional, llm, result, expression
  */
 
+import { logger } from '../utils/logger';
 import { FlowNode, FlowEdge } from '@shared/schema';
 
 // ElevenLabs node types
@@ -121,7 +122,7 @@ export class ElevenLabsFlowCompiler {
         const message: string = config.message;
         firstMessage = message;
         const preview = message.length > 50 ? message.substring(0, 50) + '...' : message;
-        console.log(`📝 Extracted first_message from entry node: "${preview}"`);
+        logger.info(`📝 Extracted first_message from entry node: "${preview}"`);
       }
     }
     
@@ -132,7 +133,7 @@ export class ElevenLabsFlowCompiler {
     });
     
     if (hasAppointmentNodes) {
-      console.log(`📅 Flow contains appointment nodes - will register webhook tool`);
+      logger.info(`📅 Flow contains appointment nodes - will register webhook tool`);
     }
     
     const startNodeId = 'start_node';

@@ -1,3 +1,4 @@
+import { logger } from '../utils/logger';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { ElevenLabsService, isAgentOnSipPhoneNumber } from './elevenlabs';
@@ -25,7 +26,7 @@ export async function resyncSipTrunkConfigs(): Promise<void> {
   try {
     const ElevenLabsSipService = await getElevenLabsSipService();
     if (!ElevenLabsSipService) {
-      console.log(`[SIP Config Resync] SIP engine plugin not available, skipping`);
+      logger.warn(`[SIP Config Resync] SIP engine plugin not available, skipping`);
       return;
     }
 
@@ -41,11 +42,11 @@ export async function resyncSipTrunkConfigs(): Promise<void> {
     `);
 
     if (!result.rows || result.rows.length === 0) {
-      console.log(`[SIP Config Resync] No ElevenLabs SIP phone numbers found`);
+      logger.warn(`[SIP Config Resync] No ElevenLabs SIP phone numbers found`);
       return;
     }
 
-    console.log(`[SIP Config Resync] Found ${result.rows.length} SIP phone number(s) to resync config`);
+    logger.info(`[SIP Config Resync] Found ${result.rows.length} SIP phone number(s) to resync config`);
 
     let updated = 0;
     let failed = 0;
@@ -72,14 +73,14 @@ export async function resyncSipTrunkConfigs(): Promise<void> {
           phone.phone_number
         );
         updated++;
-        console.log(`   [SIP Config Resync] Updated ${phone.phone_number} (media_encryption: ${phone.media_encryption})`);
+        logger.info(`   [SIP Config Resync] Updated [redacted] (media_encryption: ${phone.media_encryption})`);
       } catch (error: any) {
         failed++;
         console.warn(`   [SIP Config Resync] Failed ${phone.phone_number}: ${error.message}`);
       }
     }
 
-    console.log(`[SIP Config Resync] Complete: ${updated} updated, ${failed} failed`);
+    logger.info(`[SIP Config Resync] Complete: ${updated} updated, ${failed} failed`);
   } catch (error: any) {
     console.warn(`[SIP Config Resync] Failed: ${error.message}`);
   }
@@ -99,11 +100,11 @@ export async function resyncSipAgentTransferTools(): Promise<void> {
     `);
 
     if (!result.rows || result.rows.length === 0) {
-      console.log(`📞 [SIP Resync] No SIP agents with transfer enabled found`);
+      logger.warn(`📞 [SIP Resync] No SIP agents with transfer enabled found`);
       return;
     }
 
-    console.log(`📞 [SIP Resync] Found ${result.rows.length} SIP agent(s) with transfer enabled`);
+    logger.info(`📞 [SIP Resync] Found ${result.rows.length} SIP agent(s) with transfer enabled`);
 
     for (const row of result.rows) {
       const agent = row as any;
@@ -120,7 +121,7 @@ export async function resyncSipAgentTransferTools(): Promise<void> {
           ? agent.transfer_phone_number
           : `+${agent.transfer_phone_number}`;
 
-        console.log(`   📞 Resyncing ${agent.name} (${agent.type}): ${phoneNumber} (conference transfer)`);
+        logger.info(`   📞 Resyncing ${agent.name} (${agent.type}): [redacted] (conference transfer)`);
 
         if (agent.type === 'incoming') {
           const currentAgent = await storage.getAgent(agent.id);
@@ -131,7 +132,7 @@ export async function resyncSipAgentTransferTools(): Promise<void> {
               currentAgent,
               { databaseAgentId: agent.id, systemPrompt: currentAgent.systemPrompt || undefined }
             );
-            console.log(`   ✅ Resynced incoming agent: ${agent.name}`);
+            logger.info(`   ✅ Resynced incoming agent: ${agent.name}`);
           }
         } else {
           await elevenLabsService.updateAgentTools(agent.eleven_labs_agent_id, {
@@ -141,14 +142,14 @@ export async function resyncSipAgentTransferTools(): Promise<void> {
             endConversationEnabled: true,
             databaseAgentId: agent.id,
           });
-          console.log(`   ✅ Resynced agent tools: ${agent.name}`);
+          logger.info(`   ✅ Resynced agent tools: ${agent.name}`);
         }
       } catch (error: any) {
         console.warn(`   ⚠️  Failed to resync agent ${agent.name}: ${error.message}`);
       }
     }
 
-    console.log(`📞 [SIP Resync] Complete`);
+    logger.info(`📞 [SIP Resync] Complete`);
   } catch (error: any) {
     console.warn(`⚠️  [SIP Resync] Failed: ${error.message}`);
   }
@@ -172,11 +173,11 @@ export async function resyncAppointmentWebhookUrls(): Promise<void> {
     `);
 
     if (!result.rows || result.rows.length === 0) {
-      console.log(`📅 [Appointment Resync] No agents with appointment booking found`);
+      logger.warn(`📅 [Appointment Resync] No agents with appointment booking found`);
       return;
     }
 
-    console.log(`📅 [Appointment Resync] Found ${result.rows.length} agent(s) with appointment booking enabled`);
+    logger.info(`📅 [Appointment Resync] Found ${result.rows.length} agent(s) with appointment booking enabled`);
     
     let updated = 0;
     let failed = 0;
@@ -193,14 +194,14 @@ export async function resyncAppointmentWebhookUrls(): Promise<void> {
         const elevenLabsService = new ElevenLabsService(credential.apiKey);
         await elevenLabsService.refreshAppointmentToolWithCurrentDate(agent.eleven_labs_agent_id);
         updated++;
-        console.log(`   ✅ Resynced appointment webhook URL: ${agent.name}`);
+        logger.info(`   ✅ Resynced appointment webhook URL: ${agent.name}`);
       } catch (error: any) {
         failed++;
         console.warn(`   ⚠️ Failed to resync appointment for ${agent.name}: ${error.message}`);
       }
     }
 
-    console.log(`📅 [Appointment Resync] Complete: ${updated} updated, ${failed} failed`);
+    logger.info(`📅 [Appointment Resync] Complete: ${updated} updated, ${failed} failed`);
   } catch (error: any) {
     console.warn(`⚠️ [Appointment Resync] Failed: ${error.message}`);
   }
@@ -228,11 +229,11 @@ export async function resyncFormWebhookUrls(): Promise<void> {
     `);
 
     if (!result.rows || result.rows.length === 0) {
-      console.log(`📋 [Form Resync] No flow agents found, skipping`);
+      logger.warn(`📋 [Form Resync] No flow agents found, skipping`);
       return;
     }
 
-    console.log(`📋 [Form Resync] Checking ${result.rows.length} flow agent(s) for form nodes`);
+    logger.info(`📋 [Form Resync] Checking ${result.rows.length} flow agent(s) for form nodes`);
 
     let updated = 0;
     let skipped = 0;
@@ -318,7 +319,7 @@ export async function resyncFormWebhookUrls(): Promise<void> {
             continue;
           }
 
-          console.log(`   📋 [Form Resync] Building tool for form "${formName}" (${fields.length} field(s))`);
+          logger.info(`   📋 [Form Resync] Building tool for form "${formName}" (${fields.length} field(s))`);
           newFormTools.push(getSubmitFormWebhookTool(formId, formName, fields, agent.eleven_labs_agent_id, node.id));
         }
 
@@ -332,14 +333,14 @@ export async function resyncFormWebhookUrls(): Promise<void> {
         await elevenLabsService.replaceToolsByPrefix(agent.eleven_labs_agent_id, 'submit_form_', newFormTools);
 
         updated++;
-        console.log(`   ✅ Resynced form webhook URL(s) for: ${agent.name} (${newFormTools.length} form tool(s))`);
+        logger.info(`   ✅ Resynced form webhook URL(s) for: ${agent.name} (${newFormTools.length} form tool(s))`);
       } catch (error: any) {
         failed++;
         console.warn(`   ⚠️ Failed to resync form webhooks for ${agent.name}: ${error.message}`);
       }
     }
 
-    console.log(`📋 [Form Resync] Complete: ${updated} updated, ${skipped} skipped, ${failed} failed`);
+    logger.info(`📋 [Form Resync] Complete: ${updated} updated, ${skipped} skipped, ${failed} failed`);
   } catch (error: any) {
     console.warn(`⚠️ [Form Resync] Failed: ${error.message}`);
   }
@@ -366,11 +367,11 @@ export async function resyncMessagingWebhookUrls(): Promise<void> {
     `);
 
     if (!result.rows || result.rows.length === 0) {
-      console.log(`💬 [Messaging Resync] No flow agents found, skipping`);
+      logger.warn(`💬 [Messaging Resync] No flow agents found, skipping`);
       return;
     }
 
-    console.log(`💬 [Messaging Resync] Checking ${result.rows.length} flow agent(s) for messaging nodes`);
+    logger.info(`💬 [Messaging Resync] Checking ${result.rows.length} flow agent(s) for messaging nodes`);
 
     let updated = 0;
     let skipped = 0;
@@ -440,14 +441,14 @@ export async function resyncMessagingWebhookUrls(): Promise<void> {
         await elevenLabsService.replaceToolsByPrefix(agent.eleven_labs_agent_id, 'send_whatsapp_', newTools.filter(t => t.name.startsWith('send_whatsapp_')));
 
         updated++;
-        console.log(`   ✅ Resynced messaging webhook URLs for: ${agent.name}`);
+        logger.info(`   ✅ Resynced messaging webhook URLs for: ${agent.name}`);
       } catch (error: any) {
         failed++;
         console.warn(`   ⚠️ Failed to resync messaging for ${agent.name}: ${error.message}`);
       }
     }
 
-    console.log(`💬 [Messaging Resync] Complete: ${updated} updated, ${skipped} skipped, ${failed} failed`);
+    logger.info(`💬 [Messaging Resync] Complete: ${updated} updated, ${skipped} skipped, ${failed} failed`);
   } catch (error: any) {
     console.warn(`⚠️ [Messaging Resync] Failed: ${error.message}`);
   }

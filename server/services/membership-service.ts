@@ -15,6 +15,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
+import { logger } from '../utils/logger';
 import { storage } from '../storage';
 import { PaymentAuditService } from '../engines/payment/audit';
 import { db } from '../db';
@@ -180,7 +181,7 @@ export async function applyPlanCredits(
 ): Promise<number> {
   const plan = await storage.getPlan(planId);
   if (!plan || !plan.includedCredits || plan.includedCredits <= 0) {
-    console.log(`[Membership] No credits to apply for plan ${planId}`);
+    logger.warn(`[Membership] No credits to apply for plan ${planId}`);
     return 0;
   }
 
@@ -196,7 +197,7 @@ export async function applyPlanCredits(
       creditRefId
     );
 
-    console.log(`✅ [Membership] Applied ${creditsToAdd} credits to user ${userId} from ${plan.displayName} plan`);
+    logger.info(`✅ [Membership] Applied ${creditsToAdd} credits to user ${userId} from ${plan.displayName} plan`);
 
     // Log the credit award for audit
     await PaymentAuditService.logCreditsAwarded(
@@ -212,7 +213,7 @@ export async function applyPlanCredits(
     if (plan.name === 'pro' || plan.useSystemPool === false) {
       const removedCount = await removeSystemPoolNumbersFromCampaigns(userId);
       if (removedCount > 0) {
-        console.log(`✅ [Membership] Removed ${removedCount} system pool number(s) from campaigns for upgraded user ${userId}`);
+        logger.info(`✅ [Membership] Removed ${removedCount} system pool number(s) from campaigns for upgraded user ${userId}`);
       }
     }
 
@@ -226,7 +227,7 @@ export async function applyPlanCredits(
       error.message?.includes('duplicate');
       
     if (isDuplicate) {
-      console.log(`[Membership] Plan credits already applied for transaction ${transactionId}`);
+      logger.info(`[Membership] Plan credits already applied for transaction ${transactionId}`);
       return 0;
     }
     throw error;
@@ -354,7 +355,7 @@ export async function removeSystemPoolNumbersFromCampaigns(userId: string): Prom
     );
 
     if (campaignsWithSystemPool.length === 0) {
-      console.log(`[Membership] No system pool numbers to remove for user ${userId}`);
+      logger.warn(`[Membership] No system pool numbers to remove for user ${userId}`);
       return 0;
     }
 
@@ -368,7 +369,7 @@ export async function removeSystemPoolNumbersFromCampaigns(userId: string): Prom
         .where(eq(campaigns.id, campaignId));
     }
 
-    console.log(`✅ [Membership] Removed system pool numbers from ${campaignIds.length} campaign(s) for user ${userId}`);
+    logger.info(`✅ [Membership] Removed system pool numbers from ${campaignIds.length} campaign(s) for user ${userId}`);
     
     return campaignIds.length;
   } catch (error: any) {

@@ -15,6 +15,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
+import { logger } from '../utils/logger';
 import { db } from '../db';
 import { calls, agents, campaigns, sipCalls } from '../../shared/schema';
 import { eq, or, and, isNull, isNotNull } from 'drizzle-orm';
@@ -72,7 +73,7 @@ export class CallSyncService {
           .limit(1);
           
         if (sipCallRecord) {
-          console.log(`🔄 [Sync] Syncing SIP call ${callId}`);
+          logger.info(`🔄 [Sync] Syncing SIP call ${callId}`);
           return this.syncSipCall(callId, sipCallRecord);
         }
         
@@ -84,9 +85,9 @@ export class CallSyncService {
         return { callId, success: false, skipped: true, error: 'No external IDs available for sync', updatedFields };
       }
 
-      console.log(`🔄 [Sync] Syncing call ${callId}`);
-      console.log(`   Twilio SID: ${callRecord.twilioSid || 'N/A'}`);
-      console.log(`   ElevenLabs Conv ID: ${callRecord.elevenLabsConversationId || 'N/A'}`);
+      logger.info(`🔄 [Sync] Syncing call ${callId}`);
+      logger.info(`   Twilio SID: ${callRecord.twilioSid || 'N/A'}`);
+      logger.info(`   ElevenLabs Conv ID: ${callRecord.elevenLabsConversationId || 'N/A'}`);
 
       // Prepare update object
       const updates: Record<string, any> = {};
@@ -94,7 +95,7 @@ export class CallSyncService {
       // 1. Fetch from Twilio (for phone numbers, duration, recording)
       if (callRecord.twilioSid) {
         try {
-          console.log(`   📞 Fetching from Twilio...`);
+          logger.info(`   📞 Fetching from Twilio...`);
           const twilioData = await twilioService.getCallDetails(callRecord.twilioSid);
           
           if (twilioData) {
@@ -136,7 +137,7 @@ export class CallSyncService {
               twilioSyncedAt: new Date().toISOString(),
             };
             
-            console.log(`   ✅ Twilio data: from=${twilioData.from}, to=${twilioData.to}, duration=${twilioData.duration}s`);
+            logger.info(`   ✅ Twilio data: from=[redacted], to=[redacted], duration=${twilioData.duration}s`);
           }
         } catch (twilioError: any) {
           console.warn(`   ⚠️ Twilio fetch failed: ${twilioError.message}`);
@@ -146,7 +147,7 @@ export class CallSyncService {
       // 2. Fetch from ElevenLabs (for transcript, analysis, conversation data)
       if (callRecord.elevenLabsConversationId) {
         try {
-          console.log(`   🤖 Fetching from ElevenLabs...`);
+          logger.info(`   🤖 Fetching from ElevenLabs...`);
           
           // Get the correct ElevenLabs service for this call's agent
           let agentElevenLabsService: ElevenLabsService = elevenLabsService;
@@ -250,7 +251,7 @@ export class CallSyncService {
               elevenLabsSyncedAt: new Date().toISOString(),
             };
             
-            console.log(`   ✅ ElevenLabs data: status=${elevenLabsData.status}, transcript=${elevenLabsData.transcript?.length || 0} entries`);
+            logger.info(`   ✅ ElevenLabs data: status=${elevenLabsData.status}, transcript=${elevenLabsData.transcript?.length || 0} entries`);
           }
         } catch (elevenLabsError: any) {
           console.warn(`   ⚠️ ElevenLabs fetch failed: ${elevenLabsError.message}`);
@@ -270,13 +271,13 @@ export class CallSyncService {
           .set(updates)
           .where(eq(calls.id, callId));
         
-        console.log(`   ✅ Updated ${updatedFields.length} fields: ${updatedFields.join(', ')}`);
+        logger.info(`   ✅ Updated ${updatedFields.length} fields: ${updatedFields.join(', ')}`);
       } else if (twilioFetchSuccess || elevenLabsFetchSuccess) {
         // Data was fetched but no new fields to update (already up to date)
-        console.log(`   ℹ️ No new data to update (already synced)`);
+        logger.info(`   ℹ️ No new data to update (already synced)`);
       } else {
         // Neither source returned data
-        console.log(`   ⚠️ No data returned from either source`);
+        logger.warn(`   ⚠️ No data returned from either source`);
         return { callId, success: false, error: 'No data returned from external sources', updatedFields };
       }
       
@@ -286,18 +287,18 @@ export class CallSyncService {
       if (finalStatus === 'completed' && finalDuration > 0) {
         (async () => {
           try {
-            console.log(`💳 [Sync Call] Triggering credit check/deduction for completed call: ${callId}`);
+            logger.info(`💳 [Sync Call] Triggering credit check/deduction for completed call: ${callId}`);
             const { deductCallCreditsForElevenLabs } = await import('../routes/webhooks/helpers');
             const creditResult = await deductCallCreditsForElevenLabs(callId, finalDuration);
             
             if (creditResult.success || creditResult.alreadyDeducted) {
-              console.log(`💳 [Sync Call] Credit verification success for call: ${callId}`);
+              logger.info(`💳 [Sync Call] Credit verification success for call: ${callId}`);
               const { CRMLeadProcessor } = await import('../engines/crm/lead-processor.service');
               const leadResult = await CRMLeadProcessor.processElevenLabsTwilioCall(callId);
               if (leadResult?.leadId) {
-                console.log(`📋 [Sync Call CRM] Lead created/updated from call ${callId}: ${leadResult.leadId}`);
+                logger.info(`📋 [Sync Call CRM] Lead created/updated from call ${callId}: ${leadResult.leadId}`);
               } else {
-                console.log(`📋 [Sync Call CRM] Call ${callId} processed but did not result in a new/updated lead`);
+                logger.info(`📋 [Sync Call CRM] Call ${callId} processed but did not result in a new/updated lead`);
               }
             } else {
               console.error(`❌ [Sync Call] Credit deduction failed for call ${callId}: ${creditResult.error}`);
@@ -395,7 +396,7 @@ export class CallSyncService {
             .set(updates)
             .where(eq(sipCalls.id, callId));
           
-          console.log(`   ✅ Updated SIP call ${callId}: ${updatedFields.join(', ')}`);
+          logger.info(`   ✅ Updated SIP call ${callId}: ${updatedFields.join(', ')}`);
         }
       }
       
@@ -405,18 +406,18 @@ export class CallSyncService {
       if (finalStatus === 'completed' && finalDuration > 0) {
         (async () => {
           try {
-            console.log(`💳 [Sync SIP Call] Triggering credit check/deduction for SIP call: ${callId}`);
+            logger.info(`💳 [Sync SIP Call] Triggering credit check/deduction for SIP call: ${callId}`);
             const { deductSipCallCredits } = await import('./credit-service');
             const creditResult = await deductSipCallCredits(callId, finalDuration, 'elevenlabs-sip');
             
             if (creditResult.success || creditResult.alreadyDeducted) {
-              console.log(`💳 [Sync SIP Call] Credit verification success for SIP call: ${callId}`);
+              logger.info(`💳 [Sync SIP Call] Credit verification success for SIP call: ${callId}`);
               const { CRMLeadProcessor } = await import('../engines/crm/lead-processor.service');
               const leadResult = await CRMLeadProcessor.processSipCall(callId);
               if (leadResult?.leadId) {
-                console.log(`📋 [Sync SIP Call CRM] Lead created/updated from SIP call ${callId}: ${leadResult.leadId}`);
+                logger.info(`📋 [Sync SIP Call CRM] Lead created/updated from SIP call ${callId}: ${leadResult.leadId}`);
               } else {
-                console.log(`📋 [Sync SIP Call CRM] SIP call ${callId} processed but did not result in a new/updated lead`);
+                logger.info(`📋 [Sync SIP Call CRM] SIP call ${callId} processed but did not result in a new/updated lead`);
               }
             } else {
               console.error(`❌ [Sync SIP Call] Credit deduction failed for SIP call ${callId}: ${creditResult.error}`);
@@ -440,7 +441,7 @@ export class CallSyncService {
    * and are missing data (transcript, recording, duration, etc.)
    */
   async syncAllCalls(): Promise<SyncSummary> {
-    console.log('🔄 [Sync] Starting sync for all calls...');
+    logger.info('🔄 [Sync] Starting sync for all calls...');
     
     try {
       // 1. Find regular calls that need syncing
@@ -489,7 +490,7 @@ export class CallSyncService {
         ...sipCallsToSync.map(c => ({ id: c.id, type: 'sip' }))
       ];
       
-      console.log(`📊 Found ${allCallsToSync.length} calls to sync (${regularCallsToSync.length} regular, ${sipCallsToSync.length} SIP)`);
+      logger.info(`📊 Found ${allCallsToSync.length} calls to sync (${regularCallsToSync.length} regular, ${sipCallsToSync.length} SIP)`);
       
       const results: SyncResult[] = [];
       let successCount = 0;
@@ -525,7 +526,7 @@ export class CallSyncService {
         results
       };
       
-      console.log(`✅ [Sync] Complete: ${successCount} successful, ${skippedCount} skipped, ${failCount} failed out of ${allCallsToSync.length}`);
+      logger.info(`✅ [Sync] Complete: ${successCount} successful, ${skippedCount} skipped, ${failCount} failed out of ${allCallsToSync.length}`);
       
       return summary;
       
@@ -566,7 +567,7 @@ export class CallSyncService {
     classification: string | null;
     metadata: Record<string, any>;
   }> {
-    console.log(`🔄 [Sync] Syncing from webhook for conversation: ${params.conversationId}`);
+    logger.info(`🔄 [Sync] Syncing from webhook for conversation: ${params.conversationId}`);
     
     // Extract phone numbers from all possible nested locations
     // Priority: phone_call object > batch_call object > direct metadata fields
@@ -598,17 +599,17 @@ export class CallSyncService {
       const maxTime = Math.max(...params.transcript.map(t => t.time_in_call_secs || 0));
       if (maxTime > 0) {
         duration = maxTime;
-        console.log(`   ✅ Extracted duration from webhook transcript: ${duration}s`);
+        logger.info(`   ✅ Extracted duration from webhook transcript: ${duration}s`);
       }
     }
     let status: string | null = params.status || null;
     let recordingUrl: string | null = null;
     const metadata: Record<string, any> = {};
     
-    console.log(`   Phone numbers from webhook:`);
-    console.log(`     From: ${phoneNumber || 'N/A'}`);
-    console.log(`     To: ${calledNumber || 'N/A'}`);
-    console.log(`     CallSid: ${callSidFromWebhook || 'N/A'}`);
+    logger.info(`   Phone numbers from webhook:`);
+    logger.info(`     From: [redacted]`);
+    logger.info(`     To: [redacted]`);
+    logger.info(`     CallSid: ${callSidFromWebhook || 'N/A'}`);
     
     // Preserve raw transcript array for JSONB storage in SIP calls
     let rawTranscript = (params.transcript && params.transcript.length > 0) ? params.transcript : null;
@@ -636,15 +637,15 @@ export class CallSyncService {
     classification = calcResult.classification;
     sentimentValue = calcResult.sentimentValue;
     
-    console.log(`   Webhook data extracted:`);
-    console.log(`     Transcript: ${transcript ? `${transcript.length} chars, ${params.transcript?.length || 0} turns` : 'N/A'}`);
-    console.log(`     AI Summary: ${aiSummary ? `${aiSummary.length} chars` : 'N/A'}`);
-    console.log(`     Classification: ${classification || 'N/A'}`);
+    logger.info(`   Webhook data extracted:`);
+    logger.info(`     Transcript: ${transcript ? `${transcript.length} chars, ${params.transcript?.length || 0} turns` : 'N/A'}`);
+    logger.info(`     AI Summary: ${aiSummary ? `${aiSummary.length} chars` : 'N/A'}`);
+    logger.info(`     Classification: ${classification || 'N/A'}`);
     
     // PRIMARY: Try to get recording URL from ElevenLabs API (works for all providers including SIP)
     // ElevenLabs is the primary source since it works regardless of telephony provider
     if (params.conversationId) {
-      console.log(`   🤖 Fetching ElevenLabs recording for conversation: ${params.conversationId}`);
+      logger.info(`   🤖 Fetching ElevenLabs recording for conversation: ${params.conversationId}`);
       try {
         let agentElevenLabsService: ElevenLabsService = elevenLabsService;
         
@@ -684,18 +685,18 @@ export class CallSyncService {
 
           if ((!duration || duration === 0) && calculatedDuration > 0) {
             duration = calculatedDuration;
-            console.log(`   ✅ Pre-emptively backfilled duration from ElevenLabs API/transcript: ${duration}s`);
+            logger.info(`   ✅ Pre-emptively backfilled duration from ElevenLabs API/transcript: ${duration}s`);
           }
 
           // 1. Recording URL
           if (convDetails.recording_url) {
             recordingUrl = convDetails.recording_url;
             metadata.hasElevenLabsRecording = true;
-            console.log(`   ✅ Got ElevenLabs recording URL`);
+            logger.info(`   ✅ Got ElevenLabs recording URL`);
           } else if (convDetails.has_audio) {
             metadata.hasElevenLabsRecording = true;
             metadata.elevenLabsAudioAvailable = true;
-            console.log(`   ℹ️ ElevenLabs has audio but no direct recording URL (on-demand fetch available)`);
+            logger.info(`   ℹ️ ElevenLabs has audio but no direct recording URL (on-demand fetch available)`);
           }
 
           // 2. Backfill Transcript if missing or empty in webhook
@@ -703,7 +704,7 @@ export class CallSyncService {
             transcript = convDetails.transcript.map((entry: any) => 
               `${entry.role.toUpperCase()} (${entry.time_in_call_secs}s): ${entry.message}`
             ).join('\n');
-            console.log(`   ✅ Backfilled transcript from ElevenLabs API (${convDetails.transcript.length} turns)`);
+            logger.info(`   ✅ Backfilled transcript from ElevenLabs API (${convDetails.transcript.length} turns)`);
             
             // Also backfill rawTranscript for SIP calls
             if (!rawTranscript) {
@@ -716,19 +717,19 @@ export class CallSyncService {
             const apiSummary = convDetails.analysis.transcript_summary || convDetails.analysis.summary;
             if (apiSummary) {
               aiSummary = apiSummary;
-              console.log(`   ✅ Backfilled AI Summary from ElevenLabs API`);
+              logger.info(`   ✅ Backfilled AI Summary from ElevenLabs API`);
             }
           }
 
           // 4. Backfill Analysis data for classification if missing
           if (!analysisObj && convDetails.analysis) {
-            console.log(`   ℹ️ Webhook was missing analysis object, but API has it. Re-running classification...`);
+            logger.info(`   ℹ️ Webhook was missing analysis object, but API has it. Re-running classification...`);
             analysisObj = convDetails.analysis;
             const callDuration = params.callDurationSecs || duration || 0;
             const calcResult = this.calculateClassification(analysisObj, callDuration);
             classification = calcResult.classification;
             sentimentValue = calcResult.sentimentValue;
-            console.log(`   ✅ Re-classified lead as: ${classification}`);
+            logger.info(`   ✅ Re-classified lead as: ${classification}`);
           }
 
           // 5. Backfill Status if missing or in-progress but API says done
@@ -737,7 +738,7 @@ export class CallSyncService {
             const mappedStatus = apiStatus === 'done' ? 'completed' : (apiStatus === 'failed' ? 'failed' : apiStatus);
             if (!status || status === 'in-progress' || status === 'in_progress') {
               status = mappedStatus;
-              console.log(`   ✅ Backfilled status from ElevenLabs API: ${status}`);
+              logger.info(`   ✅ Backfilled status from ElevenLabs API: ${status}`);
             }
           }
 
@@ -764,11 +765,11 @@ export class CallSyncService {
 
           if (!phoneNumber && apiFromNumber) {
             phoneNumber = apiFromNumber;
-            console.log(`   ✅ Backfilled From number from ElevenLabs API: ${phoneNumber}`);
+            logger.info(`   ✅ Backfilled From number from ElevenLabs API: [redacted]`);
           }
           if (!calledNumber && apiToNumber) {
             calledNumber = apiToNumber;
-            console.log(`   ✅ Backfilled To number from ElevenLabs API: ${calledNumber}`);
+            logger.info(`   ✅ Backfilled To number from ElevenLabs API: [redacted]`);
           }
         }
       } catch (elError: any) {
@@ -781,7 +782,7 @@ export class CallSyncService {
     // SIP call IDs (SCL_*), Plivo IDs, and other non-Twilio IDs must be skipped
     const isTwilioSid = callSidFromWebhook?.startsWith('CA');
     if (callSidFromWebhook && isTwilioSid) {
-      console.log(`   📞 Fetching Twilio data for SID: ${callSidFromWebhook}`);
+      logger.info(`   📞 Fetching Twilio data for SID: ${callSidFromWebhook}`);
       try {
         const twilioData = await twilioService.getCallDetails(callSidFromWebhook);
         
@@ -800,7 +801,7 @@ export class CallSyncService {
           // Use Twilio recording URL as fallback if ElevenLabs didn't provide one
           if (!recordingUrl && twilioData.recordingUrl) {
             recordingUrl = twilioData.recordingUrl;
-            console.log(`   ✅ Using Twilio recording URL as fallback`);
+            logger.info(`   ✅ Using Twilio recording URL as fallback`);
           }
           
           metadata.twilioFrom = twilioData.from;
@@ -808,13 +809,13 @@ export class CallSyncService {
           metadata.twilioStatus = twilioData.status;
           metadata.twilioDirection = twilioData.direction;
           
-          console.log(`   ✅ Twilio data: from=${twilioData.from}, to=${twilioData.to}`);
+          logger.info(`   ✅ Twilio data: from=[redacted], to=[redacted]`);
         }
       } catch (twilioError: any) {
         console.warn(`   ⚠️ Twilio fetch failed: ${twilioError.message}`);
       }
     } else if (callSidFromWebhook && !isTwilioSid) {
-      console.log(`   ℹ️ Skipping Twilio lookup for non-Twilio call SID: ${callSidFromWebhook} (source: ${callSidFromWebhook.startsWith('SCL') ? 'sip' : 'unknown'})`);
+      logger.info(`   ℹ️ Skipping Twilio lookup for non-Twilio call SID: ${callSidFromWebhook} (source: ${callSidFromWebhook.startsWith('SCL') ? 'sip' : 'unknown'})`);
     }
     
     // Store ElevenLabs metadata

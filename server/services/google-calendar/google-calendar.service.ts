@@ -1,3 +1,4 @@
+import { logger } from '../../utils/logger';
 import { db } from "../../db";
 import { googleCalendarCredentials, appointmentSettings, users } from "@shared/schema";
 import { eq } from "drizzle-orm";
@@ -158,7 +159,7 @@ export async function createCalendarEvent(userId: string, apt: CalendarAppointme
       return null;
     }
     const data = await resp.json() as { id: string };
-    console.log(`📅 [GoogleCalendar] Created event ${data.id} for appointment ${apt.id}`);
+    logger.info(`📅 [GoogleCalendar] Created event ${data.id} for appointment ${apt.id}`);
     return data.id;
   } catch (err: any) {
     console.error("[GoogleCalendar] Create event error:", err.message);
@@ -198,7 +199,7 @@ export async function updateCalendarEvent(userId: string, eventId: string, apt: 
       console.error("[GoogleCalendar] Update event failed:", await resp.text());
       return false;
     }
-    console.log(`📅 [GoogleCalendar] Updated event ${eventId}`);
+    logger.info(`📅 [GoogleCalendar] Updated event ${eventId}`);
     return true;
   } catch (err: any) {
     console.error("[GoogleCalendar] Update event error:", err.message);
@@ -231,7 +232,7 @@ export async function deleteCalendarEvent(userId: string, eventId: string): Prom
       console.error("[GoogleCalendar] Delete event failed:", await resp.text());
       return false;
     }
-    console.log(`📅 [GoogleCalendar] Deleted event ${eventId}`);
+    logger.info(`📅 [GoogleCalendar] Deleted event ${eventId}`);
     return true;
   } catch (err: any) {
     console.error("[GoogleCalendar] Delete event error:", err.message);

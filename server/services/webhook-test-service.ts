@@ -14,6 +14,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
+import { logger } from '../utils/logger';
 import crypto from 'crypto';
 import { storage } from '../storage';
 import { Webhook, InsertWebhookLog } from '@shared/schema';
@@ -1128,7 +1129,7 @@ export class WebhookTestService {
   }
 
   async testWebhook(webhookId: string, userId: string, companyId: string): Promise<WebhookTestResult> {
-    console.log(`🧪 [WebhookTest] Testing webhook ${webhookId}`);
+    logger.info(`🧪 [WebhookTest] Testing webhook ${webhookId}`);
 
     // Fail closed: no company, no test.
     if (!companyId) {
@@ -1144,7 +1145,7 @@ export class WebhookTestService {
 
     // A subscription from another company is reported exactly like a missing one.
     if (!webhook || webhook.companyId !== companyId) {
-      console.log(`❌ [WebhookTest] Webhook ${webhookId} not found in database`);
+      logger.warn(`❌ [WebhookTest] Webhook ${webhookId} not found in database`);
       return {
         success: false,
         responseTime: 0,
@@ -1154,7 +1155,7 @@ export class WebhookTestService {
     }
 
     if (webhook.userId !== userId) {
-      console.log(`❌ [WebhookTest] Access denied for webhook ${webhookId}`);
+      logger.warn(`❌ [WebhookTest] Access denied for webhook ${webhookId}`);
       return {
         success: false,
         responseTime: 0,
@@ -1172,7 +1173,7 @@ export class WebhookTestService {
     let result: WebhookTestResult;
 
     try {
-      console.log(`📤 [WebhookTest] Sending to ${webhook.url}`);
+      logger.info(`📤 [WebhookTest] Sending to ${webhook.url}`);
 
       const urlCheck = await validateWebhookUrl(webhook.url);
       if (!urlCheck.valid) {
@@ -1206,7 +1207,7 @@ export class WebhookTestService {
       }
 
       if (response.ok) {
-        console.log(`✅ [WebhookTest] Success - Status: ${response.status}, Time: ${responseTime}ms`);
+        logger.info(`✅ [WebhookTest] Success - Status: ${response.status}, Time: ${responseTime}ms`);
         result = {
           success: true,
           status: response.status,
@@ -1215,7 +1216,7 @@ export class WebhookTestService {
           message: 'Test webhook sent successfully',
         };
       } else {
-        console.log(`⚠️ [WebhookTest] Failed - Status: ${response.status}, Time: ${responseTime}ms`);
+        logger.warn(`⚠️ [WebhookTest] Failed - Status: ${response.status}, Time: ${responseTime}ms`);
         result = {
           success: false,
           status: response.status,
@@ -1254,7 +1255,7 @@ export class WebhookTestService {
     try {
       const existingWebhook = await this.store.getWebhook(webhook.id);
       if (!existingWebhook || existingWebhook.companyId !== webhook.companyId) {
-        console.log(`⚠️ [WebhookTest] Webhook ${webhook.id} no longer exists, skipping log`);
+        logger.warn(`⚠️ [WebhookTest] Webhook ${webhook.id} no longer exists, skipping log`);
         return;
       }
 
@@ -1273,7 +1274,7 @@ export class WebhookTestService {
       };
 
       await this.store.createWebhookLog(logData);
-      console.log(`📝 [WebhookTest] Logged delivery for webhook ${webhook.id}`);
+      logger.info(`📝 [WebhookTest] Logged delivery for webhook ${webhook.id}`);
     } catch (error) {
       console.error(`⚠️ [WebhookTest] Failed to log delivery (non-fatal):`, error);
     }

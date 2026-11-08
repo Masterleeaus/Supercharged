@@ -15,6 +15,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
+import { logger } from '../utils/logger';
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { db } from '../db';
@@ -160,7 +161,7 @@ export async function checkSuperAdmin(req: AdminRequest, res: Response, next: Ne
     const token = authHeader && authHeader.split(" ")[1];
 
     if (!token) {
-      console.log('[Admin Auth] No token provided');
+      logger.warn('[Admin Auth] No token provided');
       return res.status(401).json({ error: "Authentication required" });
     }
 
@@ -172,14 +173,13 @@ export async function checkSuperAdmin(req: AdminRequest, res: Response, next: Ne
     const [user] = await db.select().from(users).where(eq(users.id, userId));
     
     if (!user) {
-      console.log('[Admin Auth] User not found:', userId);
+      logger.warn('[Admin Auth] User not found:', userId);
       return res.status(403).json({ error: 'User not found' });
     }
     
     if (user.role !== 'admin') {
-      console.log('[Admin Auth] User is not admin:', {
+      logger.info('[Admin Auth] User is not admin:', {
         userId: user.id,
-        email: user.email,
         role: user.role
       });
       return res.status(403).json({ 

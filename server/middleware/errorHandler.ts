@@ -16,6 +16,7 @@
  * ============================================================
  */
 
+import { logger } from '../utils/logger';
 import { Request, Response, NextFunction, RequestHandler } from "express";
 import { AppError, isOperationalError, toAppError, getErrorMessage } from "../utils/errors";
 
@@ -99,7 +100,7 @@ export function globalErrorHandler(
       message: appError.message
     });
   } else if (process.env.NODE_ENV === "development") {
-    console.log("[DEBUG] Client error:", {
+    logger.error("[DEBUG] Client error:", {
       ...logContext,
       message: appError.message
     });
