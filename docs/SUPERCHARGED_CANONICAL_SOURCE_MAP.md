@@ -133,3 +133,14 @@ No merge, deletion, tenant data migration, privilege change, template schema cha
 - None of these changes alters authentication identifiers, customer branding values, data migration, licensing notices, PWA donor files or existing server persistence.
 
 **Open:** verify current-head CI and runtime cross-company isolation, complete canonical source merge and legal license review; issue #54 and its draft PR must remain open.
+
+## Pass 8 — installer-to-branding continuity
+
+- Confirmed GitHub Actions result for the Pass 7 PR head: **production build succeeded**, **5,953 tests passed, three failed, 13 skipped**, and all 15 branding regression tests succeeded. The three unrelated workforce test failures, migration inventory failure and informational typecheck failure persist.
+- Inspected `client/src/pages/InstallWizard.tsx`, `server/routes/public-routes.ts` and the app's brand provider. The installer collects `companyName`, but previously persisted only `company_name`; downstream public React and email identity read `app_name`, creating a newly installed company's name mismatch.
+- The fresh-install settings list now writes `app_name = companyName` **as well as** `company_name = companyName`. This occurs only inside the existing initial installer path and does not change saved branding for existing installations, schema, authentication or public API routes.
+- Added `tests/branding/supercharged-installer-identity.test.mjs` with three regression assertions verifying installer payload and both persistence keys, and the priority of stored company branding over product defaults.
+- No standalone web-app install manifest or service worker was identified in the tracked active client/public root by the recursive tree scan. The `chatbot-pwa` folder is a separately sourced donor with a NOTICE and is intentionally not renamed to imply an installable Supercharged PWA.
+- Plugin installer and plugin manifest are separate capabilities (ZIP plugins, not browser installability). Their schema, compatibility keys and notices were not changed.
+
+**Outstanding:** CI verification of the three new installer assertions and new-build artifact, further actual install/runtime testing, all user-facing surfaces and donor code/license reconciliation; draft PR remains open.
