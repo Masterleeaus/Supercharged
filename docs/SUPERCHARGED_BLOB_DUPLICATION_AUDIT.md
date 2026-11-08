@@ -136,3 +136,18 @@ The import auditor now computes transitive, **literal-path** reachability from a
 It also resolves the verified Vite aliases `@/` → `client/src/` and `@shared/` → `shared/` (as configured in `vite.config.ts`), reporting resolved and unresolved alias imports separately. This improves browser/client coverage over relative imports alone. It does not resolve arbitrary third-party package names, plugin registries, route registration through runtime reflection, aliases unknown to the build, worker import maps, or loader-generated paths.
 
 A file that is not statically reachable may still be required at runtime; every ownership row continues to report `live: "unverified"`. The auditor **never deletes source or treats lack of inbound imports as grounds for removal**. Six dedicated import scanner tests cover parsing, extension resolution, cycles, entrypoints, Vite aliases and unresolved imports. New tests require a completed CI check.
+
+## Pass 14 — plugin loader discovery and manifest ownership
+
+The actual runtime in `server/plugins/loader.ts` searches `<process.cwd()>/plugins/*/plugin.json`. Each manifest declares `name`, `entryPoint`, and `registerFunction`; the loader checks a database `plugin_<name>_enabled` setting, loads the entrypoint dynamically with TypeScript/compiled JS fallback handling, invokes the registration function, and accepts only explicit successful registration. The loader's default setting behavior is **enabled if missing or on DB-read failure**, but a plugin's own code may impose stricter environment/permission gates. Do not treat manifest presence, source imports or default settings as evidence that a plugin is registered.
+
+New repeatable command: `node scripts/audit-plugin-manifests.mjs --json` (or `--root=/path`). This read-only audit inventories manifest names, declared entrypoints, compiled fallback candidates, candidate file presence, duplicate names, folder mismatches, malformed JSON, invalid register function identifiers, and paths escaping plugin folders. It reports each plugin's `enabled`, `registered`, and `runtime` status as `unverified` rather than claiming execution or authorization.
+
+Inspected manifests:
+- `plugins/comms/plugin.json` wraps chatbot and approvals, with internal enable gating; explicitly disclaims live inbox/campaigns/marketing.
+- `plugins/workforce-runtime/plugin.json` wraps workforce runtime and related capabilities, with internal enable gating; it is not proof of active agents.
+- `plugins/titan-workforce-bridge/plugin.json` is described as fail-closed and preview-only, and does not by itself execute agents or send messages.
+
+Six Node fixture tests at `tests/infrastructure/plugin-manifest-inventory.test.mjs` cover entrypoint presence, compiled TypeScript fallback, folder mismatch, missing entrypoint, duplicate names/invalid JSON, path escape and a missing plugins directory. The current CI must finish before those six tests are counted as verified.
+
+This resolves a *loader ownership identification gap*, not the remaining production reachability question. No manifest, source archive, vendor module, plugin enablement setting or database row was changed.
