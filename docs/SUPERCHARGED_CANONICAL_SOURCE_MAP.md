@@ -60,7 +60,7 @@ The GitHub Git Trees API was queried for `main?recursive=1`. GitHub returned `tr
 | `plugins/` | 10 | Workspace plugin adapters including comms, messaging, workforce bridge/runtime. |
 | `packages/` | 8 | Local packages including diploy-core (internal compatibility identity; do not mechanically rename). |
 | `shared/` | 1 | Shared Drizzle models. |
-| Other root files | 24 | Root configs/docs/lockfile and entry scripts. |
+| Other root files | 28 | Root configs/docs/lockfile and entry scripts. |
 
 The groups sum to **2,612**. Counts are tracked files, not lines of code or proven duplicate implementations.
 
