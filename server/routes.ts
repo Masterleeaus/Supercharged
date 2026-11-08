@@ -38,14 +38,12 @@ import { initPlivoElevenLabsStream } from "./engines/plivo-elevenlabs";
 // Twilio + OpenAI Realtime Engine (ISOLATED from Twilio+ElevenLabs and Plivo+OpenAI)
 import { setupTwilioOpenAIStreamHandler } from "./engines/twilio-openai";
 import { checkAdmin, checkAdminOrTeamMember, requireAdminPermission, AdminRequest } from "./middleware/admin-auth";
-import { hybridGateUnlessExempt } from "./middleware/hybrid-gate-exemptions";
 import { flows, insertPromptTemplateSchema, promptTemplates } from "@shared/schema";
 
 // Table insert shape for createPromptTemplate; the drizzle-zod insert type resolves to {}.
 type PromptTemplateInsertRow = typeof promptTemplates.$inferInsert & { companyId?: string };
 import { googleSheetsRouter } from "./services/google-sheets/google-sheets.routes";
 import { createRAGKnowledgeRoutes } from "./routes/rag-knowledge-routes";
-import { widgetRoutes } from "./modules/widget";
 import multer from "multer";
 // Team Management Middleware - allows team members to access user data with their parent's userId
 // Uses adapter for optional plugin loading
@@ -86,6 +84,7 @@ import { registerAdminRouterRoutes } from "./routes/core/admin-router-routes";
 import { registerUserServiceRoutes } from "./routes/core/user-service-routes";
 import { registerChatbotWiringRoutes } from "./routes/core/chatbot-wiring-routes";
 import { registerCrmPublicRoutes } from "./routes/core/crm-public-routes";
+import { registerStreamWidgetRoutes } from "./routes/core/stream-widget-routes";
 
 const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
@@ -197,43 +196,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Routes: CRM, public platform languages and public widget, see server/routes/core/crm-public-routes.ts
   registerCrmPublicRoutes(app, { routeContext });
 
-  // WebSocket stream handlers — handle both direct WebSocket upgrades AND reverse proxy scenarios
-  // When behind a reverse proxy (nginx) that strips Upgrade/Connection headers, Express receives
-  // these as plain GET requests. Without this handler they fall through to authenticateHybrid and
-  // return 401, killing the WebSocket/audio stream connection.
-  // Fix: restore the stripped WebSocket handshake headers and re-emit the 'upgrade' event so the
-  // existing httpServer.on('upgrade') handlers can process the connection normally.
-  // This must be registered BEFORE the authenticateHybrid catch-all.
-  const streamPaths = [
-    '/api/twilio-openai/stream',
-    '/api/webhooks/twilio/stream',
-    '/api/plivo/stream',
-    '/api/plivo-elevenlabs/stream',
-  ];
-  for (const streamPath of streamPaths) {
-    app.get(`${streamPath}*`, (req, res) => {
-      if (req.headers.upgrade?.toLowerCase() === 'websocket') {
-        return;
-      }
-      console.log(`🔌 [Stream Proxy Fix] Reverse proxy stripped WebSocket headers for ${req.url}, restoring and re-emitting upgrade`);
-      const socket = req.socket;
-      if (!socket || socket.destroyed) {
-        return res.status(400).json({ error: 'WebSocket connection required — socket unavailable' });
-      }
-      req.headers['upgrade'] = 'websocket';
-      req.headers['connection'] = 'upgrade';
-      if (!req.headers['sec-websocket-version']) {
-        req.headers['sec-websocket-version'] = '13';
-      }
-      if (!req.headers['sec-websocket-key']) {
-        req.headers['sec-websocket-key'] = Buffer.from(Date.now().toString()).toString('base64').slice(0, 24);
-      }
-      httpServer.emit('upgrade', req, socket, Buffer.alloc(0));
-    });
-  }
-
-  // E6: the RAG tool webhook authenticates itself (WEBHOOK_TOKEN), so only that exact POST path skips the gate.
-  app.use("/api", hybridGateUnlessExempt(routeContext.authenticateHybrid as unknown as import('express').RequestHandler), widgetRoutes);
+  // Routes: stream upgrade fallbacks and authenticated widget, see server/routes/core/stream-widget-routes.ts
+  registerStreamWidgetRoutes(app, { httpServer, routeContext });
 
   // RAG Knowledge Base routes (scalable alternative to ElevenLabs 20MB KB)
   // Mounted unconditionally: no env check here. USE_RAG_KNOWLEDGE is read only by isRAGEnabled()
