@@ -24,7 +24,7 @@ const SEO_SETTINGS_SEED_DATA = [
   // ============================================
   {
     key: "seo_site_title",
-    value: "AI-Powered Calling Platform",
+    value: "Supercharged | AI Communications and Business Operations",
     description: "Default site title for SEO",
   },
   {
@@ -48,7 +48,7 @@ const SEO_SETTINGS_SEED_DATA = [
   // ============================================
   {
     key: "seo_og_title",
-    value: "Scale Your Outreach with AI Voice Agents",
+    value: "Supercharged | AI Communications and Business Operations",
     description: "Open Graph title for social sharing",
   },
   {
@@ -92,7 +92,7 @@ const SEO_SETTINGS_SEED_DATA = [
   },
   {
     key: "seo_twitter_title",
-    value: "AI-Powered Calling Platform",
+    value: "Supercharged | AI Communications and Business Operations",
     description: "Twitter card title",
   },
   {
@@ -224,7 +224,7 @@ Sitemap: {{site_url}}/sitemap.xml`,
   {
     key: "seo_canonical_url",
     value: "",
-    description: "Canonical URL base (e.g., https://agentlabs.io)",
+    description: "Canonical URL base (e.g., https://example.com)",
   },
   {
     key: "seo_default_language",
@@ -247,7 +247,7 @@ Sitemap: {{site_url}}/sitemap.xml`,
   // ============================================
   {
     key: "seo_home_title",
-    value: "AI-Powered Calling Platform | Automate Your Outreach",
+    value: "Supercharged | AI Communications and Business Operations",
     description: "Homepage specific title",
   },
   {

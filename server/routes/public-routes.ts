@@ -38,7 +38,7 @@ export function createPublicRoutes(ctx: RouteContext): Router {
   async function getAppNameFallback(): Promise<string> {
     try {
       const setting = await storage.getGlobalSetting('app_name');
-      return (setting?.value as string) || 'AgentLabs';
+      return (setting?.value as string) || 'Supercharged';
     } catch {
       return 'AgentLabs';
     }
@@ -109,7 +109,7 @@ export function createPublicRoutes(ctx: RouteContext): Router {
         success: true,
         installed,
         branding: {
-          app_name: brandingSettings.app_name || '',
+          app_name: brandingSettings.app_name || 'Supercharged',
           app_tagline: brandingSettings.app_tagline || '',
           logo_url: brandingSettings.logo_url || null,
           logo_url_light: brandingSettings.logo_url_light || null,
@@ -127,7 +127,7 @@ export function createPublicRoutes(ctx: RouteContext): Router {
       res.json({
         success: false,
         installed: false,
-        branding: { app_name: '', app_tagline: '', logo_url: null, favicon_url: null },
+        branding: { app_name: 'Supercharged', app_tagline: '', logo_url: null, favicon_url: null },
         seo: null,
         version
       });
@@ -614,7 +614,7 @@ export function createPublicRoutes(ctx: RouteContext): Router {
     try {
       const brandingKeys = ['app_name', 'app_tagline', 'logo_url', 'logo_url_light', 'logo_url_dark', 'favicon_url', 'branding_updated_at', 'admin_email', 'app_location', 'social_twitter_url', 'social_linkedin_url', 'social_github_url', 'theme_primary', 'theme_primary_foreground', 'theme_accent', 'theme_background', 'theme_sidebar', 'theme_website_accent', 'theme_website_foreground'];
       const branding: Record<string, any> = {
-        app_name: '',
+        app_name: 'Supercharged',
         app_tagline: '',
         logo_url: null,
         logo_url_light: null,
@@ -647,7 +647,7 @@ export function createPublicRoutes(ctx: RouteContext): Router {
     } catch (error) {
       console.error('Error fetching branding:', error);
       res.json({
-        app_name: '',
+        app_name: 'Supercharged',
         app_tagline: '',
         logo_url: null,
         favicon_url: null,
@@ -999,7 +999,7 @@ ${allUrls.map(u => {
       const adminEmail = (adminEmailSetting?.value as string) || (smtpFromEmail?.value as string) || process.env.SMTP_USER;
 
       const appNameSetting = await storage.getGlobalSetting('app_name');
-      const appName = (appNameSetting?.value as string) || '';
+      const appName = (appNameSetting?.value as string) || 'Supercharged';
 
       if (!adminEmail) {
         console.error('No admin email configured for contact form');
