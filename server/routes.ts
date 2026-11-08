@@ -23,7 +23,7 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { phoneNumbers, agents, calls, campaigns, contacts, incomingConnections, llmModels, users, knowledgeBase, userSubscriptions } from "@shared/schema";
 import { eq, desc, and, isNull, sql, or } from "drizzle-orm";
-import { authenticateToken, authenticateAnyToken, requireRole, type AuthRequest } from "./middleware/auth";
+import { authenticateToken, requireRole, type AuthRequest } from "./middleware/auth";
 import { validateTwilioWebhook } from "./middleware/webhookValidation";
 import { elevenLabsService, ElevenLabsService, isAgentOnSipPhoneNumber, getSipTrunkOutboundAddress } from "./services/elevenlabs";
 import { sanitizeLlmModel } from "./utils/llm-sanitize";
@@ -108,6 +108,7 @@ import { registerPublicAuthRoutes } from "./routes/core/public-auth-routes";
 import { registerPlatformRoutes } from "./routes/core/platform-routes";
 import { registerVoiceEngineRoutes } from "./routes/core/voice-engine-routes";
 import { registerPluginEngineRoutes } from "./routes/core/plugin-engine-routes";
+import { registerPluginManagementRoutes } from "./routes/core/plugin-management-routes";
 
 const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
@@ -186,44 +187,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Routes: SIP engine and REST API plugins, see server/routes/core/plugin-engine-routes.ts
   await registerPluginEngineRoutes(app);
 
-  // Register Plugin Installer Routes FIRST (before general plugin routes to avoid /:name param conflict)
-  const pluginInstallerRoutes = await import('./routes/plugin-installer');
-  app.use('/api/admin/plugins/installer', checkAdminOrTeamMember, pluginInstallerRoutes.default);
-
-  // Register Plugin Management Routes (Admin or team member with permissions)
-  // Allows viewing and managing installed plugins
-  const pluginRoutes = await import('./routes/plugin-routes');
-  app.use('/api/admin/plugins', checkAdminOrTeamMember, requireAdminPermission('settings', 'plugins', 'read'), pluginRoutes.default);
-  // Public plugin bundle endpoint (no auth required - bundles are just JS code)
-  app.use('/api/plugins', pluginRoutes.publicPluginRouter);
-  // User-accessible plugin capabilities endpoint (requires auth for user-specific data)
-  // Uses authenticateAnyToken to accept both user JWTs and admin team session tokens
-  app.use('/api/plugins', authenticateAnyToken, pluginRoutes.userPluginRouter);
-
-  console.log('✅ Plugin Management routes initialized');
-
-  // Auto-load any additional plugins from /plugins directory
-  // This allows installing new plugins by just copying the folder and restarting
-  try {
-    const { loadPlugins } = await import('./plugins/loader');
-    const { workforceLoaderOptions } = await import('./integrations/workforce-runtime/titan-ports');
-    const loadedPlugins = await loadPlugins(app, {
-      sessionAuthMiddleware: authenticateToken as unknown as import('express').RequestHandler,
-      adminAuthMiddleware: checkAdminOrTeamMember as unknown as import('express').RequestHandler,
-      // Workforce previews require a named permission. Team membership alone is not enough (D2).
-      workforceAdminMiddleware: [
-        checkAdminOrTeamMember as unknown as import('express').RequestHandler,
-        requireAdminPermission('workforce', 'previews', 'create') as unknown as import('express').RequestHandler,
-      ],
-      httpServer,
-      ...workforceLoaderOptions(),
-    });
-    if (loadedPlugins.filter(p => p.registered).length > 0) {
-      console.log(`✅ Auto-loaded ${loadedPlugins.filter(p => p.registered).length} plugin(s) from /plugins directory`);
-    }
-  } catch (error) {
-    console.warn('[Plugin Loader] Failed to auto-load plugins:', error);
-  }
+  // Routes: plugin installer, management and loader, see server/routes/core/plugin-management-routes.ts
+  await registerPluginManagementRoutes(app, { httpServer });
 
   // LLM Models - Get available models for current user (filtered by plan tier)
   app.get("/api/llm-models/available", authenticateToken, async (req: AuthRequest, res: Response) => {
