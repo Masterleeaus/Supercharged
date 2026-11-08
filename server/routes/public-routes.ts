@@ -254,6 +254,7 @@ export function createPublicRoutes(ctx: RouteContext): Router {
       logger.info("\n⚙️  Step 3: Configuring platform settings...");
       const settingsToCreate = [
         { key: 'company_name', value: companyName, description: 'Company name displayed across the platform' },
+        { key: 'app_name', value: companyName, description: 'Initial app branding from installer company name' },
         { key: 'support_email', value: adminEmail, description: 'Support email for customer inquiries' },
       ];
 
