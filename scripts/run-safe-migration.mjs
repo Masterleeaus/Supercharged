@@ -1,18 +1,23 @@
 /**
  * Safe incremental database migration runner.
  *
- * Applies migrations in order:
- *   - 0001_add_missing_columns.sql   — ADD COLUMN IF NOT EXISTS for missing agent/call columns
- *   - 0002_add_google_sheets_credentials.sql — CREATE TABLE IF NOT EXISTS for Google Sheets OAuth
+ * Applies the files listed in MIGRATIONS (below), in that order.
  *
- * Usage:  node scripts/run-safe-migration.mjs
+ * Usage:
+ *   node scripts/run-safe-migration.mjs                       apply to DATABASE_URL
+ *   node scripts/run-safe-migration.mjs --dry-run             print the ordered set, touch no database
+ *   node scripts/run-safe-migration.mjs --migrations-dir=DIR  read files from DIR (used by tests)
  *
  * Requirements:
  *   - DATABASE_URL environment variable must be set (or a .env file in the
- *     project root with DATABASE_URL=...)
+ *     project root with DATABASE_URL=...). Not needed for --dry-run.
  *   - The target database must already have the base schema applied
  *     (either via `npm run db:push` on a fresh install, or via the
  *     migrations/0000_damp_spectrum.sql file)
+ *
+ * Missing files: every MIGRATIONS entry must exist unless it is in
+ * OPTIONAL_MIGRATIONS. A missing required file exits 1 before any database
+ * work, so no later migration is applied.
  *
  * All migrations are idempotent (IF NOT EXISTS) — safe to re-run.
  */
@@ -39,33 +44,109 @@ if (existsSync(envPath)) {
   }
 }
 
-const dbUrl = process.env.DATABASE_URL;
-if (!dbUrl) {
-  console.error('❌ DATABASE_URL environment variable is not set.');
-  console.error('   Set it in your environment or in a .env file at the project root.');
-  process.exit(1);
+const args = process.argv.slice(2);
+const DRY_RUN = args.includes('--dry-run');
+const migrationsDirArg = args.find((a) => a.startsWith('--migrations-dir='));
+const migrationsDir = migrationsDirArg
+  ? resolve(migrationsDirArg.slice('--migrations-dir='.length))
+  : resolve(rootDir, 'migrations');
+
+/**
+ * Ordered list of migration files, relative to the migrations folder.
+ * The order is intentional (owner decision O-08): 0010b_approvals runs after
+ * 0011_inbox_channels_and_providers. Do not re-sort this list.
+ */
+const MIGRATIONS = [
+  '0001_add_missing_columns.sql',
+  '0002_add_google_sheets_credentials.sql',
+  '0003_campaign_contact_retry.sql',
+  '0004_add_missing_tables.sql',
+  '0005_add_missing_agent_messaging_columns.sql',
+  '0006_add_default_campaign_type.sql',
+  '0007_add_external_fonoster_phone_id.sql',
+  '008_add_ve_session_id_and_voice_engine_tables.sql',
+  '009_fix_ve_session_id_and_all_missing_columns.sql',
+  '0010_add_yookassa_columns.sql',
+  '0010a_inbox.sql',
+  '0011_inbox_channels_and_providers.sql',
+  '0010b_approvals.sql',
+  '0013_approvals_revoked_status.sql',
+  '0010c_chatbot.sql',
+];
+
+/**
+ * Entries that may be missing from the folder without failing the run.
+ * Empty on purpose: any missing file in MIGRATIONS is an error. Add a name
+ * here only with a comment saying why the schema does not need it.
+ *
+ * 008_ and 009_ are NOT optional. schema.ts (leads.veSessionId) and the voice
+ * engine code use ve_session_id and ve_sessions, and neither file exists in
+ * this repo. Until the owner supplies them or removes them from MIGRATIONS
+ * (checklist decision D-B2-4), the runner fails on purpose.
+ */
+const OPTIONAL_MIGRATIONS = new Set([]);
+
+/**
+ * Check every MIGRATIONS entry against the folder before anything runs.
+ * Returns the ordered plan and the list of missing required files.
+ */
+function planMigrations(dir) {
+  const plan = [];
+  const missing = [];
+  for (const name of MIGRATIONS) {
+    const path = resolve(dir, name);
+    if (!existsSync(path)) {
+      if (OPTIONAL_MIGRATIONS.has(name)) {
+        console.warn(`⚠️  Optional migration not found, skipping: ${name}`);
+      } else {
+        missing.push(name);
+      }
+      continue;
+    }
+    const sql = readFileSync(path, 'utf8');
+    plan.push({ name, path, statements: countStatements(sql) });
+  }
+  return { plan, missing };
 }
 
-const { default: pg } = await import('pg');
-const { Pool } = pg;
+/**
+ * Compare the drizzle journal with the files. Warnings only: the journal is
+ * not read by this runner yet, so mismatches are reported, not enforced.
+ */
+function journalWarnings(dir) {
+  const journalPath = resolve(dir, 'meta', '_journal.json');
+  if (!existsSync(journalPath)) return ['no meta/_journal.json found'];
+  const journal = JSON.parse(readFileSync(journalPath, 'utf8'));
+  const tags = journal.entries.map((e) => e.tag);
+  const warnings = [];
+  for (const tag of tags) {
+    if (!existsSync(resolve(dir, `${tag}.sql`))) {
+      warnings.push(`journal entry ${tag} has no file ${tag}.sql`);
+    }
+  }
+  for (const name of MIGRATIONS) {
+    const tag = name.replace(/\.sql$/, '');
+    if (!tags.includes(tag)) warnings.push(`runner file ${name} is not in the journal`);
+  }
+  return warnings;
+}
 
-const MIGRATIONS = [
-  resolve(rootDir, 'migrations', '0001_add_missing_columns.sql'),
-  resolve(rootDir, 'migrations', '0002_add_google_sheets_credentials.sql'),
-  resolve(rootDir, 'migrations', '0003_campaign_contact_retry.sql'),
-  resolve(rootDir, 'migrations', '0004_add_missing_tables.sql'),
-  resolve(rootDir, 'migrations', '0005_add_missing_agent_messaging_columns.sql'),
-  resolve(rootDir, 'migrations', '0006_add_default_campaign_type.sql'),
-  resolve(rootDir, 'migrations', '0007_add_external_fonoster_phone_id.sql'),
-  resolve(rootDir, 'migrations', '008_add_ve_session_id_and_voice_engine_tables.sql'),
-  resolve(rootDir, 'migrations', '009_fix_ve_session_id_and_all_missing_columns.sql'),
-  resolve(rootDir, 'migrations', '0010_add_yookassa_columns.sql'),
-  resolve(rootDir, 'migrations', '0010a_inbox.sql'),
-  resolve(rootDir, 'migrations', '0011_inbox_channels_and_providers.sql'),
-  resolve(rootDir, 'migrations', '0010b_approvals.sql'),
-  resolve(rootDir, 'migrations', '0013_approvals_revoked_status.sql'),
-  resolve(rootDir, 'migrations', '0010c_chatbot.sql'),
-];
+function runDryRun() {
+  const { plan, missing } = planMigrations(migrationsDir);
+  console.log(`Dry run. No database is touched. Folder: ${migrationsDir}\n`);
+  if (missing.length) {
+    for (const name of missing) console.error(`❌ Required migration missing: ${name}`);
+    console.error(`\n❌ ${missing.length} required migration file(s) missing. Nothing would be applied.`);
+    process.exit(1);
+  }
+  console.log('Would apply, in order:');
+  plan.forEach((m, i) => console.log(`  ${i + 1}. ${m.name} (${m.statements} statements)`));
+  console.log('\nJournal check (warnings only):');
+  const warnings = journalWarnings(migrationsDir);
+  if (warnings.length === 0) console.log('  none');
+  for (const w of warnings) console.log(`  - ${w}`);
+  process.exit(0);
+}
 
 /**
  * Count top-level SQL statements in a migration file. Naïve `split(';')`
@@ -123,7 +204,10 @@ function countStatements(sql) {
   return count;
 }
 
-async function runMigrations() {
+async function runMigrations(plan) {
+  const dbUrl = process.env.DATABASE_URL;
+  const { default: pg } = await import('pg');
+  const { Pool } = pg;
   const pool = new Pool({ connectionString: dbUrl });
 
   console.log('🔄 Running safe database migration...\n');
@@ -131,15 +215,10 @@ async function runMigrations() {
   try {
     const client = await pool.connect();
     try {
-      for (const migrationFile of MIGRATIONS) {
-        if (!existsSync(migrationFile)) {
-          console.warn(`⚠️  Migration file not found, skipping: ${migrationFile}`);
-          continue;
-        }
-
-        const sql = readFileSync(migrationFile, 'utf8');
-        const fileName = migrationFile.split('/').pop();
-        const statementCount = countStatements(sql);
+      for (const entry of plan) {
+        const fileName = entry.name;
+        const statementCount = entry.statements;
+        const sql = readFileSync(entry.path, 'utf8');
 
         console.log(`📄 Applying: ${fileName} (${statementCount} statements)`);
 
@@ -196,4 +275,22 @@ async function runMigrations() {
   }
 }
 
-runMigrations();
+// Pre-flight: check every required file before any database work. A missing
+// required file stops the run here, so no later migration is applied.
+if (DRY_RUN) {
+  runDryRun();
+} else {
+  const { plan, missing } = planMigrations(migrationsDir);
+  if (missing.length) {
+    for (const name of missing) console.error(`❌ Required migration missing: ${name}`);
+    console.error(`\n❌ ${missing.length} required migration file(s) missing. Nothing was applied.`);
+    process.exit(1);
+  }
+  const dbUrl = process.env.DATABASE_URL;
+  if (!dbUrl) {
+    console.error('❌ DATABASE_URL environment variable is not set.');
+    console.error('   Set it in your environment or in a .env file at the project root.');
+    process.exit(1);
+  }
+  await runMigrations(plan);
+}
