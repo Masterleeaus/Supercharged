@@ -10,6 +10,7 @@ import { OpenAIPoolService } from "../../engines/plivo/services/openai-pool.serv
 import { OpenAIAgentFactory } from "../../engines/plivo/services/openai-agent-factory";
 import { ElevenLabsPoolService } from "../../services/elevenlabs-pool";
 import { ElevenLabsService } from "../../services/elevenlabs";
+import { logger } from "../../utils/logger";
 import { storage } from "../../storage";
 import { CallInsightsService } from "../../services/call-insights.service";
 import { RAGKnowledgeService } from "../../services/rag-knowledge";
@@ -1165,8 +1166,10 @@ router.post('/widget/session/:sessionId/ephemeral-token', async (req: Request, r
             userMessage = 'AI service authentication failed. Please contact support.';
           }
         }
-      } catch (e) {}
-      
+      } catch {
+        logger.warn('OpenAI Realtime error body is not JSON; default message used', { status: ephemeralResponse.status, credentialId: credential.id }, 'PublicWidget');
+      }
+
       return res.status(500).json({ error: userMessage });
     }
     

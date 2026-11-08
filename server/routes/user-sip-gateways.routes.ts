@@ -15,31 +15,44 @@ import { Router, Response } from 'express';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { authenticateToken, type AuthRequest } from '../middleware/auth';
+import { logger } from '../utils/logger';
 
 // Ensure tables exist on first import
 (async () => {
   try {
     try {
       await db.execute(sql`CREATE EXTENSION IF NOT EXISTS "pgcrypto";`);
-    } catch (e) {}
+    } catch (e: any) {
+      logger.warn('Startup schema step skipped (enable pgcrypto extension)', { error: e?.message }, 'UserSipGateways');
+    }
 
     // Ensure newer website_widgets columns exist
     try {
       await db.execute(sql`ALTER TABLE "website_widgets" ADD COLUMN IF NOT EXISTS "max_concurrent_calls" integer DEFAULT 5 NOT NULL;`);
-    } catch (e) {}
+    } catch (e: any) {
+      logger.warn('Startup schema step skipped (add website_widgets.max_concurrent_calls)', { error: e?.message }, 'UserSipGateways');
+    }
     try {
       await db.execute(sql`ALTER TABLE "website_widgets" ADD COLUMN IF NOT EXISTS "max_call_duration" integer DEFAULT 300 NOT NULL;`);
-    } catch (e) {}
+    } catch (e: any) {
+      logger.warn('Startup schema step skipped (add website_widgets.max_call_duration)', { error: e?.message }, 'UserSipGateways');
+    }
     try {
       await db.execute(sql`ALTER TABLE "website_widgets" ADD COLUMN IF NOT EXISTS "cooldown_minutes" integer DEFAULT 0 NOT NULL;`);
-    } catch (e) {}
+    } catch (e: any) {
+      logger.warn('Startup schema step skipped (add website_widgets.cooldown_minutes)', { error: e?.message }, 'UserSipGateways');
+    }
     try {
       await db.execute(sql`ALTER TABLE "website_widgets" ADD COLUMN IF NOT EXISTS "appointment_booking_enabled" boolean DEFAULT false NOT NULL;`);
-    } catch (e) {}
+    } catch (e: any) {
+      logger.warn('Startup schema step skipped (add website_widgets.appointment_booking_enabled)', { error: e?.message }, 'UserSipGateways');
+    }
     try {
       // Drop foreign key constraint on agent_id to allow both standard and Custom Voice Engine agents
       await db.execute(sql`ALTER TABLE "website_widgets" DROP CONSTRAINT IF EXISTS "website_widgets_agent_id_agents_id_fk";`);
-    } catch (e) {}
+    } catch (e: any) {
+      logger.warn('Startup schema step skipped (drop website_widgets agent_id foreign key)', { error: e?.message }, 'UserSipGateways');
+    }
 
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS user_sip_gateways (
@@ -76,41 +89,53 @@ import { authenticateToken, type AuthRequest } from '../middleware/auth';
       await db.execute(sql`
         ALTER TABLE user_sip_phone_numbers ADD COLUMN IF NOT EXISTS agent_id VARCHAR;
       `);
-    } catch (e) {}
+    } catch (e: any) {
+      logger.warn('Startup schema step skipped (add user_sip_phone_numbers.agent_id)', { error: e?.message }, 'UserSipGateways');
+    }
 
     // Ensure caller_id_in_from exists in user_sip_gateways
     try {
       await db.execute(sql`
         ALTER TABLE user_sip_gateways ADD COLUMN IF NOT EXISTS caller_id_in_from BOOLEAN NOT NULL DEFAULT true;
       `);
-    } catch (e) {}
+    } catch (e: any) {
+      logger.warn('Startup schema step skipped (add user_sip_gateways.caller_id_in_from)', { error: e?.message }, 'UserSipGateways');
+    }
 
     // Ensure sip_call_id and ve_session_id exist in leads
     try {
       await db.execute(sql`
         ALTER TABLE leads ADD COLUMN IF NOT EXISTS sip_call_id VARCHAR;
       `);
-    } catch (e) {}
+    } catch (e: any) {
+      logger.warn('Startup schema step skipped (add leads.sip_call_id)', { error: e?.message }, 'UserSipGateways');
+    }
 
     try {
       await db.execute(sql`
         ALTER TABLE leads ADD COLUMN IF NOT EXISTS ve_session_id VARCHAR;
       `);
-    } catch (e) {}
+    } catch (e: any) {
+      logger.warn('Startup schema step skipped (add leads.ve_session_id)', { error: e?.message }, 'UserSipGateways');
+    }
 
     // Drop the foreign key constraint since agent_id can refer to either standard or custom voice engine agents
     try {
       await db.execute(sql`
         ALTER TABLE user_sip_phone_numbers DROP CONSTRAINT IF EXISTS user_sip_phone_numbers_agent_id_fkey;
       `);
-    } catch (e) { }
+    } catch (e: any) {
+      logger.warn('Startup schema step skipped (drop user_sip_phone_numbers agent_id foreign key)', { error: e?.message }, 'UserSipGateways');
+    }
 
     // Ensure external_fonoster_phone_id column exists in sip_phone_numbers
     try {
       await db.execute(sql`
         ALTER TABLE sip_phone_numbers ADD COLUMN IF NOT EXISTS external_fonoster_phone_id TEXT;
       `);
-    } catch (e) { }
+    } catch (e: any) {
+      logger.warn('Startup schema step skipped (add sip_phone_numbers.external_fonoster_phone_id)', { error: e?.message }, 'UserSipGateways');
+    }
 
     console.log('[UserSipGateways] Tables ready');
   } catch (err: any) {

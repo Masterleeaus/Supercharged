@@ -643,6 +643,72 @@ test('reminder: a company never sends reminders for another company’s bookings
   assert.equal((await dispatcher.runDue(CO_B)).sent, 1);
 });
 
+test('reminder: onSent fires once after a successful send, with company and appointment ids', async () => {
+  const h = reminderHarness('2026-11-08T11:00:00Z');
+  const calendar = await h.service.createCalendar(CO_A, { name: 'Desk', timezone: 'UTC', availability: ALL_DAYS, buffer_minutes: 0 });
+  const booked = await bookFor(h.service, CO_A, calendar.id, MON_10);
+  const events = [];
+  const dispatcher = createReminderDispatcher({
+    bookings: h.service,
+    ledger: h.store.ledger,
+    senders: { email: makeSender('email') },
+    http: fakeHttp(() => ({})).http,
+    config: { channels: ['email'], leadMinutes: 24 * 60 },
+    now: () => h.clock.now,
+    onSent: (event) => { events.push(event); },
+  });
+  await dispatcher.runDue(CO_A);
+  await dispatcher.runDue(CO_A);
+  assert.equal(events.length, 1, 'the hook fires once, and a second run does not fire it again');
+  assert.equal(events[0].companyId, CO_A);
+  assert.equal(events[0].appointmentId, booked.id);
+  assert.equal(events[0].channel, 'email');
+  assert.ok(events[0].sentAt instanceof Date);
+});
+
+test('reminder: onSent does not fire for a failed send, and a throwing hook does not undo the send', async () => {
+  const h = reminderHarness('2026-11-08T11:00:00Z');
+  const calendar = await h.service.createCalendar(CO_A, { name: 'Desk', timezone: 'UTC', availability: ALL_DAYS, buffer_minutes: 0 });
+  await bookFor(h.service, CO_A, calendar.id, MON_10);
+  const events = [];
+  const failing = createReminderDispatcher({
+    bookings: h.service,
+    ledger: h.store.ledger,
+    senders: { email: makeSender('email', () => ({ status: 'failed', retryable: false, reason: 'bounced' })) },
+    http: fakeHttp(() => ({})).http,
+    config: { channels: ['email'], leadMinutes: 24 * 60 },
+    now: () => h.clock.now,
+    onSent: (event) => { events.push(event); },
+  });
+  const failed = await failing.runDue(CO_A);
+  assert.equal(failed.failed, 1);
+  assert.equal(events.length, 0, 'no event for a failed send');
+
+  const h2 = reminderHarness('2026-11-08T11:00:00Z');
+  const calendar2 = await h2.service.createCalendar(CO_A, { name: 'Desk', timezone: 'UTC', availability: ALL_DAYS, buffer_minutes: 0 });
+  await bookFor(h2.service, CO_A, calendar2.id, MON_10);
+  const email = makeSender('email');
+  const throwing = createReminderDispatcher({
+    bookings: h2.service,
+    ledger: h2.store.ledger,
+    senders: { email },
+    http: fakeHttp(() => ({})).http,
+    config: { channels: ['email'], leadMinutes: 24 * 60 },
+    now: () => h2.clock.now,
+    onSent: () => { throw new Error('webhook down'); },
+  });
+  const sentRun = await captureConsole(() => throwing.runDue(CO_A));
+  assert.equal(sentRun.result.sent, 1, 'the send still counts as sent');
+  assert.equal(sentRun.result.failed, 0);
+  assert.equal(email.sent.length, 1);
+});
+
+test('reminder: appointment.reminder_sent is registered in the user webhook event list', async () => {
+  const { readFileSync } = await import('node:fs');
+  const source = readFileSync(new URL('../../server/routes/user-webhook-routes.ts', import.meta.url), 'utf8');
+  assert.match(source, /'appointment\.reminder_sent'/);
+});
+
 test('reminder: invalid config is refused at construction', () => {
   const h = reminderHarness();
   const base = { bookings: h.service, ledger: h.store.ledger, senders: {}, http: fakeHttp(() => ({})).http };

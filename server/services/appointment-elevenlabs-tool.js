@@ -2,6 +2,7 @@ import { getDomain } from "../utils/domain.js";
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
+import { logger } from "../utils/logger.js";
 const PERSISTED_SECRET_PATH = path.join(process.cwd(), ".appointment-webhook-secret");
 let appointmentWebhookSecret = null;
 function getAppointmentWebhookSecret() {
@@ -15,6 +16,7 @@ function getAppointmentWebhookSecret() {
           console.log(`\u{1F4C5} [Appointment Tool] Loaded persisted webhook secret from file`);
         }
       } catch (err) {
+        logger.warn('Could not read persisted appointment webhook secret; a new one is generated', { code: err?.code }, 'AppointmentTool');
       }
       if (!appointmentWebhookSecret) {
         appointmentWebhookSecret = crypto.randomBytes(32).toString("hex");

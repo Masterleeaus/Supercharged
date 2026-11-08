@@ -38,6 +38,7 @@ import { getAppointmentToolForAgent } from "./appointment-elevenlabs-tool";
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
+import { logger } from "../utils/logger";
 
 const PERSISTED_SECRET_PATH = path.join(process.cwd(), '.rag-webhook-secret');
 
@@ -57,7 +58,7 @@ export function getRAGWebhookSecret(): string {
           console.log(`📚 [RAG Tool] Loaded persisted webhook secret from file`);
         }
       } catch (err) {
-        // ignore read errors
+        // Unreadable secret file: a new secret is generated below.
       }
 
       // 2. Second priority: Derive a stable secret from server key for new installations
@@ -71,7 +72,9 @@ export function getRAGWebhookSecret(): string {
           console.log(`📚 [RAG Tool] Derived stable webhook secret from server key`);
           try {
             fs.writeFileSync(PERSISTED_SECRET_PATH, ragWebhookSecret, { mode: 0o600 });
-          } catch (err) {}
+          } catch (err: any) {
+            logger.error('Could not persist derived RAG webhook secret; it will change on restart', { code: err?.code }, 'RagTool');
+          }
         }
       }
 
@@ -81,7 +84,9 @@ export function getRAGWebhookSecret(): string {
         console.log(`📚 [RAG Tool] Generated new webhook secret`);
         try {
           fs.writeFileSync(PERSISTED_SECRET_PATH, ragWebhookSecret, { mode: 0o600 });
-        } catch (err) {}
+        } catch (err: any) {
+          logger.error('Could not persist generated RAG webhook secret; it will change on restart', { code: err?.code }, 'RagTool');
+        }
       }
     }
   }

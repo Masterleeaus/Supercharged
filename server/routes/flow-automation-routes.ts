@@ -3824,42 +3824,6 @@ router.delete("/appointments/:id", async (req: AuthRequest, res: Response) => {
   }
 });
 
-// TODO: appointment.reminder_sent webhook trigger
-// This event should be triggered when an appointment reminder is sent to the contact.
-// Currently, there is no appointment reminder system implemented.
-// When a reminder system is added (e.g., a cron job that sends SMS/email reminders),
-// uncomment and adapt the following code:
-//
-// async function sendAppointmentReminder(appointment: any, userId: string) {
-//   // ... reminder sending logic ...
-//   
-//   // Trigger appointment.reminder_sent webhook
-//   try {
-//     await webhookDeliveryService.triggerEvent(companyId, userId, 'appointment.reminder_sent', {
-//       appointment: {
-//         appointmentId: appointment.id,
-//         contactName: appointment.contactName || null,
-//         contactPhone: appointment.contactPhone || null,
-//         contactEmail: appointment.contactEmail || null,
-//         date: appointment.appointmentDate,
-//         time: appointment.appointmentTime,
-//         duration: appointment.duration || 30,
-//         serviceName: appointment.serviceName || null,
-//         notes: appointment.notes || null,
-//         status: appointment.status,
-//         flowId: appointment.flowId || null,
-//         callId: appointment.callId || null,
-//       },
-//       reminderType: 'email', // or 'sms'
-//       reminderSentAt: new Date().toISOString(),
-//       hoursBeforeAppointment: 24, // configurable
-//     });
-//     console.log(`📅 [Appointment Webhook] Triggered appointment.reminder_sent for ${appointment.id}`);
-//   } catch (webhookError: any) {
-//     console.error(`📅 [Appointment Webhook] Failed to trigger reminder_sent webhook:`, webhookError.message);
-//   }
-// }
-
 router.get("/appointment-settings", async (req: AuthRequest, res: Response) => {
   try {
     if (!req.userId) {

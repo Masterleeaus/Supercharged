@@ -15,6 +15,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
+import { logger } from "./utils/logger";
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer } from 'ws';
@@ -135,6 +136,7 @@ import { safeErrorMessage } from "./utils/safe-error";
 import { markPluginAsRegistered } from "./plugins/loader";
 import { registerChatbotModule } from "./modules/chatbot/index.ts";
 import { mountChatbotModule, WIRING_FLAGS } from "./modules/chatbot/wiring/mount.ts";
+import { resolveAgentStaffIdentity } from "./modules/chatbot/agent-routes/staff-identity.ts";
 import { CONTRACT_FLAGS, readFlag } from "./modules/chatbot/contracts/flags.ts";
 import { createSecretBox } from "./modules/chatbot/secrets/secret-box.ts";
 import { startChatbotWorkersFromEnv } from "./modules/chatbot/workers/boot.ts";
@@ -363,11 +365,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const plivoMod = await import("./engines/plivo/services/plivo-call.service");
       PlivoCallServiceRef = plivoMod.PlivoCallService;
-    } catch { }
+    } catch (err: any) { logger.warn('Plivo call service not loaded for outbound rest-api calls; continuing without it', { code: err?.code }, 'Routes'); }
     try {
       const twilioMod = await import("./engines/twilio-openai/services/twilio-openai-call.service");
       TwilioOpenAICallServiceRef = twilioMod.TwilioOpenAICallService;
-    } catch { }
+    } catch (err: any) { logger.warn('Twilio OpenAI call service not loaded for outbound rest-api calls; continuing without it', { code: err?.code }, 'Routes'); }
 
     await restApiPlugin.registerRestApiRoutes(app, {
       sessionAuthMiddleware: authenticateToken as unknown as import('express').RequestHandler,
@@ -1359,7 +1361,7 @@ When using a tool:
           sipTrunkAddress = await getSipTrunkOutboundAddress(req.params.id);
           console.log(`   📞 [Transfer Config] SIP agent detected - using sip_refer transfer type (trunk: ${sipTrunkAddress})`);
         }
-      } catch { }
+      } catch (err: any) { logger.warn('SIP trunk check failed during transfer config; using conference transfer', { agentId: req.params.id, error: err?.message }, 'Routes'); }
 
       let numberType: "phone" | "sip_uri" = "phone";
       let destination = transferNumber;
@@ -1762,7 +1764,9 @@ When using a tool:
     authenticate: routeContext.authenticateHybrid as unknown as import('express').RequestHandler,
     requireCompanyScope: requireCompanyScope(),
     requireRole: (...roles: string[]) => requireRole(...roles) as unknown as import('express').RequestHandler,
-    // agentAuthenticate is not passed: the app has no staff identity resolver for the agent surface, so agent calls answer 401.
+    // Agent surface: identity comes from req.user, which authenticateHybrid sets from a verified token. Company and role
+    // come from that user only, never from headers or body. A user with no company gets 403, no identity gets 401.
+    agentAuthenticate: resolveAgentStaffIdentity,
     secretBox: chatbotSecretBox,
     // No reply runtime or receipt store is wired yet. These stubs keep startup working and refuse the work itself.
     widget: {

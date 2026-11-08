@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from "express";
+import { logger } from "../../utils/logger";
 import { createHmac, timingSafeEqual } from "crypto";
 import { db } from "../../db";
 import { googleCalendarCredentials } from "@shared/schema";
@@ -31,7 +32,7 @@ async function getStateSecret(): Promise<string> {
   try {
     const creds = await getGoogleCredentials();
     if (creds?.clientSecret) return creds.clientSecret + "_google_calendar_state";
-  } catch {}
+  } catch (err: any) { logger.warn('Could not load Google client secret from settings; using environment fallback', { error: err?.message }, 'GoogleCalendar'); }
   const base = process.env.GOOGLE_CLIENT_SECRET || process.env.JWT_SECRET;
   if (!base) throw new Error("No secret available for Google Calendar OAuth state signing");
   return base + "_google_calendar_state";

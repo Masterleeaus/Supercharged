@@ -8,6 +8,7 @@ import { and, eq, sql } from "drizzle-orm";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import { logger } from "../../utils/logger";
 
 const allowedUpdateFields = [
   'name', 'description', 'status', 'agentId', 'agentType',
@@ -183,7 +184,7 @@ router.post('/widgets', requireAuth, upload.single('icon'), async (req: Request,
   } catch (error: any) {
     console.error('Error creating widget:', error);
     if (req.file) {
-      try { fs.unlinkSync(req.file.path); } catch {}
+      try { fs.unlinkSync(req.file.path); } catch (cleanupErr: any) { logger.warn('Could not delete uploaded widget file after failed request', { code: cleanupErr?.code }, 'WidgetRoutes'); }
     }
     const message = error?.message || 'Failed to create widget';
     res.status(500).json({ error: 'Failed to create widget', message });
@@ -240,7 +241,7 @@ router.patch('/widgets/:id', requireAuth, upload.single('icon'), async (req: Req
   } catch (error: any) {
     console.error('Error updating widget:', error);
     if (req.file) {
-      try { fs.unlinkSync(req.file.path); } catch {}
+      try { fs.unlinkSync(req.file.path); } catch (cleanupErr: any) { logger.warn('Could not delete uploaded widget file after failed request', { code: cleanupErr?.code }, 'WidgetRoutes'); }
     }
     const message = error?.message || 'Failed to update widget';
     res.status(500).json({ error: 'Failed to update widget', message });

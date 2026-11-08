@@ -1,4 +1,5 @@
 import { db } from "./db.js";
+import { logger } from "./utils/logger.js";
 import { nanoid } from "nanoid";
 import {
   users,
@@ -1685,6 +1686,7 @@ class DbStorage {
         try {
           val = JSON.parse(val);
         } catch {
+          logger.warn('Global setting value is not valid JSON; returning raw value', { key }, 'Storage');
         }
       }
       return { ...setting, value: val };

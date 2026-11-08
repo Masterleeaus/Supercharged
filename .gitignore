@@ -6,3 +6,7 @@ node_modules/
 *.pid
 *.backup
 .titan-backup/
+
+# Webhook secrets (read from the working directory at runtime; never commit)
+.appointment-webhook-secret
+.rag-webhook-secret

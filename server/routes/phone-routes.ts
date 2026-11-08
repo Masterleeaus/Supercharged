@@ -20,6 +20,7 @@ import { Router, Request, Response } from "express";
 import { RouteContext, AuthRequest } from "./common";
 import { eq, and, isNull, sql } from "drizzle-orm";
 import { phoneNumbers, creditTransactions, phoneNumberRentals } from "@shared/schema";
+import { logger } from "../utils/logger";
 
 export function createPhoneRoutes(ctx: RouteContext): Router {
   const router = Router();
@@ -35,7 +36,10 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
           message: "Modifying phone numbers is disabled in demo mode."
         });
       }
-    } catch (e) {}
+    } catch (e: any) {
+      // Lookup failed, so the demo check is skipped and the request continues. Logged so the gap is visible.
+      logger.error('Demo-account check failed in phone routes; request allowed to continue', { userId, error: e?.message }, 'PhoneRoutes');
+    }
     next();
   };
 

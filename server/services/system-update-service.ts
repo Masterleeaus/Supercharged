@@ -8,6 +8,7 @@ import { Request, Response, NextFunction } from 'express';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { scheduleGracefulRestart } from '../utils/graceful-restart';
+import { logger } from '../utils/logger';
 
 const execAsync = promisify(exec);
 
@@ -244,7 +245,9 @@ function getFreeDiskBytes(targetPath: string): number | null {
       const stat = anyFs.statfsSync(targetPath);
       return Number(stat.bavail) * Number(stat.bsize);
     }
-  } catch {}
+  } catch (err: any) {
+    logger.warn('Could not read free disk space', { code: err?.code }, 'SystemUpdate');
+  }
   return null;
 }
 
@@ -274,7 +277,7 @@ class SystemUpdateService {
       const age = Date.now() - stat.mtimeMs;
       if (age > STALE_MAINTENANCE_MS) {
         console.warn(`[SystemUpdate] Removing stale .maintenance flag (age ${Math.round(age / 1000)}s) — previous update likely crashed.`);
-        try { fs.unlinkSync(MAINTENANCE_FLAG); } catch {}
+        try { fs.unlinkSync(MAINTENANCE_FLAG); } catch (err: any) { if (err?.code !== 'ENOENT') logger.warn('Could not remove .maintenance flag', { code: err?.code }, 'SystemUpdate'); }
       } else {
         console.warn(`[SystemUpdate] .maintenance flag present (age ${Math.round(age / 1000)}s) — leaving in place.`);
       }
@@ -366,8 +369,8 @@ class SystemUpdateService {
    * to be addressed via rollback or a fresh successful update.
    */
   forceReset(): UpdateStatus {
-    try { fs.unlinkSync(MAINTENANCE_FLAG); } catch {}
-    try { fs.unlinkSync(UPDATE_STATE_FILE); } catch {}
+    try { fs.unlinkSync(MAINTENANCE_FLAG); } catch (err: any) { if (err?.code !== 'ENOENT') logger.warn('Could not remove .maintenance flag', { code: err?.code }, 'SystemUpdate'); }
+    try { fs.unlinkSync(UPDATE_STATE_FILE); } catch (err: any) { if (err?.code !== 'ENOENT') logger.warn('Could not remove update state file', { code: err?.code }, 'SystemUpdate'); }
     this.status = {
       inProgress: false,
       phase: 'idle',
@@ -406,11 +409,13 @@ class SystemUpdateService {
   private persistState() {
     try {
       fs.writeFileSync(UPDATE_STATE_FILE, JSON.stringify(this.status, null, 2));
-    } catch {}
+    } catch (err: any) {
+      logger.error('Could not persist update state; admin UI may show stale status', err, 'SystemUpdate');
+    }
   }
 
   private clearPersistedState() {
-    try { fs.unlinkSync(UPDATE_STATE_FILE); } catch {}
+    try { fs.unlinkSync(UPDATE_STATE_FILE); } catch (err: any) { if (err?.code !== 'ENOENT') logger.warn('Could not remove update state file', { code: err?.code }, 'SystemUpdate'); }
   }
 
   getStatus(): UpdateStatus {
@@ -464,7 +469,9 @@ class SystemUpdateService {
             manifest = JSON.parse(content) as UpdateManifest;
             if (parts.length === 2) rootDir = parts[0];
             break;
-          } catch {}
+          } catch {
+            logger.warn('Skipping update-manifest.json in archive: not valid JSON', { entry: entry.entryName }, 'SystemUpdate');
+          }
         }
       }
 
@@ -487,7 +494,9 @@ class SystemUpdateService {
                 if (parts.length === 2) rootDir = parts[0];
                 break;
               }
-            } catch {}
+            } catch {
+              logger.warn('Skipping package.json in archive: not valid JSON', { entry: entry.entryName }, 'SystemUpdate');
+            }
           }
         }
       }
@@ -814,7 +823,7 @@ class SystemUpdateService {
       const timer = setTimeout(() => {
         timedOut = true;
         console.error(`[SystemUpdate] ${cmdString} exceeded ${TIMEOUT_MS}ms — sending SIGKILL`);
-        try { child.kill('SIGKILL'); } catch {}
+        try { child.kill('SIGKILL'); } catch (err: any) { logger.warn('Could not send SIGKILL to timed-out command', { error: err?.message }, 'SystemUpdate'); }
       }, TIMEOUT_MS);
 
       child.on('error', (err) => {
@@ -991,7 +1000,7 @@ class SystemUpdateService {
         console.warn('[SystemUpdate] Retention policy failed:', err.message)
       );
 
-      try { fs.unlinkSync(MAINTENANCE_FLAG); } catch {}
+      try { fs.unlinkSync(MAINTENANCE_FLAG); } catch (err: any) { if (err?.code !== 'ENOENT') logger.warn('Could not remove .maintenance flag', { code: err?.code }, 'SystemUpdate'); }
       // Intentionally keep `.update-state.json` so the admin UI can show the
       // "completed" outcome after the imminent restart drops the polling
       // connection. The admin clears it via the dismiss endpoint.
@@ -1036,7 +1045,7 @@ class SystemUpdateService {
         fileCount,
       });
 
-      try { fs.unlinkSync(MAINTENANCE_FLAG); } catch {}
+      try { fs.unlinkSync(MAINTENANCE_FLAG); } catch (err: any) { if (err?.code !== 'ENOENT') logger.warn('Could not remove .maintenance flag', { code: err?.code }, 'SystemUpdate'); }
       // Keep `.update-state.json` so the admin UI shows the failure after
       // any subsequent restart. Cleared via the dismiss endpoint.
     }
@@ -1076,7 +1085,7 @@ class SystemUpdateService {
     // leave the system locked out.
     const maintenanceWasSet = !fs.existsSync(MAINTENANCE_FLAG);
     if (maintenanceWasSet) {
-      try { fs.writeFileSync(MAINTENANCE_FLAG, 'rolling-back'); } catch {}
+      try { fs.writeFileSync(MAINTENANCE_FLAG, 'rolling-back'); } catch (err: any) { logger.warn('Could not set .maintenance flag for rollback', { code: err?.code }, 'SystemUpdate'); }
     }
 
     try {
@@ -1198,7 +1207,7 @@ class SystemUpdateService {
       throw error;
     } finally {
       if (maintenanceWasSet) {
-        try { fs.unlinkSync(MAINTENANCE_FLAG); } catch {}
+        try { fs.unlinkSync(MAINTENANCE_FLAG); } catch (err: any) { if (err?.code !== 'ENOENT') logger.warn('Could not remove .maintenance flag', { code: err?.code }, 'SystemUpdate'); }
       }
     }
   }
@@ -1222,7 +1231,7 @@ class SystemUpdateService {
     });
     archive.on('error', (err) => {
       console.error('[SystemUpdate] backup zip error:', err);
-      try { res.destroy(err); } catch {}
+      try { res.destroy(err); } catch (destroyErr: any) { logger.warn('Could not close backup response after archive error', { error: destroyErr?.message }, 'SystemUpdate'); }
     });
     archive.pipe(res);
     archive.directory(backupPath, false);
