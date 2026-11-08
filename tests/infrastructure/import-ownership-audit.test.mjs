@@ -8,6 +8,7 @@ import {
   extractLiteralImports,
   resolveRelativeImport,
   traceStaticEntrypoints,
+  resolveConfiguredAlias,
 } from "../../scripts/audit-import-ownership.mjs";
 
 async function fixture(run) {
@@ -109,6 +110,33 @@ test("audit reports direct static entrypoint chains and missing entrypoints sepa
     assert.equal(report.staticReachableFiles, 3);
     assert.equal(report.ownership.find((x) => x.path.endsWith("core.mjs")).staticEntrypointPathFound, true);
     assert.equal(report.ownership.find((x) => x.path.endsWith("unreferenced.mjs")).staticEntrypointPathFound, false);
+    assert.equal(report.ownership.every((x) => x.live === "unverified"), true);
+  });
+});
+
+test("configured Vite aliases resolve only to existing client and shared source", () => {
+  const known = new Set(["client/src/lib/queryClient.ts", "client/src/components/index.tsx", "shared/schema.ts"]);
+  assert.equal(resolveConfiguredAlias("@/lib/queryClient", known), "client/src/lib/queryClient.ts");
+  assert.equal(resolveConfiguredAlias("@/components/index.tsx", known), "client/src/components/index.tsx");
+  assert.equal(resolveConfiguredAlias("@shared/schema", known), "shared/schema.ts");
+  assert.equal(resolveConfiguredAlias("@/not-there", known), null);
+  assert.equal(resolveConfiguredAlias("@other/package", known), null);
+});
+
+test("alias imports join entrypoint reachability while unresolved aliases remain visible", async () => {
+  await fixture(async ({ root, make }) => {
+    make("client/src/main.tsx", 'import App from "@/App"; import { schema } from "@shared/schema"; import "@/missing";');
+    make("client/src/App.tsx", "export default function App() { return null; }");
+    make("shared/schema.ts", "export const schema = {};");
+    const report = auditImportOwnership(root, {
+      entrypoints: ["client/src/main.tsx"],
+      paths: ["client/src/", "shared/"],
+    });
+    assert.equal(report.resolvedAliasEdges, 2);
+    assert.equal(report.unresolvedAliasEdges, 1);
+    assert.equal(report.staticReachableFiles, 3);
+    assert.equal(report.ownership.find((x) => x.path === "client/src/App.tsx").staticEntrypointPathFound, true);
+    assert.deepEqual(report.unresolvedAliases, [{ importer: "client/src/main.tsx", specifier: "@/missing" }]);
     assert.equal(report.ownership.every((x) => x.live === "unverified"), true);
   });
 });
