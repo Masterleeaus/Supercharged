@@ -42,13 +42,11 @@ import { createRouteContext } from "./routes/common";
 // Payment Engine v1.0.0 - All payment gateway routers
 import { stripeRouter, razorpayRouter, paypalRouter, paystackRouter, mercadopagoRouter, yookassaRouter } from "./engines/payment";
 // Plivo + OpenAI Realtime Engine
-import { createPlivoApiRoutes, setupPlivoWebhooks, setupPlivoStream } from "./engines/plivo";
+import { setupPlivoStream } from "./engines/plivo";
 // Plivo-ElevenLabs SIP Trunk Engine (ISOLATED from Twilio+ElevenLabs)
-import { initPlivoElevenLabsEngine, initPlivoElevenLabsStream } from "./engines/plivo-elevenlabs";
+import { initPlivoElevenLabsStream } from "./engines/plivo-elevenlabs";
 // Twilio + OpenAI Realtime Engine (ISOLATED from Twilio+ElevenLabs and Plivo+OpenAI)
-import { twilioOpenaiWebhookRoutes, setupTwilioOpenAIStreamHandler, twilioOpenaiIncomingConnectionsRoutes } from "./engines/twilio-openai";
-// KYC Engine
-import { registerKycRoutes } from "./engines/kyc";
+import { setupTwilioOpenAIStreamHandler } from "./engines/twilio-openai";
 import { checkAdmin, checkAdminOrTeamMember, requireAdminPermission, AdminRequest } from "./middleware/admin-auth";
 import { hybridGateUnlessExempt } from "./middleware/hybrid-gate-exemptions";
 import flowAutomationRouter from "./routes/flow-automation-routes";
@@ -109,6 +107,7 @@ import { createCockpitRouter, DEFAULT_MODE_CONFIG } from "./routes/cockpit-route
 import { createProviderWebhookRateLimit, readTwilioAccountSid, TWILIO_ACCOUNT_SID_PATTERN } from "./middleware/provider-webhook-rate-limit";
 import { registerPublicAuthRoutes } from "./routes/core/public-auth-routes";
 import { registerPlatformRoutes } from "./routes/core/platform-routes";
+import { registerVoiceEngineRoutes } from "./routes/core/voice-engine-routes";
 
 const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
@@ -181,44 +180,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const requireAuth: RequestHandler = authenticateToken;
   const requireAdmin: RequestHandler = checkAdmin;
 
-  // Register Plivo + OpenAI Realtime Engine routes
-  // Apply authenticateToken middleware only to user-facing Plivo API routes (not webhooks/stream)
-  // Webhooks need to remain unauthenticated for Plivo callbacks
-  app.use('/api/plivo/openai', requireAuth);
-  app.use('/api/plivo/phone-numbers', requireAuth);
-  // Note: /api/plivo/admin routes use requireAdminAuth + requireAdminPermission middleware at route level
-  // to support both platform admins (JWT) and admin team members (session tokens)
-  app.use('/api/plivo/incoming-connections', requireAuth);
-  const plivoApiRoutes = createPlivoApiRoutes();
-  app.use(plivoApiRoutes);
-
-  // Setup Plivo webhooks for voice calls
-  const plivoBaseUrl = getDomain();
-  setupPlivoWebhooks(app, plivoBaseUrl);
-  // Plivo WebSocket stream is set up on httpServer below (after other upgrade handlers)
-
-  // Start the stuck calls cleanup scheduler for Plivo engine
-  import("./engines/plivo/services/plivo-call.service").then(({ PlivoCallService }) => {
-    PlivoCallService.startStuckCallsScheduler();
-  }).catch((error) => {
-    console.error('❌ Failed to start Plivo stuck calls scheduler:', error.message);
-  });
-
-  console.log('✅ Plivo + OpenAI Realtime Engine initialized');
-
-  // Initialize Plivo-ElevenLabs SIP Trunk Engine (ISOLATED from Twilio+ElevenLabs)
-  // This provides Plivo SIP trunk to ElevenLabs connection for Indian phone numbers
-  initPlivoElevenLabsEngine(app);
-  console.log('✅ Plivo-ElevenLabs SIP Trunk Engine initialized');
-
-  // Initialize Twilio + OpenAI Realtime Engine (ISOLATED from Twilio+ElevenLabs and Plivo+OpenAI)
-  // This provides Twilio telephony with OpenAI Realtime API for international calling
-  app.use('/api/twilio-openai', twilioOpenaiWebhookRoutes);
-  app.use('/api/twilio-openai/incoming-connections', requireAuth, twilioOpenaiIncomingConnectionsRoutes);
-  console.log('✅ Twilio + OpenAI Realtime Engine initialized');
-
-  // Register KYC Engine routes
-  registerKycRoutes(app, requireAuth, requireAdmin);
+  // Routes: Plivo, Twilio-OpenAI and KYC engine, see server/routes/core/voice-engine-routes.ts
+  registerVoiceEngineRoutes(app, { requireAuth, requireAdmin });
 
   // Register SIP Engine Plugin dynamically with service injection (only if plugin directory exists)
   try {
