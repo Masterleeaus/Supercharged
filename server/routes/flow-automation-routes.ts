@@ -58,6 +58,7 @@ import { OpenAIVoiceAgentCompiler } from "../services/openai-voice-agent";
 import type { FlowNode, FlowEdge } from "../services/openai-voice-agent";
 import { getPluginStatus } from "../plugins/loader";
 import { consumePendingFailure } from "./webhook-routes";
+import { logger } from "../utils/logger";
 
 /**
  * Company for read and list scoping. Company comes only from the verified session.
@@ -165,7 +166,7 @@ async function validateWorkingHours(
     // Parse the date to get day of week
     const parsedDate = new Date(appointmentDate + 'T12:00:00');
     if (isNaN(parsedDate.getTime())) {
-      console.log(`📅 [Working Hours] Could not parse date: ${appointmentDate}`);
+      logger.warn(`📅 [Working Hours] Could not parse date: ${appointmentDate}`);
       return {
         valid: false,
         message: `I couldn't understand the date "${appointmentDate}". Please provide a valid date in YYYY-MM-DD format.`
@@ -182,12 +183,12 @@ async function validateWorkingHours(
       ? { ...DEFAULT_WORKING_HOURS[dayName], ...userWorkingHours[dayName] }
       : DEFAULT_WORKING_HOURS[dayName];
 
-    console.log(`📅 [Working Hours] Checking ${dayName} (${appointmentDate} ${appointmentTime}):`, daySettings);
+    logger.info(`📅 [Working Hours] Checking ${dayName} (${appointmentDate} ${appointmentTime}):`, daySettings);
 
     // Check if day is enabled
     if (!daySettings?.enabled) {
       const capitalizedDay = dayName.charAt(0).toUpperCase() + dayName.slice(1);
-      console.log(`📅 [Working Hours] Rejected: ${dayName} is not available for appointments`);
+      logger.warn(`📅 [Working Hours] Rejected: ${dayName} is not available for appointments`);
       return {
         valid: false,
         message: `We're not available on ${capitalizedDay}s. Please choose a different day.`
@@ -211,14 +212,14 @@ async function validateWorkingHours(
 
     if (requestedMinutes < startMinutes || appointmentEndMinutes > endMinutes) {
       const capitalizedDay = dayName.charAt(0).toUpperCase() + dayName.slice(1);
-      console.log(`📅 [Working Hours] Rejected: ${appointmentTime} (duration: ${duration}min) is outside working hours (${daySettings.start} - ${daySettings.end})`);
+      logger.warn(`📅 [Working Hours] Rejected: ${appointmentTime} (duration: ${duration}min) is outside working hours (${daySettings.start} - ${daySettings.end})`);
       return {
         valid: false,
         message: `${appointmentTime} is outside our available hours on ${capitalizedDay}. We're available from ${daySettings.start} to ${daySettings.end}.`
       };
     }
 
-    console.log(`📅 [Working Hours] Validated: ${appointmentTime} is within ${daySettings.start} - ${daySettings.end}`);
+    logger.info(`📅 [Working Hours] Validated: ${appointmentTime} is within ${daySettings.start} - ${daySettings.end}`);
     return { valid: true };
   } catch (error: any) {
     console.error(`📅 [Working Hours] Validation error:`, error.message);
@@ -437,7 +438,7 @@ router.patch("/flows/:id", async (req: AuthRequest, res: Response) => {
 
             const wrote = await ensureSheetHeaders(userId, sheetId, sheetName, headerRow);
             if (wrote) {
-              console.log(`📋 [Flow Save] Google Sheets header row written for form "${formId}" → sheet "${sheetName}" (${sheetId})`);
+              logger.info(`📋 [Flow Save] Google Sheets header row written for form "${formId}" → sheet "${sheetName}" (${sheetId})`);
             }
           }
         }
@@ -513,10 +514,10 @@ router.patch("/flows/:id", async (req: AuthRequest, res: Response) => {
 
           if (isOpenAIProvider) {
             // OpenAI-based flow agents - compile flow using shared OpenAI Voice Agent service
-            console.log(`🔄 [Flow Save] OpenAI-based flow agent (${agent.telephonyProvider}) - compiling for OpenAI Realtime`);
-            console.log(`   Agent: ${agent.name} (${agent.id})`);
-            console.log(`   Flow: ${updatedFlow.name} (${updatedFlow.id})`);
-            console.log(`   Voice: ${agent.openaiVoice || 'alloy'}`);
+            logger.info(`🔄 [Flow Save] OpenAI-based flow agent (${agent.telephonyProvider}) - compiling for OpenAI Realtime`);
+            logger.info(`   Agent: ${agent.name} (${agent.id})`);
+            logger.info(`   Flow: ${updatedFlow.name} (${updatedFlow.id})`);
+            logger.info(`   Voice: ${agent.openaiVoice || 'alloy'}`);
 
             // Compile flow for OpenAI engines and store in database
             try {
@@ -543,25 +544,25 @@ router.patch("/flows/:id", async (req: AuthRequest, res: Response) => {
                   compiledTools: compiled.tools,
                 }).where(eq(flows.id, id));
 
-                console.log(`✅ [Flow Save] Compiled for OpenAI: ${compiled.conversationStates.length} states, ${compiled.tools.length} tools`);
+                logger.info(`✅ [Flow Save] Compiled for OpenAI: ${compiled.conversationStates.length} states, ${compiled.tools.length} tools`);
               } else {
-                console.log(`⚠️ [Flow Save] Flow has no nodes, skipping OpenAI compilation`);
+                logger.warn(`⚠️ [Flow Save] Flow has no nodes, skipping OpenAI compilation`);
               }
             } catch (compileError: any) {
               console.error(`❌ [Flow Save] OpenAI compilation error:`, compileError.message);
             }
           } else {
             // ElevenLabs/Twilio flow agent - sync to ElevenLabs
-            console.log(`🔄 [Flow Save] Syncing Flow agent to ElevenLabs...`);
-            console.log(`   Agent: ${agent.name} (${agent.id})`);
-            console.log(`   Flow: ${updatedFlow.name} (${updatedFlow.id})`);
+            logger.info(`🔄 [Flow Save] Syncing Flow agent to ElevenLabs...`);
+            logger.info(`   Agent: ${agent.name} (${agent.id})`);
+            logger.info(`   Flow: ${updatedFlow.name} (${updatedFlow.id})`);
 
             if (!agent.elevenLabsVoiceId) {
-              console.log(`⚠️ [Flow Save] Agent missing voice configuration, skipping ElevenLabs sync`);
+              logger.warn(`⚠️ [Flow Save] Agent missing voice configuration, skipping ElevenLabs sync`);
             } else {
               const credential = await ElevenLabsPoolService.getCredentialForAgent(agent.id);
               if (!credential) {
-                console.log(`⚠️ [Flow Save] No ElevenLabs credential found for agent, skipping sync`);
+                logger.warn(`⚠️ [Flow Save] No ElevenLabs credential found for agent, skipping sync`);
               } else {
                 const elevenlabsService = new ElevenLabsService(credential.apiKey);
 
@@ -574,25 +575,25 @@ router.patch("/flows/:id", async (req: AuthRequest, res: Response) => {
                   const compileResult = FlowAgentService.compileFlow(flowNodes, flowEdges);
                   const { workflow: compiledWorkflow, firstMessage: flowFirstMessage, hasAppointmentNodes, hasFormNodes, formNodes, hasWebhookNodes, webhookNodes, hasPlayAudioNodes, playAudioNodes } = compileResult;
 
-                  console.log(`   Compiled workflow: ${Object.keys(compiledWorkflow.nodes).length} nodes, ${Object.keys(compiledWorkflow.edges).length} edges`);
+                  logger.info(`   Compiled workflow: ${Object.keys(compiledWorkflow.nodes).length} nodes, ${Object.keys(compiledWorkflow.edges).length} edges`);
                   if (flowFirstMessage) {
-                    console.log(`   First message from flow: "${flowFirstMessage.substring(0, 50)}..."`);
+                    logger.info(`   First message from flow: "${flowFirstMessage.substring(0, 50)}..."`);
                   }
                   if (hasAppointmentNodes) {
-                    console.log(`   📅 Flow contains appointment nodes`);
+                    logger.info(`   📅 Flow contains appointment nodes`);
                   }
                   if (hasFormNodes) {
-                    console.log(`   📋 Flow contains form nodes (${formNodes?.length || 0} forms)`);
+                    logger.info(`   📋 Flow contains form nodes (${formNodes?.length || 0} forms)`);
                   }
                   if (hasWebhookNodes) {
-                    console.log(`   🔗 Flow contains webhook nodes (${webhookNodes?.length || 0} webhooks)`);
+                    logger.info(`   🔗 Flow contains webhook nodes (${webhookNodes?.length || 0} webhooks)`);
                   }
                   if (hasPlayAudioNodes) {
-                    console.log(`   🔊 Flow contains play audio nodes (${playAudioNodes?.length || 0} audio files)`);
+                    logger.info(`   🔊 Flow contains play audio nodes (${playAudioNodes?.length || 0} audio files)`);
                   }
 
                   if (!agent.elevenLabsAgentId) {
-                    console.log(`   Creating new ElevenLabs Flow agent...`);
+                    logger.info(`   Creating new ElevenLabs Flow agent...`);
                     const elevenLabsAgent = await elevenlabsService.createFlowAgent({
                       name: agent.name,
                       voice_id: agent.elevenLabsVoiceId,
@@ -608,7 +609,7 @@ router.patch("/flows/:id", async (req: AuthRequest, res: Response) => {
                       .set({ elevenLabsAgentId: elevenLabsAgent.agent_id })
                       .where(eq(agents.id, agent.id));
 
-                    console.log(`✅ [Flow Save] Created ElevenLabs agent: ${elevenLabsAgent.agent_id}`);
+                    logger.info(`✅ [Flow Save] Created ElevenLabs agent: ${elevenLabsAgent.agent_id}`);
 
                     // Build webhook tools array for new agents
                     let newAgentWebhookTools: any[] = [];
@@ -619,13 +620,13 @@ router.patch("/flows/:id", async (req: AuthRequest, res: Response) => {
                       if (isRAGEnabled()) {
                         const ragTool = getAskKnowledgeWebhookTool(elevenLabsAgent.agent_id);
                         newAgentWebhookTools.push(ragTool);
-                        console.log(`📚 [Flow Save] Adding RAG knowledge tool to new agent`);
+                        logger.info(`📚 [Flow Save] Adding RAG knowledge tool to new agent`);
                       }
                     }
 
                     // Add appointment booking tool if flow has appointment nodes
                     if (hasAppointmentNodes) {
-                      console.log(`📅 [Flow Save] Adding appointment booking tool to agent ${elevenLabsAgent.agent_id}`);
+                      logger.info(`📅 [Flow Save] Adding appointment booking tool to agent ${elevenLabsAgent.agent_id}`);
                       const { getAppointmentToolForAgent } = await import('../services/appointment-elevenlabs-tool');
                       const appointmentTool = getAppointmentToolForAgent(elevenLabsAgent.agent_id);
                       newAgentWebhookTools.push(appointmentTool);
@@ -633,7 +634,7 @@ router.patch("/flows/:id", async (req: AuthRequest, res: Response) => {
 
                     // Add form submission tools if flow has form nodes
                     if (hasFormNodes && formNodes && formNodes.length > 0) {
-                      console.log(`📋 [Flow Save] Adding form submission tools (${formNodes.length} forms) to agent ${elevenLabsAgent.agent_id}`);
+                      logger.info(`📋 [Flow Save] Adding form submission tools (${formNodes.length} forms) to agent ${elevenLabsAgent.agent_id}`);
                       const { getSubmitFormWebhookTool } = await import('../services/form-elevenlabs-tool');
                       for (const formInfo of formNodes) {
                         const formTool = getSubmitFormWebhookTool(
@@ -644,7 +645,7 @@ router.patch("/flows/:id", async (req: AuthRequest, res: Response) => {
                           formInfo.nodeId
                         );
                         newAgentWebhookTools.push(formTool);
-                        console.log(`   📋 Added submit_form tool for "${formInfo.formName}" nodeId: ${formInfo.nodeId || 'n/a'}`);
+                        logger.info(`   📋 Added submit_form tool for "${formInfo.formName}" nodeId: ${formInfo.nodeId || 'n/a'}`);
                       }
                     }
 
@@ -657,13 +658,13 @@ router.patch("/flows/:id", async (req: AuthRequest, res: Response) => {
                           const emailTool = buildMessagingEmailTool(elevenLabsAgent.agent_id, [templateName], templateName);
                           emailTool.name = webhookNode.toolId;
                           newAgentWebhookTools.push(emailTool);
-                          console.log(`   📧 Added email messaging tool: ${webhookNode.toolId} -> template="${templateName}"`);
+                          logger.info(`   📧 Added email messaging tool: ${webhookNode.toolId} -> template="${templateName}"`);
                         } else if (webhookNode.toolId.startsWith('send_whatsapp_') && !webhookNode.url) {
                           const templateName = webhookNode.payload?.template_name || 'hello_world';
                           const whatsappTool = buildMessagingWhatsappTool(elevenLabsAgent.agent_id, [templateName], templateName);
                           whatsappTool.name = webhookNode.toolId;
                           newAgentWebhookTools.push(whatsappTool);
-                          console.log(`   💬 Added WhatsApp messaging tool: ${webhookNode.toolId} -> template="${templateName}"`);
+                          logger.info(`   💬 Added WhatsApp messaging tool: ${webhookNode.toolId} -> template="${templateName}"`);
                         }
                       }
                     }
@@ -671,7 +672,7 @@ router.patch("/flows/:id", async (req: AuthRequest, res: Response) => {
                     // Add custom webhook tools from flow builder (user-defined webhooks)
                     // Uses universal webhook builder to automatically include caller phone, conversation data, etc.
                     if (hasWebhookNodes && webhookNodes && webhookNodes.length > 0) {
-                      console.log(`🔗 [Flow Save] Adding universal webhook tools (${webhookNodes.length} webhooks) to agent ${elevenLabsAgent.agent_id}`);
+                      logger.info(`🔗 [Flow Save] Adding universal webhook tools (${webhookNodes.length} webhooks) to agent ${elevenLabsAgent.agent_id}`);
                       const { buildUniversalWebhookTool } = await import('../services/universal-webhook-tool');
                       for (const webhookNode of webhookNodes) {
                         if (webhookNode.url) {
@@ -683,14 +684,14 @@ router.patch("/flows/:id", async (req: AuthRequest, res: Response) => {
                             payload: webhookNode.payload
                           });
                           newAgentWebhookTools.push(webhookTool);
-                          console.log(`   🔗 Added universal webhook tool: ${webhookNode.toolId} -> ${webhookNode.method} ${webhookNode.url}`);
+                          logger.info(`   🔗 Added universal webhook tool: ${webhookNode.toolId} -> ${webhookNode.method} [redacted]`);
                         }
                       }
                     }
 
                     // Add play audio tools if flow has play_audio nodes
                     if (hasPlayAudioNodes && playAudioNodes && playAudioNodes.length > 0) {
-                      console.log(`🔊 [Flow Save] Adding play audio tools (${playAudioNodes.length} nodes) to agent ${elevenLabsAgent.agent_id}`);
+                      logger.info(`🔊 [Flow Save] Adding play audio tools (${playAudioNodes.length} nodes) to agent ${elevenLabsAgent.agent_id}`);
                       const { getPlayAudioWebhookTool } = await import('../services/play-audio-elevenlabs-tool');
                       for (const playAudioNode of playAudioNodes) {
                         const playAudioTool = getPlayAudioWebhookTool(
@@ -702,7 +703,7 @@ router.patch("/flows/:id", async (req: AuthRequest, res: Response) => {
                           elevenLabsAgent.agent_id
                         );
                         newAgentWebhookTools.push(playAudioTool);
-                        console.log(`   🔊 Added play audio tool: ${playAudioTool.name}`);
+                        logger.info(`   🔊 Added play audio tool: ${playAudioTool.name}`);
                       }
                     }
 
@@ -725,13 +726,13 @@ router.patch("/flows/:id", async (req: AuthRequest, res: Response) => {
                             basePrompt: buildFlowAgentBasePrompt(agent.systemPrompt)
                           }
                         );
-                        console.log(`✅ [Flow Save] Webhook tools added (${newAgentWebhookTools.length} tools)`);
+                        logger.info(`✅ [Flow Save] Webhook tools added (${newAgentWebhookTools.length} tools)`);
                       } catch (toolError: any) {
                         console.error(`❌ [Flow Save] Failed to add webhook tools:`, toolError.message);
                       }
                     }
                   } else {
-                    console.log(`   Updating existing ElevenLabs agent: ${agent.elevenLabsAgentId}`);
+                    logger.info(`   Updating existing ElevenLabs agent: ${agent.elevenLabsAgentId}`);
 
                     // Build webhook tools array
                     let webhookTools: any[] = [];
@@ -743,7 +744,7 @@ router.patch("/flows/:id", async (req: AuthRequest, res: Response) => {
                       if (isRAGEnabled()) {
                         const ragTool = getAskKnowledgeWebhookTool(agent.elevenLabsAgentId);
                         webhookTools.push(ragTool);
-                        console.log(`📚 [Flow Save] Including RAG knowledge tool in update`);
+                        logger.info(`📚 [Flow Save] Including RAG knowledge tool in update`);
                       }
                     }
 
@@ -751,12 +752,12 @@ router.patch("/flows/:id", async (req: AuthRequest, res: Response) => {
                       const { getAppointmentToolForAgent } = await import('../services/appointment-elevenlabs-tool');
                       const appointmentTool = getAppointmentToolForAgent(agent.elevenLabsAgentId);
                       webhookTools.push(appointmentTool);
-                      console.log(`📅 [Flow Save] Including appointment booking tool in update`);
+                      logger.info(`📅 [Flow Save] Including appointment booking tool in update`);
                     }
 
                     // Add form submission tools if flow has form nodes
                     if (hasFormNodes && formNodes && formNodes.length > 0) {
-                      console.log(`📋 [Flow Save] Including form submission tools (${formNodes.length} forms) in update`);
+                      logger.info(`📋 [Flow Save] Including form submission tools (${formNodes.length} forms) in update`);
                       const { getSubmitFormWebhookTool } = await import('../services/form-elevenlabs-tool');
                       for (const formInfo of formNodes) {
                         const formTool = getSubmitFormWebhookTool(
@@ -767,7 +768,7 @@ router.patch("/flows/:id", async (req: AuthRequest, res: Response) => {
                           formInfo.nodeId
                         );
                         webhookTools.push(formTool);
-                        console.log(`   📋 Added submit_form tool for "${formInfo.formName}" nodeId: ${formInfo.nodeId || 'n/a'}`);
+                        logger.info(`   📋 Added submit_form tool for "${formInfo.formName}" nodeId: ${formInfo.nodeId || 'n/a'}`);
                       }
                     }
 
@@ -780,13 +781,13 @@ router.patch("/flows/:id", async (req: AuthRequest, res: Response) => {
                           const emailTool = buildMessagingEmailTool(agent.elevenLabsAgentId, [templateName], templateName);
                           emailTool.name = webhookNode.toolId;
                           webhookTools.push(emailTool);
-                          console.log(`   📧 Added email messaging tool: ${webhookNode.toolId} -> template="${templateName}"`);
+                          logger.info(`   📧 Added email messaging tool: ${webhookNode.toolId} -> template="${templateName}"`);
                         } else if (webhookNode.toolId.startsWith('send_whatsapp_') && !webhookNode.url) {
                           const templateName = webhookNode.payload?.template_name || 'hello_world';
                           const whatsappTool = buildMessagingWhatsappTool(agent.elevenLabsAgentId, [templateName], templateName);
                           whatsappTool.name = webhookNode.toolId;
                           webhookTools.push(whatsappTool);
-                          console.log(`   💬 Added WhatsApp messaging tool: ${webhookNode.toolId} -> template="${templateName}"`);
+                          logger.info(`   💬 Added WhatsApp messaging tool: ${webhookNode.toolId} -> template="${templateName}"`);
                         }
                       }
                     }
@@ -794,7 +795,7 @@ router.patch("/flows/:id", async (req: AuthRequest, res: Response) => {
                     // Add custom webhook tools from flow builder (user-defined webhooks)
                     // Uses universal webhook builder to automatically include caller phone, conversation data, etc.
                     if (hasWebhookNodes && webhookNodes && webhookNodes.length > 0) {
-                      console.log(`🔗 [Flow Save] Including universal webhook tools (${webhookNodes.length} webhooks) in update`);
+                      logger.info(`🔗 [Flow Save] Including universal webhook tools (${webhookNodes.length} webhooks) in update`);
                       const { buildUniversalWebhookTool } = await import('../services/universal-webhook-tool');
                       for (const webhookNode of webhookNodes) {
                         if (webhookNode.url) {
@@ -806,14 +807,14 @@ router.patch("/flows/:id", async (req: AuthRequest, res: Response) => {
                             payload: webhookNode.payload
                           });
                           webhookTools.push(webhookTool);
-                          console.log(`   🔗 Added universal webhook tool: ${webhookNode.toolId} -> ${webhookNode.method} ${webhookNode.url}`);
+                          logger.info(`   🔗 Added universal webhook tool: ${webhookNode.toolId} -> ${webhookNode.method} [redacted]`);
                         }
                       }
                     }
 
                     // Add play audio tools if flow has play_audio nodes
                     if (hasPlayAudioNodes && playAudioNodes && playAudioNodes.length > 0) {
-                      console.log(`🔊 [Flow Save] Including play audio tools (${playAudioNodes.length} nodes) in update`);
+                      logger.info(`🔊 [Flow Save] Including play audio tools (${playAudioNodes.length} nodes) in update`);
                       const { getPlayAudioWebhookTool } = await import('../services/play-audio-elevenlabs-tool');
                       for (const playAudioNode of playAudioNodes) {
                         const playAudioTool = getPlayAudioWebhookTool(
@@ -825,7 +826,7 @@ router.patch("/flows/:id", async (req: AuthRequest, res: Response) => {
                           agent.elevenLabsAgentId
                         );
                         webhookTools.push(playAudioTool);
-                        console.log(`   🔊 Added play audio tool: ${playAudioTool.name}`);
+                        logger.info(`   🔊 Added play audio tool: ${playAudioTool.name}`);
                       }
                     }
 
@@ -846,13 +847,13 @@ router.patch("/flows/:id", async (req: AuthRequest, res: Response) => {
                       }
                     );
 
-                    console.log(`✅ [Flow Save] Updated ElevenLabs agent workflow`);
+                    logger.info(`✅ [Flow Save] Updated ElevenLabs agent workflow`);
                     if (webhookTools.length > 0) {
-                      console.log(`   📦 Included ${webhookTools.length} webhook tools`);
+                      logger.info(`   📦 Included ${webhookTools.length} webhook tools`);
                     }
                   }
                 } else {
-                  console.log(`⚠️ [Flow Save] Flow has no nodes, skipping ElevenLabs sync`);
+                  logger.warn(`⚠️ [Flow Save] Flow has no nodes, skipping ElevenLabs sync`);
                 }
               }
             }
@@ -966,8 +967,8 @@ router.post("/flows/:id/resync-first-message", async (req: AuthRequest, res: Res
       return res.status(400).json({ error: "No first message found in flow" });
     }
 
-    console.log(`📝 [Resync] Updating ElevenLabs agent ${agent.elevenLabsAgentId} first_message`);
-    console.log(`   Current flow compiled_first_message: "${firstMessageFromFlow}"`);
+    logger.info(`📝 [Resync] Updating ElevenLabs agent ${agent.elevenLabsAgentId} first_message`);
+    logger.info(`   Current flow compiled_first_message: "${firstMessageFromFlow}"`);
 
     // Get ElevenLabs credential and update agent
     const credential = await ElevenLabsPoolService.getCredentialForAgent(agent.id);
@@ -980,7 +981,7 @@ router.post("/flows/:id/resync-first-message", async (req: AuthRequest, res: Res
       first_message: firstMessageFromFlow,
     });
 
-    console.log(`✅ [Resync] Successfully updated ElevenLabs agent first_message`);
+    logger.info(`✅ [Resync] Successfully updated ElevenLabs agent first_message`);
 
     res.json({
       success: true,
@@ -1113,7 +1114,7 @@ async function placeFlowTestCall({
     // Must be checked BEFORE regular phone number selection
     // ========================================
     if (agent.telephonyProvider === 'elevenlabs-sip') {
-      console.log(`📞 [Flow Test] ElevenLabs SIP agent detected, using SIP phone numbers`);
+      logger.info(`📞 [Flow Test] ElevenLabs SIP agent detected, using SIP phone numbers`);
 
       const plugins = await getPluginStatus();
       const sipPlugin = plugins.find(p => p.name === 'sip-engine');
@@ -1173,9 +1174,9 @@ async function placeFlowTestCall({
       // SIP PRE-FLIGHT CHECK 1: Credential mismatch
       if (sipPhone.elevenLabsCredentialId && agent.elevenLabsCredentialId &&
         sipPhone.elevenLabsCredentialId !== agent.elevenLabsCredentialId) {
-        console.log(`📞 [Flow Test] SIP phone credential mismatch — resyncing to agent credential`);
-        console.log(`   SIP phone credential: ${sipPhone.elevenLabsCredentialId}`);
-        console.log(`   Agent credential: ${agent.elevenLabsCredentialId}`);
+        logger.info(`📞 [Flow Test] SIP phone credential mismatch — resyncing to agent credential`);
+        logger.info(`   SIP phone credential: ${sipPhone.elevenLabsCredentialId}`);
+        logger.info(`   Agent credential: ${agent.elevenLabsCredentialId}`);
 
         try {
           const migResult = await resyncSipPhoneCredentials(sipPhone.id, agent.elevenLabsCredentialId);
@@ -1189,7 +1190,7 @@ async function placeFlowTestCall({
             currentSipPhoneElevenLabsId = migResult.newElevenLabsPhoneId;
             sipPhone.externalElevenLabsPhoneId = migResult.newElevenLabsPhoneId;
           }
-          console.log(`✅ [Flow Test] SIP phone migrated to agent credential, new ID: ${currentSipPhoneElevenLabsId}`);
+          logger.info(`✅ [Flow Test] SIP phone migrated to agent credential, new ID: ${currentSipPhoneElevenLabsId}`);
         } catch (migError: any) {
           if (migError instanceof FlowTestHttpError) throw migError;
           throw new FlowTestHttpError(400, {
@@ -1200,12 +1201,12 @@ async function placeFlowTestCall({
       }
 
       // SIP PRE-FLIGHT CHECK 2: Verify SIP phone still exists on ElevenLabs
-      console.log(`📞 [Flow Test] Verifying SIP phone exists on ElevenLabs...`);
+      logger.info(`📞 [Flow Test] Verifying SIP phone exists on ElevenLabs...`);
       try {
         const sipVerify = await verifySipPhoneExists(currentSipPhoneElevenLabsId, credential.apiKey);
         if (!sipVerify.exists) {
           if (sipVerify.notFound) {
-            console.log(`⚠️ [Flow Test] SIP phone ${currentSipPhoneElevenLabsId} not found on ElevenLabs — re-importing`);
+            logger.warn(`⚠️ [Flow Test] SIP phone ${currentSipPhoneElevenLabsId} not found on ElevenLabs — re-importing`);
             const reimportResult = await resyncSipPhoneCredentials(sipPhone.id, credential.id);
             if (!reimportResult.success) {
               throw new FlowTestHttpError(400, {
@@ -1217,12 +1218,12 @@ async function placeFlowTestCall({
               currentSipPhoneElevenLabsId = reimportResult.newElevenLabsPhoneId;
               sipPhone.externalElevenLabsPhoneId = reimportResult.newElevenLabsPhoneId;
             }
-            console.log(`✅ [Flow Test] SIP phone re-imported, new ID: ${currentSipPhoneElevenLabsId}`);
+            logger.info(`✅ [Flow Test] SIP phone re-imported, new ID: ${currentSipPhoneElevenLabsId}`);
           } else {
             console.warn(`⚠️ [Flow Test] Cannot verify SIP phone on ElevenLabs (transient error): ${sipVerify.error}`);
           }
         } else {
-          console.log(`✅ [Flow Test] SIP phone exists on ElevenLabs`);
+          logger.info(`✅ [Flow Test] SIP phone exists on ElevenLabs`);
         }
       } catch (verifyError: any) {
         if (verifyError instanceof FlowTestHttpError) throw verifyError;
@@ -1234,10 +1235,10 @@ async function placeFlowTestCall({
         const { importPlugin } = await import('../utils/plugin-import');
         const { ElevenLabsSipService } = await importPlugin('plugins/sip-engine/services/elevenlabs-sip.service.ts');
 
-        console.log(`📞 [Flow Test] Initiating SIP test call via ElevenLabs SIP Trunk API`);
-        console.log(`   From SIP Phone: ${sipPhone.phoneNumber} (ElevenLabs ID: ${sipPhone.externalElevenLabsPhoneId})`);
-        console.log(`   To: ${phoneNumber}`);
-        console.log(`   Agent (ElevenLabs ID): ${agent.elevenLabsAgentId}`);
+        logger.info(`📞 [Flow Test] Initiating SIP test call via ElevenLabs SIP Trunk API`);
+        logger.info(`   From SIP Phone: [redacted] (ElevenLabs ID: ${sipPhone.externalElevenLabsPhoneId})`);
+        logger.info(`   To: [redacted]`);
+        logger.info(`   Agent (ElevenLabs ID): ${agent.elevenLabsAgentId}`);
 
         // Extract dynamic variable placeholders from flow's first message
         // For test calls without a contact, pass placeholder values so ElevenLabs doesn't reject
@@ -1254,7 +1255,7 @@ async function placeFlowTestCall({
             sipFlowFirstMessage = agent.firstMessage || '';
           }
         }
-        console.log(`   [SIP Test] First message for variable extraction: "${sipFlowFirstMessage?.substring(0, 80)}..."`);
+        logger.info(`   [SIP Test] First message for variable extraction: "${sipFlowFirstMessage?.substring(0, 80)}..."`);
 
         // Look up contact by phoneNumber (matching last 10 digits) to get real name if exists
         const sipDigits = phoneNumber.replace(/\D/g, '');
@@ -1268,7 +1269,7 @@ async function placeFlowTestCall({
             .limit(1);
           if (foundContact) {
             sipContactRecord = foundContact;
-            console.log(`   📞 [Flow Test] Found contact in database for SIP test: ${sipContactRecord.firstName} ${sipContactRecord.lastName || ''}`);
+            logger.info(`   📞 [Flow Test] Found contact in database for SIP test: ${sipContactRecord.firstName} ${sipContactRecord.lastName || ''}`);
           }
         }
 
@@ -1322,7 +1323,7 @@ async function placeFlowTestCall({
         }
 
         if (Object.keys(sipDynamicVars).length > 0) {
-          console.log(`   Detected dynamic variables in first message, passing placeholders:`, JSON.stringify(sipDynamicVars));
+          logger.info(`   Detected dynamic variables in first message, passing placeholders:`, JSON.stringify(sipDynamicVars));
         }
 
         // Always ensure contact_phone is in dynamic vars — prevents the agent asking
@@ -1354,9 +1355,9 @@ async function placeFlowTestCall({
           });
         }
 
-        console.log(`✅ [Flow Test] ElevenLabs SIP outbound call initiated`);
-        console.log(`   Conversation ID: ${result.conversationId}`);
-        console.log(`   Call ID: ${result.callId}`);
+        logger.info(`✅ [Flow Test] ElevenLabs SIP outbound call initiated`);
+        logger.info(`   Conversation ID: ${result.conversationId}`);
+        logger.info(`   Call ID: ${result.callId}`);
 
         // Create SIP call record
         const [insertedSipCall] = await db.insert(sipCalls).values({
@@ -1384,7 +1385,7 @@ async function placeFlowTestCall({
         if (result.conversationId) {
           const pendingFailure = consumePendingFailure(result.conversationId);
           if (pendingFailure) {
-            console.log(`⚠️ [Flow Test] Applying pending failure for conversation ${result.conversationId}: ${pendingFailure.failure_reason}`);
+            logger.error(`⚠️ [Flow Test] Applying pending failure for conversation ${result.conversationId}: ${pendingFailure.failure_reason}`);
             await db.execute(sql`
               UPDATE sip_calls SET 
                 status = 'failed',
@@ -1484,7 +1485,7 @@ async function placeFlowTestCall({
 
       const gatewayName = activeGateway ? activeGateway.name.toLowerCase() : 'twilio';
 
-      console.log(`📞 [Flow Test] Custom Voice Engine agent detected, fetching active ${gatewayName} phone number for Caller ID`);
+      logger.info(`📞 [Flow Test] Custom Voice Engine agent detected, fetching active ${gatewayName} phone number for Caller ID`);
 
       const agentSipPhoneResult = await db.execute(sql`
         SELECT phone_number FROM user_sip_phone_numbers 
@@ -1550,14 +1551,14 @@ async function placeFlowTestCall({
           }
         }
       }
-      console.log(`📞 [Flow Test] Using ${gatewayName} phone for Caller ID: ${fromPhone.phoneNumber}`);
+      logger.info(`📞 [Flow Test] Using ${gatewayName} phone for Caller ID: [redacted]`);
     }
 
     // ========================================
     // PLIVO AGENT - Use Plivo phone numbers only
     // ========================================
     else if (agent.telephonyProvider === 'plivo') {
-      console.log(`📞 [Flow Test] Plivo agent detected, looking for Plivo phone numbers`);
+      logger.info(`📞 [Flow Test] Plivo agent detected, looking for Plivo phone numbers`);
 
       const userPlivoPhones = await db
         .select()
@@ -1578,14 +1579,14 @@ async function placeFlowTestCall({
 
       // Use first available Plivo phone (Plivo phones don't have incoming connections like Twilio)
       fromPhone = userPlivoPhones[0];
-      console.log(`📞 [Flow Test] Using Plivo phone: ${fromPhone.phoneNumber}`);
+      logger.info(`📞 [Flow Test] Using Plivo phone: [redacted]`);
     }
 
     // ========================================
     // TWILIO+OPENAI AGENT - Use Twilio phone numbers only
     // ========================================
     else if (agent.telephonyProvider === 'twilio_openai') {
-      console.log(`📞 [Flow Test] Twilio+OpenAI agent detected, looking for Twilio phone numbers`);
+      logger.info(`📞 [Flow Test] Twilio+OpenAI agent detected, looking for Twilio phone numbers`);
 
       const userTwilioPhones = await db
         .select()
@@ -1637,7 +1638,7 @@ async function placeFlowTestCall({
               .select({ count: sql<number>`count(*)::int` })
               .from(flowTestQueue)
               .where(and(eq(flowTestQueue.status, 'waiting'), eq(flowTestQueue.companyId, companyId)));
-            console.log(`⏳ [Flow Test] All pool numbers busy, queued as entry ${queueEntry.id} (position ${count})`);
+            logger.info(`⏳ [Flow Test] All pool numbers busy, queued as entry ${queueEntry.id} (position ${count})`);
             throw new FlowTestHttpError(202, {
               queued: true,
               queueEntryId: queueEntry.id,
@@ -1647,7 +1648,7 @@ async function placeFlowTestCall({
           }
 
           fromPhone = freeSystemPhones[0];
-          console.log(`📞 [Flow Test] Using system pool Twilio phone: ${fromPhone.phoneNumber}`);
+          logger.info(`📞 [Flow Test] Using system pool Twilio phone: [redacted]`);
         } else {
           throw new FlowTestHttpError(400, {
             error: "No Twilio phone number available",
@@ -1660,7 +1661,7 @@ async function placeFlowTestCall({
         const availableUserPhones = userTwilioPhones.filter(p => !connectedPhoneIdSet.has(p.id));
         if (availableUserPhones.length > 0) {
           fromPhone = availableUserPhones[0];
-          console.log(`📞 [Flow Test] Using Twilio phone: ${fromPhone.phoneNumber}`);
+          logger.info(`📞 [Flow Test] Using Twilio phone: [redacted]`);
         } else {
           const agentNames = await getConnectedAgentNames(userTwilioPhones.map(p => p.id));
           throw new FlowTestHttpError(409, {
@@ -1676,7 +1677,7 @@ async function placeFlowTestCall({
 
     // ELEVENLABS AGENT (default) - Use Twilio phone numbers
     else {
-      console.log(`📞 [Flow Test] ElevenLabs agent detected, looking for Twilio phone numbers`);
+      logger.info(`📞 [Flow Test] ElevenLabs agent detected, looking for Twilio phone numbers`);
 
       const userTwilioPhones = await db
         .select()
@@ -1728,7 +1729,7 @@ async function placeFlowTestCall({
               .select({ count: sql<number>`count(*)::int` })
               .from(flowTestQueue)
               .where(and(eq(flowTestQueue.status, 'waiting'), eq(flowTestQueue.companyId, companyId)));
-            console.log(`⏳ [Flow Test] All pool numbers busy, queued as entry ${queueEntry.id} (position ${count})`);
+            logger.info(`⏳ [Flow Test] All pool numbers busy, queued as entry ${queueEntry.id} (position ${count})`);
             throw new FlowTestHttpError(202, {
               queued: true,
               queueEntryId: queueEntry.id,
@@ -1738,7 +1739,7 @@ async function placeFlowTestCall({
           }
 
           fromPhone = freeSystemPhones[0];
-          console.log(`📞 [Flow Test] Using system pool Twilio phone: ${fromPhone.phoneNumber}`);
+          logger.info(`📞 [Flow Test] Using system pool Twilio phone: [redacted]`);
         } else {
           throw new FlowTestHttpError(400, {
             error: "No phone number available",
@@ -1751,7 +1752,7 @@ async function placeFlowTestCall({
         const availableUserPhones = userTwilioPhones.filter(p => !connectedPhoneIdSet.has(p.id));
         if (availableUserPhones.length > 0) {
           fromPhone = availableUserPhones[0];
-          console.log(`📞 [Flow Test] Using Twilio phone: ${fromPhone.phoneNumber}`);
+          logger.info(`📞 [Flow Test] Using Twilio phone: [redacted]`);
         } else {
           const agentNames = await getConnectedAgentNames(userTwilioPhones.map(p => p.id));
           throw new FlowTestHttpError(409, {
@@ -1788,14 +1789,14 @@ async function placeFlowTestCall({
         message: `Warning: This phone number is currently being used by an active campaign (${campaignNames}). Running this test may affect the ongoing campaign.`,
         campaignName: campaignNames
       };
-      console.log(`⚠️ [Flow Test] Phone ${fromPhone.phoneNumber} is attached to active campaign(s): ${campaignNames}`);
+      logger.info(`⚠️ [Flow Test] Phone [redacted] is attached to active campaign(s): ${campaignNames}`);
     }
 
     // ========================================
     // CUSTOM VOICE ENGINE PATH
     // ========================================
     if (agent.telephonyProvider === 'custom-voice-engine') {
-      console.log(`   Using Custom Voice Engine via FreeSWITCH ESL`);
+      logger.info(`   Using Custom Voice Engine via FreeSWITCH ESL`);
 
       try {
         // Find an online FreeSWITCH node
@@ -1946,7 +1947,7 @@ async function placeFlowTestCall({
         await esl.originate(dialString, destination, options);
         await esl.disconnect();
 
-        console.log(`✅ [Flow Test] Custom Voice Engine outbound call initiated via FreeSWITCH node ${node.name}`);
+        logger.info(`✅ [Flow Test] Custom Voice Engine outbound call initiated via FreeSWITCH node ${node.name}`);
 
         await completeQueue(sessionUuid);
         return {
@@ -2073,9 +2074,9 @@ async function placeFlowTestCall({
       });
     }
 
-    console.log(`🔀 [Flow Test] Flow validation passed`);
-    console.log(`   Nodes: ${flow.nodes.length}`);
-    console.log(`   Edges: ${flow.edges.length}`);
+    logger.info(`🔀 [Flow Test] Flow validation passed`);
+    logger.info(`   Nodes: ${flow.nodes.length}`);
+    logger.info(`   Edges: ${flow.edges.length}`);
 
     // Route to appropriate call service based on agent's telephonyProvider
     if (agent.telephonyProvider === 'plivo') {
@@ -2083,7 +2084,7 @@ async function placeFlowTestCall({
       // PLIVO + OPENAI REALTIME PATH
       // Uses PlivoCallService with OpenAI Realtime for voice AI
       // ========================================
-      console.log(`   Using Plivo + OpenAI Realtime API`);
+      logger.info(`   Using Plivo + OpenAI Realtime API`);
 
       try {
         // Get a Plivo phone number for this user
@@ -2117,7 +2118,7 @@ async function placeFlowTestCall({
 
         if (flow.compiledSystemPrompt && flow.compiledTools && flow.compiledStates) {
           // Use pre-compiled flow data (compiled at save time)
-          console.log(`   Using pre-compiled flow data (${(flow.compiledTools as any[]).length} tools, ${(flow.compiledStates as any[]).length} states)`);
+          logger.info(`   Using pre-compiled flow data (${(flow.compiledTools as any[]).length} tools, ${(flow.compiledStates as any[]).length} states)`);
 
           const { hydrateCompiledFlow } = await import('../services/openai-voice-agent/hydrator');
           compiledConfig = hydrateCompiledFlow({
@@ -2140,7 +2141,7 @@ async function placeFlowTestCall({
           });
         } else {
           // Fall back to runtime compilation (legacy flows)
-          console.log(`   Compiling flow at runtime (no pre-compiled data)`);
+          logger.info(`   Compiling flow at runtime (no pre-compiled data)`);
 
           const flowConfig: CompiledFlowConfig = {
             nodes: flow.nodes as any[],
@@ -2173,11 +2174,11 @@ async function placeFlowTestCall({
           },
         });
 
-        console.log(`✅ [Flow Test] Plivo outbound call initiated`);
-        console.log(`   Call ID: ${plivoCall.id}`);
-        console.log(`   Plivo UUID: ${callUuid}`);
-        console.log(`   Flow: ${flow.name} (${flow.id})`);
-        console.log(`   From: ${plivoPhone.phoneNumber} -> To: ${phoneNumber}`);
+        logger.info(`✅ [Flow Test] Plivo outbound call initiated`);
+        logger.info(`   Call ID: ${plivoCall.id}`);
+        logger.info(`   Plivo UUID: ${callUuid}`);
+        logger.info(`   Flow: ${flow.name} (${flow.id})`);
+        logger.info(`   From: [redacted] -> To: [redacted]`);
 
         // Create flow execution record for test call
         try {
@@ -2200,7 +2201,7 @@ async function placeFlowTestCall({
               testCall: true,
             },
           });
-          console.log(`🔀 [Flow Test] Created flow execution for Plivo test call`);
+          logger.info(`🔀 [Flow Test] Created flow execution for Plivo test call`);
         } catch (flowExecError: any) {
           console.warn(`⚠️ [Flow Test] Error creating flow execution:`, flowExecError.message);
         }
@@ -2234,7 +2235,7 @@ async function placeFlowTestCall({
       // TWILIO + OPENAI REALTIME PATH
       // Creates record directly in twilioOpenaiCalls table (not calls table)
       // ========================================
-      console.log(`   Using Twilio + OpenAI Realtime API`);
+      logger.info(`   Using Twilio + OpenAI Realtime API`);
 
       try {
         const callResult = await TwilioOpenAICallService.initiateCall({
@@ -2261,11 +2262,11 @@ async function placeFlowTestCall({
           });
         }
 
-        console.log(`✅ [Flow Test] Twilio+OpenAI outbound call initiated`);
-        console.log(`   Call ID: ${callResult.callId}`);
-        console.log(`   Twilio SID: ${callResult.twilioCallSid}`);
-        console.log(`   Flow: ${flow.name} (${flow.id})`);
-        console.log(`   From: ${fromPhone.phoneNumber} -> To: ${phoneNumber}`);
+        logger.info(`✅ [Flow Test] Twilio+OpenAI outbound call initiated`);
+        logger.info(`   Call ID: ${callResult.callId}`);
+        logger.info(`   Twilio SID: ${callResult.twilioCallSid}`);
+        logger.info(`   Flow: ${flow.name} (${flow.id})`);
+        logger.info(`   From: [redacted] -> To: [redacted]`);
 
         // Create flow execution record for test call
         if (callResult.callId) {
@@ -2290,7 +2291,7 @@ async function placeFlowTestCall({
                 twilioSid: callResult.twilioCallSid,
               },
             });
-            console.log(`🔀 [Flow Test] Created flow execution for Twilio+OpenAI test call`);
+            logger.info(`🔀 [Flow Test] Created flow execution for Twilio+OpenAI test call`);
           } catch (flowExecError: any) {
             console.warn(`⚠️ [Flow Test] Error creating flow execution:`, flowExecError.message);
           }
@@ -2336,7 +2337,7 @@ async function placeFlowTestCall({
       });
     }
 
-    console.log(`   Using ElevenLabs native outbound call API`);
+    logger.info(`   Using ElevenLabs native outbound call API`);
 
     const credential = await ElevenLabsPoolService.getCredentialForAgent(agent.id);
     if (!credential) {
@@ -2367,7 +2368,7 @@ async function placeFlowTestCall({
     // If phone lacks credential, try full migration via PhoneMigrator
     // PhoneMigrator handles proper credential ownership verification and ElevenLabs sync
     if (!fromPhone.elevenLabsCredentialId) {
-      console.log(`📞 [Flow Test] Phone missing credential - attempting full sync via PhoneMigrator`);
+      logger.warn(`📞 [Flow Test] Phone missing credential - attempting full sync via PhoneMigrator`);
       try {
         const migrationResult = await PhoneMigrator.syncPhoneToAgentCredential(
           fromPhone.id,
@@ -2375,7 +2376,7 @@ async function placeFlowTestCall({
         );
 
         if (migrationResult.success && migrationResult.newElevenLabsPhoneId) {
-          console.log(`✅ [Flow Test] Phone synced successfully via PhoneMigrator`);
+          logger.info(`✅ [Flow Test] Phone synced successfully via PhoneMigrator`);
           currentPhoneElevenLabsId = migrationResult.newElevenLabsPhoneId;
           // Re-fetch updated phone record to ensure we have correct state
           const [updatedPhone] = await db
@@ -2410,9 +2411,9 @@ async function placeFlowTestCall({
         });
       }
     } else if (fromPhone.elevenLabsCredentialId !== agent.elevenLabsCredentialId) {
-      console.log(`📞 [Flow Test] Phone credential mismatch detected - initiating migration`);
-      console.log(`   Phone credential: ${fromPhone.elevenLabsCredentialId}`);
-      console.log(`   Agent credential: ${agent.elevenLabsCredentialId}`);
+      logger.info(`📞 [Flow Test] Phone credential mismatch detected - initiating migration`);
+      logger.info(`   Phone credential: ${fromPhone.elevenLabsCredentialId}`);
+      logger.info(`   Agent credential: ${agent.elevenLabsCredentialId}`);
 
       try {
         const migrationResult = await PhoneMigrator.syncPhoneToAgentCredential(
@@ -2428,9 +2429,9 @@ async function placeFlowTestCall({
           });
         }
 
-        console.log(`✅ [Flow Test] Phone migrated successfully`);
-        console.log(`   Old ElevenLabs ID: ${migrationResult.oldElevenLabsPhoneId}`);
-        console.log(`   New ElevenLabs ID: ${migrationResult.newElevenLabsPhoneId}`);
+        logger.info(`✅ [Flow Test] Phone migrated successfully`);
+        logger.info(`   Old ElevenLabs ID: ${migrationResult.oldElevenLabsPhoneId}`);
+        logger.info(`   New ElevenLabs ID: ${migrationResult.newElevenLabsPhoneId}`);
 
         if (!migrationResult.newElevenLabsPhoneId) {
           throw new FlowTestHttpError(400, {
@@ -2449,12 +2450,12 @@ async function placeFlowTestCall({
         });
       }
     } else {
-      console.log(`✅ [Flow Test] Phone and agent on same credential: ${agent.elevenLabsCredentialId}`);
+      logger.info(`✅ [Flow Test] Phone and agent on same credential: ${agent.elevenLabsCredentialId}`);
     }
 
     // PRE-FLIGHT CHECK 2: Verify phone actually exists on ElevenLabs
     // The database may have a stale elevenLabsPhoneNumberId that no longer exists
-    console.log(`📞 [Flow Test] Verifying phone exists on ElevenLabs...`);
+    logger.info(`📞 [Flow Test] Verifying phone exists on ElevenLabs...`);
     const verifyResult = await PhoneMigrator.verifyAndEnsurePhoneExists(
       fromPhone.id,
       agent.elevenLabsCredentialId,
@@ -2470,8 +2471,8 @@ async function placeFlowTestCall({
     }
 
     if (verifyResult.wasReimported) {
-      console.log(`✅ [Flow Test] Phone was re-imported from Twilio`);
-      console.log(`   New ElevenLabs ID: ${verifyResult.elevenLabsPhoneId}`);
+      logger.info(`✅ [Flow Test] Phone was re-imported from Twilio`);
+      logger.info(`   New ElevenLabs ID: ${verifyResult.elevenLabsPhoneId}`);
     }
 
     // Use the verified (or re-imported) phone ID
@@ -2484,11 +2485,11 @@ async function placeFlowTestCall({
     let callSid: string | undefined;
 
     try {
-      console.log(`📞 [Flow Test] Initiating test call via ElevenLabs Twilio API`);
-      console.log(`   From Phone (ElevenLabs ID): ${currentPhoneElevenLabsId}`);
-      console.log(`   To: ${phoneNumber}`);
-      console.log(`   Agent (ElevenLabs ID): ${agent.elevenLabsAgentId}`);
-      console.log(`   Flow ID: ${flow.id}`);
+      logger.info(`📞 [Flow Test] Initiating test call via ElevenLabs Twilio API`);
+      logger.info(`   From Phone (ElevenLabs ID): ${currentPhoneElevenLabsId}`);
+      logger.info(`   To: [redacted]`);
+      logger.info(`   Agent (ElevenLabs ID): ${agent.elevenLabsAgentId}`);
+      logger.info(`   Flow ID: ${flow.id}`);
 
       // Compile the flow at runtime for ElevenLabs test calls
       // This ensures we test the current state of the flow in the builder, even if not yet "published"
@@ -2520,7 +2521,7 @@ async function placeFlowTestCall({
       const compileResult = FlowAgentService.compileFlow(testNodes, testEdges);
       const { workflow: testWorkflow, firstMessage: flowFirstMessageResult, hasAppointmentNodes, hasFormNodes, formNodes, hasWebhookNodes, webhookNodes } = compileResult;
 
-      console.log(`   Compiled temporary workflow: ${Object.keys(testWorkflow.nodes).length} nodes, ${Object.keys(testWorkflow.edges).length} edges`);
+      logger.info(`   Compiled temporary workflow: ${Object.keys(testWorkflow.nodes).length} nodes, ${Object.keys(testWorkflow.edges).length} edges`);
 
       // Extract contact variable placeholders from flow's compiled first message, agent first message, or flow nodes
       // For test calls without a contact, we need to pass placeholder dynamic_data
@@ -2556,7 +2557,7 @@ async function placeFlowTestCall({
           .limit(1);
         if (foundContact) {
           contactRecord = foundContact;
-          console.log(`   📞 [Flow Test] Found contact in database for Twilio test: ${contactRecord.firstName} ${contactRecord.lastName || ''}`);
+          logger.info(`   📞 [Flow Test] Found contact in database for Twilio test: ${contactRecord.firstName} ${contactRecord.lastName || ''}`);
         }
       }
 
@@ -2616,7 +2617,7 @@ async function placeFlowTestCall({
       }
 
       if (Object.keys(dynamicData).length > 0) {
-        console.log(`   📝 Passing dynamic_data to outbound call:`, JSON.stringify(dynamicData));
+        logger.info(`   📝 Passing dynamic_data to outbound call:`, JSON.stringify(dynamicData));
       }
 
       // Build necessary webhook tools for test execution
@@ -2630,13 +2631,13 @@ async function placeFlowTestCall({
             const emailTool = buildMessagingEmailTool(agent.elevenLabsAgentId!, [templateName], templateName);
             emailTool.name = webhookNode.toolId;
             testWebhookTools.push(emailTool);
-            console.log(`   📧 Prepared test email tool: ${webhookNode.toolId}`);
+            logger.info(`   📧 Prepared test email tool: ${webhookNode.toolId}`);
           } else if (webhookNode.toolId.startsWith('send_whatsapp') && !webhookNode.url) {
             const templateName = webhookNode.payload?.template_name || 'hello_world';
             const whatsappTool = buildMessagingWhatsappTool(agent.elevenLabsAgentId!, [templateName], templateName, undefined, "auto");
             whatsappTool.name = webhookNode.toolId;
             testWebhookTools.push(whatsappTool);
-            console.log(`   💬 Prepared test WhatsApp tool: ${webhookNode.toolId}`);
+            logger.info(`   💬 Prepared test WhatsApp tool: ${webhookNode.toolId}`);
           } else if (webhookNode.url) {
             const { buildUniversalWebhookTool } = await import('../services/universal-webhook-tool');
             const webhookTool = buildUniversalWebhookTool({
@@ -2647,7 +2648,7 @@ async function placeFlowTestCall({
               payload: webhookNode.payload
             });
             testWebhookTools.push(webhookTool);
-            console.log(`   🔗 Prepared test universal webhook tool: ${webhookNode.toolId}`);
+            logger.info(`   🔗 Prepared test universal webhook tool: ${webhookNode.toolId}`);
           }
         }
       }
@@ -2663,7 +2664,7 @@ async function placeFlowTestCall({
             formInfo.nodeId
           );
           testWebhookTools.push(formTool);
-          console.log(`   📋 Prepared test form tool: ${formInfo.formName}`);
+          logger.info(`   📋 Prepared test form tool: ${formInfo.formName}`);
         }
       }
 
@@ -2671,13 +2672,13 @@ async function placeFlowTestCall({
         const { getAppointmentToolForAgent } = await import('../services/appointment-elevenlabs-tool');
         const appointmentTool = getAppointmentToolForAgent(agent.elevenLabsAgentId!);
         testWebhookTools.push(appointmentTool);
-        console.log(`   📅 Prepared test appointment tool`);
+        logger.info(`   📅 Prepared test appointment tool`);
       }
 
       // ── PRE-FLIGHT: Push recompiled workflow to ElevenLabs agent ──
       // ElevenLabs ignores conversation_config_override.workflow for outbound calls
       // (the agent always uses its saved workflow). So we PATCH the agent first.
-      console.log(`   🔄 Pushing recompiled workflow to ElevenLabs agent before call...`);
+      logger.info(`   🔄 Pushing recompiled workflow to ElevenLabs agent before call...`);
       try {
         const elevenlabsService = new (await import('../services/elevenlabs')).ElevenLabsService(credential.apiKey);
         await elevenlabsService.updateFlowAgentWorkflow(
@@ -2696,7 +2697,7 @@ async function placeFlowTestCall({
             basePrompt: buildFlowAgentBasePrompt(agent.systemPrompt)
           }
         );
-        console.log(`   ✅ Agent workflow updated on ElevenLabs (${Object.keys(testWorkflow.nodes).length} nodes, ${testWebhookTools.length} tools)`);
+        logger.info(`   ✅ Agent workflow updated on ElevenLabs (${Object.keys(testWorkflow.nodes).length} nodes, ${testWebhookTools.length} tools)`);
       } catch (updateError: any) {
         console.error(`   ⚠️ Failed to update agent workflow (call may use stale workflow):`, updateError.message);
       }
@@ -2711,7 +2712,7 @@ async function placeFlowTestCall({
         dynamicData,
       });
 
-      console.log(`✅ [Flow Test Call] Call initiated:`, JSON.stringify(result));
+      logger.info(`✅ [Flow Test Call] Call initiated:`, JSON.stringify(result));
 
       if (!result.success) {
         throw new FlowTestHttpError(400, {
@@ -2734,16 +2735,16 @@ async function placeFlowTestCall({
                 twilio_sid = ${callSid || null}
             WHERE id = ${callId}
           `);
-          console.log(`   ✅ Call record ${callId} updated with ElevenLabs conversation ID: ${conversationId}`);
+          logger.info(`   ✅ Call record ${callId} updated with ElevenLabs conversation ID: ${conversationId}`);
         } catch (dbError: any) {
           console.error(`   ⚠️ Failed to update call record with conversation ID:`, dbError.message);
         }
       }
 
-      console.log(`✅ [Flow Test] ElevenLabs outbound call initiated`);
-      console.log(`   Conversation ID: ${conversationId}`);
+      logger.info(`✅ [Flow Test] ElevenLabs outbound call initiated`);
+      logger.info(`   Conversation ID: ${conversationId}`);
       if (callSid) {
-        console.log(`   Call SID: ${callSid}`);
+        logger.info(`   Call SID: ${callSid}`);
       }
 
       // Create flow execution record for ElevenLabs test call
@@ -2769,7 +2770,7 @@ async function placeFlowTestCall({
               conversationId: conversationId,
             },
           });
-          console.log(`🔀 [Flow Test] Created flow execution for ElevenLabs test call`);
+          logger.info(`🔀 [Flow Test] Created flow execution for ElevenLabs test call`);
         } catch (flowExecError: any) {
           console.warn(`⚠️ [Flow Test] Error creating flow execution:`, flowExecError.message);
         }
@@ -2811,11 +2812,11 @@ async function placeFlowTestCall({
       });
     }
 
-    console.log(`✅ [Flow Test] Test call initiated successfully`);
-    console.log(`   Call ID: ${callRecord.id}`);
-    console.log(`   Conversation ID: ${conversationId}`);
-    console.log(`   Flow: ${flow.name} (${flow.id})`);
-    console.log(`   From: ${fromPhone.phoneNumber} -> To: ${phoneNumber}`);
+    logger.info(`✅ [Flow Test] Test call initiated successfully`);
+    logger.info(`   Call ID: ${callRecord.id}`);
+    logger.info(`   Conversation ID: ${conversationId}`);
+    logger.info(`   Flow: ${flow.name} (${flow.id})`);
+    logger.info(`   From: [redacted] -> To: [redacted]`);
 
     await completeQueue(callRecord.id);
     return {
@@ -3014,7 +3015,7 @@ router.get("/queue/:entryId", async (req: AuthRequest, res: Response) => {
     }
 
     // ── Server-side call placement: fire & forget ──────────────────────────
-    console.log(`⚡ [Queue] Entry ${entryId} claimed → triggering server-side call placement.`);
+    logger.info(`⚡ [Queue] Entry ${entryId} claimed → triggering server-side call placement.`);
 
     setImmediate(() =>
       placeFlowTestCall({
@@ -3622,7 +3623,7 @@ router.patch("/appointments/:id", async (req: AuthRequest, res: Response) => {
           newTime: newTime,
           rescheduledAt: new Date().toISOString(),
         });
-        console.log(`📅 [Appointment Webhook] Triggered appointment.rescheduled for ${id}`);
+        logger.info(`📅 [Appointment Webhook] Triggered appointment.rescheduled for ${id}`);
       } catch (webhookError: any) {
         console.error(`📅 [Appointment Webhook] Failed to trigger rescheduled webhook:`, webhookError.message);
       }
@@ -3637,7 +3638,7 @@ router.patch("/appointments/:id", async (req: AuthRequest, res: Response) => {
               appointment: buildAppointmentPayload(updatedAppointment),
               confirmedAt: new Date().toISOString(),
             });
-            console.log(`📅 [Appointment Webhook] Triggered appointment.confirmed for ${id}`);
+            logger.info(`📅 [Appointment Webhook] Triggered appointment.confirmed for ${id}`);
             break;
 
           case 'cancelled':
@@ -3646,7 +3647,7 @@ router.patch("/appointments/:id", async (req: AuthRequest, res: Response) => {
               cancelReason: req.body.cancelReason || null,
               cancelledAt: new Date().toISOString(),
             });
-            console.log(`📅 [Appointment Webhook] Triggered appointment.cancelled for ${id}`);
+            logger.info(`📅 [Appointment Webhook] Triggered appointment.cancelled for ${id}`);
             break;
 
           case 'completed':
@@ -3654,7 +3655,7 @@ router.patch("/appointments/:id", async (req: AuthRequest, res: Response) => {
               appointment: buildAppointmentPayload(updatedAppointment),
               completedAt: new Date().toISOString(),
             });
-            console.log(`📅 [Appointment Webhook] Triggered appointment.completed for ${id}`);
+            logger.info(`📅 [Appointment Webhook] Triggered appointment.completed for ${id}`);
             break;
 
           case 'no_show':
@@ -3664,7 +3665,7 @@ router.patch("/appointments/:id", async (req: AuthRequest, res: Response) => {
               appointment: buildAppointmentPayload(updatedAppointment),
               markedNoShowAt: new Date().toISOString(),
             });
-            console.log(`📅 [Appointment Webhook] Triggered appointment.no_show for ${id}`);
+            logger.info(`📅 [Appointment Webhook] Triggered appointment.no_show for ${id}`);
             break;
         }
       } catch (webhookError: any) {
@@ -3808,7 +3809,7 @@ router.delete("/appointments/:id", async (req: AuthRequest, res: Response) => {
         cancelReason: 'deleted',
         cancelledAt: new Date().toISOString(),
       });
-      console.log(`📅 [Appointment Webhook] Triggered appointment.cancelled for deleted appointment ${id}`);
+      logger.info(`📅 [Appointment Webhook] Triggered appointment.cancelled for deleted appointment ${id}`);
     } catch (webhookError: any) {
       console.error(`📅 [Appointment Webhook] Failed to trigger cancelled webhook:`, webhookError.message);
     }
@@ -3955,7 +3956,7 @@ router.put("/appointment-settings", async (req: AuthRequest, res: Response) => {
     const dbBufferMinutes = bufferMinutes ?? bufferTime ?? 0;
     const dbSyncToGoogleCalendar = syncToGoogleCalendar ?? false;
 
-    console.log('📅 [Settings] Saving appointment settings:', {
+    logger.info('📅 [Settings] Saving appointment settings:', {
       allowOverlapping: dbAllowOverlapping,
       bufferMinutes: dbBufferMinutes,
       workingDays: workingDays,
@@ -4084,7 +4085,7 @@ router.post("/appointments/sync", async (req: AuthRequest, res: Response) => {
     );
 
     if (!workingHoursResult.valid) {
-      console.log(`📅 [Appointment Sync] Rejected due to working hours: ${workingHoursResult.message}`);
+      logger.warn(`📅 [Appointment Sync] Rejected due to working hours: ${workingHoursResult.message}`);
       return res.status(400).json({
         success: false,
         error: workingHoursResult.message
@@ -4113,9 +4114,9 @@ router.post("/appointments/sync", async (req: AuthRequest, res: Response) => {
       })
       .returning();
 
-    console.log(`📅 [Appointment Sync] Created appointment ${appointmentId} for agent ${agentId}`);
-    console.log(`   Contact: ${contactName} (${contactPhone})`);
-    console.log(`   Date/Time: ${appointmentDate} at ${appointmentTime}`);
+    logger.info(`📅 [Appointment Sync] Created appointment ${appointmentId} for agent ${agentId}`);
+    logger.info(`   Contact: ${contactName} ([redacted])`);
+    logger.info(`   Date/Time: ${appointmentDate} at ${appointmentTime}`);
 
     res.json({
       success: true,
@@ -4473,7 +4474,7 @@ router.get("/executions", async (req: AuthRequest, res: Response) => {
     );
 
     if (executionsToSync.length > 0) {
-      console.log(`[Executions API] Syncing ${executionsToSync.length} stale executions from calls table`);
+      logger.info(`[Executions API] Syncing ${executionsToSync.length} stale executions from calls table`);
       for (const exec of executionsToSync) {
         await db
           .update(flowExecutions)
@@ -4539,7 +4540,7 @@ router.get("/executions", async (req: AuthRequest, res: Response) => {
             .where(eq(flowExecutions.id, exec.id));
 
           Object.assign(exec, { status: execStatus, completedAt: callInfo.endedAt || new Date() });
-          console.log(`[Executions API] Synced execution ${exec.id} from alternate call table to ${execStatus}`);
+          logger.info(`[Executions API] Synced execution ${exec.id} from alternate call table to ${execStatus}`);
         }
       }
     }
@@ -4559,7 +4560,7 @@ router.get("/executions", async (req: AuthRequest, res: Response) => {
     });
 
     if (staleExecs.length > 0) {
-      console.log(`[Executions API] Found ${staleExecs.length} stale executions (>5 min old), marking as failed`);
+      logger.error(`[Executions API] Found ${staleExecs.length} stale executions (>5 min old), marking as failed`);
       for (const exec of staleExecs) {
         await db
           .update(flowExecutions)
@@ -4575,7 +4576,7 @@ router.get("/executions", async (req: AuthRequest, res: Response) => {
           completedAt: new Date(),
           error: 'Call status unknown - marked as failed after timeout'
         });
-        console.log(`[Executions API] Marked stale execution ${exec.id} as failed (started ${exec.startedAt})`);
+        logger.error(`[Executions API] Marked stale execution ${exec.id} as failed (started ${exec.startedAt})`);
       }
     }
 

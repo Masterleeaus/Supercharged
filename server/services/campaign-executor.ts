@@ -37,6 +37,7 @@ import { TwilioOpenAIBatchCallingService } from '../engines/twilio-openai/servic
 import { batchInsertCalls, batchInsertFlowExecutions, FlowExecutionInsert } from '../utils/batch-utils';
 import { substituteContactVariables, enrichDynamicDataWithContactInfo } from '../utils/contact-variable-substitution';
 import { resyncSinglePhoneCredentials, resyncSipPhoneCredentials, verifySipPhoneExists } from './elevenlabs-phone-resync';
+import { logger } from '../utils/logger';
 
 /** Log when a single ElevenLabs batch job carries very many recipients (API / payload limits vary by workspace). */
 const ELEVENLABS_BATCH_LARGE_RECIPIENT_WARN = 25_000;
@@ -347,7 +348,7 @@ export class CampaignExecutor {
 
       // Route to Custom Voice Engine
       if (agent.telephonyProvider === 'custom-voice-engine') {
-        console.log(`📞 [Campaign Executor] Routing to Custom Voice Engine (FreeSWITCH ESL) for campaign ${campaignId}`);
+        logger.info(`📞 [Campaign Executor] Routing to Custom Voice Engine (FreeSWITCH ESL) for campaign ${campaignId}`);
 
         const campaignContacts = await db
           .select()
@@ -398,7 +399,7 @@ export class CampaignExecutor {
 
       // Route to Plivo engine if agent uses Plivo telephony
       if (agent.telephonyProvider === 'plivo') {
-        console.log(`📞 [Campaign Executor] Routing to Plivo + OpenAI engine for campaign ${campaignId}`);
+        logger.info(`📞 [Campaign Executor] Routing to Plivo + OpenAI engine for campaign ${campaignId}`);
 
         // Get all contacts for the campaign
         const campaignContacts = await db
@@ -552,7 +553,7 @@ export class CampaignExecutor {
 
       // Route to Twilio-OpenAI engine if agent uses twilio_openai telephony
       if (agent.telephonyProvider === 'twilio_openai') {
-        console.log(`📞 [Campaign Executor] Routing to Twilio + OpenAI engine for campaign ${campaignId}`);
+        logger.info(`📞 [Campaign Executor] Routing to Twilio + OpenAI engine for campaign ${campaignId}`);
 
         const campaignContacts = await db
           .select()
@@ -704,7 +705,7 @@ export class CampaignExecutor {
       // Route to ElevenLabs SIP engine using ElevenLabs Batch Calling API
       // This uses the same batch API as Twilio-based campaigns for scalability
       if (agent.telephonyProvider === 'elevenlabs-sip') {
-        console.log(`📞 [Campaign Executor] Routing to ElevenLabs SIP batch calling for campaign ${campaignId}`);
+        logger.info(`📞 [Campaign Executor] Routing to ElevenLabs SIP batch calling for campaign ${campaignId}`);
 
         // Validate SIP phone number exists and is configured
         if (!(campaign as any).sipPhoneNumberId) {
@@ -756,9 +757,9 @@ export class CampaignExecutor {
 
         if (sipPhoneNumber.elevenLabsCredentialId && agent.elevenLabsCredentialId &&
           sipPhoneNumber.elevenLabsCredentialId !== agent.elevenLabsCredentialId) {
-          console.log(`📞 [Campaign Executor] SIP phone credential mismatch — resyncing to agent credential`);
-          console.log(`   SIP phone credential: ${sipPhoneNumber.elevenLabsCredentialId}`);
-          console.log(`   Agent credential: ${agent.elevenLabsCredentialId}`);
+          logger.info(`📞 [Campaign Executor] SIP phone credential mismatch — resyncing to agent credential`);
+          logger.info(`   SIP phone credential: ${sipPhoneNumber.elevenLabsCredentialId}`);
+          logger.info(`   Agent credential: ${agent.elevenLabsCredentialId}`);
 
           const migResult = await resyncSipPhoneCredentials(sipPhoneNumber.id, agent.elevenLabsCredentialId);
           if (!migResult.success) {
@@ -767,15 +768,15 @@ export class CampaignExecutor {
           if (migResult.newElevenLabsPhoneId) {
             currentSipPhoneElevenLabsId = migResult.newElevenLabsPhoneId;
           }
-          console.log(`✅ [Campaign Executor] SIP phone migrated to agent credential, new ID: ${currentSipPhoneElevenLabsId}`);
+          logger.info(`✅ [Campaign Executor] SIP phone migrated to agent credential, new ID: ${currentSipPhoneElevenLabsId}`);
         }
 
         // SIP PRE-FLIGHT CHECK 2: Verify SIP phone still exists on ElevenLabs
-        console.log(`📞 [Campaign Executor] Verifying SIP phone exists on ElevenLabs...`);
+        logger.info(`📞 [Campaign Executor] Verifying SIP phone exists on ElevenLabs...`);
         const sipVerify = await verifySipPhoneExists(currentSipPhoneElevenLabsId, credential.apiKey);
         if (!sipVerify.exists) {
           if (sipVerify.notFound) {
-            console.log(`⚠️ [Campaign Executor] SIP phone ${currentSipPhoneElevenLabsId} not found (404) on ElevenLabs — re-importing`);
+            logger.warn(`⚠️ [Campaign Executor] SIP phone ${currentSipPhoneElevenLabsId} not found (404) on ElevenLabs — re-importing`);
             const reimportResult = await resyncSipPhoneCredentials(sipPhoneNumber.id, credential.id);
             if (!reimportResult.success) {
               throw new Error(`SIP phone re-import failed: ${reimportResult.error}`);
@@ -783,12 +784,12 @@ export class CampaignExecutor {
             if (reimportResult.newElevenLabsPhoneId) {
               currentSipPhoneElevenLabsId = reimportResult.newElevenLabsPhoneId;
             }
-            console.log(`✅ [Campaign Executor] SIP phone re-imported, new ID: ${currentSipPhoneElevenLabsId}`);
+            logger.info(`✅ [Campaign Executor] SIP phone re-imported, new ID: ${currentSipPhoneElevenLabsId}`);
           } else {
             throw new Error(`Cannot verify SIP phone on ElevenLabs (transient error, not re-importing): ${sipVerify.error}`);
           }
         } else {
-          console.log(`✅ [Campaign Executor] SIP phone exists on ElevenLabs`);
+          logger.info(`✅ [Campaign Executor] SIP phone exists on ElevenLabs`);
         }
 
         // SIP PRE-FLIGHT CHECK 3: Credential freshness — resync if not synced in last 24 hours
@@ -799,13 +800,13 @@ export class CampaignExecutor {
           const needsSync = now - lastSync > twentyFourHours;
 
           if (needsSync && sipVerify.exists) {
-            console.log(`🔄 [Campaign Executor] SIP PRE-FLIGHT CHECK 3: Refreshing SIP trunk credentials in ElevenLabs for ${sipPhoneNumber.phoneNumber}`);
-            console.log(`   Last sync: ${sipPhoneNumber.credentialsSyncedAt ? new Date(sipPhoneNumber.credentialsSyncedAt).toISOString() : 'never'}`);
+            logger.info(`🔄 [Campaign Executor] SIP PRE-FLIGHT CHECK 3: Refreshing SIP trunk credentials in ElevenLabs for [redacted]`);
+            logger.info(`   Last sync: ${sipPhoneNumber.credentialsSyncedAt ? new Date(sipPhoneNumber.credentialsSyncedAt).toISOString() : 'never'}`);
             try {
               const freshResult = await resyncSipPhoneCredentials(sipPhoneNumber.id, credential.id);
               if (freshResult.success && freshResult.newElevenLabsPhoneId) {
                 currentSipPhoneElevenLabsId = freshResult.newElevenLabsPhoneId;
-                console.log(`✅ [Campaign Executor] SIP credential refresh complete — new ID: ${currentSipPhoneElevenLabsId}`);
+                logger.info(`✅ [Campaign Executor] SIP credential refresh complete — new ID: ${currentSipPhoneElevenLabsId}`);
               } else if (!freshResult.success) {
                 console.warn(`⚠️ [Campaign Executor] SIP credential refresh failed (non-fatal, continuing): ${freshResult.error}`);
               }
@@ -813,7 +814,7 @@ export class CampaignExecutor {
               console.warn(`⚠️ [Campaign Executor] SIP credential refresh error (non-fatal, continuing): ${syncErr?.message}`);
             }
           } else if (!needsSync) {
-            console.log(`✅ [Campaign Executor] SIP PRE-FLIGHT CHECK 3: Credentials fresh (last synced ${Math.round((now - lastSync) / 3600000)}h ago)`);
+            logger.info(`✅ [Campaign Executor] SIP PRE-FLIGHT CHECK 3: Credentials fresh (last synced ${Math.round((now - lastSync) / 3600000)}h ago)`);
           }
         }
 
@@ -826,23 +827,23 @@ export class CampaignExecutor {
           throw new Error('Campaign has no contacts');
         }
 
-        console.log(`[Campaign Executor] Creating ElevenLabs SIP batch job for campaign ${campaignId} with ${campaignContacts.length} contacts`);
-        console.log(`   Agent: ${agent.name} (ElevenLabs ID: ${agent.elevenLabsAgentId})`);
-        console.log(`   SIP Phone: ${sipPhoneNumber.phoneNumber} (ElevenLabs ID: ${currentSipPhoneElevenLabsId})`);
-        console.log(`   Credential: ${credential.name}`);
+        logger.info(`[Campaign Executor] Creating ElevenLabs SIP batch job for campaign ${campaignId} with ${campaignContacts.length} contacts`);
+        logger.info(`   Agent: ${agent.name} (ElevenLabs ID: ${agent.elevenLabsAgentId})`);
+        logger.info(`   SIP Phone: [redacted] (ElevenLabs ID: ${currentSipPhoneElevenLabsId})`);
+        logger.info(`   Credential: ${credential.name}`);
 
         // PRE-FLIGHT CHECK: Refresh agent tools on ElevenLabs to pick up current date context
         // This ensures appointment booking tool has today's date for "tomorrow" calculations
         // Check both appointmentBookingEnabled flag AND flowId (flow agents may have appointment nodes)
         if (agent.appointmentBookingEnabled || agent.flowId) {
-          console.log(`📅 [Campaign Executor] Refreshing SIP agent appointment tool and prompt for current date context...`);
+          logger.info(`📅 [Campaign Executor] Refreshing SIP agent appointment tool and prompt for current date context...`);
           try {
             const elevenLabsServiceForTools = new ElevenLabsService(credential.apiKey);
             // Use dedicated method that fetches existing tools and updates only the appointment tool
             // while preserving all other tools (system tools, custom webhooks, etc.)
             await elevenLabsServiceForTools.refreshAppointmentToolWithCurrentDate(agent.elevenLabsAgentId);
             await elevenLabsServiceForTools.refreshAgentPromptWithCurrentDate(agent.elevenLabsAgentId);
-            console.log(`✅ [Campaign Executor] SIP agent appointment tool and prompt refreshed with current date`);
+            logger.info(`✅ [Campaign Executor] SIP agent appointment tool and prompt refreshed with current date`);
           } catch (toolRefreshError: any) {
             console.warn(`⚠️ [Campaign Executor] Failed to refresh SIP agent tools/prompt: ${toolRefreshError.message}`);
             // Non-fatal - continue with campaign execution
@@ -912,7 +913,7 @@ export class CampaignExecutor {
           const nextWindow = CampaignScheduler.getNextCallWindow(campaign);
           if (nextWindow) {
             scheduledTimeUnix = Math.floor(nextWindow.getTime() / 1000);
-            console.log(`   Scheduled for: ${nextWindow.toISOString()}`);
+            logger.info(`   Scheduled for: ${nextWindow.toISOString()}`);
           }
         }
 
@@ -927,9 +928,9 @@ export class CampaignExecutor {
           scheduled_time_unix: scheduledTimeUnix || null,
         });
 
-        console.log(`✅ [Campaign Executor] ElevenLabs SIP batch job created: ${batchJob.id}`);
-        console.log(`   Status: ${batchJob.status}`);
-        console.log(`   Total calls scheduled: ${batchJob.total_calls_scheduled}`);
+        logger.info(`✅ [Campaign Executor] ElevenLabs SIP batch job created: ${batchJob.id}`);
+        logger.info(`   Status: ${batchJob.status}`);
+        logger.info(`   Total calls scheduled: ${batchJob.total_calls_scheduled}`);
 
         // Update pre-created call records with batch job ID for tracking
         if (preCreatedCalls.length > 0) {
@@ -940,7 +941,7 @@ export class CampaignExecutor {
               metadata: sql`jsonb_set(COALESCE(metadata, '{}'::jsonb), '{batchJobId}', ${JSON.stringify(batchJob.id)}::jsonb)`
             })
             .where(inArray(calls.id, callIds));
-          console.log(`   Updated ${callIds.length} call records with batch job ID`);
+          logger.info(`   Updated ${callIds.length} call records with batch job ID`);
         }
 
         // Update campaign with batch job ID and status
@@ -1003,9 +1004,9 @@ export class CampaignExecutor {
       }
 
       if (phoneNumber.elevenLabsCredentialId !== agent.elevenLabsCredentialId) {
-        console.log(`📞 [Campaign Executor] Phone credential mismatch - initiating migration`);
-        console.log(`   Phone credential: ${phoneNumber.elevenLabsCredentialId}`);
-        console.log(`   Agent credential: ${agent.elevenLabsCredentialId}`);
+        logger.info(`📞 [Campaign Executor] Phone credential mismatch - initiating migration`);
+        logger.info(`   Phone credential: ${phoneNumber.elevenLabsCredentialId}`);
+        logger.info(`   Agent credential: ${agent.elevenLabsCredentialId}`);
 
         const migrationResult = await PhoneMigrator.syncPhoneToAgentCredential(
           phoneNumber.id,
@@ -1020,18 +1021,18 @@ export class CampaignExecutor {
           throw new Error('Phone migration incomplete: no new ElevenLabs phone ID returned');
         }
 
-        console.log(`✅ [Campaign Executor] Phone migrated successfully`);
-        console.log(`   Old ElevenLabs ID: ${migrationResult.oldElevenLabsPhoneId}`);
-        console.log(`   New ElevenLabs ID: ${migrationResult.newElevenLabsPhoneId}`);
+        logger.info(`✅ [Campaign Executor] Phone migrated successfully`);
+        logger.info(`   Old ElevenLabs ID: ${migrationResult.oldElevenLabsPhoneId}`);
+        logger.info(`   New ElevenLabs ID: ${migrationResult.newElevenLabsPhoneId}`);
 
         currentPhoneElevenLabsId = migrationResult.newElevenLabsPhoneId;
       } else {
-        console.log(`✅ [Campaign Executor] Phone and agent on same credential: ${agent.elevenLabsCredentialId}`);
+        logger.info(`✅ [Campaign Executor] Phone and agent on same credential: ${agent.elevenLabsCredentialId}`);
       }
 
       // PRE-FLIGHT CHECK 2: Verify phone actually exists on ElevenLabs
       // The database may have a stale elevenLabsPhoneNumberId that no longer exists
-      console.log(`📞 [Campaign Executor] Verifying phone exists on ElevenLabs...`);
+      logger.info(`📞 [Campaign Executor] Verifying phone exists on ElevenLabs...`);
       const verifyResult = await PhoneMigrator.verifyAndEnsurePhoneExists(
         phoneNumber.id,
         agent.elevenLabsCredentialId,
@@ -1043,8 +1044,8 @@ export class CampaignExecutor {
       }
 
       if (verifyResult.wasReimported) {
-        console.log(`✅ [Campaign Executor] Phone was re-imported from Twilio`);
-        console.log(`   New ElevenLabs ID: ${verifyResult.elevenLabsPhoneId}`);
+        logger.info(`✅ [Campaign Executor] Phone was re-imported from Twilio`);
+        logger.info(`   New ElevenLabs ID: ${verifyResult.elevenLabsPhoneId}`);
       }
 
       // Use the verified (or re-imported) phone ID
@@ -1062,12 +1063,12 @@ export class CampaignExecutor {
         const needsSync = now - lastSync > twentyFourHours;
 
         if (needsSync) {
-          console.log(`🔄 [Campaign Executor] PRE-FLIGHT CHECK 3: Refreshing Twilio credentials in ElevenLabs for ${phoneNumber.phoneNumber}`);
-          console.log(`   Last sync: ${phoneNumber.credentialsSyncedAt ? new Date(phoneNumber.credentialsSyncedAt).toISOString() : 'never'}`);
+          logger.info(`🔄 [Campaign Executor] PRE-FLIGHT CHECK 3: Refreshing Twilio credentials in ElevenLabs for [redacted]`);
+          logger.info(`   Last sync: ${phoneNumber.credentialsSyncedAt ? new Date(phoneNumber.credentialsSyncedAt).toISOString() : 'never'}`);
           try {
             const freshResult = await resyncSinglePhoneCredentials(phoneNumber.id);
             if (freshResult.success) {
-              console.log(`✅ [Campaign Executor] Credential refresh complete — phone re-registered with current Twilio credentials`);
+              logger.info(`✅ [Campaign Executor] Credential refresh complete — phone re-registered with current Twilio credentials`);
               // Re-fetch the new elevenLabsPhoneNumberId since it changed after resync
               const [refreshedPhone] = await db
                 .select({ elevenLabsPhoneNumberId: phoneNumbers.elevenLabsPhoneNumberId })
@@ -1084,7 +1085,7 @@ export class CampaignExecutor {
             console.warn(`⚠️ [Campaign Executor] Credential refresh error (non-fatal, continuing): ${syncErr?.message}`);
           }
         } else {
-          console.log(`✅ [Campaign Executor] PRE-FLIGHT CHECK 3: Credentials fresh (last synced ${Math.round((now - lastSync) / 3600000)}h ago)`);
+          logger.info(`✅ [Campaign Executor] PRE-FLIGHT CHECK 3: Credentials fresh (last synced ${Math.round((now - lastSync) / 3600000)}h ago)`);
         }
       }
 
@@ -1098,23 +1099,23 @@ export class CampaignExecutor {
         throw new Error('Campaign has no contacts');
       }
 
-      console.log(`[Campaign Executor] Creating batch job for campaign ${campaignId} with ${campaignContacts.length} contacts`);
-      console.log(`   Agent: ${agent.name} (ElevenLabs ID: ${agent.elevenLabsAgentId})`);
-      console.log(`   Phone: ${phoneNumber.phoneNumber} (ElevenLabs ID: ${currentPhoneElevenLabsId})`);
-      console.log(`   Credential: ${credential.name}`);
+      logger.info(`[Campaign Executor] Creating batch job for campaign ${campaignId} with ${campaignContacts.length} contacts`);
+      logger.info(`   Agent: ${agent.name} (ElevenLabs ID: ${agent.elevenLabsAgentId})`);
+      logger.info(`   Phone: [redacted] (ElevenLabs ID: ${currentPhoneElevenLabsId})`);
+      logger.info(`   Credential: ${credential.name}`);
 
       // PRE-FLIGHT CHECK 3: Refresh agent tools on ElevenLabs to pick up current date context
       // This ensures appointment booking tool has today's date for "tomorrow" calculations
       // Check both appointmentBookingEnabled flag AND flowId (flow agents may have appointment nodes)
       if (agent.appointmentBookingEnabled || agent.flowId) {
-        console.log(`📅 [Campaign Executor] Refreshing agent tools and prompt on ElevenLabs for current date context...`);
+        logger.info(`📅 [Campaign Executor] Refreshing agent tools and prompt on ElevenLabs for current date context...`);
         try {
           const elevenLabsService = new ElevenLabsService(credential.apiKey);
           // Use dedicated method that fetches existing tools and updates only the appointment tool
           // while preserving all other tools (system tools, custom webhooks, etc.)
           await elevenLabsService.refreshAppointmentToolWithCurrentDate(agent.elevenLabsAgentId);
           await elevenLabsService.refreshAgentPromptWithCurrentDate(agent.elevenLabsAgentId);
-          console.log(`✅ [Campaign Executor] Agent tools and prompt refreshed with current date context`);
+          logger.info(`✅ [Campaign Executor] Agent tools and prompt refreshed with current date context`);
         } catch (toolRefreshError: any) {
           console.warn(`⚠️ [Campaign Executor] Failed to refresh agent tools/prompt: ${toolRefreshError.message}`);
           // Non-fatal - continue with campaign execution
@@ -1180,7 +1181,7 @@ export class CampaignExecutor {
         const nextWindow = CampaignScheduler.getNextCallWindow(campaign);
         if (nextWindow) {
           scheduledTimeUnix = Math.floor(nextWindow.getTime() / 1000);
-          console.log(`   Scheduled for: ${nextWindow.toISOString()}`);
+          logger.info(`   Scheduled for: ${nextWindow.toISOString()}`);
         }
       }
 
@@ -1195,9 +1196,9 @@ export class CampaignExecutor {
         scheduled_time_unix: scheduledTimeUnix || null,
       });
 
-      console.log(`✅ [Campaign Executor] Batch job created: ${batchJob.id}`);
-      console.log(`   Status: ${batchJob.status}`);
-      console.log(`   Total calls scheduled: ${batchJob.total_calls_scheduled}`);
+      logger.info(`✅ [Campaign Executor] Batch job created: ${batchJob.id}`);
+      logger.info(`   Status: ${batchJob.status}`);
+      logger.info(`   Total calls scheduled: ${batchJob.total_calls_scheduled}`);
 
       // Update pre-created call records with batch job ID for tracking
       if (preCreatedCalls.length > 0) {
@@ -1208,7 +1209,7 @@ export class CampaignExecutor {
             metadata: sql`jsonb_set(COALESCE(metadata, '{}'::jsonb), '{batchJobId}', ${JSON.stringify(batchJob.id)}::jsonb)`
           })
           .where(inArray(calls.id, callIds));
-        console.log(`   Updated ${callIds.length} call records with batch job ID`);
+        logger.info(`   Updated ${callIds.length} call records with batch job ID`);
       }
 
       // Update campaign with batch job ID and status
@@ -1230,7 +1231,7 @@ export class CampaignExecutor {
 
       // Check if this is a concurrency limit error from ElevenLabs
       if (isConcurrencyLimitError(error)) {
-        console.log(`🔄 [Campaign Executor] Concurrency limit hit, attempting migration for campaign ${campaignId}`);
+        logger.info(`🔄 [Campaign Executor] Concurrency limit hit, attempting migration for campaign ${campaignId}`);
 
         // Get the agent's current credential to attempt migration from
         const [campaignData] = await db
@@ -1258,16 +1259,16 @@ export class CampaignExecutor {
               );
 
               if (migrationResult.success) {
-                console.log(`✅ [Campaign Executor] Migration successful, retrying campaign...`);
+                logger.info(`✅ [Campaign Executor] Migration successful, retrying campaign...`);
                 // Retry the campaign execution after migration
                 return this.executeCampaign(campaignId);
               } else {
-                console.log(`❌ [Campaign Executor] Migration failed: ${migrationResult.error}`);
+                logger.error(`❌ [Campaign Executor] Migration failed: ${migrationResult.error}`);
               }
             }
 
             // No capacity available or migration failed - mark for retry queue
-            console.log(`⏰ [Campaign Executor] No capacity available, marking campaign for retry queue`);
+            logger.warn(`⏰ [Campaign Executor] No capacity available, marking campaign for retry queue`);
             await markCampaignForRetry(
               campaignId,
               'ElevenLabs concurrency limit reached - no available capacity'
@@ -1588,7 +1589,7 @@ export class CampaignExecutor {
         })
         .where(eq(campaigns.id, campaignId));
 
-      console.log(`⏸️ [Campaign Executor] Paused Plivo campaign ${campaignId} (reason: ${reason})`);
+      logger.info(`⏸️ [Campaign Executor] Paused Plivo campaign ${campaignId} (reason: ${reason})`);
 
       // Trigger webhook event for Plivo pause
       if (campaign.userId) {
@@ -1627,7 +1628,7 @@ export class CampaignExecutor {
         })
         .where(eq(campaigns.id, campaignId));
 
-      console.log(`⏸️ [Campaign Executor] Paused Twilio-OpenAI campaign ${campaignId} (reason: ${reason})`);
+      logger.info(`⏸️ [Campaign Executor] Paused Twilio-OpenAI campaign ${campaignId} (reason: ${reason})`);
 
       if (campaign.userId) {
         webhookDeliveryService.triggerEvent(campaign.companyId ?? null, campaign.userId, 'campaign.paused', {
@@ -1671,7 +1672,7 @@ export class CampaignExecutor {
 
       if (terminalStatuses.includes(currentBatch.status)) {
         // Batch already in terminal state - sync local database instead of calling cancel API
-        console.log(`ℹ️ [Campaign Executor] Batch already ${currentBatch.status}, syncing local status for campaign ${campaignId}`);
+        logger.info(`ℹ️ [Campaign Executor] Batch already ${currentBatch.status}, syncing local status for campaign ${campaignId}`);
 
         // Recalculate stats from actual database records
         const campaignCalls = await db.select().from(calls).where(eq(calls.campaignId, campaignId));
@@ -1701,7 +1702,7 @@ export class CampaignExecutor {
 
       // Batch is still running/pending - proceed with cancel (for pause)
       const batchJob = await batchService.cancelBatch(campaign.batchJobId);
-      console.log(`⏸️ [Campaign Executor] Paused campaign ${campaignId} (reason: ${reason})`);
+      logger.info(`⏸️ [Campaign Executor] Paused campaign ${campaignId} (reason: ${reason})`);
 
       // Update campaign status to 'paused' (NOT cancelled - so it can be resumed)
       await db
@@ -1792,7 +1793,7 @@ export class CampaignExecutor {
         })
         .where(eq(campaigns.id, campaignId));
 
-      console.log(`🛑 [Campaign Executor] Cancelled Plivo campaign ${campaignId}`);
+      logger.info(`🛑 [Campaign Executor] Cancelled Plivo campaign ${campaignId}`);
 
       // Trigger webhook event for Plivo campaign cancellation
       if (campaign.userId) {
@@ -1849,7 +1850,7 @@ export class CampaignExecutor {
         })
         .where(eq(campaigns.id, campaignId));
 
-      console.log(`🛑 [Campaign Executor] Cancelled Twilio-OpenAI campaign ${campaignId}`);
+      logger.info(`🛑 [Campaign Executor] Cancelled Twilio-OpenAI campaign ${campaignId}`);
 
       if (campaign.userId) {
         webhookDeliveryService.triggerEvent(campaign.companyId ?? null, campaign.userId, 'campaign.cancelled', {
@@ -1898,7 +1899,7 @@ export class CampaignExecutor {
 
     if (terminalStatuses.includes(currentBatch.status)) {
       // Batch already in terminal state - sync local database instead of calling cancel API
-      console.log(`ℹ️ [Campaign Executor] Batch already ${currentBatch.status}, syncing local status for campaign ${campaignId}`);
+      logger.info(`ℹ️ [Campaign Executor] Batch already ${currentBatch.status}, syncing local status for campaign ${campaignId}`);
 
       // Recalculate stats from actual database records
       const campaignCalls = await db.select().from(calls).where(eq(calls.campaignId, campaignId));
@@ -1928,7 +1929,7 @@ export class CampaignExecutor {
 
     // Batch is still running/pending - proceed with cancel
     const batchJob = await batchService.cancelBatch(campaign.batchJobId);
-    console.log(`🛑 [Campaign Executor] Cancelled campaign ${campaignId}`);
+    logger.info(`🛑 [Campaign Executor] Cancelled campaign ${campaignId}`);
 
     // Update campaign status
     await db
@@ -2031,7 +2032,7 @@ export class CampaignExecutor {
         console.error(`❌ [CVE Campaign] Background execution error for ${campaignId}:`, err);
       });
 
-      console.log(`▶️ [Campaign Executor] Resumed CVE campaign ${campaignId} (reason: ${reason})`);
+      logger.info(`▶️ [Campaign Executor] Resumed CVE campaign ${campaignId} (reason: ${reason})`);
 
       return {
         id: `cve-${campaignId}`,
@@ -2091,7 +2092,7 @@ export class CampaignExecutor {
         console.error(`❌ [Plivo Campaign] Background execution error for ${campaignId}:`, err);
       });
 
-      console.log(`▶️ [Campaign Executor] Resumed Plivo campaign ${campaignId} (reason: ${reason})`);
+      logger.info(`▶️ [Campaign Executor] Resumed Plivo campaign ${campaignId} (reason: ${reason})`);
 
       return {
         id: `plivo-${campaignId}`,
@@ -2145,7 +2146,7 @@ export class CampaignExecutor {
         console.error(`❌ [Twilio Campaign] Background execution error for ${campaignId}:`, err);
       });
 
-      console.log(`▶️ [Campaign Executor] Resumed Twilio-OpenAI campaign ${campaignId} (reason: ${reason})`);
+      logger.info(`▶️ [Campaign Executor] Resumed Twilio-OpenAI campaign ${campaignId} (reason: ${reason})`);
 
       return {
         id: `twilio-${campaignId}`,
@@ -2175,7 +2176,7 @@ export class CampaignExecutor {
 
     try {
       const batchJob = await batchService.retryBatch(campaign.batchJobId);
-      console.log(`▶️ [Campaign Executor] Resumed campaign ${campaignId} (reason: ${reason})`);
+      logger.info(`▶️ [Campaign Executor] Resumed campaign ${campaignId} (reason: ${reason})`);
 
       // Update campaign status back to running
       await db
@@ -2208,7 +2209,7 @@ export class CampaignExecutor {
    * Use this when the campaign has no existing batchJobId to retry
    */
   async resumeWithNewBatch(campaignId: string): Promise<{ batchJob: BatchJob | null; contactsToCall: number }> {
-    console.log(`▶️ [Campaign Executor] resumeWithNewBatch for campaign ${campaignId}`);
+    logger.info(`▶️ [Campaign Executor] resumeWithNewBatch for campaign ${campaignId}`);
 
     const [campaign] = await db
       .select()
@@ -2295,7 +2296,7 @@ export class CampaignExecutor {
         console.error(`[Campaign Executor] Error executing CVE campaign ${campaignId}: ${err.message}`);
       });
 
-      console.log(`▶️ [Campaign Executor] Resumed CVE campaign with new batch: ${campaignId}`);
+      logger.info(`▶️ [Campaign Executor] Resumed CVE campaign with new batch: ${campaignId}`);
 
       // Need to count pending contacts to return
       const pendingContacts = await db
@@ -2345,7 +2346,7 @@ export class CampaignExecutor {
         console.error(`❌ [Plivo Campaign] Background execution error for ${campaignId}:`, err);
       });
 
-      console.log(`▶️ [Campaign Executor] Resumed Plivo campaign with new batch: ${campaignId}`);
+      logger.info(`▶️ [Campaign Executor] Resumed Plivo campaign with new batch: ${campaignId}`);
 
       // Need to count pending contacts to return
       const pendingContacts = await db
@@ -2395,7 +2396,7 @@ export class CampaignExecutor {
         console.error(`❌ [Twilio Campaign] Background execution error for ${campaignId}:`, err);
       });
 
-      console.log(`▶️ [Campaign Executor] Resumed Twilio-OpenAI campaign with new batch: ${campaignId}`);
+      logger.info(`▶️ [Campaign Executor] Resumed Twilio-OpenAI campaign with new batch: ${campaignId}`);
 
       // Need to count pending contacts to return
       const pendingContacts = await db
@@ -2434,7 +2435,7 @@ export class CampaignExecutor {
 
     // Route to ElevenLabs SIP engine using ElevenLabs Batch Calling API for resume
     if (agent.telephonyProvider === 'elevenlabs-sip') {
-      console.log(`📞 [Campaign Executor] Routing to ElevenLabs SIP batch calling for campaign resume ${campaignId}`);
+      logger.info(`📞 [Campaign Executor] Routing to ElevenLabs SIP batch calling for campaign resume ${campaignId}`);
 
       // Validate SIP phone number exists and is configured
       if (!(campaign as any).sipPhoneNumberId) {
@@ -2484,9 +2485,9 @@ export class CampaignExecutor {
 
       if (sipPhoneNumber.elevenLabsCredentialId && agent.elevenLabsCredentialId &&
         sipPhoneNumber.elevenLabsCredentialId !== agent.elevenLabsCredentialId) {
-        console.log(`📞 [Campaign Executor Resume] SIP phone credential mismatch — resyncing to agent credential`);
-        console.log(`   SIP phone credential: ${sipPhoneNumber.elevenLabsCredentialId}`);
-        console.log(`   Agent credential: ${agent.elevenLabsCredentialId}`);
+        logger.info(`📞 [Campaign Executor Resume] SIP phone credential mismatch — resyncing to agent credential`);
+        logger.info(`   SIP phone credential: ${sipPhoneNumber.elevenLabsCredentialId}`);
+        logger.info(`   Agent credential: ${agent.elevenLabsCredentialId}`);
 
         const migResult = await resyncSipPhoneCredentials(sipPhoneNumber.id, agent.elevenLabsCredentialId);
         if (!migResult.success) {
@@ -2495,15 +2496,15 @@ export class CampaignExecutor {
         if (migResult.newElevenLabsPhoneId) {
           currentSipPhoneElevenLabsId = migResult.newElevenLabsPhoneId;
         }
-        console.log(`✅ [Campaign Executor Resume] SIP phone migrated to agent credential, new ID: ${currentSipPhoneElevenLabsId}`);
+        logger.info(`✅ [Campaign Executor Resume] SIP phone migrated to agent credential, new ID: ${currentSipPhoneElevenLabsId}`);
       }
 
       // SIP RESUME PRE-FLIGHT CHECK 2: Verify SIP phone still exists on ElevenLabs
-      console.log(`📞 [Campaign Executor Resume] Verifying SIP phone exists on ElevenLabs...`);
+      logger.info(`📞 [Campaign Executor Resume] Verifying SIP phone exists on ElevenLabs...`);
       const sipVerify = await verifySipPhoneExists(currentSipPhoneElevenLabsId, credential.apiKey);
       if (!sipVerify.exists) {
         if (sipVerify.notFound) {
-          console.log(`⚠️ [Campaign Executor Resume] SIP phone ${currentSipPhoneElevenLabsId} not found (404) on ElevenLabs — re-importing`);
+          logger.warn(`⚠️ [Campaign Executor Resume] SIP phone ${currentSipPhoneElevenLabsId} not found (404) on ElevenLabs — re-importing`);
           const reimportResult = await resyncSipPhoneCredentials(sipPhoneNumber.id, credential.id);
           if (!reimportResult.success) {
             throw new Error(`SIP phone re-import failed: ${reimportResult.error}`);
@@ -2511,12 +2512,12 @@ export class CampaignExecutor {
           if (reimportResult.newElevenLabsPhoneId) {
             currentSipPhoneElevenLabsId = reimportResult.newElevenLabsPhoneId;
           }
-          console.log(`✅ [Campaign Executor Resume] SIP phone re-imported, new ID: ${currentSipPhoneElevenLabsId}`);
+          logger.info(`✅ [Campaign Executor Resume] SIP phone re-imported, new ID: ${currentSipPhoneElevenLabsId}`);
         } else {
           throw new Error(`Cannot verify SIP phone on ElevenLabs (transient error, not re-importing): ${sipVerify.error}`);
         }
       } else {
-        console.log(`✅ [Campaign Executor Resume] SIP phone exists on ElevenLabs`);
+        logger.info(`✅ [Campaign Executor Resume] SIP phone exists on ElevenLabs`);
       }
 
       // SIP RESUME PRE-FLIGHT CHECK 3: Credential freshness
@@ -2527,13 +2528,13 @@ export class CampaignExecutor {
         const needsSync = now - lastSync > twentyFourHours;
 
         if (needsSync && sipVerify.exists) {
-          console.log(`🔄 [Campaign Executor Resume] SIP PRE-FLIGHT CHECK 3: Refreshing SIP trunk credentials for ${sipPhoneNumber.phoneNumber}`);
-          console.log(`   Last sync: ${sipPhoneNumber.credentialsSyncedAt ? new Date(sipPhoneNumber.credentialsSyncedAt).toISOString() : 'never'}`);
+          logger.info(`🔄 [Campaign Executor Resume] SIP PRE-FLIGHT CHECK 3: Refreshing SIP trunk credentials for [redacted]`);
+          logger.info(`   Last sync: ${sipPhoneNumber.credentialsSyncedAt ? new Date(sipPhoneNumber.credentialsSyncedAt).toISOString() : 'never'}`);
           try {
             const freshResult = await resyncSipPhoneCredentials(sipPhoneNumber.id, credential.id);
             if (freshResult.success && freshResult.newElevenLabsPhoneId) {
               currentSipPhoneElevenLabsId = freshResult.newElevenLabsPhoneId;
-              console.log(`✅ [Campaign Executor Resume] SIP credential refresh complete — new ID: ${currentSipPhoneElevenLabsId}`);
+              logger.info(`✅ [Campaign Executor Resume] SIP credential refresh complete — new ID: ${currentSipPhoneElevenLabsId}`);
             } else if (!freshResult.success) {
               console.warn(`⚠️ [Campaign Executor Resume] SIP credential refresh failed (non-fatal): ${freshResult.error}`);
             }
@@ -2541,7 +2542,7 @@ export class CampaignExecutor {
             console.warn(`⚠️ [Campaign Executor Resume] SIP credential refresh error (non-fatal): ${syncErr?.message}`);
           }
         } else if (!needsSync) {
-          console.log(`✅ [Campaign Executor Resume] SIP PRE-FLIGHT CHECK 3: Credentials fresh (last synced ${Math.round((now - lastSync) / 3600000)}h ago)`);
+          logger.info(`✅ [Campaign Executor Resume] SIP PRE-FLIGHT CHECK 3: Credentials fresh (last synced ${Math.round((now - lastSync) / 3600000)}h ago)`);
         }
       }
 
@@ -2552,7 +2553,7 @@ export class CampaignExecutor {
         .where(eq(contacts.campaignId, campaignId));
 
       if (campaignContacts.length === 0) {
-        console.log(`[Campaign Executor] Campaign ${campaignId} has no contacts, marking as completed`);
+        logger.info(`[Campaign Executor] Campaign ${campaignId} has no contacts, marking as completed`);
         await db.update(campaigns).set({ status: 'completed', completedAt: new Date() }).where(eq(campaigns.id, campaignId));
         return { batchJob: null, contactsToCall: 0 };
       }
@@ -2596,24 +2597,24 @@ export class CampaignExecutor {
       });
 
       if (contactsToCall.length === 0) {
-        console.log(`[Campaign Executor] All contacts already called successfully, nothing to resume`);
+        logger.info(`[Campaign Executor] All contacts already called successfully, nothing to resume`);
         return { batchJob: null, contactsToCall: 0 };
       }
 
-      console.log(`[Campaign Executor] Resuming ElevenLabs SIP campaign ${campaignId} with ${contactsToCall.length} pending/failed contacts`);
-      console.log(`   Agent: ${agent.name} (ElevenLabs ID: ${agent.elevenLabsAgentId})`);
-      console.log(`   SIP Phone: ${sipPhoneNumber.phoneNumber} (ElevenLabs ID: ${currentSipPhoneElevenLabsId})`);
+      logger.error(`[Campaign Executor] Resuming ElevenLabs SIP campaign ${campaignId} with ${contactsToCall.length} pending/failed contacts`);
+      logger.info(`   Agent: ${agent.name} (ElevenLabs ID: ${agent.elevenLabsAgentId})`);
+      logger.info(`   SIP Phone: [redacted] (ElevenLabs ID: ${currentSipPhoneElevenLabsId})`);
 
       // PRE-FLIGHT CHECK: Refresh agent tools on ElevenLabs to pick up current date context
       // This ensures appointment booking tool has today's date for "tomorrow" calculations
       // Check both appointmentBookingEnabled flag AND flowId (flow agents may have appointment nodes)
       if (agent.appointmentBookingEnabled || agent.flowId) {
-        console.log(`📅 [Campaign Executor] Refreshing SIP agent appointment tool and prompt for current date context (resume)...`);
+        logger.info(`📅 [Campaign Executor] Refreshing SIP agent appointment tool and prompt for current date context (resume)...`);
         try {
           const elevenLabsServiceForTools = new ElevenLabsService(credential.apiKey);
           await elevenLabsServiceForTools.refreshAppointmentToolWithCurrentDate(agent.elevenLabsAgentId);
           await elevenLabsServiceForTools.refreshAgentPromptWithCurrentDate(agent.elevenLabsAgentId);
-          console.log(`✅ [Campaign Executor] SIP agent appointment tool and prompt refreshed with current date`);
+          logger.info(`✅ [Campaign Executor] SIP agent appointment tool and prompt refreshed with current date`);
         } catch (toolRefreshError: any) {
           console.warn(`⚠️ [Campaign Executor] Failed to refresh SIP agent tools/prompt: ${toolRefreshError.message}`);
           // Non-fatal - continue with campaign execution
@@ -2678,7 +2679,7 @@ export class CampaignExecutor {
         const nextWindow = CampaignScheduler.getNextCallWindow(campaign);
         if (nextWindow) {
           scheduledTimeUnix = Math.floor(nextWindow.getTime() / 1000);
-          console.log(`   Scheduled for: ${nextWindow.toISOString()}`);
+          logger.info(`   Scheduled for: ${nextWindow.toISOString()}`);
         }
       }
 
@@ -2691,9 +2692,9 @@ export class CampaignExecutor {
         scheduled_time_unix: scheduledTimeUnix,
       });
 
-      console.log(`✅ [Campaign Executor] Created ElevenLabs SIP resume batch job: ${batchJob.id}`);
-      console.log(`   Status: ${batchJob.status}`);
-      console.log(`   Contacts: ${contactsToCall.length}`);
+      logger.info(`✅ [Campaign Executor] Created ElevenLabs SIP resume batch job: ${batchJob.id}`);
+      logger.info(`   Status: ${batchJob.status}`);
+      logger.info(`   Contacts: ${contactsToCall.length}`);
 
       // Update pre-created call records with batch job ID for tracking
       if (preCreatedCalls.length > 0) {
@@ -2761,7 +2762,7 @@ export class CampaignExecutor {
       .where(eq(contacts.campaignId, campaignId));
 
     if (campaignContacts.length === 0) {
-      console.log(`[Campaign Executor] Campaign ${campaignId} has no contacts, marking as completed`);
+      logger.info(`[Campaign Executor] Campaign ${campaignId} has no contacts, marking as completed`);
       await db.update(campaigns).set({ status: 'completed', completedAt: new Date() }).where(eq(campaigns.id, campaignId));
       return { batchJob: null, contactsToCall: 0 };
     }
@@ -2812,11 +2813,11 @@ export class CampaignExecutor {
     });
 
     if (contactsToCall.length === 0) {
-      console.log(`[Campaign Executor] All contacts already called successfully, nothing to resume`);
+      logger.info(`[Campaign Executor] All contacts already called successfully, nothing to resume`);
       return { batchJob: null, contactsToCall: 0 };
     }
 
-    console.log(`[Campaign Executor] Resuming campaign ${campaignId} with ${contactsToCall.length} pending/failed contacts (of ${campaignContacts.length} total)`);
+    logger.error(`[Campaign Executor] Resuming campaign ${campaignId} with ${contactsToCall.length} pending/failed contacts (of ${campaignContacts.length} total)`);
 
     // PRE-CREATE CALL RECORDS for contacts to be called (mirrors executeCampaign logic)
     const callInserts = contactsToCall.map(contact => ({
@@ -2873,7 +2874,7 @@ export class CampaignExecutor {
       const nextWindow = CampaignScheduler.getNextCallWindow(campaign);
       if (nextWindow) {
         scheduledTimeUnix = Math.floor(nextWindow.getTime() / 1000);
-        console.log(`   Scheduled for: ${nextWindow.toISOString()}`);
+        logger.info(`   Scheduled for: ${nextWindow.toISOString()}`);
       }
     }
 
@@ -2886,10 +2887,10 @@ export class CampaignExecutor {
       scheduled_time_unix: scheduledTimeUnix,
     });
 
-    console.log(`✅ [Campaign Executor] Created resume batch job: ${batchJob.id}`);
-    console.log(`   Status: ${batchJob.status}`);
-    console.log(`   Contacts: ${contactsToCall.length}`);
-    console.log(`   Pre-created calls: ${preCreatedCalls.length}`);
+    logger.info(`✅ [Campaign Executor] Created resume batch job: ${batchJob.id}`);
+    logger.info(`   Status: ${batchJob.status}`);
+    logger.info(`   Contacts: ${contactsToCall.length}`);
+    logger.info(`   Pre-created calls: ${preCreatedCalls.length}`);
 
     // Update campaign with new batch job info
     await db
@@ -2992,11 +2993,11 @@ export class CampaignExecutor {
         })
         .returning();
 
-      console.log(`[Campaign Executor] 📞 Initiating call via ElevenLabs native integration`);
-      console.log(`   Contact: ${contact.firstName} ${contact.lastName || ''} (${contact.phone})`);
-      console.log(`   From: ${phoneNumber.phoneNumber} (ElevenLabs ID: ${phoneNumber.elevenLabsPhoneNumberId})`);
-      console.log(`   Agent: ${agent.name} (ElevenLabs ID: ${agent.elevenLabsAgentId})`);
-      console.log(`   Credential: ${credential.name}`);
+      logger.info(`[Campaign Executor] 📞 Initiating call via ElevenLabs native integration`);
+      logger.info(`   Contact: ${contact.firstName} ${contact.lastName || ''} ([redacted])`);
+      logger.info(`   From: [redacted] (ElevenLabs ID: ${phoneNumber.elevenLabsPhoneNumberId})`);
+      logger.info(`   Agent: ${agent.name} (ElevenLabs ID: ${agent.elevenLabsAgentId})`);
+      logger.info(`   Credential: ${credential.name}`);
 
       try {
         // Substitute contact variables in firstMessage (e.g., {{contact_name}})
@@ -3031,7 +3032,7 @@ export class CampaignExecutor {
           Object.keys(customFieldsData).length > 0 ? customFieldsData : null
         );
 
-        console.log(`[Campaign Executor] Dynamic data for ${contact.phone}: ${Object.keys(dynamicData).join(', ')}`);
+        logger.info(`[Campaign Executor] Dynamic data for [redacted]: ${Object.keys(dynamicData).join(', ')}`);
 
         // Initiate call via ElevenLabs API - they handle everything
         const callResult = await agentElevenLabsService.initiateOutboundCall({
@@ -3042,10 +3043,10 @@ export class CampaignExecutor {
           dynamicData,
         });
 
-        console.log(`✅ [Campaign Executor] ElevenLabs call initiated`);
-        console.log(`   Conversation ID: ${callResult.conversation_id}`);
+        logger.info(`✅ [Campaign Executor] ElevenLabs call initiated`);
+        logger.info(`   Conversation ID: ${callResult.conversation_id}`);
         if (callResult.call_sid) {
-          console.log(`   Call SID: ${callResult.call_sid}`);
+          logger.info(`   Call SID: ${callResult.call_sid}`);
         }
 
         // Update call record with ElevenLabs conversation ID and Twilio SID
@@ -3170,7 +3171,7 @@ export class CampaignExecutor {
     }
 
     if (!campaign.retryEnabled) {
-      console.log(`[Retry Pass] Campaign "${campaign.name}" has retry disabled — skipping`);
+      logger.warn(`[Retry Pass] Campaign "${campaign.name}" has retry disabled — skipping`);
       return;
     }
 
@@ -3203,12 +3204,12 @@ export class CampaignExecutor {
       );
 
     if (dueContacts.length === 0) {
-      console.log(`[Retry Pass] No contacts due for retry in campaign "${campaign.name}"`);
+      logger.warn(`[Retry Pass] No contacts due for retry in campaign "${campaign.name}"`);
       return;
     }
 
     const currentPass = campaign.currentRetryPass ?? 0;
-    console.log(`🔄 [Retry Pass] Executing retry pass ${currentPass} for campaign "${campaign.name}" — ${dueContacts.length} contacts`);
+    logger.info(`🔄 [Retry Pass] Executing retry pass ${currentPass} for campaign "${campaign.name}" — ${dueContacts.length} contacts`);
 
     // Get agent details
     const [agent] = await db
@@ -3329,7 +3330,7 @@ export class CampaignExecutor {
       console.error(`[Retry Pass Plivo] Error: ${err.message}`);
     });
 
-    console.log(`✅ [Retry Pass] Plivo retry pass ${pass} initiated for ${dueContacts.length} contacts`);
+    logger.info(`✅ [Retry Pass] Plivo retry pass ${pass} initiated for ${dueContacts.length} contacts`);
   }
 
   /**
@@ -3403,7 +3404,7 @@ export class CampaignExecutor {
       console.error(`[Retry Pass Twilio+OpenAI] Error: ${err.message}`);
     });
 
-    console.log(`✅ [Retry Pass] Twilio+OpenAI retry pass ${pass} initiated for ${dueContacts.length} contacts`);
+    logger.info(`✅ [Retry Pass] Twilio+OpenAI retry pass ${pass} initiated for ${dueContacts.length} contacts`);
   }
 
   /**
@@ -3494,7 +3495,7 @@ export class CampaignExecutor {
       status: 'running',
     }).where(eq(campaigns.id, campaign.id));
 
-    console.log(`✅ [Retry Pass] ElevenLabs SIP retry pass ${pass} initiated: batch ${batchJob.id}`);
+    logger.info(`✅ [Retry Pass] ElevenLabs SIP retry pass ${pass} initiated: batch ${batchJob.id}`);
   }
 
   /**
@@ -3593,7 +3594,7 @@ export class CampaignExecutor {
       status: 'running',
     }).where(eq(campaigns.id, campaign.id));
 
-    console.log(`✅ [Retry Pass] ElevenLabs retry pass ${pass} initiated: batch ${batchJob.id}`);
+    logger.info(`✅ [Retry Pass] ElevenLabs retry pass ${pass} initiated: batch ${batchJob.id}`);
   }
 
   async stopCampaign(campaignId: string): Promise<void> {
