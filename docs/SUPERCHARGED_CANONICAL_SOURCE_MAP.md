@@ -40,3 +40,44 @@
 ## This pass
 
 Changed only four targeted client files to establish product-level defaults. No database migration, API permission, provider, license or company identity behavior was intentionally modified.
+
+
+## Recursive GitHub tree inventory — 2026-11-09
+
+The GitHub Git Trees API was queried for `main?recursive=1`. GitHub returned `truncated: false`, with **3,003 total tree entries**, of which **2,612 are blobs/files**. These figures are for the main branch at the time of the query, not a full textual analysis of every file.
+
+| Top-level grouping | Tracked blobs | Interpretation |
+| --- | ---: | --- |
+| `server/` | 1,225 | Active server and embedded engines/workforce. Needs import-graph audit. |
+| `client/` | 356 | React browser application, public assets, chatbot UI and locale resources. |
+| `tests/` | 376 | Repository test assets; not all tests necessarily run via the root script. |
+| `_TITAN_HANDOFF/` | 372 | Explicit donor/handoff/source-manifest collection. Treat as provenance material until compared, not removable duplicates. |
+| `vendor/` | 66 | Third-party or imported vendor content; inspect licensing and references first. |
+| `dist/` | 45 | Checked-in build output/assets; do not delete until deployment requirements and references are verified. |
+| `docs/` | 45 | Documentation including pending design/patch material. |
+| `migrations/` | 44 | SQL and migration metadata; requires strict coordination with Central (#51) and runner repair (#34). |
+| `scripts/` | 36 | Build, migration, admin/deployment support scripts. |
+| `plugins/` | 10 | Workspace plugin adapters including comms, messaging, workforce bridge/runtime. |
+| `packages/` | 8 | Local packages including diploy-core (internal compatibility identity; do not mechanically rename). |
+| `shared/` | 1 | Shared Drizzle models. |
+| Other root files | 24 | Root configs/docs/lockfile and entry scripts. |
+
+The groups sum to **2,612**. Counts are tracked files, not lines of code or proven duplicate implementations.
+
+### Specific duplication/provenance candidates
+
+- `_TITAN_HANDOFF/FIELD_DONORS_FOR_ADAPTATION/` contains an independent `apps/web` and `services/worker` donor layout. It is not the root application's build entry.
+- `_TITAN_HANDOFF/PASS11_GITHUB_DONORS/SOURCE_DONORS/GITHUB/` contains another independent packages/services source lineage and several cumulative manifests; verify unique algorithms and licensing before consolidating.
+- `dist/public/` overlaps the role of `client/public/` as published assets, but could be required by deployment as presently configured.
+- `client/src/pages/Login.tsx` and `client/src/pages/LoginPage.tsx` are distinct login implementations; determine routing and active audience before merging.
+- `client/public/chatbot-pwa/` is a separate deployable surface; verify whether it is active and what owns its build/install path.
+- `migrations/archive/` and `docs/pending/` are archival/draft in naming, but no deletion is authorised without an import/dependency check.
+
+### Branding findings and changes from the second pass
+
+- `client/src/components/landing/SEOHead.tsx` used the generic `AI Platform` Open Graph fallback. It now defaults to Supercharged when no specific organisation/site name is supplied.
+- `server/seed-seo-settings.ts` included generic AI calling platform defaults for site, Open Graph, Twitter and homepage titles. New seed defaults now carry the Supercharged product name; already-saved administrator values must remain authoritative.
+- The SEO seed's example canonical domain referenced a legacy AgentLabs address. Its explanatory example is now a neutral `example.com` URL; configured domains are unchanged.
+- Original Diploy/Envato copyright notices are maintained unchanged, pending the distinct rights reconciliation tracked by #37.
+
+**Execution limitations:** The connected GitHub API allowed exact tree enumeration and source reads/writes, but there was no network-enabled local checkout or installed dependencies in this pass. No claim is made that compilation, tests, integration behavior or production deployment passed.
