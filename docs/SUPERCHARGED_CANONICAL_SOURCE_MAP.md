@@ -245,3 +245,14 @@ No merge, deletion, tenant data migration, privilege change, template schema cha
 **Outstanding:** verify registration through a real restart including DB and permissions, handle restart failure and report state separately, resolve source consolidation and license issues, and repair independent CI failures.
 
 Pass 17 refinement: runtime load errors or missing required tables take precedence over `pending_restart` in the public health response. The loader's additive `requiresRestart` flag is false for an existing loader error. These changes avoid masking failed registration as a benign restart delay. Updated the corresponding source-contract regression test before the final pass CI.
+
+## Pass 18 — registered graceful shutdown for plugin restarts
+
+- Verified Pass 17 CI: production Build **passed**; **5,997 tests passed / 3 failed / 13 skipped**. All 59 regression tests added through Pass 17 passed. Three long-standing workforce tool registration/schema/timeout test failures, the migration inventory and informational typecheck remain red.
+- Traced `server/utils/graceful-restart.ts`, `server/services/graceful-shutdown.ts` and `server/index.ts`. The restart helper previously read `global.__httpServer` and called `process.exit(0)` directly. The application actually registers the HTTP server using `registerServer(server)` inside `graceful-shutdown.ts`; no reliable handoff to the unrelated global was verified. This could bypass scheduler stop, audit flushing and database cleanup.
+- Reworked `scheduleGracefulRestart` to coalesce repeated requests and call the existing `gracefulShutdown('plugin-restart')` path after the same 2-second delay. The central shutdown service owns HTTP server close, scheduler stop, audit flush and DB pool close. Removed the direct process exit/global lookup from the helper; the central shutdown service retains process-exit control.
+- Corrected `plugin-routes.ts` and `plugin-installer.ts` response text that previously promised an **automatic restart**. The server requests a shutdown; restarting the process actually depends on an external supervisor (PM2/container/orchestrator) configured appropriately. No supervisor installation or deployed restart was verified.
+- Added **five Node regression tests** in `tests/infrastructure/plugin-restart-shutdown.test.mjs`: mocked execution of scheduled shutdown/coalescing, absence of direct exit/unknown global, main server registration, and truthful user-facing restart messaging. These are pending completed CI.
+- Preserved plugin enablement semantics, permissions, manifests, existing source/vendor licensing, and donor archives. No runtime plugin was installed, restarted or remotely deployed during this pass.
+
+**Still pending:** live process-manager restart and graceful resource cleanup verification, plugin enable/disable active-route behaviour, source donor consolidation and licensing, and CI baseline repairs. PR draft and issue #54 open.
