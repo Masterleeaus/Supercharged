@@ -232,3 +232,14 @@ No merge, deletion, tenant data migration, privilege change, template schema cha
 - These changes do not validate database-backed app integration or licensing, and new tests are pending current CI. Existing third-party and donor code preserved.
 
 **Next:** verify the six tests in CI; inspect remaining plugin activation callers and distinguish optimistic in-memory toggles from actual runtime registration; plan divergent donor merge after license clearance.
+
+## Pass 17 — activation intent versus current-process registration
+
+- Verified Pass 16 GitHub Actions: production build **passed**, **5,992 tests passed / 3 failed / 13 skipped**, including all six executable enablement/on-disk manifest tests. The same three workforce test failures, migration inventory and informational typecheck failures persist.
+- Inspected `server/plugins/loader.ts`, `server/routes/plugin-routes.ts`, and `server/routes/plugin-installer.ts`. Plugin enable/disable endpoints persist the desired setting, update an in-memory `enabled` flag, and request a server restart. **They do not unload registered routes or synchronously register newly enabled code.** Thus `enabled` and `registered` describe different facts until the restart completes.
+- Extended `getPluginStatus()` to provide additive `requiresRestart: plugin.enabled !== plugin.registered`, while leaving the existing `registered` flag as evidence only of registration already performed by this process. Added `pending_restart` to the public plugin health status when those flags differ, instead of presenting the plugin as immediately healthy/disabled.
+- Changed the plugin installer registration step's message from **“Plugin registered and enabled”** to **“Plugin enabled for next startup; runtime registration pending restart”**. The existing `requiresRestart: true` response and scheduled restart are preserved.
+- Added five source-contract regression checks in `tests/infrastructure/plugin-lifecycle-status.test.mjs` for enable/disable transitions, separate in-memory flags, public health pending state, truthful installer message and admin restart scheduling. These tests await the current pass CI; they do not assert successful runtime unloading or startup.
+- Source ownership, third-party notices, database schema, plugin manifests and external interfaces were preserved.
+
+**Outstanding:** verify registration through a real restart including DB and permissions, handle restart failure and report state separately, resolve source consolidation and license issues, and repair independent CI failures.
