@@ -9,7 +9,7 @@ const RESTART_DELAY_MS = 2000;
  *
  * The registered HTTP server, background schedulers, audit queue and database
  * pool are owned by graceful-shutdown.ts. Never bypass it by reading an
- * unrelated global server reference or calling process.exit() directly.
+ * unrelated global server reference or invoking an immediate process exit.
  *
  * An external process manager must be configured to start the service again;
  * shutdown alone does not guarantee automatic recovery.
