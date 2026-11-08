@@ -109,8 +109,6 @@ export interface ToolDefinition {
   risk: RiskTier;
   /** 'read' or 'write'. Absent means 'write'. A suggest agent may run only read tools. */
   access?: ToolAccess;
-  /** Per-tool timeout in milliseconds (positive integer) for each handler attempt. Absent: the registry-wide timeout. */
-  timeoutMs?: number;
   /**
    * Action category, passed to evaluatePolicy. Absent means 'other'. Allowed values:
    *  - 'money':         moves money (payments, refunds, transfers, payouts). Always needs owner approval.
@@ -143,6 +141,8 @@ export interface ToolDefinition {
    * refused and nothing is staged. Returns null when the params cannot be staged.
    */
   stage?: (params: Record<string, unknown>) => { category: ShadowCategory; change: PredictiveStageParams } | null;
+  /** Per-tool timeout in milliseconds (positive integer). Declared on the definition; the registry-wide timeout still applies until it is enforced per call. */
+  timeoutMs?: number;
   handler: (params: Record<string, unknown>, context: ToolHandlerContext) => unknown | Promise<unknown>;
 }
 

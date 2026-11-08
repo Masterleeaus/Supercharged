@@ -299,19 +299,19 @@ router.get('/widget/config/:token', async (req: Request, res: Response) => {
     let resolvedCredentialId: string | null = null;
     let resolvedCredentialName: string | null = null;
     
-    console.log(`[Widget Config] Widget ${widget.name} - Engine: ${engine}, Agent: ${agent?.name || 'none'}, AgentId: ${widget.agentId}`);
+    logger.info(`[Widget Config] Widget ${widget.name} - Engine: ${engine}, Agent: ${agent?.name || 'none'}, AgentId: ${widget.agentId}`);
     
     if (engine === 'none') {
       // No agent configured - check if OpenAI is available as fallback
       engineAvailable = await isOpenAIRealtimeAvailable();
-      console.log(`[Widget Config] No agent - OpenAI available: ${engineAvailable}`);
+      logger.info(`[Widget Config] No agent - OpenAI available: ${engineAvailable}`);
       if (!engineAvailable) {
         unavailableReason = 'engine_unavailable';
       }
     } else if (engine === 'openai') {
       // OpenAI agent - check if OpenAI Realtime is available
       engineAvailable = await isOpenAIRealtimeAvailable();
-      console.log(`[Widget Config] OpenAI engine - available: ${engineAvailable}`);
+      logger.info(`[Widget Config] OpenAI engine - available: ${engineAvailable}`);
       if (!engineAvailable) {
         unavailableReason = 'engine_disabled';
       }
@@ -342,17 +342,17 @@ router.get('/widget/config/:token', async (req: Request, res: Response) => {
           if (credential && credential.isActive) {
             credentialIdToUse = credential.id;
             credentialName = credential.name;
-            console.log(`[Widget Config] ElevenLabs with assigned credential ${currentAgent.elevenLabsCredentialId} - available: true`);
+            logger.info(`[Widget Config] ElevenLabs with assigned credential ${currentAgent.elevenLabsCredentialId} - available: true`);
           } else {
             // Assigned credential is inactive/missing - try fallback to any active credential
-            console.log(`[Widget Config] ElevenLabs assigned credential ${currentAgent.elevenLabsCredentialId} is inactive/missing, trying fallback...`);
+            logger.warn(`[Widget Config] ElevenLabs assigned credential ${currentAgent.elevenLabsCredentialId} is inactive/missing, trying fallback...`);
             // Use locking method to prevent race conditions in credential selection
             const fallbackCredential = await ElevenLabsPoolService.getLeastLoadedCredentialWithLock(tx);
             if (fallbackCredential) {
               const oldCredentialId = currentAgent.elevenLabsCredentialId;
               credentialIdToUse = fallbackCredential.id;
               credentialName = fallbackCredential.name;
-              console.log(`[Widget Config] ElevenLabs using fallback credential ${fallbackCredential.id} (${fallbackCredential.name}) - available: true`);
+              logger.info(`[Widget Config] ElevenLabs using fallback credential ${fallbackCredential.id} (${fallbackCredential.name}) - available: true`);
               
               // All updates within transaction for atomicity
               // 1. Update the agent to use this active credential (with returning to check if updated)
@@ -383,10 +383,10 @@ router.get('/widget/config/:token', async (req: Request, res: Response) => {
                     })
                     .where(eq(elevenLabsCredentials.id, oldCredentialId));
                 }
-                console.log(`[Widget Config] Updated agent ${currentAgent.name} to use fallback credential ${fallbackCredential.name}`);
+                logger.info(`[Widget Config] Updated agent ${currentAgent.name} to use fallback credential ${fallbackCredential.name}`);
               } else {
                 // Concurrent request already reassigned - re-read agent to get actual credential
-                console.log(`[Widget Config] Agent ${currentAgent.name} already reassigned by concurrent request, re-reading...`);
+                logger.warn(`[Widget Config] Agent ${currentAgent.name} already reassigned by concurrent request, re-reading...`);
                 const [updatedAgent] = await tx.select({
                   id: agents.id,
                   elevenLabsCredentialId: agents.elevenLabsCredentialId,
@@ -400,19 +400,19 @@ router.get('/widget/config/:token', async (req: Request, res: Response) => {
                   if (actualCredential && actualCredential.isActive) {
                     credentialIdToUse = actualCredential.id;
                     credentialName = actualCredential.name;
-                    console.log(`[Widget Config] Using actual assigned credential: ${actualCredential.name}`);
+                    logger.info(`[Widget Config] Using actual assigned credential: ${actualCredential.name}`);
                   } else {
                     available = false;
-                    console.log(`[Widget Config] Actual assigned credential is inactive`);
+                    logger.warn(`[Widget Config] Actual assigned credential is inactive`);
                   }
                 } else {
                   available = false;
-                  console.log(`[Widget Config] Agent has no credential after race`);
+                  logger.info(`[Widget Config] Agent has no credential after race`);
                 }
               }
             } else {
               available = false;
-              console.log(`[Widget Config] ElevenLabs no fallback credential available - available: false`);
+              logger.warn(`[Widget Config] ElevenLabs no fallback credential available - available: false`);
             }
           }
         } else {
@@ -439,10 +439,10 @@ router.get('/widget/config/:token', async (req: Request, res: Response) => {
                   updatedAt: new Date() 
                 })
                 .where(eq(elevenLabsCredentials.id, credential.id));
-              console.log(`[Widget Config] Assigned agent ${currentAgent.name} to credential ${credential.name}`);
+              logger.info(`[Widget Config] Assigned agent ${currentAgent.name} to credential ${credential.name}`);
             } else {
               // Concurrent request already assigned - re-read agent to get actual credential
-              console.log(`[Widget Config] Agent ${currentAgent.name} already assigned by concurrent request, re-reading...`);
+              logger.warn(`[Widget Config] Agent ${currentAgent.name} already assigned by concurrent request, re-reading...`);
               const [updatedAgent] = await tx.select({
                 id: agents.id,
                 elevenLabsCredentialId: agents.elevenLabsCredentialId,
@@ -456,20 +456,20 @@ router.get('/widget/config/:token', async (req: Request, res: Response) => {
                 if (actualCredential && actualCredential.isActive) {
                   credentialIdToUse = actualCredential.id;
                   credentialName = actualCredential.name;
-                  console.log(`[Widget Config] Using actual assigned credential: ${actualCredential.name}`);
+                  logger.info(`[Widget Config] Using actual assigned credential: ${actualCredential.name}`);
                 } else {
                   available = false;
-                  console.log(`[Widget Config] Actual assigned credential is inactive`);
+                  logger.warn(`[Widget Config] Actual assigned credential is inactive`);
                 }
               } else {
                 available = false;
-                console.log(`[Widget Config] Agent has no credential after race`);
+                logger.info(`[Widget Config] Agent has no credential after race`);
               }
             }
           } else {
             available = false;
           }
-          console.log(`[Widget Config] ElevenLabs with pool credential - available: ${available}`);
+          logger.info(`[Widget Config] ElevenLabs with pool credential - available: ${available}`);
         }
         
         return { credentialIdToUse, credentialName, available };
@@ -489,7 +489,7 @@ router.get('/widget/config/:token', async (req: Request, res: Response) => {
                         concurrentCheck.allowed &&
                         engineAvailable;
     
-    console.log(`[Widget Config] Availability check - status: ${widget.status}, businessOpen: ${businessHours.isOpen}, hasCredits: ${creditCheck.hasCredits}, concurrent: ${concurrentCheck.allowed}, engine: ${engineAvailable} => isAvailable: ${isAvailable}`);
+    logger.info(`[Widget Config] Availability check - status: ${widget.status}, businessOpen: ${businessHours.isOpen}, hasCredits: ${creditCheck.hasCredits}, concurrent: ${concurrentCheck.allowed}, engine: ${engineAvailable} => isAvailable: ${isAvailable}`);
     
     if (widget.status !== 'active') {
       unavailableReason = 'engine_disabled';
@@ -666,7 +666,7 @@ router.post('/widget/session/:sessionId/end', async (req: Request, res: Response
     
     // Check if session is already completed (idempotency check)
     if (session.status === 'completed') {
-      console.log(`[Widget] Session ${session.id} already completed, skipping duplicate end request`);
+      logger.warn(`[Widget] Session ${session.id} already completed, skipping duplicate end request`);
       return res.json({ success: true, alreadyEnded: true });
     }
     
@@ -699,7 +699,7 @@ router.post('/widget/session/:sessionId/end', async (req: Request, res: Response
     
     // If no rows updated, another request already completed the session
     if (!updateResult.rows || updateResult.rows.length === 0) {
-      console.log(`[Widget] Session ${session.id} was completed by concurrent request, skipping`);
+      logger.info(`[Widget] Session ${session.id} was completed by concurrent request, skipping`);
       return res.json({ success: true, alreadyEnded: true });
     }
     
@@ -721,7 +721,7 @@ router.post('/widget/session/:sessionId/end', async (req: Request, res: Response
           .set({ credits: sql`GREATEST(${users.credits} - ${creditsUsed}, 0)` })
           .where(eq(users.id, session.userId));
       } else {
-        console.log(`[Widget] Credit transaction already exists for session ${session.id}, skipping credit deduction`);
+        logger.warn(`[Widget] Credit transaction already exists for session ${session.id}, skipping credit deduction`);
       }
       
       // Create call record with agent reference if available
@@ -737,7 +737,7 @@ router.post('/widget/session/:sessionId/end', async (req: Request, res: Response
       
       if (transcript && transcript.trim().length > 0) {
         try {
-          console.log(`[Widget] Generating AI insights for session ${session.id}`);
+          logger.info(`[Widget] Generating AI insights for session ${session.id}`);
           
           // Get OpenAI API key from database (env var fallback is handled by service)
           let openaiApiKey: string | undefined;
@@ -768,7 +768,7 @@ router.post('/widget/session/:sessionId/end', async (req: Request, res: Response
             aiSummary = insights.aiSummary;
             classification = insights.classification;
             analyzedSentiment = insights.sentiment;
-            console.log(`[Widget] AI insights generated: classification=${classification}, sentiment=${analyzedSentiment}`);
+            logger.info(`[Widget] AI insights generated: classification=${classification}, sentiment=${analyzedSentiment}`);
           }
         } catch (insightError) {
           console.error('[Widget] Failed to generate AI insights:', insightError);
@@ -808,14 +808,14 @@ router.post('/widget/session/:sessionId/end', async (req: Request, res: Response
         
         await widgetStorage.incrementWidgetStats(widget.id, durationMinutes);
       } else {
-        console.log(`[Widget] Call record already exists for session ${session.id}, skipping`);
+        logger.warn(`[Widget] Call record already exists for session ${session.id}, skipping`);
       }
       
       if (actualEngine === 'elevenlabs' && conversationId && (!transcript || transcript.trim().length === 0)) {
         setImmediate(() => {
           setTimeout(async () => {
             try {
-              console.log(`[Widget] Fetching ElevenLabs conversation details for session ${session.id} (conversationId: ${conversationId})`);
+              logger.info(`[Widget] Fetching ElevenLabs conversation details for session ${session.id} (conversationId: ${conversationId})`);
               
               let credential = null;
               if (agent?.elevenLabsCredentialId) {
@@ -848,9 +848,9 @@ router.post('/widget/session/:sessionId/end', async (req: Request, res: Response
                       duration = COALESCE(duration, ${conversationDetails.call_duration_secs || null})
                   WHERE elevenlabs_conversation_id = ${conversationId}
                 `);
-                console.log(`[Widget] Updated call record with ElevenLabs transcript/summary for session ${session.id}`);
+                logger.info(`[Widget] Updated call record with ElevenLabs transcript/summary for session ${session.id}`);
               } else {
-                console.log(`[Widget] No transcript/summary available from ElevenLabs yet for session ${session.id}`);
+                logger.info(`[Widget] No transcript/summary available from ElevenLabs yet for session ${session.id}`);
               }
             } catch (fetchError: any) {
               console.warn(`[Widget] Failed to fetch ElevenLabs conversation details (non-fatal):`, fetchError?.message || fetchError);
@@ -920,7 +920,7 @@ router.post('/widget/session/:sessionId/ephemeral-token', async (req: Request, r
     
     // ========== ELEVENLABS PATH ==========
     if (engine === 'elevenlabs' && agent?.elevenLabsAgentId) {
-      console.log(`[Widget] Using ElevenLabs engine for agent ${agent.name} (${agent.elevenLabsAgentId})`);
+      logger.info(`[Widget] Using ElevenLabs engine for agent ${agent.name} (${agent.elevenLabsAgentId})`);
       
       // Get ElevenLabs credential
       let credential = null;
@@ -946,7 +946,7 @@ router.post('/widget/session/:sessionId/ephemeral-token', async (req: Request, r
           throw new Error('Failed to get signed URL from ElevenLabs');
         }
         
-        console.log(`[Widget] ElevenLabs signed URL obtained for agent ${agent.elevenLabsAgentId}`);
+        logger.info(`[Widget] ElevenLabs signed URL obtained for agent ${agent.elevenLabsAgentId}`);
         
         await widgetStorage.updateSession(session.id, {
           status: 'active',
@@ -973,7 +973,7 @@ router.post('/widget/session/:sessionId/ephemeral-token', async (req: Request, r
     
     // ========== CUSTOM VOICE ENGINE PATH ==========
     if (engine === 'custom-voice-engine' && agent) {
-      console.log(`[Widget] Using Custom Voice Engine for agent ${agent.name}`);
+      logger.info(`[Widget] Using Custom Voice Engine for agent ${agent.name}`);
       
       try {
         // Pre-create the session in ve_sessions table so that the websocket handler finds it
@@ -1014,7 +1014,7 @@ router.post('/widget/session/:sessionId/ephemeral-token', async (req: Request, r
     }
     
     // ========== OPENAI PATH ==========
-    console.log(`[Widget] Using OpenAI engine${agent ? ` for agent ${agent.name}` : ' (no agent)'}`);
+    logger.info(`[Widget] Using OpenAI engine${agent ? ` for agent ${agent.name}` : ' (no agent)'}`);
     
     const credential = await OpenAIPoolService.getAvailableCredential();
     if (!credential) {
@@ -1174,7 +1174,7 @@ router.post('/widget/session/:sessionId/ephemeral-token', async (req: Request, r
     }
     
     const tokenData = await ephemeralResponse.json();
-    console.log('[Widget] OpenAI Realtime client_secrets response:', { status: ephemeralResponse.status, id: tokenData?.id ?? tokenData?.session?.id });
+    logger.info('[Widget] OpenAI Realtime client_secrets response:', { status: ephemeralResponse.status, id: tokenData?.id ?? tokenData?.session?.id });
     
     await widgetStorage.updateSession(session.id, {
       status: 'active',
@@ -1224,14 +1224,14 @@ router.post('/widget/session/:sessionId/book-appointment', async (req: Request, 
     if (isoDateMatch) {
       normalizedDate = appointmentDate;
       parsedDate = new Date(appointmentDate + 'T12:00:00');
-      console.log(`[Widget] Date already in ISO format: ${appointmentDate}`);
+      logger.warn(`[Widget] Date already in ISO format: ${appointmentDate}`);
     } else {
       // Parse natural language date using chrono-node
       const chronoResult = chrono.parseDate(appointmentDate, new Date(), { forwardDate: true });
       if (chronoResult) {
         parsedDate = chronoResult;
         normalizedDate = formatDate(chronoResult, 'yyyy-MM-dd');
-        console.log(`[Widget] Parsed natural language date: "${appointmentDate}" -> ${normalizedDate}`);
+        logger.info(`[Widget] Parsed natural language date: "${appointmentDate}" -> ${normalizedDate}`);
       }
     }
     
@@ -1254,7 +1254,7 @@ router.post('/widget/session/:sessionId/book-appointment', async (req: Request, 
       }
       
       if (normalizedDate) {
-        console.log(`[Widget] Parsed relative date: "${appointmentDate}" -> ${normalizedDate}`);
+        logger.info(`[Widget] Parsed relative date: "${appointmentDate}" -> ${normalizedDate}`);
       }
     }
     
@@ -1386,7 +1386,7 @@ router.post('/widget/session/:sessionId/book-appointment', async (req: Request, 
       },
     }).returning();
     
-    console.log(`[Widget] Appointment booked: ${appointment.id} for ${customerName} at ${scheduledAt.toISOString()}`);
+    logger.info(`[Widget] Appointment booked: ${appointment.id} for ${customerName} at ${scheduledAt.toISOString()}`);
     
     res.json({
       success: true,
@@ -1448,7 +1448,7 @@ router.post('/widget/session/:sessionId/knowledge-lookup', async (req: Request, 
       });
     }
     
-    console.log(`[Widget KB] Searching for: "${query.substring(0, 50)}..." in ${knowledgeBaseIds.length} knowledge bases`);
+    logger.info(`[Widget KB] Searching for: "${query.substring(0, 50)}..." in ${knowledgeBaseIds.length} knowledge bases`);
     
     // Scope comes from the widget row only. A widget with no company is refused before any search.
     if (!widget.companyId) {
@@ -1476,7 +1476,7 @@ router.post('/widget/session/:sessionId/knowledge-lookup', async (req: Request, 
     // Format results for the agent
     const formattedResults = RAGKnowledgeService.formatResultsForAgent(results, 800);
     
-    console.log(`[Widget KB] Found ${results.length} results for session ${session.id}`);
+    logger.info(`[Widget KB] Found ${results.length} results for session ${session.id}`);
     
     res.json({
       found: true,

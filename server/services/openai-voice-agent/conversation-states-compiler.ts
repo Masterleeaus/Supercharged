@@ -8,6 +8,7 @@
  * ============================================================
  */
 
+import { logger } from '../../utils/logger';
 import type {
   FlowNode,
   FlowEdge,
@@ -122,7 +123,7 @@ export class ConversationStatesCompiler {
     // Build system prompt header
     const systemPromptHeader = this.buildSystemPromptHeader(config, languageName);
     
-    console.log(`[ConversationStatesCompiler] Compiled ${states.length} states from ${nodes.length} nodes`);
+    logger.info(`[ConversationStatesCompiler] Compiled ${states.length} states from ${nodes.length} nodes`);
     
     return {
       states,
@@ -465,7 +466,7 @@ Remember: Saying you will do something is NOT the same as actually calling the t
       default:
         // For unknown types, still create a state if there's content
         if (message) {
-          console.log(`[ConversationStatesCompiler] Unknown node type "${nodeType}", creating generic state`);
+          logger.warn(`[ConversationStatesCompiler] Unknown node type "${nodeType}", creating generic state`);
           return {
             id: node.id,
             description: label || 'Continue the conversation.',
@@ -474,7 +475,7 @@ Remember: Saying you will do something is NOT the same as actually calling the t
             transitions,
           };
         }
-        console.log(`[ConversationStatesCompiler] Skipping node "${node.id}" with unknown type "${nodeType}"`);
+        logger.warn(`[ConversationStatesCompiler] Skipping node "${node.id}" with unknown type "${nodeType}"`);
         return null;
     }
   }

@@ -28,6 +28,7 @@
  * - RAG knowledge base tool is automatically added when agents have knowledge bases
  */
 
+import { logger } from '../utils/logger';
 import { ElevenLabsService, isAgentOnSipPhoneNumber } from './elevenlabs';
 import { ElevenLabsPoolService } from './elevenlabs-pool';
 import { ElevenLabsFlowCompiler } from './elevenlabs-flow-compiler';
@@ -51,7 +52,7 @@ async function convertWorkflowTransferNodesForSIP(
     for (const [nodeId, node] of Object.entries(workflow.nodes)) {
       if (node.type === 'phone_number' && node.transfer_destination?.type === 'phone') {
         node.transfer_type = 'conference';
-        console.log(`   📞 [Flow SIP] Transfer node ${nodeId}: ${node.transfer_destination.phone_number} (conference)`);
+        logger.info(`   📞 [Flow SIP] Transfer node ${nodeId}: [redacted] (conference)`);
       }
     }
   } catch (error) {
@@ -182,7 +183,7 @@ export class FlowAgentService {
     if (!voiceId || DEFAULT_VOICE_IDS.includes(voiceId)) {
       return; // Default voices are universally available
     }
-    console.log(`🔊 [Flow Agent] Voice ${voiceId} for "${agentName}" is a custom voice - agent will use the credential that created it for all calls`);
+    logger.info(`🔊 [Flow Agent] Voice ${voiceId} for "${agentName}" is a custom voice - agent will use the credential that created it for all calls`);
   }
 
   /**
@@ -195,7 +196,7 @@ export class FlowAgentService {
     }
 
     if (USE_ENHANCED_COMPILER) {
-      console.log(`🔧 [Flow Agent] Using ENHANCED flow compiler`);
+      logger.info(`🔧 [Flow Agent] Using ENHANCED flow compiler`);
       const compiler = new EnhancedFlowCompiler(flowNodes, flowEdges, options);
       const result = compiler.compile();
 
@@ -222,7 +223,7 @@ export class FlowAgentService {
     }
 
     // Fallback to original compiler
-    console.log(`🔧 [Flow Agent] Using LEGACY flow compiler`);
+    logger.info(`🔧 [Flow Agent] Using LEGACY flow compiler`);
     const compiler = new ElevenLabsFlowCompiler(flowNodes, flowEdges);
     return compiler.compile();
   }
@@ -244,8 +245,8 @@ export class FlowAgentService {
     let flowNodes = (flow.nodes as any[]) || [];
     const flowEdges = (flow.edges as any[]) || [];
 
-    console.log(`🔄 [Flow Agent] Compiling flow: ${flow.name}`);
-    console.log(`   Flow nodes: ${flowNodes.length}, edges: ${flowEdges.length}`);
+    logger.info(`🔄 [Flow Agent] Compiling flow: ${flow.name}`);
+    logger.info(`   Flow nodes: ${flowNodes.length}, edges: ${flowEdges.length}`);
 
     if (flowNodes.length === 0) {
       throw new Error("Flow has no nodes. Please add nodes to the flow before assigning it to an agent.");
@@ -261,12 +262,12 @@ export class FlowAgentService {
 
     const compileResult = this.compileFlow(flowNodes, flowEdges, { knowledgeBases, hasRagTool });
 
-    console.log(`   Compiled: ${Object.keys(compileResult.workflow.nodes).length} nodes, ${Object.keys(compileResult.workflow.edges).length} edges`);
+    logger.info(`   Compiled: ${Object.keys(compileResult.workflow.nodes).length} nodes, ${Object.keys(compileResult.workflow.edges).length} edges`);
     if (compileResult.firstMessage) {
       const preview = compileResult.firstMessage.length > 50
         ? compileResult.firstMessage.substring(0, 50) + '...'
         : compileResult.firstMessage;
-      console.log(`   First message extracted: "${preview}"`);
+      logger.info(`   First message extracted: "${preview}"`);
     }
 
     return { ...compileResult, flow };
@@ -278,7 +279,7 @@ export class FlowAgentService {
    * Made public so routes can call it when syncing flows to ElevenLabs
    */
   static async enrichFormNodesWithFields(flowNodes: any[]): Promise<any[]> {
-    console.log(`   📋 [Form Enrichment] Processing ${flowNodes.length} nodes...`);
+    logger.info(`   📋 [Form Enrichment] Processing ${flowNodes.length} nodes...`);
     const enrichedNodes = [];
 
     for (const node of flowNodes) {
@@ -289,7 +290,7 @@ export class FlowAgentService {
         const config = node.data?.config || node.data || {};
         const formId = config.formId;
 
-        console.log(`   📋 [Form Enrichment] Found form node ${node.id}, formId: ${formId}`);
+        logger.info(`   📋 [Form Enrichment] Found form node ${node.id}, formId: ${formId}`);
 
         if (formId) {
           try {
@@ -299,7 +300,7 @@ export class FlowAgentService {
               .from(forms)
               .where(eq(forms.id, formId));
 
-            console.log(`   📋 [Form Enrichment] Form lookup result: ${form ? form.name : 'NOT FOUND'}`);
+            logger.warn(`   📋 [Form Enrichment] Form lookup result: ${form ? form.name : 'NOT FOUND'}`);
 
             if (form) {
               const fields = await db
@@ -307,9 +308,9 @@ export class FlowAgentService {
                 .from(formFields)
                 .where(eq(formFields.formId, formId));
 
-              console.log(`   📋 [Form Enrichment] Fields from DB: ${fields.length}`);
+              logger.info(`   📋 [Form Enrichment] Fields from DB: ${fields.length}`);
               if (fields.length > 0) {
-                console.log(`   📋 [Form Enrichment] First field raw:`, JSON.stringify(fields[0]));
+                logger.info(`   📋 [Form Enrichment] First field raw:`, JSON.stringify(fields[0]));
               }
 
               // Enrich the node config with form name and fields
@@ -326,7 +327,7 @@ export class FlowAgentService {
                 }))
               };
 
-              console.log(`   📋 [Form Enrichment] Loaded form "${form.name}" with ${enrichedConfig.fields.length} fields for node ${node.id}`);
+              logger.info(`   📋 [Form Enrichment] Loaded form "${form.name}" with ${enrichedConfig.fields.length} fields for node ${node.id}`);
 
               // Create enriched node
               enrichedNodes.push({
@@ -348,7 +349,7 @@ export class FlowAgentService {
       enrichedNodes.push(node);
     }
 
-    console.log(`   📋 [Form Enrichment] Complete. Returning ${enrichedNodes.length} nodes`);
+    logger.info(`   📋 [Form Enrichment] Complete. Returning ${enrichedNodes.length} nodes`);
     return enrichedNodes;
   }
 
@@ -362,7 +363,7 @@ export class FlowAgentService {
       return knowledgeBases;
     }
 
-    console.log(`📚 [Flow] Preparing ${knowledgeBaseIds.length} knowledge base(s)`);
+    logger.info(`📚 [Flow] Preparing ${knowledgeBaseIds.length} knowledge base(s)`);
 
     for (const kbId of knowledgeBaseIds) {
       try {
@@ -378,7 +379,7 @@ export class FlowAgentService {
           continue;
         }
 
-        console.log(`   Adding KB "${kbItem.title}" (${kbItem.elevenLabsDocId})`);
+        logger.info(`   Adding KB "${kbItem.title}" (${kbItem.elevenLabsDocId})`);
         knowledgeBases.push({
           type: kbItem.type,
           title: kbItem.title,
@@ -407,10 +408,10 @@ export class FlowAgentService {
 
       if (modelRecord.length > 0) {
         effectiveLlmModelId = modelRecord[0].modelId;
-        console.log(`📝 [Flow] LLM model: ${llmModel} → ${effectiveLlmModelId}`);
+        logger.info(`📝 [Flow] LLM model: ${llmModel} → ${effectiveLlmModelId}`);
       } else {
         effectiveLlmModelId = llmModel;
-        console.log(`📝 [Flow] Using LLM model ID directly: ${effectiveLlmModelId}`);
+        logger.info(`📝 [Flow] Using LLM model ID directly: ${effectiveLlmModelId}`);
       }
 
       // Sanitize the model ID for ElevenLabs compatibility
@@ -428,7 +429,7 @@ export class FlowAgentService {
 
         if (modelRecord.length > 0) {
           effectiveLlmModelId = modelRecord[0].modelId;
-          console.log(`📝 [Flow] Admin default LLM: ${displayName} → ${effectiveLlmModelId}`);
+          logger.info(`📝 [Flow] Admin default LLM: ${displayName} → ${effectiveLlmModelId}`);
         }
       }
     }
@@ -452,14 +453,14 @@ export class FlowAgentService {
    * Returns both the ElevenLabs agent ID and the credential ID for multi-key pool affinity
    */
   static async createInElevenLabs(params: FlowAgentCreateParams): Promise<{ elevenLabsAgentId: string; credentialId: string }> {
-    console.log(`🔄 [Flow Agent] Creating: ${params.name}`);
+    logger.info(`🔄 [Flow Agent] Creating: ${params.name}`);
 
     // Get credential with user affinity first, then fallback to shared pool
     // This maintains quota enforcement while allowing tenants without dedicated keys to work
     let credential = await ElevenLabsPoolService.getUserCredential(params.userId);
     let credentialSource: 'user_affinity' | 'shared_pool' = 'user_affinity';
     if (!credential) {
-      console.log(`   No user-specific credential found, falling back to shared pool`);
+      logger.warn(`   No user-specific credential found, falling back to shared pool`);
       credential = await ElevenLabsPoolService.getAvailableCredential();
       credentialSource = 'shared_pool';
     }
@@ -470,7 +471,7 @@ export class FlowAgentService {
       (error as any).status = 503;
       throw error;
     }
-    console.log(`   Using credential: ${credential.name || credential.id} (source: ${credentialSource})`);
+    logger.info(`   Using credential: ${credential.name || credential.id} (source: ${credentialSource})`);
 
     const elevenLabsService = new ElevenLabsService(credential.apiKey);
 
@@ -499,7 +500,7 @@ export class FlowAgentService {
     const initialWebhookTools: any[] = [];
 
     if (hasWebhookNodes && webhookNodes && webhookNodes.length > 0) {
-      console.log(`🔗 [Flow Agent] Building custom webhook tools for initial creation`);
+      logger.info(`🔗 [Flow Agent] Building custom webhook tools for initial creation`);
 
       for (const webhookNode of webhookNodes) {
         if (webhookNode.url) {
@@ -549,7 +550,7 @@ export class FlowAgentService {
             }
           };
           initialWebhookTools.push(webhookTool);
-          console.log(`   Built webhook tool: ${sanitizedToolName} -> ${webhookNode.method} (mapped to ${httpMethod}) ${webhookNode.url}`);
+          logger.info(`   Built webhook tool: ${sanitizedToolName} -> ${webhookNode.method} (mapped to ${httpMethod}) ${webhookNode.url}`);
         }
       }
     }
@@ -582,7 +583,7 @@ export class FlowAgentService {
       webhookTools: initialWebhookTools.length > 0 ? initialWebhookTools : undefined,
     });
 
-    console.log(`✅ [Flow Agent] Created in ElevenLabs: ${elevenLabsAgent.agent_id}`);
+    logger.info(`✅ [Flow Agent] Created in ElevenLabs: ${elevenLabsAgent.agent_id}`);
 
     // Log voice pool info for multi-key awareness
     this.logVoicePoolInfo(params.elevenLabsVoiceId, params.name);
@@ -591,14 +592,14 @@ export class FlowAgentService {
     const postCreationTools: any[] = [];
 
     if (hasAppointmentNodes) {
-      console.log(`📅 [Flow Agent] Preparing appointment booking webhook tool for agent ${elevenLabsAgent.agent_id}`);
+      logger.info(`📅 [Flow Agent] Preparing appointment booking webhook tool for agent ${elevenLabsAgent.agent_id}`);
       const { getAppointmentToolForAgent } = await import('./appointment-elevenlabs-tool');
       const appointmentTool = getAppointmentToolForAgent(elevenLabsAgent.agent_id);
       postCreationTools.push(appointmentTool);
     }
 
     if (hasFormNodes && formNodes && formNodes.length > 0) {
-      console.log(`📋 [Flow Agent] Preparing form submission webhook tools for agent ${elevenLabsAgent.agent_id}`);
+      logger.info(`📋 [Flow Agent] Preparing form submission webhook tools for agent ${elevenLabsAgent.agent_id}`);
       const { getSubmitFormWebhookTool } = await import('./form-elevenlabs-tool');
 
       for (const formNode of formNodes) {
@@ -611,7 +612,7 @@ export class FlowAgentService {
             formNode.nodeId
           );
           postCreationTools.push(formTool);
-          console.log(`   Added form tool for: ${formNode.formName} (${formNode.formId}) nodeId: ${formNode.nodeId || 'n/a'}`);
+          logger.info(`   Added form tool for: ${formNode.formName} (${formNode.formId}) nodeId: ${formNode.nodeId || 'n/a'}`);
         }
       }
     }
@@ -622,33 +623,33 @@ export class FlowAgentService {
       const messagingWhatsappNodes = webhookNodes.filter(n => n.toolId.startsWith('send_whatsapp_'));
 
       if (messagingEmailNodes.length > 0) {
-        console.log(`📧 [Flow Agent] Building ${messagingEmailNodes.length} email webhook tool(s) for agent ${elevenLabsAgent.agent_id}`);
+        logger.info(`📧 [Flow Agent] Building ${messagingEmailNodes.length} email webhook tool(s) for agent ${elevenLabsAgent.agent_id}`);
         const { buildMessagingEmailTool } = await import('./elevenlabs');
         for (const emailNode of messagingEmailNodes) {
           const templateName = emailNode.payload?.template_name || 'default';
           const emailTool = buildMessagingEmailTool(elevenLabsAgent.agent_id, [templateName], templateName);
           emailTool.name = emailNode.toolId.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 64);
           postCreationTools.push(emailTool);
-          console.log(`   📧 Created email webhook tool: ${emailTool.name} -> ${emailTool.api_schema.url}`);
+          logger.info(`   📧 Created email webhook tool: ${emailTool.name} -> ${emailTool.api_schema.url}`);
         }
       }
 
       if (messagingWhatsappNodes.length > 0) {
-        console.log(`💬 [Flow Agent] Building ${messagingWhatsappNodes.length} WhatsApp webhook tool(s) for agent ${elevenLabsAgent.agent_id}`);
+        logger.info(`💬 [Flow Agent] Building ${messagingWhatsappNodes.length} WhatsApp webhook tool(s) for agent ${elevenLabsAgent.agent_id}`);
         const { buildMessagingWhatsappTool } = await import('./elevenlabs');
         for (const waNode of messagingWhatsappNodes) {
           const templateName = waNode.payload?.template_name || 'hello_world';
           const waTool = buildMessagingWhatsappTool(elevenLabsAgent.agent_id, [templateName], templateName);
           waTool.name = waNode.toolId.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 64);
           postCreationTools.push(waTool);
-          console.log(`   💬 Created WhatsApp webhook tool: ${waTool.name} -> ${waTool.api_schema.url}`);
+          logger.info(`   💬 Created WhatsApp webhook tool: ${waTool.name} -> ${waTool.api_schema.url}`);
         }
       }
     }
 
     // Build play audio tools after agent creation (they need agent ID for webhook URL)
     if (hasPlayAudioNodes && playAudioNodes && playAudioNodes.length > 0) {
-      console.log(`🔊 [Flow Agent] Preparing play audio webhook tools for agent ${elevenLabsAgent.agent_id}`);
+      logger.info(`🔊 [Flow Agent] Preparing play audio webhook tools for agent ${elevenLabsAgent.agent_id}`);
       const { getPlayAudioWebhookTool } = await import('./play-audio-elevenlabs-tool');
 
       for (const playAudioNode of playAudioNodes) {
@@ -661,7 +662,7 @@ export class FlowAgentService {
           elevenLabsAgent.agent_id
         );
         postCreationTools.push(playAudioTool);
-        console.log(`   🔊 Created play audio tool: ${playAudioTool.name}`);
+        logger.info(`   🔊 Created play audio tool: ${playAudioTool.name}`);
       }
     }
 
@@ -683,7 +684,7 @@ export class FlowAgentService {
           undefined, // voiceId
           { webhookTools: allWebhookTools }
         );
-        console.log(`✅ [Flow Agent] Post-creation webhook tools added (${postCreationTools.length} tools)`);
+        logger.info(`✅ [Flow Agent] Post-creation webhook tools added (${postCreationTools.length} tools)`);
       } catch (toolError: any) {
         console.error(`❌ [Flow Agent] Failed to add post-creation webhook tools:`, toolError.message);
         // Don't fail agent creation if tool addition fails - the agent is still functional
@@ -734,14 +735,14 @@ export class FlowAgentService {
     currentAgent: any,
     params: FlowAgentUpdateParams
   ): Promise<{ recreated?: boolean; newElevenLabsAgentId?: string; newCredentialId?: string; messagingWhatsappTemplates?: string[] }> {
-    console.log(`🔄 [Flow Agent] Updating: ${agentId}`);
+    logger.info(`🔄 [Flow Agent] Updating: ${agentId}`);
 
     // Get credential for this agent (may be outdated if API key changed)
     let credential = await ElevenLabsPoolService.getCredentialForAgent(agentId);
 
     // If no credential found for agent, get a fresh one from the pool
     if (!credential) {
-      console.log(`⚠️  [Flow] No credential found for agent ${agentId}, getting fresh credential`);
+      logger.warn(`⚠️  [Flow] No credential found for agent ${agentId}, getting fresh credential`);
       credential = await ElevenLabsPoolService.getAvailableCredential();
       if (!credential) {
         throw new Error("No ElevenLabs credentials available");
@@ -787,7 +788,7 @@ export class FlowAgentService {
         .limit(1);
 
       effectiveLlmModel = modelRecord.length > 0 ? modelRecord[0].modelId : params.llmModel;
-      console.log(`📝 [Flow] LLM model update: ${params.llmModel} → ${effectiveLlmModel}`);
+      logger.info(`📝 [Flow] LLM model update: ${params.llmModel} → ${effectiveLlmModel}`);
     }
 
     // Prioritize flow's extracted first message over agent's stored/provided value
@@ -797,10 +798,10 @@ export class FlowAgentService {
     let knowledgeBases: KnowledgeBaseItem[] = [];
     let hasKnowledgeBases = false;
     if (params.knowledgeBaseIds !== undefined) {
-      console.log(`📚 [Flow] Preparing ${params.knowledgeBaseIds.length} knowledge base(s) for consolidated sync`);
+      logger.info(`📚 [Flow] Preparing ${params.knowledgeBaseIds.length} knowledge base(s) for consolidated sync`);
       knowledgeBases = await this.fetchKnowledgeBases(params.knowledgeBaseIds);
       hasKnowledgeBases = params.knowledgeBaseIds.length > 0;
-      console.log(`   Total KB docs: ${knowledgeBases.length}`);
+      logger.info(`   Total KB docs: ${knowledgeBases.length}`);
     }
 
     // Build RAG webhook tools for consolidated update (if RAG is enabled and has KBs)
@@ -809,12 +810,12 @@ export class FlowAgentService {
       const { getAskKnowledgeWebhookTool } = await import('./rag-elevenlabs-tool');
       const ragToolConfig = getAskKnowledgeWebhookTool(elevenLabsAgentId);
       webhookTools = [ragToolConfig];
-      console.log(`📚 [Flow] Including RAG webhook tool in consolidated sync`);
+      logger.info(`📚 [Flow] Including RAG webhook tool in consolidated sync`);
 
       // Create workspace tool for dashboard visibility (optional)
       try {
         await elevenLabsService.getOrCreateWorkspaceTool(ragToolConfig);
-        console.log(`📚 [Flow] RAG workspace tool created/verified`);
+        logger.info(`📚 [Flow] RAG workspace tool created/verified`);
       } catch (wsError: any) {
         console.warn(`📚 [Flow] RAG workspace tool skipped: ${wsError.message}`);
       }
@@ -825,7 +826,7 @@ export class FlowAgentService {
       const { getAppointmentToolForAgent } = await import('./appointment-elevenlabs-tool');
       const appointmentTool = getAppointmentToolForAgent(elevenLabsAgentId);
       webhookTools.push(appointmentTool);
-      console.log(`📅 [Flow] Including appointment booking webhook tool for ${elevenLabsAgentId}`);
+      logger.info(`📅 [Flow] Including appointment booking webhook tool for ${elevenLabsAgentId}`);
     }
 
     // Add form submission tools if flow has form nodes
@@ -842,7 +843,7 @@ export class FlowAgentService {
             formNode.nodeId
           );
           webhookTools.push(formTool);
-          console.log(`📋 [Flow] Including form submission webhook tool for ${formNode.formName} nodeId: ${formNode.nodeId || 'n/a'}`);
+          logger.info(`📋 [Flow] Including form submission webhook tool for ${formNode.formName} nodeId: ${formNode.nodeId || 'n/a'}`);
         }
       }
     }
@@ -861,7 +862,7 @@ export class FlowAgentService {
           elevenLabsAgentId
         );
         webhookTools.push(playAudioTool);
-        console.log(`🔊 [Flow] Including play audio webhook tool for ${playAudioTool.name}`);
+        logger.info(`🔊 [Flow] Including play audio webhook tool for ${playAudioTool.name}`);
       }
     }
 
@@ -877,7 +878,7 @@ export class FlowAgentService {
           const emailTool = buildMessagingEmailTool(elevenLabsAgentId, [templateName], templateName);
           emailTool.name = emailNode.toolId.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 64);
           webhookTools.push(emailTool);
-          console.log(`📧 [Flow] Including email webhook tool: ${emailTool.name}`);
+          logger.info(`📧 [Flow] Including email webhook tool: ${emailTool.name}`);
         }
       }
 
@@ -888,14 +889,14 @@ export class FlowAgentService {
           const waTool = buildMessagingWhatsappTool(elevenLabsAgentId, [templateName], templateName);
           waTool.name = waNode.toolId.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 64);
           webhookTools.push(waTool);
-          console.log(`💬 [Flow] Including WhatsApp webhook tool: ${waTool.name}`);
+          logger.info(`💬 [Flow] Including WhatsApp webhook tool: ${waTool.name}`);
         }
       }
     }
 
     // Add custom webhook nodes (user-defined webhooks in the flow builder)
     if (hasWebhookNodes && webhookNodes && webhookNodes.length > 0) {
-      console.log(`🔗 [Flow] Preparing custom webhook tools for agent ${elevenLabsAgentId}`);
+      logger.info(`🔗 [Flow] Preparing custom webhook tools for agent ${elevenLabsAgentId}`);
 
       for (const webhookNode of webhookNodes) {
         if (webhookNode.url) {
@@ -945,7 +946,7 @@ export class FlowAgentService {
             }
           };
           webhookTools.push(webhookTool);
-          console.log(`   Added custom webhook tool: ${sanitizedToolName} -> ${webhookNode.method} (mapped to ${httpMethod}) ${webhookNode.url}`);
+          logger.info(`   Added custom webhook tool: ${sanitizedToolName} -> ${webhookNode.method} (mapped to ${httpMethod}) ${webhookNode.url}`);
         }
       }
     }
@@ -1005,13 +1006,13 @@ When using a tool:
     if (userCustomPrompt) {
       let cleanPrompt = userCustomPrompt.replace(/\n\n\[System Info: Today's date is [\s\S]*?\]/g, '').trim();
       basePrompt = `${strictWorkflowPrompt}\n\n--- ADDITIONAL AGENT INSTRUCTIONS (provided by the agent creator) ---\nThe following instructions define your persona, domain, and behavioral constraints. You MUST follow these AT ALL TIMES, even while executing the workflow:\n\n${cleanPrompt}${datePrompt}\n\n--- END OF ADDITIONAL INSTRUCTIONS ---\nRemember: Follow BOTH the workflow steps AND the additional instructions above. Never deviate from your assigned domain or persona.`;
-      console.log(`📝 [Flow] Merged custom prompt (${userCustomPrompt.length} chars) with strict workflow rules`);
+      logger.info(`📝 [Flow] Merged custom prompt (${userCustomPrompt.length} chars) with strict workflow rules`);
     } else {
       basePrompt = `${strictWorkflowPrompt}${datePrompt}`;
-      console.log(`📝 [Flow] Using default strict workflow prompt`);
+      logger.info(`📝 [Flow] Using default strict workflow prompt`);
     }
     additionalOptions.basePrompt = basePrompt;
-    console.log(`📝 [Flow] Base prompt: ${basePrompt.substring(0, 50)}...`);
+    logger.info(`📝 [Flow] Base prompt: ${basePrompt.substring(0, 50)}...`);
 
     // Pass voice quality settings for more natural speech
     // Use new values or preserve existing, falling back to balanced defaults
@@ -1027,11 +1028,11 @@ When using a tool:
     if (effectiveExpressiveMode) {
       additionalOptions.suggestedAudioTags = true;
     }
-    console.log(`🎙️ [Flow] Voice settings: stability=${voiceStability}, similarity=${voiceSimilarityBoost}, speed=${voiceSpeed}, expressiveMode=${effectiveExpressiveMode}`);
+    logger.info(`🎙️ [Flow] Voice settings: stability=${voiceStability}, similarity=${voiceSimilarityBoost}, speed=${voiceSpeed}, expressiveMode=${effectiveExpressiveMode}`);
 
     // Update workflow using SINGLE consolidated API call
     // This prevents ElevenLabs PATCH from overwriting settings between multiple calls
-    console.log(`🔄 [Flow] Syncing workflow to ElevenLabs (consolidated)...`);
+    logger.info(`🔄 [Flow] Syncing workflow to ElevenLabs (consolidated)...`);
 
     await convertWorkflowTransferNodesForSIP(workflow, agentId);
 
@@ -1051,12 +1052,12 @@ When using a tool:
         Object.keys(additionalOptions).length > 0 ? additionalOptions : undefined
       );
 
-      console.log(`✅ [Flow Agent] Synced to ElevenLabs (all settings in single update)`);
+      logger.info(`✅ [Flow Agent] Synced to ElevenLabs (all settings in single update)`);
       return {};
     } catch (updateError: any) {
       // Check if this is a stale agent error (API key changed, agent doesn't exist, etc.)
       if (this.isStaleAgentError(updateError)) {
-        console.log(`⚠️  [Flow] Stale agent detected (${updateError.message}). Recreating agent with current API key...`);
+        logger.warn(`⚠️  [Flow] Stale agent detected (${updateError.message}). Recreating agent with current API key...`);
 
         // Recreate the agent with FULL current agent configuration merged with updates
         // Use nullish coalescing to preserve existing values unless explicitly overridden
@@ -1088,7 +1089,7 @@ When using a tool:
           elevenLabsCredentialId: result.credentialId,
         });
 
-        console.log(`✅ [Flow] Agent recreated with new ElevenLabs ID: ${result.elevenLabsAgentId}`);
+        logger.info(`✅ [Flow] Agent recreated with new ElevenLabs ID: ${result.elevenLabsAgentId}`);
 
         return {
           recreated: true,
@@ -1111,7 +1112,7 @@ When using a tool:
     currentAgent: any,
     params: FlowAgentUpdateParams
   ): Promise<void> {
-    console.log(`🔄 [Flow] Syncing metadata only (no workflow)`);
+    logger.info(`🔄 [Flow] Syncing metadata only (no workflow)`);
 
     const effectiveLanguage = params.language || currentAgent.language;
     const isNonEnglish = effectiveLanguage && effectiveLanguage !== 'en';
@@ -1138,10 +1139,10 @@ When using a tool:
 
     // Sync knowledge bases if provided
     if (params.knowledgeBaseIds !== undefined) {
-      console.log(`📚 [Flow] Syncing ${params.knowledgeBaseIds.length} knowledge base(s) (no workflow)`);
+      logger.info(`📚 [Flow] Syncing ${params.knowledgeBaseIds.length} knowledge base(s) (no workflow)`);
       const knowledgeBases = await this.fetchKnowledgeBases(params.knowledgeBaseIds);
       voiceUpdates.knowledge_bases = knowledgeBases;
-      console.log(`   Total KB docs to sync: ${knowledgeBases.length}`);
+      logger.info(`   Total KB docs to sync: ${knowledgeBases.length}`);
       // Set flag to include RAG knowledge base instructions in prompt
       voiceUpdates.hasRAGKnowledgeBases = params.knowledgeBaseIds.length > 0 && isRAGEnabled();
     }
@@ -1152,7 +1153,7 @@ When using a tool:
         ...voiceUpdates,
         skipWorkflowRebuild: true
       });
-      console.log(`✅ [Flow] Metadata synced to ElevenLabs`);
+      logger.info(`✅ [Flow] Metadata synced to ElevenLabs`);
     }
 
     // Note: RAG tool setup is handled by the caller (updateInElevenLabs)
@@ -1176,7 +1177,7 @@ When using a tool:
       firstMessage?: string;
     }
   ): Promise<void> {
-    console.log(`🔄 [Flow Agent] Syncing flow to agent: ${agentId}`);
+    logger.info(`🔄 [Flow Agent] Syncing flow to agent: ${agentId}`);
 
     const credential = await ElevenLabsPoolService.getCredentialForAgent(agentId);
     if (!credential) {
@@ -1193,7 +1194,7 @@ When using a tool:
       throw new Error("Flow compiled to empty workflow");
     }
 
-    console.log(`   Compiled: ${Object.keys(workflow.nodes).length} nodes, ${Object.keys(workflow.edges).length} edges`);
+    logger.info(`   Compiled: ${Object.keys(workflow.nodes).length} nodes, ${Object.keys(workflow.edges).length} edges`);
 
     // Get effective language settings
     const isNonEnglish = options?.language && options.language !== 'en';
@@ -1220,6 +1221,6 @@ When using a tool:
       effectiveFirstMessage
     );
 
-    console.log(`✅ [Flow Agent] Flow synced to ElevenLabs`);
+    logger.info(`✅ [Flow Agent] Flow synced to ElevenLabs`);
   }
 }

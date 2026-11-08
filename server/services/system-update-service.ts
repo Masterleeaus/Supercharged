@@ -351,7 +351,7 @@ class SystemUpdateService {
           ...persisted,
           currentVersion: this.getCurrentVersion(),
         };
-        console.log(`[SystemUpdate] Restored last update state: phase=${persisted.phase}`);
+        logger.info(`[SystemUpdate] Restored last update state: phase=${persisted.phase}`);
       }
     } catch (err: any) {
       console.warn('[SystemUpdate] Failed to recover update state:', err.message);
@@ -604,7 +604,7 @@ class SystemUpdateService {
     if (stat.size === 0) {
       throw new Error('Database backup file is empty — pg_dump produced no output.');
     }
-    console.log(`[SystemUpdate] Database backup created (${stat.size} bytes)`);
+    logger.info(`[SystemUpdate] Database backup created (${stat.size} bytes)`);
     return true;
   }
 
@@ -619,7 +619,7 @@ class SystemUpdateService {
       const safe = rel.replace(/\\/g, '/').replace(/^\.\/+/, '');
       if (safe.includes('..') || path.isAbsolute(safe)) continue;
       if (isProtectedPath(safe)) {
-        console.log(`[SystemUpdate] Refusing to delete protected path: ${safe}`);
+        logger.info(`[SystemUpdate] Refusing to delete protected path: ${safe}`);
         continue;
       }
       const fullPath = path.join(cwd, safe);
@@ -648,7 +648,7 @@ class SystemUpdateService {
       if (entryPath === 'update-manifest.json') continue;
 
       if (isProtectedPath(entryPath)) {
-        console.log(`[SystemUpdate] Skipping protected path: ${entryPath}`);
+        logger.warn(`[SystemUpdate] Skipping protected path: ${entryPath}`);
         continue;
       }
 
@@ -771,7 +771,7 @@ class SystemUpdateService {
     const cmdString = `npm ${args.join(' ')}`;
 
     return await new Promise((resolve) => {
-      console.log(`[SystemUpdate] running ${cmdString} (timeout=${TIMEOUT_MS}ms)`);
+      logger.info(`[SystemUpdate] running ${cmdString} (timeout=${TIMEOUT_MS}ms)`);
       const child = spawn('npm', args, {
         stdio: ['ignore', 'pipe', 'pipe'],
         cwd: process.cwd(),
@@ -805,7 +805,7 @@ class SystemUpdateService {
           while ((nl = buf.indexOf('\n')) !== -1) {
             const line = buf.slice(0, nl);
             buf = buf.slice(nl + 1);
-            if (line.trim()) console.log(`[SystemUpdate][npm:${kind}] ${line}`);
+            if (line.trim()) logger.info(`[SystemUpdate][npm:${kind}] ${line}`);
           }
         });
       };
@@ -972,7 +972,7 @@ class SystemUpdateService {
       if (!pushResult.ok) {
         throw new Error(`Database migration failed (exit ${pushResult.exitCode}): ${pushResult.output.slice(-500)}`);
       }
-      console.log('[SystemUpdate] migrations output:\n' + pushResult.output);
+      logger.info('[SystemUpdate] migrations output:\n' + pushResult.output);
 
       this.status.progress = 95;
       this.status.message = 'Schema applied';
@@ -1129,7 +1129,7 @@ class SystemUpdateService {
         const orphan = path.join(cwd, entry.name);
         try {
           fs.rmSync(orphan, { recursive: true, force: true });
-          console.log('[SystemUpdate] Rollback removed update-era entry:', entry.name);
+          logger.info('[SystemUpdate] Rollback removed update-era entry:', entry.name);
         } catch (err: any) {
           console.warn(`[SystemUpdate] Failed to remove ${orphan} during rollback:`, err.message);
         }
@@ -1174,7 +1174,7 @@ class SystemUpdateService {
             `psql "${process.env.DATABASE_URL}" -v ON_ERROR_STOP=1 -f "${dumpPath}"`,
             { timeout: 180000, maxBuffer: 10 * 1024 * 1024 }
           );
-          console.log('[SystemUpdate] Database restored from backup.');
+          logger.info('[SystemUpdate] Database restored from backup.');
         } catch (err: any) {
           console.error('[SystemUpdate] Database restore failed:', err.message);
           throw new Error(`Database restore failed: ${err.message}`);

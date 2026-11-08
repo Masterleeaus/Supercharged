@@ -119,7 +119,7 @@ export class IncomingAgentService {
     if (!voiceId || DEFAULT_VOICE_IDS.includes(voiceId)) {
       return; // Default voices are universally available
     }
-    console.log(`🔊 [Incoming Agent] Voice ${voiceId} for "${agentName}" is a custom voice - agent will use the credential that created it for all calls`);
+    logger.info(`🔊 [Incoming Agent] Voice ${voiceId} for "${agentName}" is a custom voice - agent will use the credential that created it for all calls`);
   }
 
   /**
@@ -132,7 +132,7 @@ export class IncomingAgentService {
       return knowledgeBases;
     }
 
-    console.log(`📚 [Incoming] Preparing ${knowledgeBaseIds.length} knowledge base(s)`);
+    logger.info(`📚 [Incoming] Preparing ${knowledgeBaseIds.length} knowledge base(s)`);
 
     for (const kbId of knowledgeBaseIds) {
       try {
@@ -148,7 +148,7 @@ export class IncomingAgentService {
           continue;
         }
 
-        console.log(`   Adding KB "${kbItem.title}" (${kbItem.elevenLabsDocId})`);
+        logger.info(`   Adding KB "${kbItem.title}" (${kbItem.elevenLabsDocId})`);
         knowledgeBases.push({
           type: kbItem.type,
           title: kbItem.title,
@@ -179,11 +179,11 @@ export class IncomingAgentService {
 
       if (modelRecord.length > 0) {
         effectiveLlmModelId = modelRecord[0].modelId;
-        console.log(`📝 [Incoming] LLM model: ${llmModel} → ${effectiveLlmModelId}`);
+        logger.info(`📝 [Incoming] LLM model: ${llmModel} → ${effectiveLlmModelId}`);
       } else {
         // Maybe they passed the modelId directly
         effectiveLlmModelId = llmModel;
-        console.log(`📝 [Incoming] Using LLM model ID directly: ${effectiveLlmModelId}`);
+        logger.info(`📝 [Incoming] Using LLM model ID directly: ${effectiveLlmModelId}`);
       }
 
       // Sanitize the model ID for ElevenLabs compatibility
@@ -202,7 +202,7 @@ export class IncomingAgentService {
 
         if (modelRecord.length > 0) {
           effectiveLlmModelId = modelRecord[0].modelId;
-          console.log(`📝 [Incoming] Admin default LLM: ${displayName} → ${effectiveLlmModelId}`);
+          logger.info(`📝 [Incoming] Admin default LLM: ${displayName} → ${effectiveLlmModelId}`);
         }
       }
     }
@@ -227,7 +227,7 @@ export class IncomingAgentService {
    * Returns both the ElevenLabs agent ID and the credential ID for multi-key pool affinity
    */
   static async createInElevenLabs(params: IncomingAgentCreateParams): Promise<{ elevenLabsAgentId: string; credentialId: string }> {
-    console.log(`📞 [Incoming Agent] Creating: ${params.name}`);
+    logger.info(`📞 [Incoming Agent] Creating: ${params.name}`);
 
     // Get credential from pool
     const credential = await ElevenLabsPoolService.getAvailableCredential();
@@ -273,7 +273,7 @@ export class IncomingAgentService {
       skipWorkflow: true,
     });
 
-    console.log(`✅ [Incoming Agent] Created in ElevenLabs: ${agentResponse.agent_id}`);
+    logger.info(`✅ [Incoming Agent] Created in ElevenLabs: ${agentResponse.agent_id}`);
 
     // Log voice pool info for multi-key awareness
     this.logVoicePoolInfo(params.elevenLabsVoiceId, params.name);
@@ -322,14 +322,14 @@ export class IncomingAgentService {
     currentAgent: any,
     params: IncomingAgentUpdateParams
   ): Promise<{ recreated?: boolean; newElevenLabsAgentId?: string; newCredentialId?: string }> {
-    console.log(`🔄 [Incoming Agent] Updating: ${agentId}`);
+    logger.info(`🔄 [Incoming Agent] Updating: ${agentId}`);
 
     // Get credential for this agent (may be outdated if API key changed)
     let credential = await ElevenLabsPoolService.getCredentialForAgent(agentId);
 
     // If no credential found for agent, get a fresh one from the pool
     if (!credential) {
-      console.log(`⚠️  [Incoming] No credential found for agent ${agentId}, getting fresh credential`);
+      logger.warn(`⚠️  [Incoming] No credential found for agent ${agentId}, getting fresh credential`);
       credential = await ElevenLabsPoolService.getAvailableCredential();
       if (!credential) {
         throw new Error("No ElevenLabs credentials available");
@@ -385,7 +385,7 @@ export class IncomingAgentService {
       elevenLabsUpdates.voiceSimilarityBoost = params.voiceSimilarityBoost ?? currentAgent.voiceSimilarityBoost ?? 0.85;
       elevenLabsUpdates.voiceSpeed = params.voiceSpeed ?? currentAgent.voiceSpeed ?? 1.0;
       elevenLabsUpdates.turnTimeout = params.turnTimeout ?? currentAgent.turnTimeout ?? 1.5;
-      console.log(`🎙️ [Incoming] Voice settings: stability=${elevenLabsUpdates.voiceStability}, similarity=${elevenLabsUpdates.voiceSimilarityBoost}, speed=${elevenLabsUpdates.voiceSpeed}, turnTimeout=${elevenLabsUpdates.turnTimeout}`);
+      logger.info(`🎙️ [Incoming] Voice settings: stability=${elevenLabsUpdates.voiceStability}, similarity=${elevenLabsUpdates.voiceSimilarityBoost}, speed=${elevenLabsUpdates.voiceSpeed}, turnTimeout=${elevenLabsUpdates.turnTimeout}`);
     }
 
     // System tools configuration - preserve existing values if not provided
@@ -443,9 +443,8 @@ export class IncomingAgentService {
       : currentAgent.expressiveMode;
     elevenLabsUpdates.suggestedAudioTags = effectiveExpressiveMode || false;
 
-    console.log(`🔧 [Incoming] System tools:`, {
+    logger.info(`🔧 [Incoming] System tools:`, {
       transferEnabled: effectiveTransferEnabled,
-      transferPhoneNumber: effectiveTransferPhone ? `${effectiveTransferPhone.substring(0, 6)}***` : null,
       detectLanguageEnabled: effectiveDetectLanguage,
       endConversationEnabled: effectiveEndConversation,
       appointmentBookingEnabled: effectiveAppointmentBooking,
@@ -456,10 +455,10 @@ export class IncomingAgentService {
     const effectiveKnowledgeBaseIds = params.knowledgeBaseIds !== undefined ? params.knowledgeBaseIds : currentAgent.knowledgeBaseIds;
     let hasKnowledgeBases = false;
     if (effectiveKnowledgeBaseIds !== undefined && effectiveKnowledgeBaseIds !== null) {
-      console.log(`📚 [Incoming] Syncing ${effectiveKnowledgeBaseIds.length} knowledge base(s)`);
+      logger.info(`📚 [Incoming] Syncing ${effectiveKnowledgeBaseIds.length} knowledge base(s)`);
       const knowledgeBases = await this.fetchKnowledgeBases(effectiveKnowledgeBaseIds);
       elevenLabsUpdates.knowledge_bases = knowledgeBases;
-      console.log(`   Total KB docs to sync: ${knowledgeBases.length}`);
+      logger.info(`   Total KB docs to sync: ${knowledgeBases.length}`);
       hasKnowledgeBases = effectiveKnowledgeBaseIds.length > 0;
       // Set flag to include RAG knowledge base instructions in prompt
       // This is needed because RAG KBs don't have ElevenLabs doc IDs
@@ -475,15 +474,15 @@ export class IncomingAgentService {
     let newCredentialId: string | undefined;
 
     if (Object.keys(elevenLabsUpdates).length > 1) { // > 1 because skipWorkflowRebuild is always present
-      console.log(`🔄 [Incoming] Syncing to ElevenLabs: ${elevenLabsAgentId}`);
+      logger.info(`🔄 [Incoming] Syncing to ElevenLabs: ${elevenLabsAgentId}`);
 
       try {
         await elevenLabsService.updateAgent(elevenLabsAgentId, elevenLabsUpdates);
-        console.log(`✅ [Incoming] ElevenLabs sync complete`);
+        logger.info(`✅ [Incoming] ElevenLabs sync complete`);
       } catch (updateError: any) {
         // Check if this is a stale agent error (API key changed, agent doesn't exist, etc.)
         if (this.isStaleAgentError(updateError)) {
-          console.log(`⚠️  [Incoming] Stale agent detected (${updateError.message}). Recreating agent with current API key...`);
+          logger.warn(`⚠️  [Incoming] Stale agent detected (${updateError.message}). Recreating agent with current API key...`);
 
           // Get a fresh credential from the pool (may be new if API key was changed)
           const freshCredential = await ElevenLabsPoolService.getAvailableCredential();
@@ -529,7 +528,7 @@ export class IncomingAgentService {
             elevenLabsCredentialId: newCredentialId,
           });
 
-          console.log(`✅ [Incoming] Agent recreated with new ElevenLabs ID: ${actualElevenLabsAgentId}`);
+          logger.info(`✅ [Incoming] Agent recreated with new ElevenLabs ID: ${actualElevenLabsAgentId}`);
         } else {
           // Not a stale agent error - rethrow
           throw updateError;
@@ -552,7 +551,7 @@ export class IncomingAgentService {
         if (await isAgentOnSipPhoneNumber(agentId)) {
           transferType = "sip_refer";
           sipTrunkAddress = await getSipTrunkOutboundAddress(agentId);
-          console.log(`   📞 [Incoming] SIP agent detected - using sip_refer transfer type (trunk: ${sipTrunkAddress})`);
+          logger.info(`   📞 [Incoming] SIP agent detected - using sip_refer transfer type (trunk: ${sipTrunkAddress})`);
         }
       } catch (err: any) { logger.warn('SIP trunk check failed for incoming agent; using conference transfer', { agentId, error: err?.message }, 'IncomingAgent'); }
 
@@ -563,7 +562,7 @@ export class IncomingAgentService {
           : `+${effectiveTransferPhone}`;
         const sipUri = `sip:${phoneNumber}@${sipTrunkAddress}`;
         transferDestination = { type: "sip_uri", sip_uri: sipUri };
-        console.log(`   📞 [Incoming] SIP REFER: ${phoneNumber} → ${sipUri}`);
+        logger.info(`   📞 [Incoming] SIP REFER: [redacted] → ${sipUri}`);
       } else {
         transferDestination = { type: "phone", phone_number: effectiveTransferPhone };
       }
@@ -603,7 +602,7 @@ export class IncomingAgentService {
       });
     }
 
-    console.log(`📚 [Incoming] Passing ${systemTools.length} system tools to RAG/appointment setup`);
+    logger.info(`📚 [Incoming] Passing ${systemTools.length} system tools to RAG/appointment setup`);
     await setupRAGToolForAgent(actualElevenLabsAgentId, agentId, hasKnowledgeBases, systemTools, effectiveAppointmentBooking);
 
     return {

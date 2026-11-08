@@ -14,6 +14,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
+import { logger } from '../utils/logger';
 import Stripe from 'stripe';
 import { storage } from '../storage';
 import { PaymentError } from '../utils/errors';
@@ -180,7 +181,7 @@ export async function lockStripeCurrency(): Promise<{ success: boolean; error?: 
   
   await storage.updateGlobalSetting('stripe_currency_locked', true);
   
-  console.log(`🔒 [Stripe] Currency locked to ${currentConfig.currency}`);
+  logger.info(`🔒 [Stripe] Currency locked to ${currentConfig.currency}`);
   return { success: true };
 }
 

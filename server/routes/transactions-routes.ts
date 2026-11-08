@@ -25,6 +25,7 @@ import archiver from "archiver";
 import * as fs from "fs";
 import * as path from "path";
 import { eq } from "drizzle-orm";
+import { logger } from '../utils/logger';
 
 const router = Router();
 
@@ -480,7 +481,7 @@ router.get("/export/zip", authenticateToken, requireRole("admin"), async (req: A
     archive.pipe(res);
     await archive.finalize();
     
-    console.log(`📦 [Export] Created ZIP with ${filesAdded.length} files: ${zipFileName}`);
+    logger.info(`📦 [Export] Created ZIP with ${filesAdded.length} files: ${zipFileName}`);
   } catch (error: any) {
     console.error("Error exporting documents:", error);
     if (!res.headersSent) {

@@ -7,22 +7,32 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createReadToolDefinitions } from '../../server/workforce/tools/read-handlers.ts';
+import { GROUP00_TOOL_IDS } from '../../server/workforce/tools/handlers/group-00.ts';
 import { GROUP_02_TOOL_IDS } from '../../server/workforce/tools/handlers/group-02.ts';
 
 const READ_VERBS = new Set(['list', 'get', 'search', 'view', 'lookup', 'check', 'read', 'availability']);
 
 const stubStore = new Proxy({}, { get: () => async () => [] });
 const definitions = createReadToolDefinitions(stubStore);
+// Group 00 is a handler group that holds writes as well as reads. It declares access explicitly, checked below.
+const GROUP00_IDS = new Set(GROUP00_TOOL_IDS);
 
 // Handler group 02 also sits in this list. Its writes and drafts are declared write, so only its read-named tools
 // are held to access 'read' here.
 const isGroupWrite = (def) => GROUP_02_TOOL_IDS.includes(def.id) && !READ_VERBS.has(def.id.split('.').pop());
+const readSpecs = definitions.filter((def) => !GROUP00_IDS.has(def.id) && !isGroupWrite(def));
 
 test('every read tool defined under tools/ declares access read', () => {
-  assert.ok(definitions.length > 0, 'expected at least one bound read tool definition');
-  const readTools = definitions.filter((def) => !isGroupWrite(def));
-  const missing = readTools.filter((def) => def.access !== 'read').map((def) => def.id);
+  assert.ok(readSpecs.length > 0, 'expected at least one bound read tool definition');
+  const missing = readSpecs.filter((def) => def.access !== 'read').map((def) => def.id);
   assert.deepEqual(missing, [], `read tools without access 'read': ${missing.join(', ')}`);
+});
+
+test('every group 00 definition declares access read or write explicitly', () => {
+  const group = definitions.filter((def) => GROUP00_TOOL_IDS.includes(def.id));
+  assert.equal(group.length, GROUP00_TOOL_IDS.length);
+  const undeclared = group.filter((def) => def.access !== 'read' && def.access !== 'write').map((def) => def.id);
+  assert.deepEqual(undeclared, [], `group 00 tools without explicit access: ${undeclared.join(', ')}`);
 });
 
 test('read-named tools defined under tools/ are not declared as write', () => {

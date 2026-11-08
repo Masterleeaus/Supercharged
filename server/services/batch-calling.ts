@@ -23,6 +23,7 @@
  * API Documentation: https://elevenlabs.io/docs/api-reference/batch-calling
  */
 
+import { logger } from '../utils/logger';
 import { ExternalServiceError } from '../utils/errors';
 import { enrichDynamicDataWithContactInfo } from '../utils/contact-variable-substitution';
 import FormData from 'form-data';
@@ -113,7 +114,7 @@ export class BatchCallingService {
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const url = `${ELEVENLABS_API_BASE_URL}${endpoint}`;
     
-    console.log(`[BatchCalling] API Request: ${options.method || 'GET'} ${endpoint}`);
+    logger.info(`[BatchCalling] API Request: ${options.method || 'GET'} ${endpoint}`);
     
     const response = await fetch(url, {
       ...options,
@@ -173,9 +174,9 @@ export class BatchCallingService {
    * @returns The created batch job
    */
   async createBatch(request: CreateBatchRequest): Promise<BatchJob> {
-    console.log(`[BatchCalling] Creating batch job: ${request.call_name} with ${request.recipients.length} recipients`);
-    console.log(`   Agent ID: ${request.agent_id}`);
-    console.log(`   Phone Number ID: ${request.agent_phone_number_id}`);
+    logger.info(`[BatchCalling] Creating batch job: ${request.call_name} with ${request.recipients.length} recipients`);
+    logger.info(`   Agent ID: ${request.agent_id}`);
+    logger.info(`   Phone Number ID: ${request.agent_phone_number_id}`);
     
     if (!request.agent_phone_number_id) {
       throw new ExternalServiceError(
@@ -231,14 +232,14 @@ export class BatchCallingService {
       whatsapp_params: null, // Not using WhatsApp
     };
 
-    console.log(`[BatchCalling] Submitting batch via JSON...`);
-    console.log(`   Call Name: ${payload.call_name}`);
-    console.log(`   Agent ID: ${payload.agent_id}`);
-    console.log(`   Phone Number ID: ${payload.agent_phone_number_id}`);
-    console.log(`   Recipients: ${recipients.length}`);
-    console.log(`   Scheduled Time Unix: ${payload.scheduled_time_unix}`);
-    console.log(`   Timezone: ${payload.timezone}`);
-    console.log(`   First recipient dynamic_variables:`, JSON.stringify(recipients[0]?.conversation_initiation_client_data?.dynamic_variables || {}, null, 2));
+    logger.info(`[BatchCalling] Submitting batch via JSON...`);
+    logger.info(`   Call Name: ${payload.call_name}`);
+    logger.info(`   Agent ID: ${payload.agent_id}`);
+    logger.info(`   Phone Number ID: ${payload.agent_phone_number_id}`);
+    logger.info(`   Recipients: ${recipients.length}`);
+    logger.info(`   Scheduled Time Unix: ${payload.scheduled_time_unix}`);
+    logger.info(`   Timezone: ${payload.timezone}`);
+    logger.info(`   First recipient dynamic_variables: [redacted]`);
 
     // Submit via JSON API
     const url = `${ELEVENLABS_API_BASE_URL}/convai/batch-calling/submit`;
@@ -276,7 +277,7 @@ export class BatchCallingService {
     }
 
     const responseData = await response.json();
-    console.log(`[BatchCalling] API Response:`, JSON.stringify(responseData, null, 2));
+    logger.info(`[BatchCalling] API Response:`, JSON.stringify(responseData, null, 2));
 
     // Validate response has required batch ID
     const batchId = responseData.id || responseData.batch_call_id;
@@ -305,7 +306,7 @@ export class BatchCallingService {
       phone_provider: responseData.phone_provider as 'twilio' | 'sip_trunk' | null,
     };
 
-    console.log(`[BatchCalling] ✅ Created batch job: ${batch.id} (status: ${batch.status})`);
+    logger.info(`[BatchCalling] ✅ Created batch job: ${batch.id} (status: ${batch.status})`);
     return batch;
   }
 
@@ -367,7 +368,7 @@ export class BatchCallingService {
    * @returns Detailed batch job with recipient statuses
    */
   async getBatch(batchId: string): Promise<BatchJobWithRecipients> {
-    console.log(`[BatchCalling] Getting batch details: ${batchId}`);
+    logger.info(`[BatchCalling] Getting batch details: ${batchId}`);
     
     const response = await this.request<any>(`/convai/batch-calling/${batchId}`);
 
@@ -413,7 +414,7 @@ export class BatchCallingService {
    * @returns The updated batch job
    */
   async cancelBatch(batchId: string): Promise<BatchJob> {
-    console.log(`[BatchCalling] Cancelling batch job: ${batchId}`);
+    logger.info(`[BatchCalling] Cancelling batch job: ${batchId}`);
     
     const response = await this.request<any>(`/convai/batch-calling/${batchId}/cancel`, {
       method: 'POST',
@@ -434,7 +435,7 @@ export class BatchCallingService {
       phone_provider: response.phone_provider as 'twilio' | 'sip_trunk' | null,
     };
 
-    console.log(`[BatchCalling] Cancelled batch job: ${batchId} (new status: ${batch.status})`);
+    logger.info(`[BatchCalling] Cancelled batch job: ${batchId} (new status: ${batch.status})`);
     return batch;
   }
 
@@ -449,7 +450,7 @@ export class BatchCallingService {
    * @returns The updated batch job
    */
   async retryBatch(batchId: string): Promise<BatchJob> {
-    console.log(`[BatchCalling] Retrying batch job: ${batchId}`);
+    logger.info(`[BatchCalling] Retrying batch job: ${batchId}`);
     
     const response = await this.request<any>(`/convai/batch-calling/${batchId}/retry`, {
       method: 'POST',
@@ -470,7 +471,7 @@ export class BatchCallingService {
       phone_provider: response.phone_provider as 'twilio' | 'sip_trunk' | null,
     };
 
-    console.log(`[BatchCalling] Retried batch job: ${batchId} (new status: ${batch.status})`);
+    logger.info(`[BatchCalling] Retried batch job: ${batchId} (new status: ${batch.status})`);
     return batch;
   }
 
@@ -490,7 +491,7 @@ export class BatchCallingService {
     const sciNotationPattern = /^[+-]?\d+\.?\d*[eE][+\-]?\d+$/;
     if (sciNotationPattern.test(phone.trim())) {
       const expanded = Math.round(parseFloat(phone)).toString();
-      console.log(`[BatchCalling] Scientific notation phone expanded: ${phone} → ${expanded}`);
+      logger.info(`[BatchCalling] Scientific notation phone expanded: [redacted] → [redacted]`);
       phone = expanded;
     }
 
@@ -519,7 +520,7 @@ export class BatchCallingService {
     
     // Add + prefix for E.164 format
     const normalized = `+${cleaned}`;
-    console.log(`[BatchCalling] Normalized phone: ${phone} → ${normalized}`);
+    logger.info(`[BatchCalling] Normalized phone: [redacted] → [redacted]`);
     return normalized;
   }
 
@@ -571,12 +572,7 @@ export class BatchCallingService {
       );
 
       // Debug: Log what enrichDynamicDataWithContactInfo returned
-      console.log(`[BatchCalling] Contact enrichment for ${contact.phone}:`, {
-        input: {
-          firstName: contact.firstName,
-          lastName: contact.lastName,
-          customFieldsData: customFieldsData
-        },
+      logger.info(`[BatchCalling] Contact enrichment for [redacted]:`, {
         output: {
           contact_name: recipient.dynamic_data?.contact_name,
           all_keys: Object.keys(recipient.dynamic_data || {})

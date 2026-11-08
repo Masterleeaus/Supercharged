@@ -1,4 +1,5 @@
 'use strict';
+import { logger } from '../utils/logger';
 import OpenAI from 'openai';
 import { storage } from '../storage';
 import { db } from '../db';
@@ -58,7 +59,7 @@ export async function analyzeTranscriptWithAI(
   }
 
   try {
-    console.log(`🤖 [AI Violation Detection] Analyzing transcript for call ${callId}`);
+    logger.info(`🤖 [AI Violation Detection] Analyzing transcript for call ${callId}`);
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
@@ -113,11 +114,11 @@ Only flag genuine policy violations. Normal business conversations, expressions 
     const result: AIAnalysisResult = JSON.parse(content);
 
     if (!result.hasViolations || !result.violations || result.violations.length === 0) {
-      console.log(`✅ [AI Violation Detection] No violations found in call ${callId}`);
+      logger.info(`✅ [AI Violation Detection] No violations found in call ${callId}`);
       return [];
     }
 
-    console.log(`🔍 [AI Violation Detection] Found ${result.violations.length} violation(s) in call ${callId}`);
+    logger.info(`🔍 [AI Violation Detection] Found ${result.violations.length} violation(s) in call ${callId}`);
 
     const createdViolations: ContentViolation[] = [];
 
@@ -143,12 +144,12 @@ Only flag genuine policy violations. Normal business conversations, expressions 
             blockedAt: new Date(),
             blockedBy: 'system',
           });
-          console.log(`⚠️ [AI Violation Detection] Auto-blocked user ${userId} for critical violation: ${violation.category}`);
+          logger.info(`⚠️ [AI Violation Detection] Auto-blocked user ${userId} for critical violation: ${violation.category}`);
         }
       }
     }
 
-    console.log(`💾 [AI Violation Detection] Stored ${createdViolations.length} violation(s) for call ${callId}`);
+    logger.info(`💾 [AI Violation Detection] Stored ${createdViolations.length} violation(s) for call ${callId}`);
     return createdViolations;
 
   } catch (error: any) {

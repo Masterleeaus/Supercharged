@@ -279,7 +279,7 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
         }
         
         if (!phoneCountry) {
-          console.log(`[Phone Purchase] Could not determine country for number: ${phoneNumber.substring(0, 5)}***. Address requirement check skipped.`);
+          logger.warn(`[Phone Purchase] Could not determine country for the number. Address requirement check skipped.`);
         }
       }
       
@@ -290,16 +290,16 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
 
       if (phoneCountry) {
         const countryReqs = await twilioService.getCountryRequirements(phoneCountry, resolvedNumberType);
-        console.log(`[Phone Purchase] Requirements for ${phoneCountry}/${resolvedNumberType}: bundle=${countryReqs.bundleRequired}, address=${countryReqs.addressRequired}`);
+        logger.info(`[Phone Purchase] Requirements for ${phoneCountry}/${resolvedNumberType}: bundle=${countryReqs.bundleRequired}, address=${countryReqs.addressRequired}`);
 
         // Check regulatory bundle FIRST (harder blocker — requires admin action, 1-3 days approval)
         if (countryReqs.bundleRequired && !effectiveBundleSid) {
-          console.log(`[Phone Purchase] Country ${phoneCountry} requires ${resolvedNumberType} regulatory bundle, checking Twilio...`);
+          logger.warn(`[Phone Purchase] Country ${phoneCountry} requires ${resolvedNumberType} regulatory bundle, checking Twilio...`);
           const approvedBundle = await twilioService.getApprovedBundleForCountry(phoneCountry, resolvedNumberType);
 
           if (approvedBundle) {
             effectiveBundleSid = approvedBundle.bundleSid;
-            console.log(`[Phone Purchase] Auto-attached approved ${resolvedNumberType} bundle: ${approvedBundle.friendlyName} (${approvedBundle.bundleSid})`);
+            logger.info(`[Phone Purchase] Auto-attached approved ${resolvedNumberType} bundle: ${approvedBundle.friendlyName} (${approvedBundle.bundleSid})`);
           } else {
             return res.status(400).json({
               error: "Regulatory bundle required",
@@ -321,9 +321,9 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
             const bundleAddress = await twilioService.getBundleAddressSid(effectiveBundleSid, phoneCountry);
             if (bundleAddress) {
               effectiveAddressSid = bundleAddress;
-              console.log(`[Phone Purchase] Found address inside bundle for ${phoneCountry}: ${bundleAddress.substring(0, 8)}...`);
+              logger.info(`[Phone Purchase] Found address inside bundle for ${phoneCountry}: ${bundleAddress.substring(0, 8)}...`);
             } else {
-              console.log(`[Phone Purchase] Bundle present for ${phoneCountry} — no address found inside bundle items, proceeding without addressSid`);
+              logger.info(`[Phone Purchase] Bundle present for ${phoneCountry} — no address found inside bundle items, proceeding without addressSid`);
             }
           } else if (!effectiveAddressSid) {
             // No bundle — fall back to user's own saved verified address
@@ -350,7 +350,7 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
 
             if (userAddressList.length > 0 && userAddressList[0].twilioAddressSid) {
               effectiveAddressSid = userAddressList[0].twilioAddressSid;
-              console.log(`[Phone Purchase] Using user's verified address: ${userAddressList[0].customerName} for ${phoneCountry}`);
+              logger.info(`[Phone Purchase] Using user's verified address: ${userAddressList[0].customerName} for ${phoneCountry}`);
             } else {
               return res.status(400).json({
                 error: "Address required",
@@ -382,11 +382,11 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
         // the wrong type (e.g. toll-free bundle used for a local number), so we always
         // attempt to find the correctly-typed bundle and retry once.
         if (buyError.code === 21649 && phoneCountry) {
-          console.log(`[Phone Purchase] Twilio error 21649 for ${phoneCountry}/${resolvedNumberType} — attempting to find correct ${resolvedNumberType} bundle...`);
+          logger.warn(`[Phone Purchase] Twilio error 21649 for ${phoneCountry}/${resolvedNumberType} — attempting to find correct ${resolvedNumberType} bundle...`);
           const approvedBundle = await twilioService.getApprovedBundleForCountry(phoneCountry, resolvedNumberType);
 
           if (approvedBundle && approvedBundle.bundleSid !== effectiveBundleSid) {
-            console.log(`[Phone Purchase] Retrying purchase with correct ${resolvedNumberType} bundle: ${approvedBundle.bundleSid}`);
+            logger.warn(`[Phone Purchase] Retrying purchase with correct ${resolvedNumberType} bundle: ${approvedBundle.bundleSid}`);
             // Also extract address from the newly found bundle
             let retryAddressSid = effectiveAddressSid;
             const bundleAddress = await twilioService.getBundleAddressSid(approvedBundle.bundleSid, phoneCountry);
@@ -416,7 +416,7 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
            (buyError.message && buyError.message.includes('Address'))) &&
           !effectiveAddressSid && !effectiveBundleSid && phoneCountry
         ) {
-          console.log(`[Phone Purchase] Twilio requires address for ${phoneCountry} (error ${buyError.code}), returning friendly error`);
+          logger.warn(`[Phone Purchase] Twilio requires address for ${phoneCountry} (error ${buyError.code}), returning friendly error`);
           return res.status(400).json({
             error: "Address required",
             message: `Phone numbers in ${phoneCountry} require a verified address. Please add an address in Settings → Addresses before purchasing.`,
@@ -442,7 +442,7 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
         }
         return res.status(500).json({ error: 'No active ElevenLabs API keys available in pool' });
       }
-      console.log(`📞 [ElevenLabs Pool] Using user's assigned credential: ${credentialToUse.name}`);
+      logger.info(`📞 [ElevenLabs Pool] Using user's assigned credential: ${credentialToUse.name}`);
       
       let dbPhoneNumber;
       
@@ -499,7 +499,7 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
           
           try {
             await twilioService.releasePhoneNumber(twilioNumber.sid);
-            console.log('Successfully released orphaned Twilio number:', twilioNumber.sid);
+            logger.info(`Successfully released orphaned Twilio number: ${twilioNumber.sid}`);
           } catch (releaseError: any) {
             console.error('CRITICAL: Failed to release Twilio number after DB failure:', {
               phoneNumber: twilioNumber.phoneNumber,
@@ -537,7 +537,7 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
       let elevenLabsPhoneNumberId: string | null = null;
       if (dbPhoneNumber) {
         try {
-          console.log(`📞 [ElevenLabs Sync] Syncing phone number to ElevenLabs: ${twilioNumber.phoneNumber}`);
+          logger.info(`📞 [ElevenLabs Sync] Syncing phone number to ElevenLabs (phone ${twilioNumber.sid})`);
           
           const { ElevenLabsService } = await import('../services/elevenlabs');
           const elevenLabsService = new ElevenLabsService(credentialToUse.apiKey);
@@ -554,7 +554,7 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
           });
           
           elevenLabsPhoneNumberId = elevenLabsResult.phone_number_id;
-          console.log(`✅ [ElevenLabs Sync] Phone number synced successfully: ${elevenLabsPhoneNumberId}`);
+          logger.info(`✅ [ElevenLabs Sync] Phone number synced successfully: ${elevenLabsPhoneNumberId}`);
           
           try {
             await db.update(phoneNumbers)
@@ -564,7 +564,7 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
               })
               .where(eq(phoneNumbers.id, dbPhoneNumber.id));
             
-            console.log(`✅ [ElevenLabs Sync] Phone number record updated with ElevenLabs ID and credential`);
+            logger.info(`✅ [ElevenLabs Sync] Phone number record updated with ElevenLabs ID and credential`);
             
             dbPhoneNumber.elevenLabsPhoneNumberId = elevenLabsPhoneNumberId;
             dbPhoneNumber.elevenLabsCredentialId = credentialToUse.id;
@@ -573,7 +573,7 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
             
             try {
               await elevenLabsService.deletePhoneNumber(elevenLabsPhoneNumberId);
-              console.log(`✅ [Rollback] Deleted ElevenLabs phone number: ${elevenLabsPhoneNumberId}`);
+              logger.info(`✅ [Rollback] Deleted ElevenLabs phone number: ${elevenLabsPhoneNumberId}`);
             } catch (deleteError: any) {
               console.error('❌ [Rollback] Failed to delete ElevenLabs phone number:', deleteError);
             }
@@ -601,17 +601,17 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
                   WHERE id = ${req.userId!}
                 `);
                 
-                console.log(`✅ [Rollback] Restored ${monthlyCredits} credits to user`);
+                logger.info(`✅ [Rollback] Restored ${monthlyCredits} credits to user`);
               });
             }
             
             await db.delete(phoneNumbers).where(eq(phoneNumbers.id, dbPhoneNumber.id));
-            console.log('✅ [Rollback] Deleted phone number from database');
+            logger.info('✅ [Rollback] Deleted phone number from database');
             
             await twilioService.releasePhoneNumber(twilioNumber.sid);
-            console.log('✅ [Rollback] Released Twilio phone number');
+            logger.info('✅ [Rollback] Released Twilio phone number');
             
-            console.log('✅ [Rollback] Complete rollback successful - all state restored consistently');
+            logger.info('✅ [Rollback] Complete rollback successful - all state restored consistently');
             throw new Error('Failed to sync phone number to ElevenLabs. Purchase fully rolled back.');
           } catch (rollbackError: any) {
             console.error('❌ [CRITICAL ROLLBACK FAILURE] Rollback failed after ElevenLabs sync failure:', rollbackError);
@@ -648,7 +648,7 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
 
       if (phoneNumber.elevenLabsPhoneNumberId) {
         try {
-          console.log(`📞 [ElevenLabs Delete] Deleting phone number from ElevenLabs: ${phoneNumber.elevenLabsPhoneNumberId}`);
+          logger.info(`📞 [ElevenLabs Delete] Deleting phone number from ElevenLabs: ${phoneNumber.elevenLabsPhoneNumberId}`);
           
           const { ElevenLabsPoolService } = await import('../services/elevenlabs-pool');
           const userAgents = await storage.getUserAgents(req.userId!);
@@ -659,7 +659,7 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
               const { ElevenLabsService } = await import('../services/elevenlabs');
               const elevenLabsService = new ElevenLabsService(credential.apiKey);
               await elevenLabsService.deletePhoneNumber(phoneNumber.elevenLabsPhoneNumberId);
-              console.log(`✅ [ElevenLabs Delete] Phone number deleted from ElevenLabs successfully`);
+              logger.info(`✅ [ElevenLabs Delete] Phone number deleted from ElevenLabs successfully`);
             }
           }
         } catch (elevenLabsError: any) {

@@ -14,11 +14,15 @@ for (const method of ['log', 'info', 'warn']) console[method] = () => {};
 
 const { loadRoleCatalogue } = await import('../../server/workforce/catalogue/loader.ts');
 const { createReadToolSpecs } = await import('../../server/workforce/tools/read-handlers.ts');
+const { createGroup00ToolDefinitions, GROUP00_NOT_IMPLEMENTED_IDS } = await import(
+  '../../server/workforce/tools/handlers/group-00.ts'
+);
 const { GROUP_02_TOOL_IDS, GROUP_02_NOT_IMPLEMENTED_IDS } = await import('../../server/workforce/tools/handlers/group-02.ts');
 
 // Recorded on 2026-11-04: 100 distinct declared IDs across 125 role files, 5 bound to a handler, 95 unmapped.
-// 2026-11-08: group 02 binds 15 more (9 reads, 5 writes, 1 draft). Its 5 not_implemented ids stay unmapped. 80 unmapped.
-const UNMAPPED_COUNT_RECORDED = 80;
+// 2026-11-08: group 00 binds 13 real IDs (its other 5 are not_implemented and do not count). Group 02 binds 15
+// (9 reads, 5 writes, 1 draft; its 5 not_implemented IDs do not count). 95 - 13 - 15 = 67 unmapped.
+const UNMAPPED_COUNT_RECORDED = 67;
 
 const ROLES_DIR = fileURLToPath(new URL('../../server/workforce/catalogue/roles', import.meta.url));
 
@@ -28,10 +32,16 @@ for (const role of catalogue.values()) for (const toolId of role.tools) declared
 
 // Typed handlers bound through the read-handler port. The store is a stub: no calls are made when building specs.
 const stubStore = new Proxy({}, { get: () => async () => [] });
-const notImplemented = new Set(GROUP_02_NOT_IMPLEMENTED_IDS);
+// Group 00 and group 02 ids count as bound only when they have a real handler (not_implemented ids do not count).
+const group00Bound = createGroup00ToolDefinitions()
+  .map((def) => def.id)
+  .filter((id) => !GROUP00_NOT_IMPLEMENTED_IDS.has(id));
+const notImplemented02 = new Set(GROUP_02_NOT_IMPLEMENTED_IDS);
+const group02Bound = GROUP_02_TOOL_IDS.filter((toolId) => !notImplemented02.has(toolId));
 const bound = new Set([
   ...createReadToolSpecs(stubStore).map((spec) => spec.id),
-  ...GROUP_02_TOOL_IDS.filter((toolId) => !notImplemented.has(toolId)),
+  ...group00Bound,
+  ...group02Bound,
 ]);
 
 const unmapped = [...declared].filter((toolId) => !bound.has(toolId)).sort();

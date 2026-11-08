@@ -20,6 +20,7 @@ import {
 import { migrateAgent, migratePhoneNumber } from './resource-migrator';
 import { formatErrorForLog } from './error-detector';
 import { ElevenLabsPoolService } from '../../services/elevenlabs-pool';
+import { logger } from '../../utils/logger';
 
 /**
  * Get all user's agents that are on a specific credential
@@ -137,12 +138,12 @@ export async function migrateUserResources(
   const migratedAgents: MigratedAgent[] = [];
   const migratedPhones: MigratedPhone[] = [];
   
-  console.log(`\n🔄 ============================================`);
-  console.log(`🔄 MIGRATION ENGINE: Starting resource migration`);
-  console.log(`🔄 User: ${userId}`);
-  console.log(`🔄 From Credential: ${fromCredentialId}`);
-  console.log(`🔄 To Credential: ${toCredentialId}`);
-  console.log(`🔄 ============================================\n`);
+  logger.info(`\n🔄 ============================================`);
+  logger.info(`🔄 MIGRATION ENGINE: Starting resource migration`);
+  logger.info(`🔄 User: ${userId}`);
+  logger.info(`🔄 From Credential: ${fromCredentialId}`);
+  logger.info(`🔄 To Credential: ${toCredentialId}`);
+  logger.info(`🔄 ============================================\n`);
 
   const fromCredential = await getCredentialById(fromCredentialId);
   const toCredential = await getCredentialById(toCredentialId);
@@ -184,7 +185,7 @@ export async function migrateUserResources(
   }
 
   if (options.dryRun) {
-    console.log(`🔄 [DRY RUN] Would migrate resources - no actual changes made`);
+    logger.info(`🔄 [DRY RUN] Would migrate resources - no actual changes made`);
     const userAgents = await getUserAgentsOnCredential(userId, fromCredentialId);
     const userPhones = await getUserPhonesOnCredential(userId, fromCredentialId);
     
@@ -210,7 +211,7 @@ export async function migrateUserResources(
 
   if (!options.skipAgents) {
     const userAgents = await getUserAgentsOnCredential(userId, fromCredentialId);
-    console.log(`🔄 Found ${userAgents.length} agent(s) to migrate`);
+    logger.info(`🔄 Found ${userAgents.length} agent(s) to migrate`);
 
     for (const agent of userAgents) {
       try {
@@ -221,7 +222,7 @@ export async function migrateUserResources(
           toCredentialId
         );
         migratedAgents.push(result);
-        console.log(`   ✅ Agent migrated: ${result.name}`);
+        logger.info(`   ✅ Agent migrated: ${result.name}`);
       } catch (error) {
         console.error(`   ❌ Failed to migrate agent ${agent.name}:`, formatErrorForLog(error));
         return {
@@ -239,7 +240,7 @@ export async function migrateUserResources(
 
   if (!options.skipPhones) {
     const userPhones = await getUserPhonesOnCredential(userId, fromCredentialId);
-    console.log(`🔄 Found ${userPhones.length} phone number(s) to migrate`);
+    logger.info(`🔄 Found ${userPhones.length} phone number(s) to migrate`);
 
     for (const phone of userPhones) {
       try {
@@ -250,7 +251,7 @@ export async function migrateUserResources(
           toCredentialId
         );
         migratedPhones.push(result);
-        console.log(`   ✅ Phone migrated: ${result.phoneNumber}`);
+        logger.info(`   ✅ Phone migrated`);
       } catch (error) {
         console.error(`   ❌ Failed to migrate phone ${phone.phoneNumber}:`, formatErrorForLog(error));
         return {
@@ -267,18 +268,18 @@ export async function migrateUserResources(
   }
 
   const duration = Date.now() - startTime;
-  console.log(`\n🔄 ============================================`);
-  console.log(`🔄 MIGRATION COMPLETE`);
-  console.log(`🔄 Agents migrated: ${migratedAgents.length}`);
-  console.log(`🔄 Phones migrated: ${migratedPhones.length}`);
-  console.log(`🔄 Duration: ${duration}ms`);
-  console.log(`🔄 ============================================\n`);
+  logger.info(`\n🔄 ============================================`);
+  logger.info(`🔄 MIGRATION COMPLETE`);
+  logger.info(`🔄 Agents migrated: ${migratedAgents.length}`);
+  logger.info(`🔄 Phones migrated: ${migratedPhones.length}`);
+  logger.info(`🔄 Duration: ${duration}ms`);
+  logger.info(`🔄 ============================================\n`);
 
   // Update user's credential pointer to the new credential
   // This ensures future allocations stay on the same key
   try {
     await ElevenLabsPoolService.assignUserToCredential(userId, toCredentialId);
-    console.log(`🔄 Updated user ${userId} credential pointer to ${toCredentialId}`);
+    logger.info(`🔄 Updated user ${userId} credential pointer to ${toCredentialId}`);
   } catch (error) {
     console.error(`🔄 Warning: Failed to update user credential pointer:`, formatErrorForLog(error));
     // Don't fail the migration for this - resources are already moved
@@ -310,12 +311,12 @@ export async function autoMigrateUser(
   userId: string,
   currentCredentialId: string
 ): Promise<MigrationResult> {
-  console.log(`🔄 [Auto-Migration] Looking for available credential for user ${userId}`);
+  logger.info(`🔄 [Auto-Migration] Looking for available credential for user ${userId}`);
 
   const availableCredential = await getAvailableCredential(currentCredentialId);
 
   if (!availableCredential) {
-    console.log(`🔄 [Auto-Migration] No available credentials with capacity`);
+    logger.warn(`🔄 [Auto-Migration] No available credentials with capacity`);
     return {
       success: false,
       migratedAgents: [],
@@ -327,7 +328,7 @@ export async function autoMigrateUser(
     };
   }
 
-  console.log(`🔄 [Auto-Migration] Found available credential: ${availableCredential.name} (capacity: ${availableCredential.availableCapacity})`);
+  logger.info(`🔄 [Auto-Migration] Found available credential: ${availableCredential.name} (capacity: ${availableCredential.availableCapacity})`);
 
   return migrateUserResources(userId, currentCredentialId, availableCredential.id);
 }

@@ -14,6 +14,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
+import { logger } from '../utils/logger';
 import { MercadoPagoConfig, Preference, PreApprovalPlan, PreApproval, Payment } from 'mercadopago';
 import crypto from 'crypto';
 import { storage } from '../storage';
@@ -188,7 +189,7 @@ export async function createMercadoPagoPreference(options: MercadoPagoPreference
     },
   });
   
-  console.log(`✅ [MercadoPago] Created preference ${result.id}`);
+  logger.info(`✅ [MercadoPago] Created preference ${result.id}`);
   return result;
 }
 
@@ -237,7 +238,7 @@ export async function createMercadoPagoSubscriptionPlan(options: MercadoPagoSubs
     },
   });
   
-  console.log(`✅ [MercadoPago] Created subscription plan ${result.id}`);
+  logger.info(`✅ [MercadoPago] Created subscription plan ${result.id}`);
   return result;
 }
 
@@ -278,7 +279,7 @@ export async function createMercadoPagoSubscription(options: MercadoPagoSubscrip
     },
   });
   
-  console.log(`✅ [MercadoPago] Created subscription ${result.id}`);
+  logger.info(`✅ [MercadoPago] Created subscription ${result.id}`);
   return result;
 }
 
@@ -306,7 +307,7 @@ export async function cancelMercadoPagoSubscription(subscriptionId: string): Pro
     },
   });
   
-  console.log(`✅ [MercadoPago] Cancelled subscription ${subscriptionId}`);
+  logger.info(`✅ [MercadoPago] Cancelled subscription ${subscriptionId}`);
   return result;
 }
 

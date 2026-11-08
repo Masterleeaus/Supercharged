@@ -14,6 +14,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
+import { logger } from '../utils/logger';
 /**
  * Universal Webhook Tool Builder
  * 
@@ -174,4 +175,4 @@ export function buildUniversalWebhookTools(webhookNodes: WebhookNodeConfig[]): U
     .map(node => buildUniversalWebhookTool(node));
 }
 
-console.log('🔗 [Universal Webhook] Service loaded');
+logger.info('🔗 [Universal Webhook] Service loaded');

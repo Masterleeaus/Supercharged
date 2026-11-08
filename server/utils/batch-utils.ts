@@ -6,6 +6,7 @@
  * and ensure crash recovery. Used by campaign executor and contact upload.
  */
 
+import { logger } from './logger';
 import { db } from '../db';
 import { calls, flowExecutions, contacts, campaigns, users } from '@shared/schema';
 import type { InsertCall, InsertContact } from '@shared/schema';
@@ -138,7 +139,7 @@ export async function batchInsertCalls(
   const totalRecords = callInserts.length;
   let processedCount = 0;
 
-  console.log(`${logPrefix} Starting batch insert of ${totalRecords} call records in ${chunks.length} chunks`);
+  logger.info(`${logPrefix} Starting batch insert of ${totalRecords} call records in ${chunks.length} chunks`);
 
   for (let i = 0; i < chunks.length; i++) {
     const chunk = chunks[i];
@@ -150,7 +151,7 @@ export async function batchInsertCalls(
       processedCount += chunk.length;
 
       if (processedCount % LOG_INTERVAL === 0 || i === chunks.length - 1) {
-        console.log(`${logPrefix} Progress: ${processedCount}/${totalRecords} call records (${Math.round(processedCount / totalRecords * 100)}%)`);
+        logger.info(`${logPrefix} Progress: ${processedCount}/${totalRecords} call records (${Math.round(processedCount / totalRecords * 100)}%)`);
       }
     } catch (error: any) {
       result.failed += chunk.length;
@@ -171,7 +172,7 @@ export async function batchInsertCalls(
   }
 
   result.success = result.failed === 0;
-  console.log(`${logPrefix} ✅ Batch insert complete: ${result.inserted} success, ${result.failed} failed`);
+  logger.info(`${logPrefix} ✅ Batch insert complete: ${result.inserted} success, ${result.failed} failed`);
   
   return result;
 }
@@ -235,7 +236,7 @@ export async function batchInsertFlowExecutions(
   const totalRecords = insertValues.length;
   let processedCount = 0;
 
-  console.log(`${logPrefix} Starting batch insert of ${totalRecords} flow execution records in ${chunks.length} chunks`);
+  logger.info(`${logPrefix} Starting batch insert of ${totalRecords} flow execution records in ${chunks.length} chunks`);
 
   for (let i = 0; i < chunks.length; i++) {
     const chunk = chunks[i];
@@ -247,7 +248,7 @@ export async function batchInsertFlowExecutions(
       processedCount += chunk.length;
 
       if (processedCount % LOG_INTERVAL === 0 || i === chunks.length - 1) {
-        console.log(`${logPrefix} Progress: ${processedCount}/${totalRecords} flow executions (${Math.round(processedCount / totalRecords * 100)}%)`);
+        logger.info(`${logPrefix} Progress: ${processedCount}/${totalRecords} flow executions (${Math.round(processedCount / totalRecords * 100)}%)`);
       }
     } catch (error: any) {
       result.failed += chunk.length;
@@ -268,7 +269,7 @@ export async function batchInsertFlowExecutions(
   }
 
   result.success = result.failed === 0;
-  console.log(`${logPrefix} ✅ Batch insert complete: ${result.inserted} success, ${result.failed} failed`);
+  logger.info(`${logPrefix} ✅ Batch insert complete: ${result.inserted} success, ${result.failed} failed`);
   
   return result;
 }
@@ -324,7 +325,7 @@ export async function batchInsertContacts(
   const totalRecords = contactInserts.length;
   let processedCount = 0;
 
-  console.log(`${logPrefix} Starting batch insert of ${totalRecords} contacts in ${chunks.length} chunks (retainResults=${retainResults})`);
+  logger.info(`${logPrefix} Starting batch insert of ${totalRecords} contacts in ${chunks.length} chunks (retainResults=${retainResults})`);
 
   for (let i = 0; i < chunks.length; i++) {
     const chunk = chunks[i];
@@ -341,7 +342,7 @@ export async function batchInsertContacts(
       processedCount += chunk.length;
 
       if (processedCount % LOG_INTERVAL === 0 || i === chunks.length - 1) {
-        console.log(`${logPrefix} Progress: ${processedCount}/${totalRecords} contacts (${Math.round(processedCount / totalRecords * 100)}%)`);
+        logger.info(`${logPrefix} Progress: ${processedCount}/${totalRecords} contacts (${Math.round(processedCount / totalRecords * 100)}%)`);
       }
     } catch (error: any) {
       result.failed += chunk.length;
@@ -366,7 +367,7 @@ export async function batchInsertContacts(
   }
 
   result.success = result.failed === 0;
-  console.log(`${logPrefix} ✅ Batch insert complete: ${result.inserted} success, ${result.failed} failed`);
+  logger.info(`${logPrefix} ✅ Batch insert complete: ${result.inserted} success, ${result.failed} failed`);
   
   return result;
 }
@@ -395,7 +396,7 @@ export async function processInChunks<T, R>(
   let processedCount = 0;
   let failedCount = 0;
 
-  console.log(`${logPrefix} Processing ${items.length} items in ${chunks.length} chunks`);
+  logger.info(`${logPrefix} Processing ${items.length} items in ${chunks.length} chunks`);
 
   for (let i = 0; i < chunks.length; i++) {
     const chunk = chunks[i];
@@ -406,7 +407,7 @@ export async function processInChunks<T, R>(
       processedCount += chunk.length;
 
       if (processedCount % logInterval === 0 || i === chunks.length - 1) {
-        console.log(`${logPrefix} Progress: ${processedCount}/${items.length} (${Math.round(processedCount / items.length * 100)}%)`);
+        logger.info(`${logPrefix} Progress: ${processedCount}/${items.length} (${Math.round(processedCount / items.length * 100)}%)`);
       }
     } catch (error: any) {
       failedCount += chunk.length;
@@ -414,7 +415,7 @@ export async function processInChunks<T, R>(
     }
   }
 
-  console.log(`${logPrefix} ✅ Complete: ${processedCount} processed, ${failedCount} failed`);
+  logger.info(`${logPrefix} ✅ Complete: ${processedCount} processed, ${failedCount} failed`);
   
   return { results, processedCount, failedCount };
 }

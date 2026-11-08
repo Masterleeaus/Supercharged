@@ -358,12 +358,11 @@ test('draft migration: DRAFT header, IF NOT EXISTS everywhere, company_id NOT NU
   }
 });
 
-test('schema.ts and schema.js both define the four workforce tables, and schema.ts keeps CRLF', () => {
+test('schema.ts defines the four workforce tables, and keeps CRLF', () => {
+  // shared/schema.js was removed (8502bb2), so only the TypeScript source is checked.
   const ts = readFileSync(new URL('../../shared/schema.ts', import.meta.url), 'utf8');
-  const js = readFileSync(new URL('../../shared/schema.js', import.meta.url), 'utf8');
   for (const name of ['workforce_runs', 'workforce_tasks', 'workforce_tool_calls', 'workforce_audit_events']) {
     assert.match(ts, new RegExp(`pgTable\\("${name}"`));
-    assert.match(js, new RegExp(`pgTable\\("${name}"`));
   }
   const lines = ts.split('\n');
   assert.ok(lines.slice(0, -1).every((line) => line.endsWith('\r')), 'every line of schema.ts ends with CRLF');

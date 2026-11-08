@@ -19,6 +19,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { NotificationService } from '../../../services/notification-service';
 import { emailService } from '../../../services/email-service';
+import { logger } from '../../../utils/logger';
 
 export class KycService {
   /**
@@ -272,7 +273,7 @@ export class KycService {
       })
       .where(eq(users.id, userId));
 
-    console.log(`[KYC] Approved KYC for user: ${userId}`);
+    logger.info(`[KYC] Approved KYC for user: ${userId}`);
 
     try {
       await NotificationService.create({
@@ -312,7 +313,7 @@ export class KycService {
       })
       .where(eq(users.id, userId));
 
-    console.log(`[KYC] Rejected KYC for user: ${userId}`);
+    logger.warn(`[KYC] Rejected KYC for user: ${userId}`);
 
     try {
       const rejectionMessage = reason 

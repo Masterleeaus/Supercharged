@@ -137,7 +137,7 @@ import { logger } from '../utils/logger';
       logger.warn('Startup schema step skipped (add sip_phone_numbers.external_fonoster_phone_id)', { error: e?.message }, 'UserSipGateways');
     }
 
-    console.log('[UserSipGateways] Tables ready');
+    logger.info('[UserSipGateways] Tables ready');
   } catch (err: any) {
     console.error('[UserSipGateways] Failed to create tables:', err.message);
   }
