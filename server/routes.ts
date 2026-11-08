@@ -21,45 +21,23 @@ import { createServer, type Server } from "http";
 import { WebSocketServer } from 'ws';
 import { storage } from "./storage";
 import { db } from "./db";
-import { phoneNumbers, agents, calls, creditTransactions, paymentTransactions, phoneNumberRentals, campaigns, contacts, incomingConnections, llmModels, twilioCountries, users, knowledgeBase, userSubscriptions } from "@shared/schema";
+import { phoneNumbers, agents, calls, campaigns, contacts, incomingConnections, llmModels, users, knowledgeBase, userSubscriptions } from "@shared/schema";
 import { eq, desc, and, isNull, sql, or } from "drizzle-orm";
-import { authenticateToken, authenticateAnyToken, requireRole, generateTokenAsync, checkActiveMembership, checkUserActive, type AuthRequest } from "./middleware/auth";
-import { authRateLimiter, strictRateLimiter, paymentRateLimiter } from "./middleware/rateLimiter";
+import { authenticateToken, authenticateAnyToken, requireRole, type AuthRequest } from "./middleware/auth";
 import { validateTwilioWebhook } from "./middleware/webhookValidation";
 import { elevenLabsService, ElevenLabsService, isAgentOnSipPhoneNumber, getSipTrunkOutboundAddress } from "./services/elevenlabs";
 import { sanitizeLlmModel } from "./utils/llm-sanitize";
 import { ElevenLabsPoolService } from "./services/elevenlabs-pool";
-import { twilioService } from "./services/twilio";
 
 const elevenLabsPoolService = new ElevenLabsPoolService();
-import { getTwilioClient } from "./services/twilio-connector";
 import { campaignExecutor } from "./services/campaign-executor";
 import { BatchCallingService } from "./services/batch-calling";
-import {
-  handleTwilioVoiceWebhook,
-  handleIncomingCallWebhook,
-  handleTwilioStatusWebhook,
-  handleTwilioRecordingWebhook,
-  handleTwilioStreamWebSocket,
-  handleFlowVoiceAnswer,
-  handleFlowNode,
-  handleFlowGather,
-  handleFlowContinue,
-  handleFlowStatus,
-  handleElevenLabsWebhook,
-  fetchElevenLabsConversation,
-  handleRAGToolWebhook,
-  handleAppointmentToolWebhook,
-  handleFormSubmissionWebhook,
-  handlePlayAudioToolWebhook,
-} from "./routes/webhook-routes";
+import { handleTwilioVoiceWebhook, handleIncomingCallWebhook, handleTwilioStatusWebhook, handleTwilioRecordingWebhook, handleTwilioStreamWebSocket, handleFlowVoiceAnswer, handleFlowNode, handleFlowGather, handleFlowContinue, handleFlowStatus, handleElevenLabsWebhook, handleRAGToolWebhook, handleAppointmentToolWebhook, handleFormSubmissionWebhook, handlePlayAudioToolWebhook } from "./routes/webhook-routes";
 // Flow Agent WebSocket handler removed - all agents now execute through ElevenLabs
 import { getDomain } from "./utils/domain";
 import { adminRouter } from "./routes/admin-routes";
 import { maintenanceMiddleware } from "./services/system-update-service";
 import adminTeamAccessRoutes from "./routes/admin-team-access.routes";
-import { createPublicRoutes } from "./routes/public-routes";
-import { createAuthRoutes } from "./routes/auth-routes";
 import { createAgentRoutes } from "./routes/agent-routes";
 import { createCampaignRoutes } from "./routes/campaign-routes";
 import { createPhoneRoutes } from "./routes/phone-routes";
@@ -67,15 +45,7 @@ import { createUserAddressRoutes } from "./routes/user-address-routes";
 import { createAnalyticsRoutes } from "./routes/analytics-routes";
 import { createRouteContext } from "./routes/common";
 // Payment Engine v1.0.0 - All payment gateway routers
-import {
-  stripeRouter,
-  razorpayRouter,
-  paypalRouter,
-  paystackRouter,
-  mercadopagoRouter,
-  yookassaRouter,
-  PAYMENT_ENGINE_VERSION,
-} from "./engines/payment";
+import { stripeRouter, razorpayRouter, paypalRouter, paystackRouter, mercadopagoRouter, yookassaRouter } from "./engines/payment";
 // Plivo + OpenAI Realtime Engine
 import { createPlivoApiRoutes, setupPlivoWebhooks, setupPlivoStream } from "./engines/plivo";
 // Plivo-ElevenLabs SIP Trunk Engine (ISOLATED from Twilio+ElevenLabs)
@@ -111,26 +81,12 @@ import { createUserSipGatewaysRoutes } from "./routes/user-sip-gateways.routes";
 import { createSubscriptionRoutes } from "./routes/subscription-routes";
 import crmRoutes from "./routes/crm-routes";
 import { widgetRoutes, publicWidgetRoutes } from "./modules/widget";
-// REST API Plugin - loaded dynamically so server starts without it
-import bcrypt from "bcrypt";
 import multer from "multer";
-import Papa from "papaparse";
 // Team Management Middleware - allows team members to access user data with their parent's userId
 // Uses adapter for optional plugin loading
 import { getTeamContextMiddleware, isTeamManagementInstalled, initializeAdapter as initTeamAdapter } from "./plugins/team-management-adapter";
-import crypto from "crypto";
 import { validateAppointmentWebhookToken } from "./services/appointment-elevenlabs-tool";
-import { NotificationService } from "./services/notification-service";
-import { IncomingAgentService } from "./services/incoming-agent";
-import { FlowAgentService } from "./services/flow-agent";
-import { setupRAGToolForAgent, isRAGEnabled } from "./services/rag-elevenlabs-tool";
-import PDFDocument from "pdfkit";
-import { webhookDeliveryService } from "./services/webhook-delivery";
-import { webhookTestService } from "./services/webhook-test-service";
-import { contactUploadService, PlanLimitExceededError } from "./services/contact-upload-service";
-import { recordingService } from "./services/recording-service";
 import { CampaignScheduler } from "./services/campaign-scheduler";
-import { emailService } from "./services/email-service";
 import { generateRefundNoteForRefund, refundNoteService } from "./services/refund-note-service";
 import { safeErrorMessage } from "./utils/safe-error";
 import { markPluginAsRegistered } from "./plugins/loader";
@@ -163,6 +119,7 @@ import { registerApprovalModule } from "./modules/approvals/index.ts";
 import { requireCompanyScope } from "./middleware/company-scope";
 import { createCockpitRouter, DEFAULT_MODE_CONFIG } from "./routes/cockpit-routes";
 import { createProviderWebhookRateLimit, readTwilioAccountSid, TWILIO_ACCOUNT_SID_PATTERN } from "./middleware/provider-webhook-rate-limit";
+import { registerPublicAuthRoutes } from "./routes/core/public-auth-routes";
 
 const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
@@ -214,13 +171,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // admin can monitor and finish the flow.
   app.use(maintenanceMiddleware);
 
-  // Register public routes (installer, health, branding, SEO, contact, etc.)
-  const publicRoutes = createPublicRoutes(routeContext);
-  app.use(publicRoutes);
-
-  // Register authentication routes (login, register, OTP, password, etc.)
-  const authRoutes = createAuthRoutes(routeContext);
-  app.use(authRoutes);
+  // Routes: public and auth, see server/routes/core/public-auth-routes.ts
+  registerPublicAuthRoutes(app, { routeContext });
 
   // Apply team context middleware globally for all user-facing /api routes
   // This allows team members to access data using their parent user's userId
