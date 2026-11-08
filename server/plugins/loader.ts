@@ -148,7 +148,7 @@ export function discoverPlugins(): PluginManifest[] {
   const entries = fs.readdirSync(pluginsDir, { withFileTypes: true });
   
   for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
+    if (!entry.isDirectory() || entry.isSymbolicLink()) continue;
     
     const manifestPath = path.join(pluginsDir, entry.name, 'plugin.json');
     
@@ -160,6 +160,25 @@ export function discoverPlugins(): PluginManifest[] {
     try {
       const manifestContent = fs.readFileSync(manifestPath, 'utf-8');
       const manifest = JSON.parse(manifestContent) as PluginManifest;
+      // The loader constructs paths from manifest.name, so never trust a
+      // manifest to point outside its own discovered plugin directory.
+      if (!manifest || typeof manifest !== 'object' ||
+          typeof manifest.name !== 'string' ||
+          !/^[a-z][a-z0-9-]{1,63}$/.test(manifest.name) ||
+          manifest.name !== entry.name) {
+        console.warn(`[Plugin Loader] Skipping invalid plugin name for directory '${entry.name}'`);
+        continue;
+      }
+      if (typeof manifest.entryPoint !== 'string' ||
+          !/\.(?:mjs|js|ts)$/.test(manifest.entryPoint) ||
+          path.isAbsolute(manifest.entryPoint) ||
+          manifest.entryPoint.includes('\\') ||
+          manifest.entryPoint.split('/').some(segment => segment === '..' || segment === '.') ||
+          typeof manifest.registerFunction !== 'string' ||
+          !/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(manifest.registerFunction)) {
+        console.warn(`[Plugin Loader] Skipping invalid entrypoint or register function for '${entry.name}'`);
+        continue;
+      }
       if (seenNames.has(manifest.name)) {
         console.warn(`[Plugin Loader] Skipping duplicate plugin '${manifest.name}' in directory '${entry.name}'`);
         continue;
