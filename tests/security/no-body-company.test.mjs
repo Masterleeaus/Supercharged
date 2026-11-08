@@ -8,8 +8,16 @@ import path from 'node:path';
 const ROOT = new URL('../../', import.meta.url);
 const read = (rel) => fs.readFileSync(new URL(rel, ROOT), 'utf8');
 
-const FILES = [
+const FLOW_FILES = [
   'server/routes/flow-automation-routes.ts',
+  ...fs.readdirSync(new URL('server/routes/flow-automation/', ROOT))
+    .filter((f) => f.endsWith('.ts'))
+    .sort()
+    .map((f) => `server/routes/flow-automation/${f}`),
+];
+
+const FILES = [
+  ...FLOW_FILES,
   'server/routes/template-routes.ts',
   'server/routes/incoming-connections-routes.ts',
   'server/routes/crm-routes.ts',

@@ -27,8 +27,19 @@ const { getCompanyScope, requireCompanyScope, CompanyScopeError } = await import
 const root = new URL('../../', import.meta.url);
 const read = (rel) => fs.readFileSync(new URL(rel, root), 'utf8');
 
-const ROUTE_FILES = [
+// The flow routes are split: the entry file plus every module under server/routes/flow-automation/.
+const FLOW_FILES = [
   'server/routes/flow-automation-routes.ts',
+  ...fs.readdirSync(new URL('server/routes/flow-automation/', root))
+    .filter((f) => f.endsWith('.ts'))
+    .sort()
+    .map((f) => `server/routes/flow-automation/${f}`),
+];
+const flowSource = FLOW_FILES.map(read).join('\n');
+const sourceOf = (rel) => (FLOW_FILES.includes(rel) ? flowSource : read(rel));
+
+const ROUTE_FILES = [
+  ...FLOW_FILES,
   'server/routes/incoming-connections-routes.ts',
   'server/engines/twilio-openai/routes/twilio-openai-incoming-connections.ts',
 ];
@@ -129,12 +140,12 @@ test('every select on a company-owned table in the three route files filters by 
 
 test('each route file defines a company helper that reads the verified session and refuses with 403', () => {
   for (const rel of ROUTE_FILES) {
-    const src = read(rel);
+    const src = sourceOf(rel);
     assert.match(src, /getCompanyScope\(req\)/, `${rel} must read company from the session`);
     assert.doesNotMatch(src, /req\.body\.companyId|req\.query\.companyId|req\.params\.companyId/, `${rel} must not take company from the request`);
   }
-  for (const rel of ROUTE_FILES.slice(0, 2)) {
-    const src = read(rel);
+  for (const rel of ['server/routes/flow-automation-routes.ts', 'server/routes/incoming-connections-routes.ts']) {
+    const src = sourceOf(rel);
     assert.match(src, /function companyForRead\(req: AuthRequest, res: Response\): string \| null/, `${rel} must define companyForRead`);
     assert.match(src, /res\.status\(403\)\.json\(\{ error: "Company scope required" \}\)/, `${rel} must return 403 when company is missing`);
   }
