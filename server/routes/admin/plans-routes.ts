@@ -44,6 +44,7 @@ import {
   isYookassaConfigured,
   isYookassaEnabled,
 } from '../../engines/payment/gateways/yookassa/service';
+import { logger } from '../../utils/logger';
 
 async function getStripeClient(): Promise<Stripe | null> {
   try {
@@ -138,7 +139,7 @@ export function registerPlansRoutes(router: Router) {
               notes: { planId: newPlan.id, billingPeriod: 'monthly' }
             });
             razorpayMonthlyPlanId = monthlyPlan.id;
-            console.log(`✅ [Razorpay] Created monthly plan ${monthlyPlan.id} with INR ${monthlyInrAmount}`);
+            logger.info(`✅ [Razorpay] Created monthly plan ${monthlyPlan.id} with INR ${monthlyInrAmount}`);
           }
           
           let razorpayYearlyPlanId: string | null = null;
@@ -154,7 +155,7 @@ export function registerPlansRoutes(router: Router) {
               notes: { planId: newPlan.id, billingPeriod: 'yearly' }
             });
             razorpayYearlyPlanId = yearlyPlan.id;
-            console.log(`✅ [Razorpay] Created yearly plan ${yearlyPlan.id} with INR ${yearlyInrAmount}`);
+            logger.info(`✅ [Razorpay] Created yearly plan ${yearlyPlan.id} with INR ${yearlyInrAmount}`);
           }
           
           if (razorpayMonthlyPlanId || razorpayYearlyPlanId) {
@@ -217,7 +218,7 @@ export function registerPlansRoutes(router: Router) {
           const updatedPlan = await storage.getPlan(newPlan.id);
           if (updatedPlan) newPlan = updatedPlan;
           
-          console.log(`✅ [Stripe] Created product ${stripeProduct.id} and prices for plan ${newPlan.id}`);
+          logger.info(`✅ [Stripe] Created product ${stripeProduct.id} and prices for plan ${newPlan.id}`);
           gatewaySync.stripe = { status: 'success' };
         } catch (stripeError: any) {
           console.error('❌ [Stripe] Error syncing plan to Stripe:', stripeError.message);
@@ -460,7 +461,7 @@ export function registerPlansRoutes(router: Router) {
           // Force resync option - recreate all Razorpay plans (since they're immutable)
           const forceRazorpaySync = req.body.forceRazorpaySync === true;
           if (forceRazorpaySync) {
-            console.log(`🔄 [Razorpay] Force sync requested for plan ${planId} - will recreate all plans in INR`);
+            logger.info(`🔄 [Razorpay] Force sync requested for plan ${planId} - will recreate all plans in INR`);
           }
           
           // Use INR-specific price fields for Razorpay (not USD prices)
@@ -489,10 +490,10 @@ export function registerPlansRoutes(router: Router) {
               }
             });
             updateData.razorpayPlanId = monthlyPlan.id;
-            console.log(`✅ [Razorpay] Created monthly plan ${monthlyPlan.id} with INR ${priceAmount}`);
+            logger.info(`✅ [Razorpay] Created monthly plan ${monthlyPlan.id} with INR ${priceAmount}`);
           } else if (effectiveMonthlyInrAmount === 0 && existingPlan.razorpayPlanId) {
             updateData.razorpayPlanId = null;
-            console.log(`ℹ️ [Razorpay] Cleared monthly plan ID (no INR price)`);
+            logger.info(`ℹ️ [Razorpay] Cleared monthly plan ID (no INR price)`);
           }
           
           // Use INR-specific yearly price field for Razorpay
@@ -520,10 +521,10 @@ export function registerPlansRoutes(router: Router) {
               }
             });
             updateData.razorpayYearlyPlanId = yearlyPlan.id;
-            console.log(`✅ [Razorpay] Created yearly plan ${yearlyPlan.id} with INR ${priceAmount}`);
+            logger.info(`✅ [Razorpay] Created yearly plan ${yearlyPlan.id} with INR ${priceAmount}`);
           } else if (effectiveYearlyInrAmount === 0 && existingPlan.razorpayYearlyPlanId) {
             updateData.razorpayYearlyPlanId = null;
-            console.log(`ℹ️ [Razorpay] Cleared yearly plan ID (no INR price)`);
+            logger.info(`ℹ️ [Razorpay] Cleared yearly plan ID (no INR price)`);
           }
           
           gatewaySync.razorpay = { status: 'success' };
@@ -546,7 +547,7 @@ export function registerPlansRoutes(router: Router) {
           // This is used after admin changes currency and needs to resync pricing
           const forceStripeSync = req.body.forceStripeSync === true;
           if (forceStripeSync) {
-            console.log(`🔄 [Stripe] Force sync requested for plan ${planId} - will recreate all prices in ${currency}`);
+            logger.info(`🔄 [Stripe] Force sync requested for plan ${planId} - will recreate all prices in ${currency}`);
           }
           
           // Check if we need to create a new Stripe product (if none exists)
@@ -564,7 +565,7 @@ export function registerPlansRoutes(router: Router) {
             });
             stripeProductId = stripeProduct.id;
             updateData.stripeProductId = stripeProductId;
-            console.log(`✅ [Stripe] Created new product ${stripeProductId} for plan ${planId}`);
+            logger.info(`✅ [Stripe] Created new product ${stripeProductId} for plan ${planId}`);
           } else {
             // Update existing product if name/description changed
             if (updateData.displayName || updateData.description) {
@@ -572,7 +573,7 @@ export function registerPlansRoutes(router: Router) {
                 name: updateData.displayName || existingPlan.displayName,
                 description: updateData.description || existingPlan.description || undefined
               });
-              console.log(`✅ [Stripe] Updated product ${stripeProductId}`);
+              logger.info(`✅ [Stripe] Updated product ${stripeProductId}`);
             }
           }
           
@@ -591,7 +592,7 @@ export function registerPlansRoutes(router: Router) {
             if (existingPlan.stripeMonthlyPriceId) {
               try {
                 await stripe.prices.update(existingPlan.stripeMonthlyPriceId, { active: false });
-                console.log(`📦 [Stripe] Archived old monthly price ${existingPlan.stripeMonthlyPriceId}`);
+                logger.info(`📦 [Stripe] Archived old monthly price ${existingPlan.stripeMonthlyPriceId}`);
               } catch (archiveErr: any) {
                 console.warn(`⚠️ [Stripe] Could not archive old monthly price: ${archiveErr.message}`);
               }
@@ -612,17 +613,17 @@ export function registerPlansRoutes(router: Router) {
               }
             });
             updateData.stripeMonthlyPriceId = monthlyPrice.id;
-            console.log(`✅ [Stripe] Created new monthly price ${monthlyPrice.id} ($${priceAmount})`);
+            logger.info(`✅ [Stripe] Created new monthly price ${monthlyPrice.id} ($${priceAmount})`);
           } else if (effectiveMonthlyAmount === 0 && existingPlan.stripeMonthlyPriceId) {
             // Transitioning to free plan - archive existing price and clear ID
             try {
               await stripe.prices.update(existingPlan.stripeMonthlyPriceId, { active: false });
-              console.log(`📦 [Stripe] Archived monthly price ${existingPlan.stripeMonthlyPriceId} (plan now free)`);
+              logger.info(`📦 [Stripe] Archived monthly price ${existingPlan.stripeMonthlyPriceId} (plan now free)`);
             } catch (archiveErr: any) {
               console.warn(`⚠️ [Stripe] Could not archive monthly price: ${archiveErr.message}`);
             }
             updateData.stripeMonthlyPriceId = null;
-            console.log(`ℹ️ [Stripe] Cleared monthly price ID for free plan`);
+            logger.info(`ℹ️ [Stripe] Cleared monthly price ID for free plan`);
           }
           
           // Check if yearly price needs to be created/updated
@@ -640,7 +641,7 @@ export function registerPlansRoutes(router: Router) {
             if (existingPlan.stripeYearlyPriceId) {
               try {
                 await stripe.prices.update(existingPlan.stripeYearlyPriceId, { active: false });
-                console.log(`📦 [Stripe] Archived old yearly price ${existingPlan.stripeYearlyPriceId}`);
+                logger.info(`📦 [Stripe] Archived old yearly price ${existingPlan.stripeYearlyPriceId}`);
               } catch (archiveErr: any) {
                 console.warn(`⚠️ [Stripe] Could not archive old yearly price: ${archiveErr.message}`);
               }
@@ -661,17 +662,17 @@ export function registerPlansRoutes(router: Router) {
               }
             });
             updateData.stripeYearlyPriceId = yearlyPrice.id;
-            console.log(`✅ [Stripe] Created new yearly price ${yearlyPrice.id} ($${priceAmount})`);
+            logger.info(`✅ [Stripe] Created new yearly price ${yearlyPrice.id} ($${priceAmount})`);
           } else if (effectiveYearlyAmount === 0 && existingPlan.stripeYearlyPriceId) {
             // Transitioning to free plan - archive existing price and clear ID
             try {
               await stripe.prices.update(existingPlan.stripeYearlyPriceId, { active: false });
-              console.log(`📦 [Stripe] Archived yearly price ${existingPlan.stripeYearlyPriceId} (plan now free)`);
+              logger.info(`📦 [Stripe] Archived yearly price ${existingPlan.stripeYearlyPriceId} (plan now free)`);
             } catch (archiveErr: any) {
               console.warn(`⚠️ [Stripe] Could not archive yearly price: ${archiveErr.message}`);
             }
             updateData.stripeYearlyPriceId = null;
-            console.log(`ℹ️ [Stripe] Cleared yearly price ID for free plan`);
+            logger.info(`ℹ️ [Stripe] Cleared yearly price ID for free plan`);
           }
           
           gatewaySync.stripe = { status: 'success' };
@@ -681,7 +682,7 @@ export function registerPlansRoutes(router: Router) {
           // Continue with update without blocking
         }
       } else {
-        console.log('ℹ️ [Stripe] No Stripe key configured, skipping plan sync');
+        logger.warn('ℹ️ [Stripe] No Stripe key configured, skipping plan sync');
       }
       
       // Sync to YooKassa if enabled and configured
@@ -916,7 +917,7 @@ export function registerPlansRoutes(router: Router) {
         stripeYearlyPriceId
       });
       
-      console.log(`✅ [Stripe] Synced plan ${planId} with product ${stripeProductId}`);
+      logger.info(`✅ [Stripe] Synced plan ${planId} with product ${stripeProductId}`);
       
       res.json({ 
         success: true, 
@@ -963,7 +964,7 @@ export function registerPlansRoutes(router: Router) {
             notes: { planId: plan.id, billingPeriod: 'monthly' }
           });
           razorpayPlanId = monthlyPlan.id;
-          console.log(`✅ [Razorpay] Created monthly plan ${monthlyPlan.id}`);
+          logger.info(`✅ [Razorpay] Created monthly plan ${monthlyPlan.id}`);
         } else {
           // Existing plan — check if price changed (Razorpay plans are immutable, create new if different)
           try {
@@ -971,7 +972,7 @@ export function registerPlansRoutes(router: Router) {
             const existingAmountPaise = existingRzpPlan?.item?.amount;
             const desiredAmountPaise = Math.round(monthlyInrAmount * 100);
             if (existingAmountPaise !== desiredAmountPaise) {
-              console.log(`🔄 [Razorpay] Monthly price changed (${existingAmountPaise} → ${desiredAmountPaise} paise), creating new plan`);
+              logger.info(`🔄 [Razorpay] Monthly price changed (${existingAmountPaise} → ${desiredAmountPaise} paise), creating new plan`);
               const monthlyPlan = await createRazorpayPlan({
                 period: 'monthly',
                 interval: 1,
@@ -982,9 +983,9 @@ export function registerPlansRoutes(router: Router) {
                 notes: { planId: plan.id, billingPeriod: 'monthly' }
               });
               razorpayPlanId = monthlyPlan.id;
-              console.log(`✅ [Razorpay] Created updated monthly plan ${monthlyPlan.id}`);
+              logger.info(`✅ [Razorpay] Created updated monthly plan ${monthlyPlan.id}`);
             } else {
-              console.log(`ℹ️ [Razorpay] Monthly price unchanged, keeping existing plan ${razorpayPlanId}`);
+              logger.info(`ℹ️ [Razorpay] Monthly price unchanged, keeping existing plan ${razorpayPlanId}`);
             }
           } catch (fetchErr: any) {
             console.warn(`⚠️ [Razorpay] Could not verify monthly plan price, keeping existing: ${fetchErr.message}`);
@@ -1004,7 +1005,7 @@ export function registerPlansRoutes(router: Router) {
             notes: { planId: plan.id, billingPeriod: 'yearly' }
           });
           razorpayYearlyPlanId = yearlyPlan.id;
-          console.log(`✅ [Razorpay] Created yearly plan ${yearlyPlan.id}`);
+          logger.info(`✅ [Razorpay] Created yearly plan ${yearlyPlan.id}`);
         } else {
           // Existing plan — check if price changed
           try {
@@ -1012,7 +1013,7 @@ export function registerPlansRoutes(router: Router) {
             const existingAmountPaise = existingRzpPlan?.item?.amount;
             const desiredAmountPaise = Math.round(yearlyInrAmount * 100);
             if (existingAmountPaise !== desiredAmountPaise) {
-              console.log(`🔄 [Razorpay] Yearly price changed (${existingAmountPaise} → ${desiredAmountPaise} paise), creating new plan`);
+              logger.info(`🔄 [Razorpay] Yearly price changed (${existingAmountPaise} → ${desiredAmountPaise} paise), creating new plan`);
               const yearlyPlan = await createRazorpayPlan({
                 period: 'yearly',
                 interval: 1,
@@ -1023,9 +1024,9 @@ export function registerPlansRoutes(router: Router) {
                 notes: { planId: plan.id, billingPeriod: 'yearly' }
               });
               razorpayYearlyPlanId = yearlyPlan.id;
-              console.log(`✅ [Razorpay] Created updated yearly plan ${yearlyPlan.id}`);
+              logger.info(`✅ [Razorpay] Created updated yearly plan ${yearlyPlan.id}`);
             } else {
-              console.log(`ℹ️ [Razorpay] Yearly price unchanged, keeping existing plan ${razorpayYearlyPlanId}`);
+              logger.info(`ℹ️ [Razorpay] Yearly price unchanged, keeping existing plan ${razorpayYearlyPlanId}`);
             }
           } catch (fetchErr: any) {
             console.warn(`⚠️ [Razorpay] Could not verify yearly plan price, keeping existing: ${fetchErr.message}`);
@@ -1095,7 +1096,7 @@ export function registerPlansRoutes(router: Router) {
             }],
           });
           paypalMonthlyPlanId = monthlyPlan.id;
-          console.log(`✅ [PayPal] Created monthly plan ${monthlyPlan.id}`);
+          logger.info(`✅ [PayPal] Created monthly plan ${monthlyPlan.id}`);
         } else {
           // Existing plan — check if price changed; PayPal plans are immutable, deactivate old and create new
           try {
@@ -1103,7 +1104,7 @@ export function registerPlansRoutes(router: Router) {
             const existingPrice = existingPpPlan?.billing_cycles?.[0]?.pricing_scheme?.fixed_price?.value;
             const desiredPrice = paypalMonthlyAmount.toFixed(2);
             if (existingPrice !== desiredPrice) {
-              console.log(`🔄 [PayPal] Monthly price changed (${existingPrice} → ${desiredPrice}), replacing plan`);
+              logger.info(`🔄 [PayPal] Monthly price changed (${existingPrice} → ${desiredPrice}), replacing plan`);
               try {
                 await deactivatePayPalPlan(paypalMonthlyPlanId);
               } catch (deactivateErr: any) {
@@ -1124,9 +1125,9 @@ export function registerPlansRoutes(router: Router) {
                 }],
               });
               paypalMonthlyPlanId = monthlyPlan.id;
-              console.log(`✅ [PayPal] Created updated monthly plan ${monthlyPlan.id}`);
+              logger.info(`✅ [PayPal] Created updated monthly plan ${monthlyPlan.id}`);
             } else {
-              console.log(`ℹ️ [PayPal] Monthly price unchanged, keeping existing plan ${paypalMonthlyPlanId}`);
+              logger.info(`ℹ️ [PayPal] Monthly price unchanged, keeping existing plan ${paypalMonthlyPlanId}`);
             }
           } catch (fetchErr: any) {
             console.warn(`⚠️ [PayPal] Could not verify monthly plan price, keeping existing: ${fetchErr.message}`);
@@ -1151,7 +1152,7 @@ export function registerPlansRoutes(router: Router) {
             }],
           });
           paypalYearlyPlanId = yearlyPlan.id;
-          console.log(`✅ [PayPal] Created yearly plan ${yearlyPlan.id}`);
+          logger.info(`✅ [PayPal] Created yearly plan ${yearlyPlan.id}`);
         } else {
           // Existing plan — check if price changed
           try {
@@ -1159,7 +1160,7 @@ export function registerPlansRoutes(router: Router) {
             const existingPrice = existingPpPlan?.billing_cycles?.[0]?.pricing_scheme?.fixed_price?.value;
             const desiredPrice = paypalYearlyAmount.toFixed(2);
             if (existingPrice !== desiredPrice) {
-              console.log(`🔄 [PayPal] Yearly price changed (${existingPrice} → ${desiredPrice}), replacing plan`);
+              logger.info(`🔄 [PayPal] Yearly price changed (${existingPrice} → ${desiredPrice}), replacing plan`);
               try {
                 await deactivatePayPalPlan(paypalYearlyPlanId);
               } catch (deactivateErr: any) {
@@ -1180,9 +1181,9 @@ export function registerPlansRoutes(router: Router) {
                 }],
               });
               paypalYearlyPlanId = yearlyPlan.id;
-              console.log(`✅ [PayPal] Created updated yearly plan ${yearlyPlan.id}`);
+              logger.info(`✅ [PayPal] Created updated yearly plan ${yearlyPlan.id}`);
             } else {
-              console.log(`ℹ️ [PayPal] Yearly price unchanged, keeping existing plan ${paypalYearlyPlanId}`);
+              logger.info(`ℹ️ [PayPal] Yearly price unchanged, keeping existing plan ${paypalYearlyPlanId}`);
             }
           } catch (fetchErr: any) {
             console.warn(`⚠️ [PayPal] Could not verify yearly plan price, keeping existing: ${fetchErr.message}`);
@@ -1192,7 +1193,7 @@ export function registerPlansRoutes(router: Router) {
       
       await storage.updatePlan(planId, { paypalProductId, paypalMonthlyPlanId, paypalYearlyPlanId });
       
-      console.log(`✅ [PayPal] Synced plan ${planId}`);
+      logger.info(`✅ [PayPal] Synced plan ${planId}`);
       
       res.json({ 
         success: true,
@@ -1254,7 +1255,7 @@ export function registerPlansRoutes(router: Router) {
       
       await storage.updatePlan(planId, { paystackMonthlyPlanCode, paystackYearlyPlanCode });
       
-      console.log(`✅ [Paystack] Synced plan ${planId}`);
+      logger.info(`✅ [Paystack] Synced plan ${planId}`);
       
       res.json({ 
         success: true,
@@ -1325,7 +1326,7 @@ export function registerPlansRoutes(router: Router) {
       
       await storage.updatePlan(planId, { mercadopagoMonthlyPlanId, mercadopagoYearlyPlanId });
       
-      console.log(`✅ [MercadoPago] Synced plan ${planId}`);
+      logger.info(`✅ [MercadoPago] Synced plan ${planId}`);
       
       res.json({ 
         success: true,

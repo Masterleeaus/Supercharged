@@ -24,6 +24,7 @@ import { getCompanyScope, CompanyScopeError } from "../middleware/company-scope"
 import { twilioService } from "../services/twilio";
 import { getDomain } from "../utils/domain";
 import { PhoneMigrator } from "../engines/elevenlabs-migration";
+import { logger } from '../utils/logger';
 
 const router = Router();
 
@@ -333,7 +334,7 @@ router.post("/", authenticateHybrid, async (req: AuthRequest, res) => {
     // STEP 1: Ensure agent has a credential (auto-assign if missing)
     let agentCredentialId = agent[0].elevenLabsCredentialId;
     if (!agentCredentialId) {
-      console.log(`📞 [Incoming Connection] Agent missing credential - auto-assigning from pool...`);
+      logger.warn(`📞 [Incoming Connection] Agent missing credential - auto-assigning from pool...`);
       const leastLoadedCredential = await elevenLabsPoolModule.ElevenLabsPoolService.getLeastLoadedCredential();
 
       if (!leastLoadedCredential) {
@@ -352,16 +353,16 @@ router.post("/", authenticateHybrid, async (req: AuthRequest, res) => {
 
       agentCredentialId = leastLoadedCredential.id;
       agent[0].elevenLabsCredentialId = leastLoadedCredential.id;
-      console.log(`✅ [Incoming Connection] Credential auto-assigned: ${leastLoadedCredential.name}`);
+      logger.info(`✅ [Incoming Connection] Credential auto-assigned: ${leastLoadedCredential.name}`);
     }
 
     // STEP 2: Check credential alignment and migrate if needed
     // This must happen BEFORE verification to ensure phone is on correct account
     if (phoneNumber[0].elevenLabsCredentialId &&
       phoneNumber[0].elevenLabsCredentialId !== agentCredentialId) {
-      console.log(`📞 [Incoming Connection] Phone on different credential - initiating migration`);
-      console.log(`   Phone credential: ${phoneNumber[0].elevenLabsCredentialId}`);
-      console.log(`   Agent credential: ${agentCredentialId}`);
+      logger.info(`📞 [Incoming Connection] Phone on different credential - initiating migration`);
+      logger.info(`   Phone credential: ${phoneNumber[0].elevenLabsCredentialId}`);
+      logger.info(`   Agent credential: ${agentCredentialId}`);
 
       try {
         const migrationResult = await PhoneMigrator.syncPhoneToAgentCredential(
@@ -370,7 +371,7 @@ router.post("/", authenticateHybrid, async (req: AuthRequest, res) => {
         );
 
         if (migrationResult.success) {
-          console.log(`✅ [Incoming Connection] Phone migrated: ${migrationResult.oldElevenLabsPhoneId} -> ${migrationResult.newElevenLabsPhoneId}`);
+          logger.info(`✅ [Incoming Connection] Phone migrated: ${migrationResult.oldElevenLabsPhoneId} -> ${migrationResult.newElevenLabsPhoneId}`);
           phoneNumber[0].elevenLabsPhoneNumberId = migrationResult.newElevenLabsPhoneId;
           phoneNumber[0].elevenLabsCredentialId = migrationResult.newCredentialId;
         } else {
@@ -391,7 +392,7 @@ router.post("/", authenticateHybrid, async (req: AuthRequest, res) => {
 
     // STEP 3: Validate Twilio credentials BEFORE phone verification
     // If Twilio creds are invalid, ElevenLabs can't re-import phones (HTTP 401)
-    console.log(`📞 [Incoming Connection] Validating Twilio credentials...`);
+    logger.info(`📞 [Incoming Connection] Validating Twilio credentials...`);
     let twilioCredsValid = false;
     try {
       const twilioConnector = await import('../services/twilio-connector');
@@ -402,7 +403,7 @@ router.post("/", authenticateHybrid, async (req: AuthRequest, res) => {
       const twilio = (await import('twilio')).default;
       const client = twilio(twilioSid, twilioToken);
       const account = await client.api.accounts(twilioSid).fetch();
-      console.log(`✅ [Incoming Connection] Twilio credentials valid (account: ${account.friendlyName})`);
+      logger.info(`✅ [Incoming Connection] Twilio credentials valid (account: ${account.friendlyName})`);
       twilioCredsValid = true;
     } catch (twilioErr: any) {
       console.error(`❌ [Incoming Connection] Twilio credentials are INVALID: ${twilioErr.message}`);
@@ -417,7 +418,7 @@ router.post("/", authenticateHybrid, async (req: AuthRequest, res) => {
 
     // STEP 4: Verify phone exists on ElevenLabs (after migration, on correct credential)
     // This handles stale IDs - phones that were deleted from ElevenLabs but still in DB
-    console.log(`📞 [Incoming Connection] Verifying phone ${phoneNumber[0].phoneNumber} on ElevenLabs...`);
+    logger.info(`📞 [Incoming Connection] Verifying phone on ElevenLabs...`);
 
     const verifyResult = await PhoneMigrator.verifyAndEnsurePhoneExists(
       phoneNumberId,
@@ -436,12 +437,12 @@ router.post("/", authenticateHybrid, async (req: AuthRequest, res) => {
 
     // Update local variable with verified/re-imported phone ID
     if (verifyResult.wasReimported && verifyResult.elevenLabsPhoneId) {
-      console.log(`✅ [Incoming Connection] Phone was re-imported: ${verifyResult.elevenLabsPhoneId}`);
+      logger.info(`✅ [Incoming Connection] Phone was re-imported: ${verifyResult.elevenLabsPhoneId}`);
       phoneNumber[0].elevenLabsPhoneNumberId = verifyResult.elevenLabsPhoneId;
       phoneNumber[0].elevenLabsCredentialId = agentCredentialId;
     }
 
-    console.log(`✅ [Incoming Connection] Phone verified: ${verifyResult.elevenLabsPhoneId}`);
+    logger.info(`✅ [Incoming Connection] Phone verified: ${verifyResult.elevenLabsPhoneId}`);
 
     // ========================================
     // CREATE CONNECTION (after all pre-flight checks pass)
@@ -486,7 +487,7 @@ router.post("/", authenticateHybrid, async (req: AuthRequest, res) => {
     // Sync agent assignment to ElevenLabs (native integration)
     // Note: Migration and verification already done in pre-flight checks above
     try {
-      console.log(`📞 [ElevenLabs Sync] Assigning agent to phone number in ElevenLabs`);
+      logger.info(`📞 [ElevenLabs Sync] Assigning agent to phone number in ElevenLabs`);
 
       // Guard: Verify ElevenLabs IDs are present (should be set by now from pre-flight)
       if (!phoneNumber[0].elevenLabsPhoneNumberId || !agent[0].elevenLabsAgentId) {
@@ -515,7 +516,7 @@ router.post("/", authenticateHybrid, async (req: AuthRequest, res) => {
 
       // DIAGNOSTIC: Verify the agent actually exists and is functional on ElevenLabs
       try {
-        console.log(`🔍 [ElevenLabs Diag] Verifying agent ${agent[0].elevenLabsAgentId} on ElevenLabs...`);
+        logger.info(`🔍 [ElevenLabs Diag] Verifying agent ${agent[0].elevenLabsAgentId} on ElevenLabs...`);
         const elAgent = await elevenLabsService.verifyAgent(agent[0].elevenLabsAgentId);
         const agentConfig = (elAgent as any)?.conversation_config;
         const voice = agentConfig?.tts?.voice_id;
@@ -523,11 +524,11 @@ router.post("/", authenticateHybrid, async (req: AuthRequest, res) => {
         const prompt = agentConfig?.agent?.prompt?.prompt;
         const hasWorkflow = !!(elAgent as any)?.workflow;
 
-        console.log(`   Agent name: ${elAgent.name}`);
-        console.log(`   Voice: ${voice || '❌ MISSING'}`);
-        console.log(`   LLM model: ${model || '❌ MISSING'}`);
-        console.log(`   System prompt: ${prompt ? `${prompt.length} chars` : '❌ MISSING'}`);
-        console.log(`   Has workflow: ${hasWorkflow} (incoming agents should NOT have workflows)`);
+        logger.info(`   Agent name: ${elAgent.name}`);
+        logger.error(`   Voice: ${voice || '❌ MISSING'}`);
+        logger.error(`   LLM model: ${model || '❌ MISSING'}`);
+        logger.error(`   System prompt: ${prompt ? `${prompt.length} chars` : '❌ MISSING'}`);
+        logger.info(`   Has workflow: ${hasWorkflow} (incoming agents should NOT have workflows)`);
 
         if (!voice || !model) {
           console.error(`❌ [ElevenLabs Diag] Agent is MISSING critical configuration! This will cause "application error" on incoming calls.`);
@@ -549,7 +550,7 @@ router.post("/", authenticateHybrid, async (req: AuthRequest, res) => {
         agent[0].elevenLabsAgentId!
       );
 
-      console.log(`✅ [ElevenLabs Sync] Agent assigned to phone number successfully using credential: ${credential.name}`);
+      logger.info(`✅ [ElevenLabs Sync] Agent assigned to phone number successfully using credential: ${credential.name}`);
 
       // Configure ElevenLabs webhook on agent to receive call completion notifications
       try {
@@ -557,13 +558,13 @@ router.post("/", authenticateHybrid, async (req: AuthRequest, res) => {
         const webhookUrl = `${domain}/api/webhooks/elevenlabs`;
         const webhookSecret = process.env.ELEVENLABS_WEBHOOK_SECRET;
 
-        console.log(`🔗 [ElevenLabs Webhook] Configuring webhook for agent: ${agent[0].elevenLabsAgentId}`);
+        logger.info(`🔗 [ElevenLabs Webhook] Configuring webhook for agent: ${agent[0].elevenLabsAgentId}`);
         await elevenLabsService.configureAgentWebhook(agent[0].elevenLabsAgentId, {
           webhookUrl,
           events: ['conversation.completed'],
           secret: webhookSecret,
         });
-        console.log(`✅ [ElevenLabs Webhook] Webhook configured: ${webhookUrl}`);
+        logger.info(`✅ [ElevenLabs Webhook] Webhook configured: ${webhookUrl}`);
       } catch (webhookError: any) {
         console.error('⚠️  [ElevenLabs Webhook] Failed to configure webhook:', webhookError.message);
       }
@@ -572,9 +573,9 @@ router.post("/", authenticateHybrid, async (req: AuthRequest, res) => {
       // This ensures the AI knows today's date for "tomorrow" calculations during calls
       if (agent[0].appointmentBookingEnabled) {
         try {
-          console.log(`📅 [Incoming Connection] Refreshing appointment tool date context for agent ${agent[0].elevenLabsAgentId}`);
+          logger.info(`📅 [Incoming Connection] Refreshing appointment tool date context for agent ${agent[0].elevenLabsAgentId}`);
           await elevenLabsService.refreshAppointmentToolWithCurrentDate(agent[0].elevenLabsAgentId!);
-          console.log(`✅ [Incoming Connection] Appointment tool refreshed with current date`);
+          logger.info(`✅ [Incoming Connection] Appointment tool refreshed with current date`);
         } catch (refreshError: any) {
           console.warn(`⚠️  [Incoming Connection] Failed to refresh appointment tool (non-fatal): ${refreshError.message}`);
         }
@@ -643,7 +644,7 @@ router.post("/:id/sync-webhook", authenticateHybrid, async (req: AuthRequest, re
       return res.status(400).json({ message: "Connection agent is not properly configured" });
     }
 
-    console.log(`🔄 [Webhook Sync] Syncing webhook for connection ${id}, agent: ${conn.agent.name}`);
+    logger.info(`🔄 [Webhook Sync] Syncing webhook for connection ${id}, agent: ${conn.agent.name}`);
 
     // Get the credential
     const elevenLabsPoolModule = await import('../services/elevenlabs-pool');
@@ -663,7 +664,7 @@ router.post("/:id/sync-webhook", authenticateHybrid, async (req: AuthRequest, re
     const webhookUrl = `${domain}/api/webhooks/elevenlabs`;
     const webhookSecret = process.env.ELEVENLABS_WEBHOOK_SECRET;
 
-    console.log(`🔗 [Webhook Sync] Configuring webhook: ${webhookUrl}`);
+    logger.info(`🔗 [Webhook Sync] Configuring webhook: ${webhookUrl}`);
 
     await elevenLabsService.configureAgentWebhook(conn.agent.elevenLabsAgentId, {
       webhookUrl,
@@ -671,13 +672,13 @@ router.post("/:id/sync-webhook", authenticateHybrid, async (req: AuthRequest, re
       secret: webhookSecret,
     });
 
-    console.log(`✅ [Webhook Sync] Webhook configured successfully for agent: ${conn.agent.name}`);
+    logger.info(`✅ [Webhook Sync] Webhook configured successfully for agent: ${conn.agent.name}`);
 
     // Refresh appointment tool with current date context
     try {
-      console.log(`📅 [Webhook Sync] Refreshing appointment tool date context for agent ${conn.agent.elevenLabsAgentId}`);
+      logger.info(`📅 [Webhook Sync] Refreshing appointment tool date context for agent ${conn.agent.elevenLabsAgentId}`);
       await elevenLabsService.refreshAppointmentToolWithCurrentDate(conn.agent.elevenLabsAgentId);
-      console.log(`✅ [Webhook Sync] Appointment tool refreshed with current date`);
+      logger.info(`✅ [Webhook Sync] Appointment tool refreshed with current date`);
     } catch (refreshError: any) {
       console.warn(`⚠️  [Webhook Sync] Failed to refresh appointment tool (non-fatal): ${refreshError.message}`);
     }
@@ -732,7 +733,7 @@ router.delete("/:id", authenticateHybrid, async (req: AuthRequest, res) => {
     // Unassign agent from phone number in ElevenLabs (native integration)
     if (connection[0].phoneNumber?.elevenLabsPhoneNumberId && connection[0].agent?.elevenLabsCredentialId) {
       try {
-        console.log(`📞 [ElevenLabs Sync] Unassigning agent from phone number in ElevenLabs`);
+        logger.info(`📞 [ElevenLabs Sync] Unassigning agent from phone number in ElevenLabs`);
 
         // Use the connection's agent credential for unassignment
         const elevenLabsPoolModule = await import('../services/elevenlabs-pool');
@@ -749,7 +750,7 @@ router.delete("/:id", authenticateHybrid, async (req: AuthRequest, res) => {
             connection[0].phoneNumber.elevenLabsPhoneNumberId
           );
 
-          console.log(`✅ [ElevenLabs Sync] Agent unassigned from phone number successfully using credential: ${credential.name}`);
+          logger.info(`✅ [ElevenLabs Sync] Agent unassigned from phone number successfully using credential: ${credential.name}`);
         } else {
           console.warn(`⚠️  [ElevenLabs Sync] Credential not found - skipping unassignment sync`);
         }

@@ -41,6 +41,7 @@ import { emailService } from '../services/email-service';
 import { generateInvoiceForTransaction } from '../services/invoice-service';
 import { FRONTEND_URL } from '../engines/payment/webhook-helper';
 import { applyRefund } from '../services/credit-service';
+import { logger } from '../utils/logger';
 
 const router: Router = express.Router();
 
@@ -191,13 +192,13 @@ router.post('/capture-order', authenticateToken, async (req: AuthRequest, res: R
             status: 'completed',
             completedAt: new Date(),
           });
-          console.log(`✅ [PayPal] Logged credits transaction for user ${userId}`);
+          logger.info(`✅ [PayPal] Logged credits transaction for user ${userId}`);
           
           // Generate invoice and send purchase confirmation email
           try {
             await generateInvoiceForTransaction(creditTransaction.id);
             await emailService.sendPurchaseConfirmation(creditTransaction.id);
-            console.log(`✅ [PayPal] Credits purchase confirmation email sent for transaction ${creditTransaction.id}`);
+            logger.info(`✅ [PayPal] Credits purchase confirmation email sent for transaction ${creditTransaction.id}`);
           } catch (emailError: any) {
             console.error(`❌ [PayPal] Failed to send credits purchase confirmation email:`, emailError);
           }
@@ -377,13 +378,13 @@ router.post('/confirm-subscription', authenticateToken, async (req: AuthRequest,
         status: 'completed',
         completedAt: new Date(),
       });
-      console.log(`✅ [PayPal] Logged subscription transaction for user ${userId}`);
+      logger.info(`✅ [PayPal] Logged subscription transaction for user ${userId}`);
       
       // Generate invoice and send purchase confirmation email
       try {
         await generateInvoiceForTransaction(newTransaction.id);
         await emailService.sendPurchaseConfirmation(newTransaction.id);
-        console.log(`✅ [PayPal] Purchase confirmation email sent for transaction ${newTransaction.id}`);
+        logger.info(`✅ [PayPal] Purchase confirmation email sent for transaction ${newTransaction.id}`);
       } catch (emailError: any) {
         console.error(`❌ [PayPal] Failed to send purchase confirmation email:`, emailError);
       }
@@ -458,7 +459,7 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
       return res.status(400).json({ error: 'Invalid webhook payload' });
     }
 
-    console.log(`📥 [PayPal] Webhook received: ${webhookEvent.event_type}`);
+    logger.info(`📥 [PayPal] Webhook received: ${webhookEvent.event_type}`);
 
     switch (webhookEvent.event_type) {
       case 'BILLING.SUBSCRIPTION.ACTIVATED':
@@ -511,13 +512,13 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
                     status: 'completed',
                     completedAt: new Date(),
                   });
-                  console.log(`✅ [PayPal Webhook] Logged subscription transaction for user ${subscription.userId}`);
+                  logger.info(`✅ [PayPal Webhook] Logged subscription transaction for user ${subscription.userId}`);
                   
                   // Generate invoice and send purchase confirmation email
                   try {
                     await generateInvoiceForTransaction(webhookTransaction.id);
                     await emailService.sendPurchaseConfirmation(webhookTransaction.id);
-                    console.log(`✅ [PayPal] Subscription confirmation email sent for transaction ${webhookTransaction.id}`);
+                    logger.info(`✅ [PayPal] Subscription confirmation email sent for transaction ${webhookTransaction.id}`);
                   } catch (emailError: any) {
                     console.error(`❌ [PayPal] Failed to send subscription confirmation email:`, emailError);
                   }
@@ -565,7 +566,7 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
               try {
                 const failedAmount = webhookEvent.resource?.billing_info?.last_payment?.amount?.value || '0';
                 await emailService.sendPaymentFailed(subscription.userId, failedAmount, 'Subscription payment failed');
-                console.log(`✅ [PayPal] Payment failed email sent to user ${subscription.userId}`);
+                logger.info(`✅ [PayPal] Payment failed email sent to user ${subscription.userId}`);
               } catch (emailError: any) {
                 console.error(`❌ [PayPal] Failed to send payment failed email:`, emailError);
               }
@@ -575,7 +576,7 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
         break;
 
       case 'PAYMENT.CAPTURE.COMPLETED':
-        console.log('📥 [PayPal] Payment capture completed');
+        logger.info('📥 [PayPal] Payment capture completed');
         break;
 
       case 'PAYMENT.CAPTURE.REFUNDED':
@@ -584,7 +585,7 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
           const capture = webhookEvent.resource;
           const captureId = capture?.id;
           
-          console.log(`🔄 [PayPal] External refund received for capture: ${captureId}`);
+          logger.info(`🔄 [PayPal] External refund received for capture: ${captureId}`);
           
           if (captureId) {
             try {
@@ -595,7 +596,7 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
                 // Check if we already have a refund for this transaction
                 const existingRefunds = await storage.getTransactionRefunds(transaction.id);
                 if (existingRefunds.length > 0) {
-                  console.log(`ℹ️ [PayPal] Refund already exists for capture ${captureId}, skipping`);
+                  logger.warn(`ℹ️ [PayPal] Refund already exists for capture ${captureId}, skipping`);
                   break;
                 }
                 
@@ -615,7 +616,7 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
                   
                   if (refundResult.success && !refundResult.alreadyProcessed) {
                     creditsReversed = refundResult.creditsReversed;
-                    console.log(`🔄 [PayPal] Reversed ${creditsReversed} credits for user ${userId}. Transaction logged.`);
+                    logger.info(`🔄 [PayPal] Reversed ${creditsReversed} credits for user ${userId}. Transaction logged.`);
                   }
                 }
                 
@@ -643,7 +644,7 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
                   status: 'refunded',
                 });
                 
-                console.log(`✅ [PayPal] External refund processed for user ${userId}. Capture: ${captureId}`);
+                logger.info(`✅ [PayPal] External refund processed for user ${userId}. Capture: ${captureId}`);
               }
             } catch (error: any) {
               console.error('Error processing external refund:', error);
@@ -658,7 +659,7 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
           const dispute = webhookEvent.resource;
           const disputeId = dispute?.dispute_id;
           
-          console.log(`🚨 [PayPal] Dispute created: ${disputeId}`);
+          logger.warn(`🚨 [PayPal] Dispute created: ${disputeId}`);
           
           // Get the transaction ID from the disputed_transactions array
           const disputedTransaction = dispute?.disputed_transactions?.[0];
@@ -686,7 +687,7 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
                   
                   if (refundResult.success && !refundResult.alreadyProcessed) {
                     creditsReversed = refundResult.creditsReversed;
-                    console.log(`🔄 [PayPal] Reversed ${creditsReversed} credits for user ${userId}. Transaction logged.`);
+                    logger.info(`🔄 [PayPal] Reversed ${creditsReversed} credits for user ${userId}. Transaction logged.`);
                   }
                 }
                 
@@ -724,12 +725,12 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
                 // Send account suspended email
                 try {
                   await emailService.sendAccountSuspended(userId, `Chargeback dispute: ${dispute?.reason || 'Unknown reason'}`);
-                  console.log(`✅ [PayPal] Account suspended email sent to user ${userId}`);
+                  logger.info(`✅ [PayPal] Account suspended email sent to user ${userId}`);
                 } catch (emailError: any) {
                   console.error(`❌ [PayPal] Failed to send account suspended email:`, emailError);
                 }
                 
-                console.log(`⛔ [PayPal] User ${userId} suspended due to chargeback. Dispute ID: ${disputeId}, Reason: ${dispute?.reason}`);
+                logger.warn(`⛔ [PayPal] User ${userId} suspended due to chargeback. Dispute ID: ${disputeId}, Reason: ${dispute?.reason}`);
               } else {
                 console.warn(`⚠️ [PayPal] No transaction found for capture ${captureId}`);
               }
@@ -741,7 +742,7 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
         break;
 
       default:
-        console.log(`📥 [PayPal] Unhandled webhook event: ${webhookEvent.event_type}`);
+        logger.warn(`📥 [PayPal] Unhandled webhook event: ${webhookEvent.event_type}`);
     }
 
     res.status(200).json({ received: true });
