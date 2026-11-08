@@ -168,6 +168,10 @@ function readCache(): BrandingData | null {
       localStorage.removeItem(CACHE_KEY);
       return null;
     }
+    if (!parsed.data || typeof parsed.data !== "object" || typeof parsed.data.app_name !== "string") {
+      localStorage.removeItem(CACHE_KEY);
+      return null;
+    }
     return parsed.data;
   } catch {
     return null;
@@ -186,12 +190,16 @@ function writeCache(data: BrandingData): void {
 function getBrandingSignature(data: BrandingData): string {
   return [
     data.app_name,
+    data.app_tagline,
     data.logo_url,
     data.logo_url_light,
     data.logo_url_dark,
     data.favicon_url,
     data.admin_email,
     data.app_location,
+    data.social_twitter_url,
+    data.social_linkedin_url,
+    data.social_github_url,
     data.theme_primary,
     data.theme_primary_foreground,
     data.theme_accent,
@@ -268,16 +276,16 @@ export function BrandingProvider({ children }: BrandingProviderProps) {
   ]);
 
   useEffect(() => {
-    if (branding.favicon_url) {
-      const existingFavicon = document.querySelector("link[rel='icon']");
-      if (existingFavicon) {
-        existingFavicon.setAttribute("href", branding.favicon_url);
-      } else {
-        const favicon = document.createElement("link");
-        favicon.rel = "icon";
-        favicon.href = branding.favicon_url;
-        document.head.appendChild(favicon);
-      }
+    // Restore the product icon when an administrator clears a custom favicon.
+    const faviconUrl = branding.favicon_url || "/favicon.png";
+    const existingFavicon = document.querySelector("link[rel='icon']");
+    if (existingFavicon) {
+      existingFavicon.setAttribute("href", faviconUrl);
+    } else {
+      const favicon = document.createElement("link");
+      favicon.rel = "icon";
+      favicon.href = faviconUrl;
+      document.head.appendChild(favicon);
     }
   }, [branding.favicon_url]);
 
