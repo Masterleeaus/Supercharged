@@ -40,7 +40,7 @@ export function createPublicRoutes(ctx: RouteContext): Router {
       const setting = await storage.getGlobalSetting('app_name');
       return (setting?.value as string) || 'Supercharged';
     } catch {
-      return 'AgentLabs';
+      return 'Supercharged';
     }
   }
 
