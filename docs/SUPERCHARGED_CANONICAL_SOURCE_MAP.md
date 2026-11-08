@@ -167,3 +167,15 @@ No merge, deletion, tenant data migration, privilege change, template schema cha
 - The three new document/branding regression tests are pending GitHub Actions on this pass. The audit does not establish production readiness or installable PWA capabilities.
 
 **Remaining:** import/loader analysis, separate semantic comparison of divergent copies, licensing approval, remaining UI/help/demos and production execution validation, CI baseline repair. PR draft; issue #54 open.
+
+## Pass 11 — reusable source ownership audit
+
+- Verified completed Pass 10 CI: **5,963 passed / 3 failed / 13 skipped**, all 25 new brand tests passed, and production Build succeeded. Migration inventory and informational typecheck failed, with the same three workforce tool assertions failing.
+- Introduced `scripts/audit-source-duplicates.mjs`, a reusable, read-only SHA-256 working-tree scanner. It reports per-file exact duplicate groups and active/donor/generated buckets. Historical Git blob snapshot counts are not assumed to equal on-disk SHA-256 counts when a checkout contains other files.
+- Added `tests/infrastructure/source-duplicate-audit.test.mjs` covering true byte equality, divergent same-name files, source category classification, ignored temporary/installed dirs, and symbolic-link non-traversal. The four tests are newly committed and await CI.
+- Identified local sibling imports in `server/integrations/titan-revenue` and `server/integrations/field-link/vendor/authority`; this grounds component boundaries but does not establish whether server route wiring activates these modules.
+- Reviewed `server/integrations/field-link/vendor/NOTICE.md` and `server/integrations/field-link/client.ts`: vendored Field runtime is marked as upstream-owned, lacking verified license permissions, and actual Field endpoints are assumed, not proven live. Do not edit/delete vendor twins or claim live Field integration.
+- Found root package `license: MIT` while original source headers and license documentation reference Envato/CodeCanyon. Treat as unresolved legal provenance, not a grant of distribution rights. Preserve both pending issue #37.
+- Detailed the scanner CLI and inspected import/provenance observations in `docs/SUPERCHARGED_BLOB_DUPLICATION_AUDIT.md`.
+
+**Incomplete:** verified import graph for the rest of the repository, divergent donor merge, runtime integration verification, legal reconciliation, failing existing CI tasks. PR draft; issue #54 open.
