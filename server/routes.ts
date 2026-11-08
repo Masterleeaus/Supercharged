@@ -39,16 +39,12 @@ import { initPlivoElevenLabsStream } from "./engines/plivo-elevenlabs";
 import { setupTwilioOpenAIStreamHandler } from "./engines/twilio-openai";
 import { checkAdmin, checkAdminOrTeamMember, requireAdminPermission, AdminRequest } from "./middleware/admin-auth";
 import { hybridGateUnlessExempt } from "./middleware/hybrid-gate-exemptions";
-import flowAutomationRouter from "./routes/flow-automation-routes";
 import { flows, insertPromptTemplateSchema, promptTemplates } from "@shared/schema";
 
 // Table insert shape for createPromptTemplate; the drizzle-zod insert type resolves to {}.
 type PromptTemplateInsertRow = typeof promptTemplates.$inferInsert & { companyId?: string };
-import incomingConnectionsRouter from "./routes/incoming-connections-routes";
 import { googleSheetsRouter } from "./services/google-sheets/google-sheets.routes";
 import { platformLanguagesPublicRouter } from "./routes/platform-languages-routes";
-import invoiceRouter from "./routes/invoice-routes";
-import audioRoutes from "./routes/audio-routes";
 import { createRAGKnowledgeRoutes } from "./routes/rag-knowledge-routes";
 import crmRoutes from "./routes/crm-routes";
 import { widgetRoutes, publicWidgetRoutes } from "./modules/widget";
@@ -97,6 +93,7 @@ import { registerElevenLabsVoiceRoutes } from "./routes/core/elevenlabs-voice-ro
 import { registerProviderWebhookRoutes } from "./routes/core/provider-webhook-routes";
 import { registerPaymentRoutes } from "./routes/core/payment-routes";
 import { registerAdminRouterRoutes } from "./routes/core/admin-router-routes";
+import { registerUserServiceRoutes } from "./routes/core/user-service-routes";
 
 const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
@@ -199,18 +196,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Routes: admin routers, transactions and refunds, see server/routes/core/admin-router-routes.ts
   registerAdminRouterRoutes(app);
 
-  // Audio upload routes
-  app.use("/api/audio", audioRoutes);
-
-  // Invoice routes (download, generate)
-  app.use("/api/invoices", invoiceRouter);
-
-  // Flow Automation routes
-  // Use hybrid auth to allow both users and team members
-  app.use("/api/flow-automation", routeContext.authenticateHybrid as unknown as import('express').RequestHandler, flowAutomationRouter);
-
-  // Incoming Connections routes (links agents to phone numbers)
-  app.use("/api/incoming-connections", incomingConnectionsRouter);
+  // Routes: audio, invoice, flow automation and incoming connection, see server/routes/core/user-service-routes.ts
+  registerUserServiceRoutes(app, { routeContext });
 
   // Channel webhooks need the raw bytes. Only POST channel webhook paths are touched; other paths pass through.
   // Mounted before the core chatbot route so it runs ahead of the core auth on those paths.
