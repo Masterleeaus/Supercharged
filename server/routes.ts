@@ -16,7 +16,7 @@
  * ============================================================
  */
 import { logger } from "./utils/logger";
-import type { Express, Request, Response } from "express";
+import type { Express, Request, RequestHandler, Response } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer } from 'ws';
 import { storage } from "./storage";
@@ -280,17 +280,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const subscriptionRoutes = createSubscriptionRoutes(routeContext);
   app.use(subscriptionRoutes);
 
+  // Auth middleware as Express handlers. authenticateToken reads AuthRequest (userId, userRole),
+  // which is a Request with optional extra fields, so it is assignable to RequestHandler directly.
+  const requireAuth: RequestHandler = authenticateToken;
+  const requireAdmin: RequestHandler = checkAdmin;
+
   // Register Plivo + OpenAI Realtime Engine routes
   // Apply authenticateToken middleware only to user-facing Plivo API routes (not webhooks/stream)
   // Webhooks need to remain unauthenticated for Plivo callbacks
-  // TODO: Express middleware type compatibility - authenticateToken uses AuthRequest (extends Request)
-  // but app.use() expects RequestHandler<Request>. Fixing requires refactoring all middleware to use
-  // generics or a wrapper function. Using 'as unknown as RequestHandler' for explicit type unsafety.
-  app.use('/api/plivo/openai', authenticateToken as unknown as import('express').RequestHandler);
-  app.use('/api/plivo/phone-numbers', authenticateToken as unknown as import('express').RequestHandler);
+  app.use('/api/plivo/openai', requireAuth);
+  app.use('/api/plivo/phone-numbers', requireAuth);
   // Note: /api/plivo/admin routes use requireAdminAuth + requireAdminPermission middleware at route level
   // to support both platform admins (JWT) and admin team members (session tokens)
-  app.use('/api/plivo/incoming-connections', authenticateToken as unknown as import('express').RequestHandler);
+  app.use('/api/plivo/incoming-connections', requireAuth);
   const plivoApiRoutes = createPlivoApiRoutes();
   app.use(plivoApiRoutes);
 
@@ -316,19 +318,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize Twilio + OpenAI Realtime Engine (ISOLATED from Twilio+ElevenLabs and Plivo+OpenAI)
   // This provides Twilio telephony with OpenAI Realtime API for international calling
   app.use('/api/twilio-openai', twilioOpenaiWebhookRoutes);
-  // TODO: Express middleware type compatibility - see note above about authenticateToken
-  app.use('/api/twilio-openai/incoming-connections', authenticateToken as unknown as import('express').RequestHandler, twilioOpenaiIncomingConnectionsRoutes);
+  app.use('/api/twilio-openai/incoming-connections', requireAuth, twilioOpenaiIncomingConnectionsRoutes);
   console.log('✅ Twilio + OpenAI Realtime Engine initialized');
 
   // Register KYC Engine routes
-  // TODO: Express middleware type compatibility - KYC engine accepts generic middleware types
-  // but authenticateToken/checkAdmin use extended Request types. Fixing requires updating the
-  // KYC engine interface to accept properly typed middleware.
-  registerKycRoutes(
-    app,
-    authenticateToken as unknown as import('express').RequestHandler,
-    checkAdmin as unknown as import('express').RequestHandler
-  );
+  registerKycRoutes(app, requireAuth, requireAdmin);
 
   // Register SIP Engine Plugin dynamically with service injection (only if plugin directory exists)
   try {
