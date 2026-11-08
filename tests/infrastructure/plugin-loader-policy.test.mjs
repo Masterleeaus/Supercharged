@@ -1,25 +1,12 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import vm from "node:vm";
 
 const source = fs.readFileSync(new URL("../../server/plugins/loader.ts", import.meta.url), "utf8");
-
-function extractFunction(name, declarations) {
-  const start = source.indexOf(name);
-  assert.notEqual(start, -1, `missing ${name}`);
-  const bodyStart = source.indexOf("{", start);
-  let depth = 0;
-  let end = -1;
-  // Functions under test contain no braces in template literal substitutions
-  // outside their balanced blocks; extract through the adjacent JSDoc boundary.
-  const nextDoc = source.indexOf("\n/**", bodyStart);
-  const slice = source.slice(start, nextDoc > 0 ? nextDoc : undefined).trim();
-  return vm.runInNewContext(`(${slice.replace(...declarations)})`, {});
-}
 
 function fromSource(name, rewrites, sandbox) {
   const start = source.indexOf(name);
@@ -30,7 +17,7 @@ function fromSource(name, rewrites, sandbox) {
     assert.ok(declaration.includes(a), `missing source fragment: ${a}`);
     declaration = declaration.replace(a, b);
   }
-  return vm.runInNewContext(`(${declaration})`, sandbox);
+  return vm.runInNewContext(`(${declaration.replace(/^export /, "")})`, sandbox);
 }
 
 function fixture(run) {
