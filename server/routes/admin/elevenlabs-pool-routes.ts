@@ -8,6 +8,7 @@ import { elevenLabsCredentials, syncedVoices, users } from '@shared/schema';
 import { ElevenLabsPoolService } from '../../services/elevenlabs-pool';
 import { VoiceSyncService } from '../../services/voice-sync';
 import { z } from 'zod';
+import { logger } from '../../utils/logger';
 
 export function registerElevenlabsPoolRoutes(router: Router) {
   router.get('/elevenlabs-pool', requireAdminPermission('settings', 'elevenlabs_settings', 'read'), async (req: AdminRequest, res: Response) => {
@@ -52,9 +53,9 @@ export function registerElevenlabsPoolRoutes(router: Router) {
       
       setImmediate(async () => {
         try {
-          console.log(`🔊 [Voice Sync] Syncing voices after adding credential: ${data.name}`);
+          logger.info(`🔊 [Voice Sync] Syncing voices after adding credential: ${data.name}`);
           await VoiceSyncService.syncAllVoices();
-          console.log(`🔊 [Voice Sync] Voice sync complete after credential addition`);
+          logger.info(`🔊 [Voice Sync] Voice sync complete after credential addition`);
         } catch (syncError: any) {
           console.warn(`⚠️ [Voice Sync] Post-credential-add sync failed (non-fatal):`, syncError.message || syncError);
         }
@@ -124,9 +125,9 @@ export function registerElevenlabsPoolRoutes(router: Router) {
       
       setImmediate(async () => {
         try {
-          console.log(`🔊 [Voice Sync] Syncing voices after removing credential`);
+          logger.info(`🔊 [Voice Sync] Syncing voices after removing credential`);
           await VoiceSyncService.syncAllVoices();
-          console.log(`🔊 [Voice Sync] Voice sync complete after credential removal`);
+          logger.info(`🔊 [Voice Sync] Voice sync complete after credential removal`);
         } catch (syncError: any) {
           console.warn(`⚠️ [Voice Sync] Post-credential-remove sync failed (non-fatal):`, syncError.message || syncError);
         }

@@ -9,6 +9,7 @@ import { ElevenLabsPoolService } from '../../services/elevenlabs-pool';
 import { ElevenLabsService } from '../../services/elevenlabs';
 import { resyncElevenLabsPhoneCredentials } from '../../services/elevenlabs-phone-resync';
 import { z } from 'zod';
+import { logger } from '../../utils/logger';
 
 export function registerPhoneNumbersRoutes(router: Router) {
   router.get('/phone-numbers', requireAdminPermission('phones', 'phone_numbers', 'read'), async (req: AdminRequest, res: Response) => {
@@ -515,7 +516,7 @@ export function registerPhoneNumbersRoutes(router: Router) {
             serviceCache.set(credential.id, elevenLabsService);
           }
           
-          console.log(`📞 Syncing phone number to ElevenLabs: ${phone.phoneNumber} (credential: ${credential.id})`);
+          logger.info(`📞 Syncing phone number to ElevenLabs (credential: ${credential.id})`);
           
           const result = await elevenLabsService.syncPhoneNumberToElevenLabs({
             phoneNumber: phone.phoneNumber,
@@ -537,7 +538,7 @@ export function registerPhoneNumbersRoutes(router: Router) {
             credentialId: credential.id
           });
           synced++;
-          console.log(`✅ Phone number synced: ${phone.phoneNumber} -> ${result.phone_number_id}`);
+          logger.info(`✅ Phone number synced: ${phone.id} -> ${result.phone_number_id}`);
         } catch (error: any) {
           console.error(`❌ Failed to sync phone number ${phone.phoneNumber}:`, error.message);
           results.push({ 
@@ -666,7 +667,7 @@ export function registerPhoneNumbersRoutes(router: Router) {
         })
         .where(eq(phoneNumbers.id, id));
 
-      console.log(`✅ [Admin Reactivate] Reactivated phone number ${phoneNumber.phoneNumber} (id: ${id})`);
+      logger.info(`✅ [Admin Reactivate] Reactivated phone number (id: ${id})`);
 
       res.json({
         success: true,

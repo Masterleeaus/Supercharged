@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { db } from '../../db';
 import { eq } from 'drizzle-orm';
 import { emailService } from '../../services/email-service';
+import { logger } from '../../utils/logger';
 
 export function registerUsersRoutes(router: Router) {
   router.get('/users/search', requireAdminPermission('users', 'view_users', 'read'), async (req: AdminRequest, res: Response) => {
@@ -167,7 +168,7 @@ export function registerUsersRoutes(router: Router) {
       if (updateData.isActive === false && userBeforeUpdate?.isActive === true) {
         try {
           await emailService.sendAccountSuspended(userId, "Account suspended by administrator");
-          console.log(`[Admin] Sent suspension email to user ${userId}`);
+          logger.info(`[Admin] Sent suspension email to user ${userId}`);
         } catch (emailError) {
           console.error(`Failed to send suspension email to user ${userId}:`, emailError);
         }
@@ -176,7 +177,7 @@ export function registerUsersRoutes(router: Router) {
       if (updateData.isActive === true && userBeforeUpdate?.isActive === false) {
         try {
           await emailService.sendAccountReactivated(userId);
-          console.log(`[Admin] Sent reactivation email to user ${userId}`);
+          logger.info(`[Admin] Sent reactivation email to user ${userId}`);
         } catch (emailError) {
           console.error(`Failed to send reactivation email to user ${userId}:`, emailError);
         }
@@ -211,13 +212,13 @@ export function registerUsersRoutes(router: Router) {
           if (isPaidPlan && oldPlanType === 'free') {
             try {
               await emailService.sendMembershipUpgrade(userId, plan.displayName || plan.name);
-              console.log(`[Admin] Sent membership upgrade email to user ${userId}`);
+              logger.info(`[Admin] Sent membership upgrade email to user ${userId}`);
             } catch (emailError) {
               console.error(`Failed to send membership upgrade email to user ${userId}:`, emailError);
             }
           }
           
-          console.log(`[Admin] User ${userId} plan changed from ${oldPlanType} to ${newPlanType}`);
+          logger.info(`[Admin] User ${userId} plan changed from ${oldPlanType} to ${newPlanType}`);
         }
       }
       
@@ -293,7 +294,7 @@ export function registerUsersRoutes(router: Router) {
         });
       }
       
-      console.log(`✅ [Admin] Created new user: ${userData.email}`);
+      logger.info(`✅ [Admin] Created new user`);
       
       res.status(201).json({ 
         success: true, 
@@ -326,7 +327,7 @@ export function registerUsersRoutes(router: Router) {
         return res.status(404).json({ error: 'User not found' });
       }
       
-      console.log(`🗑️ [Admin] Starting cascade delete for user: ${user.email} (${userId})`);
+      logger.info(`🗑️ [Admin] Starting cascade delete for user ${userId}`);
       
       const userForms = await db.select({ id: schema.forms.id }).from(schema.forms).where(eq(schema.forms.userId, userId));
       for (const form of userForms) {
@@ -381,7 +382,7 @@ export function registerUsersRoutes(router: Router) {
       await db.delete(schema.agents).where(eq(schema.agents.userId, userId));
       await db.delete(schema.users).where(eq(schema.users.id, userId));
       
-      console.log(`✅ [Admin] Successfully deleted user and all data: ${user.email}`);
+      logger.info(`✅ [Admin] Successfully deleted user and all data: ${userId}`);
       
       res.json({ success: true, message: `User ${user.email} and all associated data have been permanently deleted` });
     } catch (error: any) {

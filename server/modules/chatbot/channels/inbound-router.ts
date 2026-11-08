@@ -15,6 +15,7 @@
 import express, { type Request, type Response } from "express";
 import type { ChannelKind, RawWebhook } from "../contracts/index.ts";
 import { isCompanyId } from "../../../infrastructure/database/tenant-context.ts";
+import { logger } from "../../../utils/logger.ts";
 import { receiveWebhook, answerChallenge, type ChannelRegistry, type WebhookReceipt } from "./framework.ts";
 import type { ChannelCredentialSource } from "../contracts/index.ts";
 
@@ -27,10 +28,12 @@ export interface InboundLogger {
   error(event: string, fields: Record<string, unknown>): void;
 }
 
-/** One JSON line per event on the console. Fields are ids, counts and error names or codes only. */
+/** Writes each event through the shared logger. Fields are ids, counts and error names or codes only. */
 export function consoleInboundLogger(): InboundLogger {
-  const write = (level: string, event: string, fields: Record<string, unknown>) =>
-    console.log(JSON.stringify({ level, event, ...fields }));
+  const write = (level: string, event: string, fields: Record<string, unknown>) => {
+    if (level === "error") logger.error(event, fields);
+    else logger.warn(event, fields);
+  };
   return {
     warn: (event, fields) => write("warn", event, fields),
     error: (event, fields) => write("error", event, fields),

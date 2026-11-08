@@ -5,6 +5,7 @@ import { AdminRequest, requireAdminPermission } from '../../middleware/admin-aut
 import { insertCreditPackageSchema } from '@shared/schema';
 import Stripe from 'stripe';
 import { getStripeCurrency } from '../../services/stripe-service';
+import { logger } from '../../utils/logger';
 
 async function getStripeClient(): Promise<Stripe | null> {
   try {
@@ -102,7 +103,7 @@ export function registerCreditPackagesRoutes(router: Router) {
             newPackage = updatedPackage;
           }
           
-          console.log(`✅ [Stripe] Created product ${stripeProduct.id} and price ${stripePrice.id} for credit package ${newPackage.id}`);
+          logger.info(`✅ [Stripe] Created product ${stripeProduct.id} and price ${stripePrice.id} for credit package ${newPackage.id}`);
         } catch (stripeError: any) {
           console.error('❌ [Stripe] Error syncing credit package to Stripe:', stripeError.message);
         }
