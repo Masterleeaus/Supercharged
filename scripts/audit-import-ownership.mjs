@@ -59,7 +59,7 @@ export function resolveRelativeImport(importer, specifier, knownPaths) {
  * A negative result is NOT proof that an import is unused: alias and dynamic
  * loaders, plugins, runtime evaluation and generated output are excluded.
  */
-export function traceStaticEntrypoints([...edges, ...aliasEdges], entrypoints) {
+export function traceStaticEntrypoints(edges, entrypoints) {
   const outgoing = new Map();
   for (const { importer, target } of edges) {
     if (!outgoing.has(importer)) outgoing.set(importer, new Set());
@@ -140,7 +140,7 @@ export function auditImportOwnership(root = ROOT, options = {}) {
   ];
   const entrypoints = configuredEntrypoints.filter((path) => fileSet.has(path));
   const missingEntrypoints = configuredEntrypoints.filter((path) => !fileSet.has(path));
-  const staticReachable = new Set(traceStaticEntrypoints(edges, entrypoints));
+  const staticReachable = new Set(traceStaticEntrypoints([...edges, ...aliasEdges], entrypoints));
   const ownership = files.filter((f) => selected.some((p) => f.startsWith(p))).map((path) => ({
     path,
     directImporters: (inbound.get(path) || []).sort(),
