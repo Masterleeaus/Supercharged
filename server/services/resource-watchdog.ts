@@ -15,6 +15,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
+import { logger } from '../utils/logger';
 import * as os from 'os';
 import { storage } from '../storage';
 import { gracefulShutdown } from './graceful-shutdown';
@@ -209,7 +210,7 @@ async function checkResources(): Promise<void> {
   } else {
     // Reset breach counter on successful check
     if (consecutiveBreaches > 0) {
-      console.log('✅ [Watchdog] Resources within limits, resetting breach counter');
+      logger.info('✅ [Watchdog] Resources within limits, resetting breach counter');
     }
     consecutiveBreaches = 0;
   }
@@ -220,11 +221,11 @@ async function checkResources(): Promise<void> {
  */
 export function startWatchdog(): void {
   if (watchdogInterval) {
-    console.log('⚠️ [Watchdog] Already running');
+    logger.info('⚠️ [Watchdog] Already running');
     return;
   }
   
-  console.log('👁️ [Watchdog] Starting resource monitor (30s interval)');
+  logger.info('👁️ [Watchdog] Starting resource monitor (30s interval)');
   
   // Initialize CPU baseline
   lastCpuUsage = process.cpuUsage().user + process.cpuUsage().system;
@@ -244,7 +245,7 @@ export function stopWatchdog(): void {
   if (watchdogInterval) {
     clearInterval(watchdogInterval);
     watchdogInterval = null;
-    console.log('🛑 [Watchdog] Resource monitor stopped');
+    logger.info('🛑 [Watchdog] Resource monitor stopped');
   }
 }
 

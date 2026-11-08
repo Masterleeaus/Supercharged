@@ -14,11 +14,15 @@ for (const method of ['log', 'info', 'warn']) console[method] = () => {};
 
 const { loadRoleCatalogue } = await import('../../server/workforce/catalogue/loader.ts');
 const { createReadToolSpecs } = await import('../../server/workforce/tools/read-handlers.ts');
+const { createGroup00ToolDefinitions, GROUP00_NOT_IMPLEMENTED_IDS } = await import(
+  '../../server/workforce/tools/handlers/group-00.ts'
+);
 const { createGroup04ToolDefinitions, GROUP04_NOT_IMPLEMENTED } = await import('../../server/workforce/tools/handlers/group-04.ts');
 
 // Recorded on 2026-11-04: 100 distinct declared IDs across 125 role files, 5 bound to a handler, 95 unmapped.
-// Group 04 (handlers/group-04.ts) binds 19 more: 20 ids, with site_visits.schedule not_implemented. 95 - 19 = 76.
-const UNMAPPED_COUNT_RECORDED = 76;
+// 2026-11-08: group 00 binds 13 real IDs (its other 5 are not_implemented and do not count). Group 04 binds 19
+// (20 IDs, with site_visits.schedule not_implemented). 95 - 13 - 19 = 63 unmapped.
+const UNMAPPED_COUNT_RECORDED = 63;
 
 const ROLES_DIR = fileURLToPath(new URL('../../server/workforce/catalogue/roles', import.meta.url));
 
@@ -28,11 +32,18 @@ for (const role of catalogue.values()) for (const toolId of role.tools) declared
 
 // Typed handlers bound through the read-handler port. The store is a stub: no calls are made when building specs.
 const stubStore = new Proxy({}, { get: () => async () => [] });
-// Group 04 counts as bound only for the ids it implements. not_implemented ids do not lower the count.
+// Group 00 and group 04 ids count as bound only when they have a real handler (not_implemented ids do not count).
+const group00Bound = createGroup00ToolDefinitions()
+  .map((def) => def.id)
+  .filter((id) => !GROUP00_NOT_IMPLEMENTED_IDS.has(id));
 const group04Bound = createGroup04ToolDefinitions()
   .map((def) => def.id)
   .filter((id) => !GROUP04_NOT_IMPLEMENTED.includes(id));
-const bound = new Set([...createReadToolSpecs(stubStore).map((spec) => spec.id), ...group04Bound]);
+const bound = new Set([
+  ...createReadToolSpecs(stubStore).map((spec) => spec.id),
+  ...group00Bound,
+  ...group04Bound,
+]);
 
 const unmapped = [...declared].filter((toolId) => !bound.has(toolId)).sort();
 

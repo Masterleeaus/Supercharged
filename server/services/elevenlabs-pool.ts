@@ -15,6 +15,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
+import { logger } from '../utils/logger';
 import { db } from "../db";
 import { elevenLabsCredentials, agents, incomingAgents, phoneNumbers, users } from "@shared/schema";
 import { eq, and, desc, asc, sql, isNull, notInArray, or } from "drizzle-orm";
@@ -78,7 +79,7 @@ export class ElevenLabsPoolService {
       })
       .returning();
 
-    console.log(`✅ Added ElevenLabs credential: ${credential.name}`);
+    logger.info(`✅ Added ElevenLabs credential: ${credential.name}`);
     return openSecrets(credential);
   }
 
@@ -120,7 +121,7 @@ export class ElevenLabsPoolService {
         return false;
       }
       
-      console.log("✅ ElevenLabs API key validated (v2 voices + v1 agents)");
+      logger.info("✅ ElevenLabs API key validated (v2 voices + v1 agents)");
       return true;
     } catch (error: any) {
       if (error.name === 'AbortError') {
@@ -314,7 +315,7 @@ export class ElevenLabsPoolService {
 
       if (result.rows && result.rows.length > 0) {
         const row = result.rows[0] as any;
-        console.log(`🔒 [Pool] Reserved slot on credential ${row.name} (load: ${row.current_load}/${row.max_concurrency})`);
+        logger.info(`🔒 [Pool] Reserved slot on credential ${row.name} (load: ${row.current_load}/${row.max_concurrency})`);
         
         // Map snake_case DB columns to camelCase for TypeScript
         const shape = {
@@ -341,7 +342,7 @@ export class ElevenLabsPoolService {
         }
       }
 
-      console.log(`⚠️ [Pool] No available capacity - all credentials at max load`);
+      logger.warn(`⚠️ [Pool] No available capacity - all credentials at max load`);
       return null;
     } catch (error) {
       console.error(`❌ [Pool] Failed to reserve slot:`, error);
@@ -370,7 +371,7 @@ export class ElevenLabsPoolService {
 
       if (result.rows && result.rows.length > 0) {
         const row = result.rows[0] as any;
-        console.log(`🔒 [Pool] Reserved slot on credential ${row.name} (load: ${row.current_load}/${row.max_concurrency})`);
+        logger.info(`🔒 [Pool] Reserved slot on credential ${row.name} (load: ${row.current_load}/${row.max_concurrency})`);
         
         const shape = {
           id: row.id,
@@ -396,7 +397,7 @@ export class ElevenLabsPoolService {
         }
       }
 
-      console.log(`⚠️ [Pool] Credential ${credentialId} has no capacity or is inactive`);
+      logger.warn(`⚠️ [Pool] Credential ${credentialId} has no capacity or is inactive`);
       return null;
     } catch (error) {
       console.error(`❌ [Pool] Failed to reserve slot on credential ${credentialId}:`, error);
@@ -438,7 +439,7 @@ export class ElevenLabsPoolService {
    */
   static async releaseSlot(credentialId: string): Promise<void> {
     await this.decrementLoad(credentialId);
-    console.log(`🔓 [Pool] Released slot on credential ${credentialId}`);
+    logger.info(`🔓 [Pool] Released slot on credential ${credentialId}`);
   }
 
   /**
@@ -659,7 +660,7 @@ export class ElevenLabsPoolService {
 
       reassignedTo = remainingIds.length === 1 ? remainingIds[0] : null;
       autoReassigned = true;
-      console.log(`[ElevenLabs Pool] Reassigned ${totalOrphaned} agents from deleted credential to ${remainingIds.length} remaining credential(s)`);
+      logger.info(`[ElevenLabs Pool] Reassigned ${totalOrphaned} agents from deleted credential to ${remainingIds.length} remaining credential(s)`);
     } else if (totalOrphaned > 0) {
       await db.update(agents)
         .set({ elevenLabsCredentialId: null })
@@ -669,7 +670,7 @@ export class ElevenLabsPoolService {
         .set({ elevenLabsCredentialId: null })
         .where(eq(incomingAgents.elevenLabsCredentialId, id));
 
-      console.log(`[ElevenLabs Pool] No remaining active credentials - ${totalOrphaned} agents unassigned`);
+      logger.warn(`[ElevenLabs Pool] No remaining active credentials - ${totalOrphaned} agents unassigned`);
     }
 
     await db.update(phoneNumbers)
@@ -680,7 +681,7 @@ export class ElevenLabsPoolService {
 
     await this.recalculateAgentCounts();
 
-    console.log(`[ElevenLabs Pool] Deleted credential: ${credential.name}`);
+    logger.info(`[ElevenLabs Pool] Deleted credential: ${credential.name}`);
 
     return { 
       unassignedAgents: totalOrphaned,
@@ -831,7 +832,7 @@ export class ElevenLabsPoolService {
                   turnTimeout,
                   maxDurationSeconds,
                 });
-                console.log(`[ElevenLabs Pool] Imported agent ${elAgent.name} (${elAgent.agent_id}) with full details`);
+                logger.info(`[ElevenLabs Pool] Imported agent ${elAgent.name} (${elAgent.agent_id}) with full details`);
               }
             }
           }
@@ -912,10 +913,10 @@ export class ElevenLabsPoolService {
 
     for (const credId of Object.keys(credentialBuckets)) {
       const cred = activeCredentials.find(c => c.id === credId);
-      console.log(`[ElevenLabs Pool] Credential ${cred?.name || credId}: assigned ${credentialBuckets[credId]} agents`);
+      logger.info(`[ElevenLabs Pool] Credential ${cred?.name || credId}: assigned ${credentialBuckets[credId]} agents`);
     }
 
-    console.log(`[ElevenLabs Pool] Sync complete: ${totalAgents} total (${newlyAssigned} newly assigned, ${movedFromInactive} moved from inactive, ${rebalanced} rebalanced) across ${activeCredentials.length} credential(s)`);
+    logger.info(`[ElevenLabs Pool] Sync complete: ${totalAgents} total (${newlyAssigned} newly assigned, ${movedFromInactive} moved from inactive, ${rebalanced} rebalanced) across ${activeCredentials.length} credential(s)`);
 
     return {
       synced: newlyAssigned,
@@ -966,7 +967,7 @@ export class ElevenLabsPoolService {
           newCount: actualCount,
         });
         
-        console.log(`🔄 [ElevenLabs Pool] Recalculated ${credential.name}: ${oldCount} → ${actualCount} agents`);
+        logger.info(`🔄 [ElevenLabs Pool] Recalculated ${credential.name}: ${oldCount} → ${actualCount} agents`);
       }
     }
     
@@ -1018,11 +1019,11 @@ export class ElevenLabsPoolService {
         .limit(1);
 
       if (existingCredential) {
-        console.log(`🔑 [User Affinity] User ${userId} using existing credential: ${existingCredential.name}`);
+        logger.info(`🔑 [User Affinity] User ${userId} using existing credential: ${existingCredential.name}`);
         return openSecrets(existingCredential);
       }
       // Credential is inactive/deleted - need to reassign
-      console.log(`⚠️ [User Affinity] User ${userId}'s credential is inactive, reassigning...`);
+      logger.info(`⚠️ [User Affinity] User ${userId}'s credential is inactive, reassigning...`);
     }
 
     // Step 2: Check if user has existing agents with credentials (migration path)
@@ -1052,7 +1053,7 @@ export class ElevenLabsPoolService {
       if (agentCredential) {
         // Adopt this credential for the user
         await this.assignUserToCredential(userId, agentCredential.id);
-        console.log(`🔑 [User Affinity] User ${userId} adopted credential from existing agent: ${agentCredential.name}`);
+        logger.info(`🔑 [User Affinity] User ${userId} adopted credential from existing agent: ${agentCredential.name}`);
         return openSecrets(agentCredential);
       }
     }
@@ -1066,7 +1067,7 @@ export class ElevenLabsPoolService {
 
     // Assign user to this credential
     await this.assignUserToCredential(userId, credential.id);
-    console.log(`🔑 [User Affinity] User ${userId} assigned to credential: ${credential.name} (${credential.totalAssignedAgents}/${credential.maxAgentsThreshold} agents)`);
+    logger.info(`🔑 [User Affinity] User ${userId} assigned to credential: ${credential.name} (${credential.totalAssignedAgents}/${credential.maxAgentsThreshold} agents)`);
     return openSecrets(credential);
   }
 
@@ -1189,7 +1190,7 @@ export class ElevenLabsPoolService {
           newCount: actualCount,
         });
         
-        console.log(`🔄 [ElevenLabs Pool] Recalculated users for ${credential.name}: ${oldCount} → ${actualCount}`);
+        logger.info(`🔄 [ElevenLabs Pool] Recalculated users for ${credential.name}: ${oldCount} → ${actualCount}`);
       }
     }
     

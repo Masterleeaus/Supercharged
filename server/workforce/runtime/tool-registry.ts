@@ -119,8 +119,6 @@ export interface ToolDefinition {
    */
   category?: ToolCategory;
   schema: ToolSchema;
-  /** Per-tool handler timeout in ms (positive integer). Absent: the registry-wide timeoutMs applies. */
-  timeoutMs?: number;
   /** Data kinds this tool relies on (keys of FRESHNESS_LIMITS). Informational unless freshnessOf is set. */
   requiresFresh?: readonly FreshnessKind[];
   /**
@@ -143,6 +141,8 @@ export interface ToolDefinition {
    * refused and nothing is staged. Returns null when the params cannot be staged.
    */
   stage?: (params: Record<string, unknown>) => { category: ShadowCategory; change: PredictiveStageParams } | null;
+  /** Per-tool timeout in milliseconds (positive integer). Declared on the definition; the registry-wide timeout still applies until it is enforced per call. */
+  timeoutMs?: number;
   handler: (params: Record<string, unknown>, context: ToolHandlerContext) => unknown | Promise<unknown>;
 }
 

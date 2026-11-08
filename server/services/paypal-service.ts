@@ -14,6 +14,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
+import { logger } from '../utils/logger';
 import axios, { AxiosInstance } from 'axios';
 import { storage } from '../storage';
 import { PaymentError } from '../utils/errors';
@@ -218,7 +219,7 @@ export async function createPayPalProduct(options: PayPalProductOptions): Promis
     category: options.category || 'SOFTWARE',
   });
   
-  console.log(`✅ [PayPal] Created product ${response.data.id}`);
+  logger.info(`✅ [PayPal] Created product ${response.data.id}`);
   return response.data;
 }
 
@@ -266,7 +267,7 @@ export async function createPayPalPlan(options: PayPalPlanOptions): Promise<any>
     },
   });
   
-  console.log(`✅ [PayPal] Created plan ${response.data.id}`);
+  logger.info(`✅ [PayPal] Created plan ${response.data.id}`);
   return response.data;
 }
 
@@ -287,7 +288,7 @@ export async function deactivatePayPalPlan(planId: string): Promise<void> {
   }
   
   await client.post(`/v1/billing/plans/${planId}/deactivate`);
-  console.log(`✅ [PayPal] Deactivated plan ${planId}`);
+  logger.info(`✅ [PayPal] Deactivated plan ${planId}`);
 }
 
 export interface PayPalSubscriptionOptions {
@@ -316,7 +317,7 @@ export async function createPayPalSubscription(options: PayPalSubscriptionOption
     application_context: options.applicationContext,
   });
   
-  console.log(`✅ [PayPal] Created subscription ${response.data.id}`);
+  logger.info(`✅ [PayPal] Created subscription ${response.data.id}`);
   return response.data;
 }
 
@@ -340,7 +341,7 @@ export async function cancelPayPalSubscription(subscriptionId: string, reason?: 
     reason: reason || 'Subscription cancelled by user',
   });
   
-  console.log(`✅ [PayPal] Cancelled subscription ${subscriptionId}`);
+  logger.info(`✅ [PayPal] Cancelled subscription ${subscriptionId}`);
 }
 
 export interface PayPalOrderOptions {
@@ -378,7 +379,7 @@ export async function createPayPalOrder(options: PayPalOrderOptions): Promise<an
     },
   });
   
-  console.log(`✅ [PayPal] Created order ${response.data.id}`);
+  logger.info(`✅ [PayPal] Created order ${response.data.id}`);
   return response.data;
 }
 
@@ -389,7 +390,7 @@ export async function capturePayPalOrder(orderId: string): Promise<any> {
   }
   
   const response = await client.post(`/v2/checkout/orders/${orderId}/capture`, {});
-  console.log(`✅ [PayPal] Captured order ${orderId}`);
+  logger.info(`✅ [PayPal] Captured order ${orderId}`);
   return response.data;
 }
 
@@ -442,7 +443,7 @@ export async function verifyPayPalWebhookSignature(
 
     const verified = verificationResponse.data?.verification_status === 'SUCCESS';
     if (verified) {
-      console.log('✅ [PayPal] Webhook signature verified');
+      logger.info('✅ [PayPal] Webhook signature verified');
     } else {
       console.warn('⚠️ [PayPal] Webhook signature verification failed');
     }

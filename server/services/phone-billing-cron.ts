@@ -15,6 +15,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
+import { logger } from '../utils/logger';
 import { db } from "../db";
 import { phoneNumbers, creditTransactions, phoneNumberRentals, campaigns, phoneReleaseRetryQueue } from "@shared/schema";
 import type { PhoneNumber } from "@shared/schema";
@@ -40,7 +41,7 @@ async function getPhoneNumberMonthlyCost(): Promise<number> {
  * Runs as a cron job checking every hour
  */
 export async function processPhoneNumberBilling() {
-  console.log('📞 [Phone Billing] Starting monthly billing check...');
+  logger.info('📞 [Phone Billing] Starting monthly billing check...');
   
   try {
     // Claim due phone numbers one at a time with row-level locking so overlapping
@@ -78,9 +79,9 @@ export async function processPhoneNumberBilling() {
       }
     }
 
-    console.log(`📞 [Phone Billing] Processed ${processed} phone numbers`);
+    logger.info(`📞 [Phone Billing] Processed ${processed} phone numbers`);
 
-    console.log('📞 [Phone Billing] Monthly billing check complete');
+    logger.info('📞 [Phone Billing] Monthly billing check complete');
   } catch (error: any) {
     console.error('📞 [Phone Billing] Error processing monthly billing:', error);
   }
@@ -90,7 +91,7 @@ export async function processPhoneNumberBilling() {
  * Process renewal for a single phone number
  */
 async function processPhoneNumberRenewal(phoneNumber: any) {
-  console.log(`📞 [Phone Billing] Processing renewal for ${phoneNumber.phoneNumber}`);
+  logger.info(`📞 [Phone Billing] Processing renewal for [redacted]`);
 
   try {
     // Get user to check credits
@@ -121,7 +122,7 @@ async function processPhoneNumberRenewal(phoneNumber: any) {
  * Renew phone number by deducting credits and updating billing date
  */
 async function renewPhoneNumber(phoneNumber: any, user: any, monthlyCredits: number) {
-  console.log(`📞 [Phone Billing] Renewing ${phoneNumber.phoneNumber} (sufficient credits)`);
+  logger.info(`📞 [Phone Billing] Renewing [redacted] (sufficient credits)`);
 
   try {
     // Atomic transaction: deduct credits, create rental record, update next billing date
@@ -159,7 +160,7 @@ async function renewPhoneNumber(phoneNumber: any, user: any, monthlyCredits: num
         .where(eq(phoneNumbers.id, phoneNumber.id));
     });
 
-    console.log(`✅ [Phone Billing] Successfully renewed ${phoneNumber.phoneNumber}`);
+    logger.info(`✅ [Phone Billing] Successfully renewed [redacted]`);
     
     // Send success notification
     await NotificationService.notifyPhoneBillingSuccess(
@@ -176,7 +177,7 @@ async function renewPhoneNumber(phoneNumber: any, user: any, monthlyCredits: num
       // Send low credits email notification
       try {
         await emailService.sendLowCreditsAlert(user.id, updatedUser.credits || 0);
-        console.log(`✅ [Phone Billing] Low credits email sent to user ${user.id}`);
+        logger.info(`✅ [Phone Billing] Low credits email sent to user ${user.id}`);
       } catch (emailError: any) {
         console.error(`❌ [Phone Billing] Failed to send low credits email:`, emailError);
       }
@@ -205,7 +206,7 @@ async function renewPhoneNumber(phoneNumber: any, user: any, monthlyCredits: num
  * - Create failed rental record
  */
 async function disablePhoneNumber(phoneNumber: any, user: any, monthlyCredits: number) {
-  console.log(`⚠️  [Phone Billing] Disabling ${phoneNumber.phoneNumber} (insufficient credits)`);
+  logger.info(`⚠️  [Phone Billing] Disabling [redacted] (insufficient credits)`);
 
   try {
     await db.transaction(async (tx) => {
@@ -240,7 +241,7 @@ async function disablePhoneNumber(phoneNumber: any, user: any, monthlyCredits: n
         () => twilioService.releasePhoneNumber(phoneNumber.twilioSid!),
         { maxAttempts: 3, baseDelayMs: 500, maxDelayMs: 4000, label: 'twilio.releasePhoneNumber' }
       );
-      console.log(`✅ [Phone Billing] Released ${phoneNumber.phoneNumber} from Twilio`);
+      logger.info(`✅ [Phone Billing] Released [redacted] from Twilio`);
     } catch (twilioError: any) {
       console.error(`⚠️  [Phone Billing] Failed to release ${phoneNumber.phoneNumber} from Twilio:`, twilioError);
       // Enqueue durable retry so the release is not lost on transient errors.
@@ -254,13 +255,13 @@ async function disablePhoneNumber(phoneNumber: any, user: any, monthlyCredits: n
           lastError: twilioError?.message?.slice(0, 500) ?? String(twilioError).slice(0, 500),
           nextRetryAt: new Date(Date.now() + 5 * 60 * 1000), // retry in 5 min
         });
-        console.log(`📥 [Phone Billing] Queued release retry for ${phoneNumber.phoneNumber}`);
+        logger.info(`📥 [Phone Billing] Queued release retry for [redacted]`);
       } catch (queueError: any) {
         console.error(`❌ [Phone Billing] Failed to queue release retry:`, queueError);
       }
     }
 
-    console.log(`✅ [Phone Billing] Disabled ${phoneNumber.phoneNumber} and paused campaigns`);
+    logger.info(`✅ [Phone Billing] Disabled [redacted] and paused campaigns`);
     
     // Send notification about phone number being released
     await NotificationService.notifyPhoneBillingFailed(
@@ -280,11 +281,11 @@ let billingIntervalId: NodeJS.Timeout | null = null;
  */
 export function startPhoneBillingCron() {
   if (billingIntervalId) {
-    console.log('📞 [Phone Billing] Cron job already running');
+    logger.info('📞 [Phone Billing] Cron job already running');
     return;
   }
   
-  console.log('📞 [Phone Billing] Starting cron job (checking every hour)');
+  logger.info('📞 [Phone Billing] Starting cron job (checking every hour)');
   
   // Run immediately on startup
   processPhoneNumberBilling();
@@ -300,6 +301,6 @@ export function stopPhoneBillingCron() {
   if (billingIntervalId) {
     clearInterval(billingIntervalId);
     billingIntervalId = null;
-    console.log('📞 [Phone Billing] Cron job stopped');
+    logger.info('📞 [Phone Billing] Cron job stopped');
   }
 }

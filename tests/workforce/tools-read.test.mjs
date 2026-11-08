@@ -11,7 +11,11 @@ import {
   MAX_READ_ROWS,
 } from '../../server/workforce/tools/read-handlers.ts';
 import { createToolRegistry } from '../../server/workforce/runtime/index.ts';
-import { createGroup04ToolDefinitions } from '../../server/workforce/tools/handlers/group-04.ts';
+import { GROUP00_TOOL_IDS } from '../../server/workforce/tools/handlers/group-00.ts';
+import { GROUP04_IDS } from '../../server/workforce/tools/handlers/group-04.ts';
+
+// Every handler group's ids. The five bound read tools are the only ids outside this set.
+const ALL_GROUP_IDS = new Set([...GROUP00_TOOL_IDS, ...GROUP04_IDS]);
 
 const CO_A = 'company-a';
 const CO_B = 'company-b';
@@ -232,14 +236,14 @@ test('input validation rejects unknown keys and bad values, naming fields only',
 test('registerReadTools registers each bound tool as a read tool with the registry', () => {
   const registered = [];
   registerReadTools({ register: (def) => registered.push(def) }, seededStore());
-  // Handler group 04 definitions are registered too. They are checked in tools-real-04.test.mjs.
-  const groupIds = new Set(createGroup04ToolDefinitions().map((d) => d.id));
-  const bound = registered.filter((d) => !groupIds.has(d.id));
+  // Group 00 (reads and writes) and group 04 (reads and writes) are registered too. Their definitions are checked in
+  // their own test files. The five read tools below must still be access 'read' and risk 'low'.
+  const reads = registered.filter((d) => !ALL_GROUP_IDS.has(d.id));
   assert.deepEqual(
-    bound.map((d) => d.id).sort(),
+    reads.map((d) => d.id).sort(),
     ['booking_requests.get', 'booking_requests.list', 'invoices.get', 'invoices.list', 'payments.list'],
   );
-  for (const def of bound) {
+  for (const def of reads) {
     assert.equal(def.access, 'read');
     assert.equal(def.risk, 'low');
     assert.equal(typeof def.handler, 'function');
@@ -271,8 +275,8 @@ test('read tools run through the tool registry and refuse companyId in params', 
 
 test('definitions expose the same ids as the specs, plus the handler group 04 ids', () => {
   const store = seededStore();
-  const groupIds = new Set(createGroup04ToolDefinitions().map((d) => d.id));
-  const defIds = createReadToolDefinitions(store).map((d) => d.id).filter((id) => !groupIds.has(id)).sort();
+  // Group 00 and group 04 definitions sit beside the read specs; this check covers the read specs only.
+  const defIds = createReadToolDefinitions(store).map((d) => d.id).filter((id) => !ALL_GROUP_IDS.has(id)).sort();
   const specIds = createReadToolSpecs(store).map((s) => s.id).sort();
   assert.deepEqual(defIds, specIds);
 });

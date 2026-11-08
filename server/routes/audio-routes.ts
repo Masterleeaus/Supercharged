@@ -13,6 +13,7 @@ import {
   removeAudioOwner,
   canDeleteAudio,
 } from '../services/audio-ownership.mjs';
+import { logger } from '../utils/logger';
 
 const router = Router();
 
@@ -64,7 +65,7 @@ router.post('/upload', authenticateHybrid as any, upload.single('audio'), (req, 
       fs.unlinkSync(req.file.path);
       throw ownerError;
     }
-    console.log(`[AudioUpload] User ${(req as any).userId} uploaded: ${req.file.originalname} -> ${url}`);
+    logger.info(`[AudioUpload] User ${(req as any).userId} uploaded: ${req.file.originalname} -> ${url}`);
 
     res.json({
       url,
@@ -99,7 +100,7 @@ router.delete('/:filename', authenticateHybrid as any, strictRateLimiter, (req, 
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
       removeAudioOwner(AUDIO_OWNERS_DIR, filename);
-      console.log(`[AudioUpload] Deleted: ${filename} by ${requesterId}`);
+      logger.info(`[AudioUpload] Deleted: ${filename} by ${requesterId}`);
     }
 
     res.json({ success: true });

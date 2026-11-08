@@ -16,6 +16,7 @@
 import type { Server as HttpServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { ElevenLabsBridgeService } from '../services/elevenlabs-bridge.service';
+import { logger } from '../../../utils/logger';
 
 interface PlivoStreamMessage {
   event: string;
@@ -59,16 +60,16 @@ export function setupPlivoElevenLabsStream(httpServer: HttpServer): void {
         return;
       }
       
-      console.log(`✅ [Plivo-ElevenLabs Stream] Handling WebSocket upgrade for call: ${callUuid}`);
+      logger.info(`✅ [Plivo-ElevenLabs Stream] Handling WebSocket upgrade for call: ${callUuid}`);
       
       wss.handleUpgrade(request, socket, head, async (ws: WebSocket) => {
-        console.log(`✅ [Plivo-ElevenLabs Stream] WebSocket connected for call: ${callUuid}`);
+        logger.info(`✅ [Plivo-ElevenLabs Stream] WebSocket connected for call: ${callUuid}`);
         handleStreamConnection(ws, callUuid);
       });
     }
   });
 
-  console.log('✅ Plivo-ElevenLabs WebSocket stream endpoint registered');
+  logger.info('✅ Plivo-ElevenLabs WebSocket stream endpoint registered');
 }
 
 /**
@@ -88,14 +89,14 @@ function handleStreamConnection(ws: WebSocket, callUuid: string): void {
       
       switch (message.event) {
         case 'connected':
-          console.log(`[Plivo-ElevenLabs Stream] Connected event for ${callUuid}`);
+          logger.info(`[Plivo-ElevenLabs Stream] Connected event for ${callUuid}`);
           break;
           
         case 'start':
           streamSid = message.start?.streamSid || message.streamSid || null;
-          console.log(`[Plivo-ElevenLabs Stream] Stream started: ${streamSid}`);
+          logger.info(`[Plivo-ElevenLabs Stream] Stream started: ${streamSid}`);
           if (message.start?.mediaFormat) {
-            console.log(`[Plivo-ElevenLabs Stream] Media format: ${JSON.stringify(message.start.mediaFormat)}`);
+            logger.info(`[Plivo-ElevenLabs Stream] Media format: ${JSON.stringify(message.start.mediaFormat)}`);
           }
           
           if (!ElevenLabsBridgeService.hasSession(callUuid)) {
@@ -123,7 +124,7 @@ function handleStreamConnection(ws: WebSocket, callUuid: string): void {
           break;
           
         case 'stop':
-          console.log(`[Plivo-ElevenLabs Stream] Stream stopped: ${message.stop?.reason}`);
+          logger.info(`[Plivo-ElevenLabs Stream] Stream stopped: ${message.stop?.reason}`);
           if (audioDropped > 0) {
             console.warn(`[Plivo-ElevenLabs Stream] Total audio chunks dropped: ${audioDropped}`);
           }
@@ -139,14 +140,14 @@ function handleStreamConnection(ws: WebSocket, callUuid: string): void {
   });
 
   ws.on('close', async (code: number, reason: Buffer) => {
-    console.log(`[Plivo-ElevenLabs Stream] WebSocket closed for ${callUuid}: ${code}`);
+    logger.info(`[Plivo-ElevenLabs Stream] WebSocket closed for ${callUuid}: ${code}`);
     isConnected = false;
     
     if (!sessionMissing && !sessionEnded) {
       sessionEnded = true;
       try {
         const result = await ElevenLabsBridgeService.endSession(callUuid);
-        console.log(`[Plivo-ElevenLabs Stream] Session ended: duration=${result.duration}s, transcript parts=${result.transcript.length}`);
+        logger.info(`[Plivo-ElevenLabs Stream] Session ended: duration=${result.duration}s, transcript parts=${result.transcript.length}`);
       } catch (err: any) {
         console.error(`[Plivo-ElevenLabs Stream] Error ending session:`, err.message);
       }

@@ -30,6 +30,9 @@ export async function resolve(specifier, context, nextResolve) {
   if (/url-validator$/.test(specifier)) {
     return { url: DATA('export async function validateWebhookUrl(u) { return String(u).includes("blocked.test") ? { valid: false, error: "Private address blocked" } : { valid: true }; }'), shortCircuit: true };
   }
+  if (/(^|\\/)utils\\/logger$/.test(specifier)) {
+    return { url: DATA('export const logger = { debug() {}, info() {}, warn() {}, error() {} };'), shortCircuit: true };
+  }
   return nextResolve(specifier, context);
 }
 `;

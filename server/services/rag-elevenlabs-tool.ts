@@ -55,7 +55,7 @@ export function getRAGWebhookSecret(): string {
       try {
         if (fs.existsSync(PERSISTED_SECRET_PATH)) {
           ragWebhookSecret = fs.readFileSync(PERSISTED_SECRET_PATH, 'utf-8').trim();
-          console.log(`📚 [RAG Tool] Loaded persisted webhook secret from file`);
+          logger.info(`📚 [RAG Tool] Loaded persisted webhook secret from file`);
         }
       } catch (err) {
         // Unreadable secret file: a new secret is generated below.
@@ -69,7 +69,7 @@ export function getRAGWebhookSecret(): string {
             .createHmac('sha256', baseKey)
             .update('agentlabs:rag-webhook-secret:v1')
             .digest('hex');
-          console.log(`📚 [RAG Tool] Derived stable webhook secret from server key`);
+          logger.info(`📚 [RAG Tool] Derived stable webhook secret from server key`);
           try {
             fs.writeFileSync(PERSISTED_SECRET_PATH, ragWebhookSecret, { mode: 0o600 });
           } catch (err: any) {
@@ -81,7 +81,7 @@ export function getRAGWebhookSecret(): string {
       // 3. Fallback: Generate a random secret if no server key is present
       if (!ragWebhookSecret) {
         ragWebhookSecret = crypto.randomBytes(32).toString('hex');
-        console.log(`📚 [RAG Tool] Generated new webhook secret`);
+        logger.info(`📚 [RAG Tool] Generated new webhook secret`);
         try {
           fs.writeFileSync(PERSISTED_SECRET_PATH, ragWebhookSecret, { mode: 0o600 });
         } catch (err: any) {
@@ -144,9 +144,9 @@ export function getAskKnowledgeWebhookTool(elevenLabsAgentId: string): RAGWebhoo
   const agentIdSuffix = elevenLabsAgentId.slice(-8);
   const toolName = `ask_knowledge_${agentIdSuffix}`;
   
-  console.log(`📚 [RAG Tool] Creating webhook tool config for ElevenLabs agent ${elevenLabsAgentId}`);
-  console.log(`   Tool name: ${toolName}`);
-  console.log(`   Webhook URL: ${webhookUrl.replace(secret, '[TOKEN]')}`);
+  logger.info(`📚 [RAG Tool] Creating webhook tool config for ElevenLabs agent ${elevenLabsAgentId}`);
+  logger.info(`   Tool name: ${toolName}`);
+  logger.info(`   Webhook URL: ${webhookUrl.replace(secret, '[TOKEN]')}`);
   
   return {
     type: "webhook",
@@ -181,7 +181,7 @@ export async function handleAskKnowledgeToolCall(
   knowledgeBaseIds: string[],
   scope: KnowledgeSearchScope
 ): Promise<{ response: string; sources: Array<{ id: string; relevance: number }> }> {
-  console.log(`[RAG Tool] Processing query: "${query.substring(0, 50)}..."`);
+  logger.info(`[RAG Tool] Processing query: "${query.substring(0, 50)}..."`);
 
   if (!knowledgeBaseIds || knowledgeBaseIds.length === 0) {
     return {
@@ -283,7 +283,7 @@ export async function setupRAGToolForAgent(
     const correctToolName = `ask_knowledge_${agentIdSuffix}`;
     
     if (prompt && prompt.includes('ask_knowledge') && !prompt.includes(correctToolName)) {
-      console.log(`📚 [RAG Tool] Correcting generic tool name references in prompt to '${correctToolName}'`);
+      logger.info(`📚 [RAG Tool] Correcting generic tool name references in prompt to '${correctToolName}'`);
       const updatedPrompt = prompt.replace(/\bask_knowledge\b/g, correctToolName);
       
       if (updatedPrompt !== prompt) {
@@ -297,7 +297,7 @@ export async function setupRAGToolForAgent(
               }
             }
           });
-          console.log(`✅ [RAG Tool] Corrected system prompt saved to ElevenLabs`);
+          logger.info(`✅ [RAG Tool] Corrected system prompt saved to ElevenLabs`);
         } catch (patchErr: any) {
           console.warn(`❌ [RAG Tool] Failed to update prompt with corrected tool name: ${patchErr.message}`);
         }
@@ -317,7 +317,7 @@ export async function setupRAGToolForAgent(
       const existingToolIds: string[] = (agent as any)?.conversation_config?.agent?.prompt?.tool_ids || [];
       const updatedToolIds = Array.from(new Set([...existingToolIds, toolId]));
       
-      console.log(`📅 [RAG Tool] Attaching appointment tool ID ${toolId} to agent ${elevenLabsAgentId}`);
+      logger.info(`📅 [RAG Tool] Attaching appointment tool ID ${toolId} to agent ${elevenLabsAgentId}`);
       await elevenLabsService.patchAgentRaw(elevenLabsAgentId, {
         conversation_config: {
           agent: {
@@ -327,7 +327,7 @@ export async function setupRAGToolForAgent(
           }
         }
       });
-      console.log(`✅ [RAG Tool] Appointment tool attached via tool_ids`);
+      logger.info(`✅ [RAG Tool] Appointment tool attached via tool_ids`);
     } catch (appointmentError: any) {
       console.warn(`❌ [RAG Tool] Failed to attach appointment tool via tool_ids: ${appointmentError.message}`);
     }
@@ -336,9 +336,9 @@ export async function setupRAGToolForAgent(
   if (!hasKnowledgeBase || !isRAGEnabled()) {
     // No knowledge base - but still need to link system tools (webhookTools is empty since appointment tool is handled via tool_ids)
     if (webhookTools.length === 0) {
-      console.log(`📚 [RAG Tool] No knowledge base or RAG disabled - clearing webhook tools but preserving system tools`);
+      logger.warn(`📚 [RAG Tool] No knowledge base or RAG disabled - clearing webhook tools but preserving system tools`);
     } else {
-      console.log(`📚 [RAG Tool] No knowledge base or RAG disabled - linking ${webhookTools.length} webhook tool(s) with system tools`);
+      logger.warn(`📚 [RAG Tool] No knowledge base or RAG disabled - linking ${webhookTools.length} webhook tool(s) with system tools`);
     }
     try {
       await elevenLabsService.linkToolsToAgent(elevenLabsAgentId, webhookTools, systemTools);
@@ -348,9 +348,9 @@ export async function setupRAGToolForAgent(
     return;
   }
 
-  console.log(`📚 [RAG Tool] Setting up RAG tool for agent ${elevenLabsAgentId}`);
+  logger.info(`📚 [RAG Tool] Setting up RAG tool for agent ${elevenLabsAgentId}`);
   if (systemTools && systemTools.length > 0) {
-    console.log(`   Preserving system tools: ${systemTools.map(t => t.name).join(', ')}`);
+    logger.info(`   Preserving system tools: ${systemTools.map(t => t.name).join(', ')}`);
   }
 
   try {
@@ -361,7 +361,7 @@ export async function setupRAGToolForAgent(
     // Create workspace tool for dashboard visibility (optional, but nice to have)
     try {
       await elevenLabsService.getOrCreateWorkspaceTool(toolConfig);
-      console.log(`📚 [RAG Tool] Workspace tool created/verified for dashboard visibility`);
+      logger.info(`📚 [RAG Tool] Workspace tool created/verified for dashboard visibility`);
     } catch (wsError: any) {
       console.warn(`📚 [RAG Tool] Workspace tool creation skipped: ${wsError.message}`);
       // Continue - the inline config will still work
@@ -369,10 +369,10 @@ export async function setupRAGToolForAgent(
 
     // Add all webhook tools (RAG) to the agent
     // Pass systemTools to preserve them (transfer, language detection, end call)
-    console.log(`📚 [RAG Tool] Linking ${webhookTools.length} webhook tool(s): ${webhookTools.map(t => t.name).join(', ')}`);
+    logger.info(`📚 [RAG Tool] Linking ${webhookTools.length} webhook tool(s): ${webhookTools.map(t => t.name).join(', ')}`);
     await elevenLabsService.linkToolsToAgent(elevenLabsAgentId, webhookTools, systemTools);
 
-    console.log(`✅ [RAG Tool] Tool added to agent successfully`);
+    logger.info(`✅ [RAG Tool] Tool added to agent successfully`);
   } catch (error: any) {
     console.error(`❌ [RAG Tool] Failed to setup RAG tool: ${error.message}`);
     // Don't throw - let agent creation/update continue
@@ -391,11 +391,11 @@ export function buildRAGToolsArray(
   hasKnowledgeBase: boolean
 ): RAGWebhookToolConfig[] {
   if (!isRAGEnabled() || !hasKnowledgeBase) {
-    console.log(`📚 [RAG Tool] Skipping - RAG enabled: ${isRAGEnabled()}, hasKB: ${hasKnowledgeBase}`);
+    logger.warn(`📚 [RAG Tool] Skipping - RAG enabled: ${isRAGEnabled()}, hasKB: ${hasKnowledgeBase}`);
     return [];
   }
 
-  console.log(`📚 [RAG Tool] Building webhook tool for ElevenLabs agent ${elevenLabsAgentId}`);
+  logger.info(`📚 [RAG Tool] Building webhook tool for ElevenLabs agent ${elevenLabsAgentId}`);
   return [getAskKnowledgeWebhookTool(elevenLabsAgentId)];
 }
 

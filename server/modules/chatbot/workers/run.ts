@@ -30,6 +30,7 @@ import type { ReminderDispatcher } from "../booking-providers/reminders.ts";
 import { runReconciliationJob, type ReconciliationJobDeps } from "../booking-providers/reconcile-job.ts";
 import { sweepCallLimits } from "../voice-call/scheduler.ts";
 import type { VoiceCallService } from "../voice-call/service.ts";
+import { logger as sharedLogger } from "../../../utils/logger.ts";
 
 /** The flag that turns the whole runner on. Read with readFlag, so only the exact value "true" enables it. */
 export const CHATBOT_WORKERS_FLAG = "CHATBOT_WORKERS_ENABLED";
@@ -328,14 +329,12 @@ export function listCompanyIdsFromDb(db: ChatbotWorkerDb): () => Promise<string[
   };
 }
 
-/** Logger that writes one JSON line per event to the console. It logs only the fields it is given. */
+/** Logger that writes each event through the shared logger. It logs only the fields it is given. */
 export function consoleWorkerLogger(): WorkerLogger {
-  const write = (level: string, event: string, fields: Record<string, unknown>) =>
-    console.log(JSON.stringify({ level, event, ...fields }));
   return {
-    info: (event, fields) => write("info", event, fields),
-    warn: (event, fields) => write("warn", event, fields),
-    error: (event, fields) => write("error", event, fields),
+    info: (event, fields) => sharedLogger.info(event, fields),
+    warn: (event, fields) => sharedLogger.warn(event, fields),
+    error: (event, fields) => sharedLogger.error(event, fields),
   };
 }
 

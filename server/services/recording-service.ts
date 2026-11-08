@@ -15,6 +15,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
+import { logger } from '../utils/logger';
 import { db } from "../db";
 import { agents, campaigns, incomingConnections, plivoCredentials } from "@shared/schema";
 import type { Call, ElevenLabsCredential } from "@shared/schema";
@@ -86,7 +87,7 @@ export class RecordingService {
     }
     
     if (elevenLabsConvId) {
-      console.log(`🎙️ [Recording] Fetching ElevenLabs recording for call ${call.id} (conversation: ${elevenLabsConvId})`);
+      logger.info(`🎙️ [Recording] Fetching ElevenLabs recording for call ${call.id} (conversation: ${elevenLabsConvId})`);
       
       const elevenLabsResult = await this.fetchElevenLabsRecording(
         elevenLabsConvId,
@@ -97,7 +98,7 @@ export class RecordingService {
         return elevenLabsResult;
       }
       
-      console.log(`📞 [Recording] Trying Twilio fallback...`);
+      logger.info(`📞 [Recording] Trying Twilio fallback...`);
       
       if (call.twilioSid) {
         const twilioResult = await this.fetchTwilioRecordingBySid(call.twilioSid);
@@ -105,7 +106,7 @@ export class RecordingService {
           return twilioResult;
         }
       } else {
-        console.log(`⚠️ [Recording] No Twilio SID stored for fallback`);
+        logger.warn(`⚠️ [Recording] No Twilio SID stored for fallback`);
       }
       
       return {
@@ -126,7 +127,7 @@ export class RecordingService {
     // the conversation_id was null at initiation and the recording is only on Twilio,
     // or cases where the stored recordingUrl is stale/unreachable)
     if (call.twilioSid) {
-      console.log(`📞 [Recording] Trying Twilio SID fallback for call ${call.id} (twilioSid: ${call.twilioSid})`);
+      logger.info(`📞 [Recording] Trying Twilio SID fallback for call ${call.id} (twilioSid: ${call.twilioSid})`);
       const twilioResult = await this.fetchTwilioRecordingBySid(call.twilioSid);
       if (twilioResult) {
         return twilioResult;
@@ -162,7 +163,7 @@ export class RecordingService {
         : elevenLabsService;
       
       if (credential) {
-        console.log(`🎙️ [Recording] Using credential: ${credential.name}`);
+        logger.info(`🎙️ [Recording] Using credential: ${credential.name}`);
       }
       
       const audioResult = await service.getConversationAudio(conversationId);
@@ -176,9 +177,9 @@ export class RecordingService {
       }
       
       if (audioResult.audioBuffer && audioResult.audioBuffer.length === 0) {
-        console.log(`⚠️ [Recording] Empty ElevenLabs audio buffer for call ${call.id}, skipping`);
+        logger.warn(`⚠️ [Recording] Empty ElevenLabs audio buffer for call ${call.id}, skipping`);
       } else {
-        console.log(`⚠️ [Recording] No audio from ElevenLabs for call ${call.id}: ${audioResult.error}`);
+        logger.error(`⚠️ [Recording] No audio from ElevenLabs for call ${call.id}: ${audioResult.error}`);
       }
       return null;
     } catch (error: any) {
@@ -202,19 +203,19 @@ export class RecordingService {
     try {
       const twilioClient = await getTwilioClient();
       
-      console.log(`   Fetching recordings for Twilio call SID: ${twilioSid}`);
+      logger.info(`   Fetching recordings for Twilio call SID: ${twilioSid}`);
       const recordings = await twilioClient.recordings.list({
         callSid: twilioSid,
         limit: 1
       });
       
       if (recordings.length === 0) {
-        console.log(`⚠️ [Recording] No Twilio recordings found for call`);
+        logger.warn(`⚠️ [Recording] No Twilio recordings found for call`);
         return null;
       }
       
       const recording = recordings[0];
-      console.log(`✅ [Recording] Found Twilio recording: ${recording.sid}`);
+      logger.info(`✅ [Recording] Found Twilio recording: ${recording.sid}`);
       const mediaUrl = `https://api.twilio.com${recording.uri.replace('.json', '.mp3')}`;
       
       const response = await fetch(mediaUrl, {
@@ -226,13 +227,13 @@ export class RecordingService {
       });
       
       if (!response.ok) {
-        console.log(`⚠️ [Recording] Twilio fetch failed: ${response.status}`);
+        logger.warn(`⚠️ [Recording] Twilio fetch failed: ${response.status}`);
         return null;
       }
       
       const buffer = await response.arrayBuffer();
       if (buffer.byteLength === 0) {
-        console.log(`⚠️ [Recording] Empty Twilio audio buffer, skipping`);
+        logger.warn(`⚠️ [Recording] Empty Twilio audio buffer, skipping`);
         return null;
       }
       return {
@@ -288,7 +289,7 @@ export class RecordingService {
       
       const buffer = await response.arrayBuffer();
       if (buffer.byteLength === 0) {
-        console.log(`⚠️ [Recording] Empty Twilio audio buffer (by URL), skipping`);
+        logger.warn(`⚠️ [Recording] Empty Twilio audio buffer (by URL), skipping`);
         return null;
       }
       return {
@@ -331,7 +332,7 @@ export class RecordingService {
         if (agent?.elevenLabsCredentialId) {
           const credential = await ElevenLabsPoolService.getCredentialById(agent.elevenLabsCredentialId);
           if (credential) {
-            console.log(`🎙️ [Recording] Using credential from direct agentId: ${agent.name}`);
+            logger.info(`🎙️ [Recording] Using credential from direct agentId: ${agent.name}`);
             return credential;
           }
         }
@@ -375,7 +376,7 @@ export class RecordingService {
         if (agent?.elevenLabsCredentialId) {
           const credential = await ElevenLabsPoolService.getCredentialById(agent.elevenLabsCredentialId);
           if (credential) {
-            console.log(`🎙️ [Recording] Using credential from incoming agent: ${agent.name}`);
+            logger.info(`🎙️ [Recording] Using credential from incoming agent: ${agent.name}`);
             return credential;
           }
         }
@@ -397,7 +398,7 @@ export class RecordingService {
           if (agent?.elevenLabsCredentialId) {
             const credential = await ElevenLabsPoolService.getCredentialById(agent.elevenLabsCredentialId);
             if (credential) {
-              console.log(`🎙️ [Recording] Using credential from widget agent: ${agent.name}`);
+              logger.info(`🎙️ [Recording] Using credential from widget agent: ${agent.name}`);
               return credential;
             }
           }
@@ -420,7 +421,7 @@ export class RecordingService {
         if (agent?.elevenLabsCredentialId) {
           const credential = await ElevenLabsPoolService.getCredentialById(agent.elevenLabsCredentialId);
           if (credential) {
-            console.log(`🎙️ [Recording] Using credential from metadata agentId: ${agent.name}`);
+            logger.info(`🎙️ [Recording] Using credential from metadata agentId: ${agent.name}`);
             return credential;
           }
         }
@@ -443,7 +444,7 @@ export class RecordingService {
         if (matchedAgent?.elevenLabsCredentialId) {
           const credential = await ElevenLabsPoolService.getCredentialById(matchedAgent.elevenLabsCredentialId);
           if (credential) {
-            console.log(`🎙️ [Recording] Using credential from ElevenLabs agent ID match: ${matchedAgent.name}`);
+            logger.info(`🎙️ [Recording] Using credential from ElevenLabs agent ID match: ${matchedAgent.name}`);
             return credential;
           }
         }
@@ -465,7 +466,7 @@ export class RecordingService {
           if (agentCandidate.elevenLabsCredentialId) {
             const credential = await ElevenLabsPoolService.getCredentialById(agentCandidate.elevenLabsCredentialId);
             if (credential) {
-              console.log(`🎙️ [Recording] Using fallback credential from user's agent: ${agentCandidate.name} (${agentCandidate.id})`);
+              logger.warn(`🎙️ [Recording] Using fallback credential from user's agent: ${agentCandidate.name} (${agentCandidate.id})`);
               return credential;
             }
           }
@@ -493,11 +494,11 @@ export class RecordingService {
     try {
       const credential = await this.getPlivoCredential(plivoCredentialId);
       if (!credential) {
-        console.log(`⚠️ [Recording] No Plivo credentials found`);
+        logger.warn(`⚠️ [Recording] No Plivo credentials found`);
         return null;
       }
 
-      console.log(`🎙️ [Recording] Fetching Plivo recordings for call UUID: ${plivoCallUuid}`);
+      logger.info(`🎙️ [Recording] Fetching Plivo recordings for call UUID: ${plivoCallUuid}`);
       
       // List recordings for this call UUID
       const listUrl = `https://api.plivo.com/v1/Account/${credential.authId}/Recording/?call_uuid=${plivoCallUuid}`;
@@ -511,14 +512,14 @@ export class RecordingService {
       });
 
       if (!listResponse.ok) {
-        console.log(`⚠️ [Recording] Plivo API error: ${listResponse.status}`);
+        logger.error(`⚠️ [Recording] Plivo API error: ${listResponse.status}`);
         return null;
       }
 
       const listData = await listResponse.json() as { objects?: Array<{ recording_url?: string; recording_id?: string }> };
       
       if (!listData.objects || listData.objects.length === 0) {
-        console.log(`⚠️ [Recording] No Plivo recordings found for call`);
+        logger.warn(`⚠️ [Recording] No Plivo recordings found for call`);
         return null;
       }
 
@@ -526,23 +527,23 @@ export class RecordingService {
       const recordingUrl = recording.recording_url;
       
       if (!recordingUrl) {
-        console.log(`⚠️ [Recording] Plivo recording has no URL`);
+        logger.warn(`⚠️ [Recording] Plivo recording has no URL`);
         return null;
       }
 
-      console.log(`✅ [Recording] Found Plivo recording: ${recording.recording_id}`);
+      logger.info(`✅ [Recording] Found Plivo recording: ${recording.recording_id}`);
       
       // Fetch the actual recording audio
       const audioResponse = await fetch(recordingUrl);
       
       if (!audioResponse.ok) {
-        console.log(`⚠️ [Recording] Failed to fetch Plivo recording audio: ${audioResponse.status}`);
+        logger.error(`⚠️ [Recording] Failed to fetch Plivo recording audio: ${audioResponse.status}`);
         return null;
       }
 
       const buffer = await audioResponse.arrayBuffer();
       if (buffer.byteLength === 0) {
-        console.log(`⚠️ [Recording] Empty Plivo audio buffer, skipping`);
+        logger.warn(`⚠️ [Recording] Empty Plivo audio buffer, skipping`);
         return null;
       }
       const contentType = audioResponse.headers.get('content-type') || 'audio/mpeg';
@@ -565,12 +566,12 @@ export class RecordingService {
    */
   async fetchPlivoRecordingByUrl(recordingUrl: string): Promise<RecordingResult | null> {
     try {
-      console.log(`🎙️ [Recording] Fetching Plivo recording from URL`);
+      logger.info(`🎙️ [Recording] Fetching Plivo recording from URL`);
       
       const response = await fetch(recordingUrl);
       
       if (!response.ok) {
-        console.log(`⚠️ [Recording] Failed to fetch Plivo recording: ${response.status}`);
+        logger.error(`⚠️ [Recording] Failed to fetch Plivo recording: ${response.status}`);
         return null;
       }
 

@@ -34,6 +34,7 @@ function resolveImpl(specifier, context, nextResolve) {
   if (/(^|\/)storage$/.test(specifier)) return { url: url(STUB_SRC.storage), shortCircuit: true };
   if (/(^|\/)db$/.test(specifier)) return { url: url(STUB_SRC.db), shortCircuit: true };
   if (/gateways\/stripe\/handlers$/.test(specifier)) return { url: url(STUB_SRC.stripe), shortCircuit: true };
+  if (/(^|\/)utils\/logger$/.test(specifier)) return { url: url('export const logger = { debug() {}, info() {}, warn() {}, error() {} };'), shortCircuit: true };
   return nextResolve(specifier, context);
 }
 

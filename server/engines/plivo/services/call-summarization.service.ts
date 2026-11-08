@@ -19,6 +19,7 @@ import { eq, and } from 'drizzle-orm';
 import type { PlivoCallSentiment, CallRecordingSummary } from '../types';
 import { AudioBridgeService } from './audio-bridge.service';
 import { PlivoCallService } from './plivo-call.service';
+import { logger } from '../../../utils/logger';
 
 interface TranscriptPart {
   role: 'user' | 'assistant';
@@ -40,7 +41,7 @@ export class CallSummarizationService {
    * Summarize a call after it completes
    */
   static async summarizeCall(callId: string): Promise<CallRecordingSummary | null> {
-    console.log(`[Call Summarization] Starting summarization for call ${callId}`);
+    logger.info(`[Call Summarization] Starting summarization for call ${callId}`);
 
     try {
       const [call] = await db
@@ -55,7 +56,7 @@ export class CallSummarizationService {
       }
 
       if (call.status !== 'completed') {
-        console.log(`[Call Summarization] Skipping - call status is ${call.status}`);
+        logger.warn(`[Call Summarization] Skipping - call status is ${call.status}`);
         return null;
       }
 
@@ -75,7 +76,7 @@ export class CallSummarizationService {
       }
 
       if (!rawTranscript || rawTranscript.length < 20) {
-        console.log(`[Call Summarization] No transcript available for call ${callId}`);
+        logger.warn(`[Call Summarization] No transcript available for call ${callId}`);
         const defaultResult: CallRecordingSummary = {
           transcript: rawTranscript || 'No transcript available',
           summary: 'Call completed but no conversation transcript was captured.',
@@ -151,7 +152,7 @@ export class CallSummarizationService {
         nextActions: result.nextActions,
       });
 
-      console.log(`[Call Summarization] Completed for call ${callId}: Score ${result.leadQualityScore}, ${result.sentiment}`);
+      logger.info(`[Call Summarization] Completed for call ${callId}: Score ${result.leadQualityScore}, ${result.sentiment}`);
 
       return {
         transcript: rawTranscript,
@@ -262,7 +263,7 @@ Sentiment Guidelines:
     failed: number;
     averageScore: number;
   }> {
-    console.log(`[Call Summarization] Starting batch summarization for campaign ${campaignId}`);
+    logger.info(`[Call Summarization] Starting batch summarization for campaign ${campaignId}`);
 
     const calls = await db
       .select()
@@ -300,7 +301,7 @@ Sentiment Guidelines:
 
     const averageScore = processed > 0 ? Math.round(totalScore / processed) : 0;
 
-    console.log(`[Call Summarization] Campaign ${campaignId} complete: ${processed} processed, ${failed} failed, avg score ${averageScore}`);
+    logger.info(`[Call Summarization] Campaign ${campaignId} complete: ${processed} processed, ${failed} failed, avg score ${averageScore}`);
 
     return { processed, failed, averageScore };
   }

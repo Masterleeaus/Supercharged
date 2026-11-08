@@ -42,6 +42,7 @@ import { emailService } from '../services/email-service';
 import { generateInvoiceForTransaction } from '../services/invoice-service';
 import { FRONTEND_URL } from '../engines/payment/webhook-helper';
 import { applyRefund } from '../services/credit-service';
+import { logger } from '../utils/logger';
 
 const router: Router = express.Router();
 
@@ -182,13 +183,13 @@ router.post('/verify-transaction', authenticateToken, async (req: AuthRequest, r
             status: 'completed',
             completedAt: new Date(),
           });
-          console.log(`✅ [Paystack] Logged credits transaction for user ${userId}`);
+          logger.info(`✅ [Paystack] Logged credits transaction for user ${userId}`);
           
           // Generate invoice and send purchase confirmation email
           try {
             await generateInvoiceForTransaction(creditTransaction.id);
             await emailService.sendPurchaseConfirmation(creditTransaction.id);
-            console.log(`✅ [Paystack] Credits purchase confirmation email sent for transaction ${creditTransaction.id}`);
+            logger.info(`✅ [Paystack] Credits purchase confirmation email sent for transaction ${creditTransaction.id}`);
           } catch (emailError: any) {
             console.error(`❌ [Paystack] Failed to send credits purchase confirmation email:`, emailError);
           }
@@ -379,13 +380,13 @@ router.post('/confirm-subscription', authenticateToken, async (req: AuthRequest,
         status: 'completed',
         completedAt: new Date(),
       });
-      console.log(`✅ [Paystack] Logged subscription transaction for user ${userId}`);
+      logger.info(`✅ [Paystack] Logged subscription transaction for user ${userId}`);
       
       // Generate invoice and send purchase confirmation email
       try {
         await generateInvoiceForTransaction(newTransaction.id);
         await emailService.sendPurchaseConfirmation(newTransaction.id);
-        console.log(`✅ [Paystack] Purchase confirmation email sent for transaction ${newTransaction.id}`);
+        logger.info(`✅ [Paystack] Purchase confirmation email sent for transaction ${newTransaction.id}`);
       } catch (emailError: any) {
         console.error(`❌ [Paystack] Failed to send purchase confirmation email:`, emailError);
       }
@@ -462,16 +463,16 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
       return res.status(400).json({ error: 'Invalid webhook payload' });
     }
 
-    console.log(`📥 [Paystack] Webhook received: ${event.event}`);
+    logger.info(`📥 [Paystack] Webhook received: ${event.event}`);
 
     switch (event.event) {
       case 'subscription.create':
-        console.log(`📥 [Paystack] ${event.event} event received`);
+        logger.info(`📥 [Paystack] ${event.event} event received`);
         break;
 
       case 'invoice.payment_failed':
         {
-          console.log(`📥 [Paystack] ${event.event} event received`);
+          logger.info(`📥 [Paystack] ${event.event} event received`);
           
           // Try to send payment failed email
           try {
@@ -483,7 +484,7 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
               if (subscription) {
                 const failedAmount = ((data?.amount || 0) / 100).toFixed(2);
                 await emailService.sendPaymentFailed(subscription.userId, failedAmount, 'Invoice payment failed');
-                console.log(`✅ [Paystack] Payment failed email sent to user ${subscription.userId}`);
+                logger.info(`✅ [Paystack] Payment failed email sent to user ${subscription.userId}`);
               }
             }
           } catch (emailError: any) {
@@ -504,7 +505,7 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
               try {
                 await storage.addCreditsAtomic(userId, credits, `Purchased ${pkg.name} via Paystack`, `paystack_${reference}`);
                 import('../services/sip-credit-guard').then(({ reconnectAfterRecharge }) => reconnectAfterRecharge(userId)).catch(() => {});
-                console.log(`✅ [Paystack] Added ${credits} credits to user ${userId}`);
+                logger.info(`✅ [Paystack] Added ${credits} credits to user ${userId}`);
 
                 // Log payment transaction for credits
                 const currencyConfig = await getPaystackCurrency();
@@ -523,13 +524,13 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
                     status: 'completed',
                     completedAt: new Date(),
                   });
-                  console.log(`✅ [Paystack Webhook] Logged credits transaction for user ${userId}`);
+                  logger.info(`✅ [Paystack Webhook] Logged credits transaction for user ${userId}`);
                   
                   // Generate invoice and send purchase confirmation email
                   try {
                     await generateInvoiceForTransaction(webhookCreditTransaction.id);
                     await emailService.sendPurchaseConfirmation(webhookCreditTransaction.id);
-                    console.log(`✅ [Paystack] Credits purchase confirmation email sent for transaction ${webhookCreditTransaction.id}`);
+                    logger.info(`✅ [Paystack] Credits purchase confirmation email sent for transaction ${webhookCreditTransaction.id}`);
                   } catch (emailError: any) {
                     console.error(`❌ [Paystack] Failed to send credits purchase confirmation email:`, emailError);
                   }
@@ -575,7 +576,7 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
           const refundData = event.data;
           const reference = refundData?.transaction?.reference;
           
-          console.log(`🔄 [Paystack] Refund ${event.event}: ${refundData?.id} for transaction ${reference}`);
+          logger.info(`🔄 [Paystack] Refund ${event.event}: ${refundData?.id} for transaction ${reference}`);
           
           if (reference) {
             try {
@@ -586,7 +587,7 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
                 // Check if we already have a refund for this transaction
                 const existingRefunds = await storage.getTransactionRefunds(transaction.id);
                 if (existingRefunds.length > 0) {
-                  console.log(`ℹ️ [Paystack] Refund already exists for transaction ${reference}, skipping`);
+                  logger.warn(`ℹ️ [Paystack] Refund already exists for transaction ${reference}, skipping`);
                   break;
                 }
                 
@@ -606,7 +607,7 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
                   
                   if (refundResult.success && !refundResult.alreadyProcessed) {
                     creditsReversed = refundResult.creditsReversed;
-                    console.log(`🔄 [Paystack] Reversed ${creditsReversed} credits for user ${userId}. Transaction logged.`);
+                    logger.info(`🔄 [Paystack] Reversed ${creditsReversed} credits for user ${userId}. Transaction logged.`);
                   }
                 }
                 
@@ -634,7 +635,7 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
                   status: 'refunded',
                 });
                 
-                console.log(`✅ [Paystack] External refund processed for user ${userId}. Reference: ${reference}`);
+                logger.info(`✅ [Paystack] External refund processed for user ${userId}. Reference: ${reference}`);
               }
             } catch (error: any) {
               console.error('Error processing external refund:', error);
@@ -650,7 +651,7 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
           const disputeData = event.data;
           const reference = disputeData?.transaction?.reference;
           
-          console.log(`🚨 [Paystack] Dispute ${event.event}: ${disputeData?.id} for transaction ${reference}`);
+          logger.warn(`🚨 [Paystack] Dispute ${event.event}: ${disputeData?.id} for transaction ${reference}`);
           
           if (reference) {
             try {
@@ -674,7 +675,7 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
                   
                   if (refundResult.success && !refundResult.alreadyProcessed) {
                     creditsReversed = refundResult.creditsReversed;
-                    console.log(`🔄 [Paystack] Reversed ${creditsReversed} credits for user ${userId}. Transaction logged.`);
+                    logger.info(`🔄 [Paystack] Reversed ${creditsReversed} credits for user ${userId}. Transaction logged.`);
                   }
                 }
                 
@@ -712,12 +713,12 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
                 // Send account suspended email
                 try {
                   await emailService.sendAccountSuspended(userId, `Chargeback dispute: ${disputeData?.category || 'Unknown reason'}`);
-                  console.log(`✅ [Paystack] Account suspended email sent to user ${userId}`);
+                  logger.info(`✅ [Paystack] Account suspended email sent to user ${userId}`);
                 } catch (emailError: any) {
                   console.error(`❌ [Paystack] Failed to send account suspended email:`, emailError);
                 }
                 
-                console.log(`⛔ [Paystack] User ${userId} suspended due to chargeback. Dispute ID: ${disputeData?.id}, Reason: ${disputeData?.category}`);
+                logger.warn(`⛔ [Paystack] User ${userId} suspended due to chargeback. Dispute ID: ${disputeData?.id}, Reason: ${disputeData?.category}`);
               } else {
                 console.warn(`⚠️ [Paystack] No transaction found for reference ${reference}`);
               }
@@ -729,7 +730,7 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
         break;
 
       default:
-        console.log(`📥 [Paystack] Unhandled webhook event: ${event.event}`);
+        logger.warn(`📥 [Paystack] Unhandled webhook event: ${event.event}`);
     }
 
     res.status(200).json({ received: true });

@@ -75,7 +75,7 @@ router.post('/', async (req: AdminRequest, res: Response) => {
       isEnabled: z.boolean().default(true),
       isDefault: z.boolean().default(false),
       sortOrder: z.number().default(0),
-      translations: z.record(z.unknown()),
+      translations: z.record(z.string(), z.unknown()),
     }).parse(req.body);
 
     // Check if language code already exists
@@ -110,7 +110,7 @@ router.post('/', async (req: AdminRequest, res: Response) => {
   } catch (error) {
     console.error('Error creating platform language:', error);
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: 'Invalid request data', details: error.errors });
+      return res.status(400).json({ error: 'Invalid request data', details: error.issues });
     }
     res.status(500).json({ error: 'Failed to create platform language' });
   }
@@ -129,7 +129,7 @@ router.patch('/:id', async (req: AdminRequest, res: Response) => {
       isEnabled: z.boolean().optional(),
       isDefault: z.boolean().optional(),
       sortOrder: z.number().optional(),
-      translations: z.record(z.unknown()).optional(),
+      translations: z.record(z.string(), z.unknown()).optional(),
     }).parse(req.body);
 
     // Verify language exists
@@ -189,7 +189,7 @@ router.patch('/:id', async (req: AdminRequest, res: Response) => {
   } catch (error) {
     console.error('Error updating platform language:', error);
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: 'Invalid request data', details: error.errors });
+      return res.status(400).json({ error: 'Invalid request data', details: error.issues });
     }
     res.status(500).json({ error: 'Failed to update platform language' });
   }
@@ -280,7 +280,7 @@ router.post('/add-key', async (req: AdminRequest, res: Response) => {
     const addKeyData = z.object({
       keyPath: z.string().min(1).regex(/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)*$/, 
         'Key path must be valid (e.g., custom.myKey or section.subsection.key)'),
-      values: z.record(z.string()), // { languageCode: translationValue }
+      values: z.record(z.string(), z.string()), // { languageCode: translationValue }
       syncToAll: z.boolean().default(false), // If true, add empty placeholder to all languages
     }).parse(req.body);
 
@@ -327,7 +327,7 @@ router.post('/add-key', async (req: AdminRequest, res: Response) => {
   } catch (error) {
     console.error('Error adding translation key:', error);
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: 'Invalid request data', details: error.errors });
+      return res.status(400).json({ error: 'Invalid request data', details: error.issues });
     }
     res.status(500).json({ error: 'Failed to add translation key' });
   }
@@ -390,7 +390,7 @@ router.post('/delete-key', async (req: AdminRequest, res: Response) => {
   } catch (error) {
     console.error('Error deleting translation key:', error);
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: 'Invalid request data', details: error.errors });
+      return res.status(400).json({ error: 'Invalid request data', details: error.issues });
     }
     res.status(500).json({ error: 'Failed to delete translation key' });
   }

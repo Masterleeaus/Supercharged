@@ -15,6 +15,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
+import { logger } from '../utils/logger';
 import { Campaign, campaigns, calls, contacts } from "@shared/schema";
 import { db } from '../db';
 import { eq, and, or, isNotNull, isNull, sql, lte, inArray } from 'drizzle-orm';
@@ -52,12 +53,12 @@ export class CampaignScheduler {
    */
   static startBackgroundScheduler(): void {
     if (this.intervalId) {
-      console.log('[Campaign Scheduler] Background scheduler already running');
+      logger.info('[Campaign Scheduler] Background scheduler already running');
       return;
     }
 
     const bullmqMode = isBullMQEnabled();
-    console.log(`🕐 [Campaign Scheduler] Starting background scheduler (30s interval)${bullmqMode ? ' - BullMQ handles scheduled starts' : ''}`);
+    logger.info(`🕐 [Campaign Scheduler] Starting background scheduler (30s interval)${bullmqMode ? ' - BullMQ handles scheduled starts' : ''}`);
     
     // Run immediately on start
     this.checkScheduledCampaigns().catch(err => {
@@ -88,7 +89,7 @@ export class CampaignScheduler {
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
-      console.log('[Campaign Scheduler] Background scheduler stopped');
+      logger.info('[Campaign Scheduler] Background scheduler stopped');
     }
   }
 
@@ -97,7 +98,7 @@ export class CampaignScheduler {
    */
   static async checkScheduledCampaigns(): Promise<void> {
     if (this.isRunning) {
-      console.log('[Campaign Scheduler] Check already in progress, skipping...');
+      logger.warn('[Campaign Scheduler] Check already in progress, skipping...');
       return;
     }
 
@@ -129,7 +130,7 @@ export class CampaignScheduler {
         const isWithinWindow = this.isWithinCallWindow(campaign);
         
         if (!isWithinWindow) {
-          console.log(`⏸️ [Campaign Scheduler] Auto-pausing campaign "${campaign.name}" (outside time window)`);
+          logger.info(`⏸️ [Campaign Scheduler] Auto-pausing campaign "${campaign.name}" (outside time window)`);
           try {
             await campaignExecutor.pauseCampaign(campaign.id, 'scheduled');
           } catch (err: any) {
@@ -160,7 +161,7 @@ export class CampaignScheduler {
         const isWithinWindow = this.isWithinCallWindow(campaign);
         
         if (isWithinWindow) {
-          console.log(`▶️ [Campaign Scheduler] Auto-resuming campaign "${campaign.name}" (inside time window)`);
+          logger.info(`▶️ [Campaign Scheduler] Auto-resuming campaign "${campaign.name}" (inside time window)`);
           try {
             await campaignExecutor.resumeCampaign(campaign.id, 'scheduled');
           } catch (err: any) {
@@ -195,7 +196,7 @@ export class CampaignScheduler {
       .limit(10);
     
     if (scheduledCampaigns.length > 0) {
-      console.log(`[Campaign Scheduler] Found ${scheduledCampaigns.length} campaigns ready to start`);
+      logger.info(`[Campaign Scheduler] Found ${scheduledCampaigns.length} campaigns ready to start`);
     }
     
     for (const campaign of scheduledCampaigns) {
@@ -210,7 +211,7 @@ export class CampaignScheduler {
           );
         
         await campaignExecutor.executeCampaign(campaign.id);
-        console.log(`[Campaign Scheduler] Started scheduled campaign ${campaign.id}`);
+        logger.info(`[Campaign Scheduler] Started scheduled campaign ${campaign.id}`);
       } catch (error: any) {
         console.error(`[Campaign Scheduler] Failed to start campaign ${campaign.id}:`, error.message);
         
@@ -394,14 +395,14 @@ export class CampaignScheduler {
         return;
       }
 
-      console.log(`🔄 [Campaign Scheduler] Polling ${runningCampaigns.length} running batch jobs`);
+      logger.info(`🔄 [Campaign Scheduler] Polling ${runningCampaigns.length} running batch jobs`);
 
       // Import campaignExecutor dynamically to avoid circular dependency
       const { campaignExecutor } = await import('./campaign-executor');
 
       for (const campaign of runningCampaigns) {
         try {
-          console.log(`   Checking batch status for "${campaign.name}" (${campaign.batchJobId})`);
+          logger.info(`   Checking batch status for "${campaign.name}" (${campaign.batchJobId})`);
           
           // Capture the batch status from the PREVIOUS poll cycle.
           // getBatchJobStatus (called below) updates batchJobStatus in the DB,
@@ -413,7 +414,7 @@ export class CampaignScheduler {
           const batchJob = await campaignExecutor.getBatchJobStatus(campaign.id);
           
           if (batchJob) {
-            console.log(`   Batch status: ${batchJob.status}, dispatched: ${batchJob.total_calls_dispatched}/${batchJob.total_calls_scheduled}`);
+            logger.info(`   Batch status: ${batchJob.status}, dispatched: ${batchJob.total_calls_dispatched}/${batchJob.total_calls_scheduled}`);
             
             // Update pending call records based on recipient status (do this first to capture final states before termination)
             if (batchJob.recipients && batchJob.recipients.length > 0) {
@@ -435,7 +436,7 @@ export class CampaignScheduler {
               if (previousBatchStatus === 'completed') {
                 await this.expireRemainingPendingCalls(campaign.id, batchJob.recipients || []);
               } else {
-                console.log(`   [Campaign Scheduler] Batch just completed — waiting one cycle for webhooks before expiring calls`);
+                logger.info(`   [Campaign Scheduler] Batch just completed — waiting one cycle for webhooks before expiring calls`);
               }
             }
 
@@ -486,7 +487,7 @@ export class CampaignScheduler {
         )
         .returning({ id: calls.id });
 
-      console.log(`   Marked ${updatedCalls.length} pending call(s) as failed for expired campaign "${campaignName}"`);
+      logger.warn(`   Marked ${updatedCalls.length} pending call(s) as failed for expired campaign "${campaignName}"`);
 
       // Now that all calls are in a final state, complete the campaign
       await this.checkCampaignCompletion(campaignId);
@@ -514,9 +515,9 @@ export class CampaignScheduler {
       );
 
       if (stillInProgressRecipients.length > 0) {
-        console.log(`   [Campaign Scheduler] ${stillInProgressRecipients.length} recipient(s) still in progress on ElevenLabs — skipping expire`);
+        logger.warn(`   [Campaign Scheduler] ${stillInProgressRecipients.length} recipient(s) still in progress on ElevenLabs — skipping expire`);
         for (const r of stillInProgressRecipients) {
-          console.log(`      ${r.phone_number}: ${r.status}`);
+          logger.info(`      [redacted]: ${r.status}`);
         }
         return;
       }
@@ -537,7 +538,7 @@ export class CampaignScheduler {
         .returning({ id: calls.id });
 
       if (updatedCalls.length > 0) {
-        console.log(`   [Campaign Scheduler] Marked ${updatedCalls.length} remaining pending call(s) as failed for completed campaign`);
+        logger.info(`   [Campaign Scheduler] Marked ${updatedCalls.length} remaining pending call(s) as failed for completed campaign`);
       }
     } catch (err: any) {
       console.error(`   Failed to expire remaining pending calls for campaign ${campaignId}: ${err.message}`);
@@ -567,7 +568,7 @@ export class CampaignScheduler {
         )
         .returning({ id: calls.id });
 
-      console.log(`   Marked ${updatedCalls.length} pending call(s) as ${finalCallStatus} for ${status} campaign "${campaignName}"`);
+      logger.info(`   Marked ${updatedCalls.length} pending call(s) as ${finalCallStatus} for ${status} campaign "${campaignName}"`);
 
       // Fetch all calls to compute stats
       const campaignCalls = await db.select().from(calls).where(eq(calls.campaignId, campaignId));
@@ -673,7 +674,7 @@ export class CampaignScheduler {
       });
 
       if (!callRecord) {
-        console.log(`   [Campaign Scheduler] No syncable call record found for recipient phone: ${recipient.phone_number}`);
+        logger.warn(`   [Campaign Scheduler] No syncable call record found for recipient phone: [redacted]`);
         continue;
       }
 
@@ -777,7 +778,7 @@ export class CampaignScheduler {
         .where(eq(contacts.id, contactId));
     }
 
-    console.log(`   Updated call ${callId}: status=${callStatus}, conversation_id=${recipient.conversation_id || 'N/A'}`);
+    logger.info(`   Updated call ${callId}: status=${callStatus}, conversation_id=${recipient.conversation_id || 'N/A'}`);
 
     // Trigger full data sync for ElevenLabs conversations
     // This fetches transcript, AI summary, and recording URL which are not in the batch response
@@ -817,7 +818,7 @@ export class CampaignScheduler {
     const pendingCalls = campaignCalls.filter(c => !finalStatuses.includes(c.status));
     
     if (pendingCalls.length > 0) {
-      console.log(`   Campaign ${campaignId}: ${pendingCalls.length}/${campaignCalls.length} calls still pending`);
+      logger.info(`   Campaign ${campaignId}: ${pendingCalls.length}/${campaignCalls.length} calls still pending`);
       return;
     }
 
@@ -832,7 +833,7 @@ export class CampaignScheduler {
       return; // Already completed or not found
     }
 
-    console.log(`✅ [Campaign Scheduler] All ${campaignCalls.length} calls complete for campaign "${campaign.name}"`);
+    logger.info(`✅ [Campaign Scheduler] All ${campaignCalls.length} calls complete for campaign "${campaign.name}"`);
 
     // === RETRY PASS CHECK ===
     // Before marking completed, check if retryEnabled and contacts qualify for retry
@@ -861,13 +862,13 @@ export class CampaignScheduler {
       })
       .where(eq(campaigns.id, campaignId));
 
-    console.log(`   Campaign stats: ${successfulCalls} successful, ${failedCalls} failed`);
+    logger.info(`   Campaign stats: ${successfulCalls} successful, ${failedCalls} failed`);
 
     // Send campaign completion email and trigger webhook
     try {
       // Send completion email
       await emailService.sendCampaignCompleted(campaignId);
-      console.log(`   ✅ Campaign completion email sent for "${campaign.name}"`);
+      logger.info(`   ✅ Campaign completion email sent for "${campaign.name}"`);
     } catch (emailError: any) {
       console.error(`   ❌ Failed to send campaign completion email: ${emailError.message}`);
     }
@@ -947,7 +948,7 @@ export class CampaignScheduler {
           calls: callsData,
           contacts: contactsData,
         }, campaignId);
-        console.log(`   ✅ Webhook triggered for campaign.completed`);
+        logger.info(`   ✅ Webhook triggered for campaign.completed`);
       }
     } catch (webhookError: any) {
       console.error(`   ❌ Failed to trigger campaign.completed webhook: ${webhookError.message}`);
@@ -979,7 +980,7 @@ export class CampaignScheduler {
       .limit(1);
 
     if (pendingRetry) {
-      console.log(`🔄 [Campaign Scheduler] Campaign "${campaign.name}" has pending retry contacts — deferring completion`);
+      logger.info(`🔄 [Campaign Scheduler] Campaign "${campaign.name}" has pending retry contacts — deferring completion`);
       return true;
     }
 
@@ -1020,7 +1021,7 @@ export class CampaignScheduler {
       .returning({ id: contacts.id });
 
     if (scheduledResult.length > 0) {
-      console.log(`🔄 [Campaign Scheduler] Campaign "${campaign.name}" scheduled ${scheduledResult.length} contact(s) for retry at ${nextRetryAt.toISOString()} — deferring completion`);
+      logger.info(`🔄 [Campaign Scheduler] Campaign "${campaign.name}" scheduled ${scheduledResult.length} contact(s) for retry at ${nextRetryAt.toISOString()} — deferring completion`);
       return true;
     }
 
@@ -1053,7 +1054,7 @@ export class CampaignScheduler {
 
       if (campaignIds.length === 0) return;
 
-      console.log(`🔄 [Campaign Scheduler] Found ${campaignIds.length} campaign(s) with due retry passes`);
+      logger.info(`🔄 [Campaign Scheduler] Found ${campaignIds.length} campaign(s) with due retry passes`);
 
       // Load campaign records to check schedule windows
       const campaignRecords = await db
@@ -1067,7 +1068,7 @@ export class CampaignScheduler {
         // Respect the campaign's call window for retry passes too
         if (campaign.scheduleEnabled && !CampaignScheduler.isWithinCallWindow(campaign)) {
           const nextWindow = CampaignScheduler.getNextCallWindow(campaign);
-          console.log(`⏳ [Campaign Scheduler] Retry pass deferred for "${campaign.name}" — outside call window. Next: ${nextWindow?.toISOString() ?? 'unknown'}`);
+          logger.warn(`⏳ [Campaign Scheduler] Retry pass deferred for "${campaign.name}" — outside call window. Next: ${nextWindow?.toISOString() ?? 'unknown'}`);
 
           // Push overdue nextRetryAt to the next open window slot so they don't keep triggering
           if (nextWindow) {

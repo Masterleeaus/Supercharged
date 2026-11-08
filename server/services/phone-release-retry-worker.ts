@@ -5,6 +5,7 @@
  * Distributed under the Envato / CodeCanyon License Agreement.
  * ============================================================
  */
+import { logger } from '../utils/logger';
 import { db } from "../db";
 import { phoneReleaseRetryQueue } from "@shared/schema";
 import type { PhoneReleaseRetryQueueEntry } from "@shared/schema";
@@ -46,7 +47,7 @@ export async function processPhoneReleaseRetryQueue(): Promise<void> {
     });
 
     if (claimedRows.length === 0) return;
-    console.log(`📞 [Release Retry] Processing ${claimedRows.length} queued release(s)`);
+    logger.info(`📞 [Release Retry] Processing ${claimedRows.length} queued release(s)`);
 
     for (const row of claimedRows) {
       const attempts = (row.attempts ?? 0) + 1;
@@ -66,7 +67,7 @@ export async function processPhoneReleaseRetryQueue(): Promise<void> {
           throw new Error(`Unsupported provider: ${row.provider}`);
         }
         await db.delete(phoneReleaseRetryQueue).where(eq(phoneReleaseRetryQueue.id, row.id));
-        console.log(`✅ [Release Retry] Released ${row.providerSid} (phone ${row.phoneNumberId})`);
+        logger.info(`✅ [Release Retry] Released ${row.providerSid} (phone ${row.phoneNumberId})`);
       } catch (err: unknown) {
         const errMsg = (err instanceof Error ? err.message : String(err)).slice(0, 500);
         if (attempts >= MAX_ATTEMPTS) {
@@ -92,7 +93,7 @@ let intervalId: NodeJS.Timeout | null = null;
 
 export function startPhoneReleaseRetryWorker(): void {
   if (intervalId) return;
-  console.log('📞 [Release Retry] Starting worker (every 10 minutes)');
+  logger.info('📞 [Release Retry] Starting worker (every 10 minutes)');
   // Defer first run slightly so it doesn't collide with startup.
   setTimeout(() => {
     processPhoneReleaseRetryQueue();
@@ -104,6 +105,6 @@ export function stopPhoneReleaseRetryWorker(): void {
   if (intervalId) {
     clearInterval(intervalId);
     intervalId = null;
-    console.log('📞 [Release Retry] Worker stopped');
+    logger.info('📞 [Release Retry] Worker stopped');
   }
 }
