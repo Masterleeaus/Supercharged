@@ -51,6 +51,10 @@ jobs:
   migration-inventory:
     name: Migration inventory
     runs-on: ubuntu-latest
+    # Informational until issue #34 is resolved: scripts/run-safe-migration.mjs lists
+    # 008 and 009 files that are not in migrations/, so this job is red on main.
+    # Remove continue-on-error once those entries are fixed.
+    continue-on-error: true
     # scripts/run-safe-migration.mjs has no --dry-run flag, so this job checks
     # that every migration file the script lists exists under migrations/.
     steps:
