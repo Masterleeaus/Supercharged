@@ -135,8 +135,9 @@ import { safeErrorMessage } from "./utils/safe-error";
 import { markPluginAsRegistered } from "./plugins/loader";
 import { registerChatbotModule } from "./modules/chatbot/index.ts";
 import { mountChatbotModule, WIRING_FLAGS } from "./modules/chatbot/wiring/mount.ts";
-import { readFlag } from "./modules/chatbot/contracts/flags.ts";
+import { CONTRACT_FLAGS, readFlag } from "./modules/chatbot/contracts/flags.ts";
 import { createSecretBox } from "./modules/chatbot/secrets/secret-box.ts";
+import { startChatbotWorkersFromEnv } from "./modules/chatbot/workers/boot.ts";
 import { captureChatbotWebhookRawBody } from "./middleware/raw-body.ts";
 import { workforceHealthHandler } from "./workforce/runtime/health.ts";
 import { agentRunsFromRecords, createWorkforceAdminRouter, workforceControls } from "./workforce/runtime/workforce-admin-routes.ts";
@@ -1750,7 +1751,11 @@ When using a tool:
   // keeps its own authenticate and requireCompanyScope. Flags are read inside mountChatbotModule; with flags off it mounts nothing new.
   // The secret box is built only when a surface that stores secrets is on. createSecretBox throws when CHATBOT_SECRET_KEY
   // is missing, so with those flags off a deployment without the key still starts.
-  const chatbotSecretsOn = [WIRING_FLAGS.BOOKINGS, WIRING_FLAGS.WIDGET, WIRING_FLAGS.CHANNELS].some((flag) => readFlag(flag, process.env));
+  // The outbound webhook dispatcher also stores secrets (signing keys), so its flag counts here too.
+  const chatbotSecretsOn = [WIRING_FLAGS.BOOKINGS, WIRING_FLAGS.WIDGET, WIRING_FLAGS.CHANNELS, CONTRACT_FLAGS.OUTBOUND_WEBHOOKS_ENABLED].some((flag) =>
+    readFlag(flag, process.env),
+  );
+  const chatbotSecretBox = chatbotSecretsOn ? createSecretBox({ env: process.env }) : undefined;
   mountChatbotModule(app, {
     db,
     env: process.env,
@@ -1758,7 +1763,7 @@ When using a tool:
     requireCompanyScope: requireCompanyScope(),
     requireRole: (...roles: string[]) => requireRole(...roles) as unknown as import('express').RequestHandler,
     // agentAuthenticate is not passed: the app has no staff identity resolver for the agent surface, so agent calls answer 401.
-    secretBox: chatbotSecretsOn ? createSecretBox({ env: process.env }) : undefined,
+    secretBox: chatbotSecretBox,
     // No reply runtime or receipt store is wired yet. These stubs keep startup working and refuse the work itself.
     widget: {
       messages: { send: async () => { throw new Error("chatbot widget reply runtime is not wired"); } },
@@ -1766,6 +1771,9 @@ When using a tool:
     },
     channels: { onReceipt: async () => { throw new Error("chatbot channel receipt store is not wired"); } },
   });
+  // Chatbot background workers. Off unless CHATBOT_WORKERS_ENABLED is exactly "true"; then only the services whose own
+  // flag is on are built and passed in (see workers/boot.ts). Voice-call limits are not built: no production provider.
+  startChatbotWorkersFromEnv({ db, env: process.env, secretBox: chatbotSecretBox });
   // Chatbot module (port of the Clean-Hub Chatbot extension). Authenticated, company-scoped.
   // Tables are DRAFT (migrations/DRAFT_chatbot.sql); requests fail until the draft is applied.
   // A request that matches no route mounted above falls through to this core route unchanged.
