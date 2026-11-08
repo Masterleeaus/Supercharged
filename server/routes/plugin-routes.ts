@@ -185,7 +185,7 @@ publicPluginRouter.get('/health', async (_req, res) => {
       name: string;
       displayName: string;
       version: string;
-      status: 'ok' | 'error' | 'disabled';
+      status: 'ok' | 'error' | 'disabled' | 'pending_restart';
       enabled: boolean;
       registered: boolean;
       tablesStatus: 'ok' | 'missing' | 'unchecked';
