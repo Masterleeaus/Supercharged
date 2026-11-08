@@ -189,3 +189,13 @@ No merge, deletion, tenant data migration, privilege change, template schema cha
 - This is a conservative static graph, **not runtime reachability evidence**, because aliases, loaders, dynamic module names, provider configuration, plugin discovery and packaging can add edges. Do not remove any donor or vendor files yet.
 
 **Remaining:** execute CLI in a complete checkout, resolve dynamic/alias ownership and direct runtime edges, compare divergent donor features, preserve vendor license terms, and verify installed application/CI acceptance.
+
+## Pass 13 — tested import graph extended to explicit source roots
+
+- Verified completed Pass 12 CI on the PR head: production build passed; **5,971 passed / 3 failed / 13 skipped**, including the four newly added import ownership tests. Three workforce tests, migration inventory and informational typecheck remain failing.
+- Extended the read-only `scripts/audit-import-ownership.mjs` with cycle-safe transitive graph traversal from explicit `server/index.ts`, `client/src/main.tsx`, and `scripts/build-server-deps.js` entrypoints. The report lists actually found/missing roots, statically reachable file count and reachability booleans for targeted Field/revenue integration candidates.
+- Added handling for the **verified** Vite path aliases `@/` and `@shared/` as source imports; unknown aliases remain unresolved rather than being invented. Reporting now distinguishes resolved alias edges and unresolved alias specifiers from relative imports.
+- Added four further regression checks: cyclic/transitive graphs, missing entrypoints, configured aliases, and alias-linked browser reachability. These checks require new CI confirmation before pass status can be declared.
+- Explicitly retained `live: unverified` throughout. Static reachability is not proof of runtime availability, and a missing edge is not a reason to delete donor/vendor code. No code paths, license headers, vendor copies or source archives removed.
+
+**Next:** run static import audit against a complete checkout, resolve route/loader/plugin registry owners and analyze selected divergent donor implementations before any runtime file consolidation.
