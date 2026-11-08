@@ -19,7 +19,7 @@ import { storage } from "../storage";
 
 // Default fallbacks - only used if database is unavailable
 const DEFAULT_LOW_CREDITS_THRESHOLD = 50;
-const DEFAULT_APP_NAME = '';
+const DEFAULT_APP_NAME = 'Supercharged';
 
 // Cache for low credits threshold to avoid repeated DB calls
 let cachedLowCreditsThreshold: number | null = null;
@@ -56,7 +56,7 @@ async function getAppName(): Promise<string> {
   
   try {
     const setting = await storage.getGlobalSetting('app_name');
-    const appName = typeof setting?.value === 'string' ? setting.value : DEFAULT_APP_NAME;
+    const appName = typeof setting?.value === 'string' && setting.value.trim() ? setting.value : DEFAULT_APP_NAME;
     cachedAppName = appName;
     appNameCacheTime = now;
     return appName;
