@@ -128,8 +128,8 @@ async function isPluginEnabled(pluginName: string): Promise<boolean> {
     // Default: enabled
     return true;
   } catch (error) {
-    console.warn(`[Plugin Loader] Could not check plugin status for ${pluginName}, defaulting to enabled`);
-    return true;
+    console.warn(`[Plugin Loader] Could not verify plugin status for ${pluginName}, refusing activation`);
+    return false;
   }
 }
 
@@ -534,11 +534,30 @@ export function getPluginManifest(name: string): PluginManifest | undefined {
  * Get plugin manifest from disk (fallback for newly installed plugins not yet in memory)
  */
 export function getPluginManifestFromDisk(name: string): PluginManifest | undefined {
-  const manifestPath = path.join(pluginsDir, name, 'plugin.json');
-  if (!fs.existsSync(manifestPath)) return undefined;
+  // This helper can be called for newly installed plugins: reject traversal
+  // before constructing paths and never trust a symlinked directory/manifest.
+  if (!/^[a-z][a-z0-9-]{1,63}$/.test(name)) return undefined;
+  const pluginPath = path.join(pluginsDir, name);
+  const manifestPath = path.join(pluginPath, 'plugin.json');
   try {
-    const content = fs.readFileSync(manifestPath, 'utf-8');
-    return JSON.parse(content) as PluginManifest;
+    if (!fs.statSync(pluginPath).isDirectory() ||
+        fs.lstatSync(pluginPath).isSymbolicLink() ||
+        fs.lstatSync(manifestPath).isSymbolicLink()) return undefined;
+    const pluginRoot = fs.realpathSync(pluginPath);
+    const manifestRoot = fs.realpathSync(manifestPath);
+    if (!manifestRoot.startsWith(pluginRoot + path.sep)) return undefined;
+    const parsed: unknown = JSON.parse(fs.readFileSync(manifestRoot, 'utf-8'));
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return undefined;
+    const manifest = parsed as PluginManifest;
+    if (manifest.name !== name ||
+        typeof manifest.entryPoint !== 'string' ||
+        !/\.(?:mjs|js|ts)$/.test(manifest.entryPoint) ||
+        path.isAbsolute(manifest.entryPoint) ||
+        manifest.entryPoint.includes('\\') ||
+        manifest.entryPoint.split('/').some(segment => segment === '..' || segment === '.') ||
+        typeof manifest.registerFunction !== 'string' ||
+        !/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(manifest.registerFunction)) return undefined;
+    return manifest;
   } catch {
     return undefined;
   }
