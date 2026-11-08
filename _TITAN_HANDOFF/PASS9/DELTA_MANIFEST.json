@@ -1,0 +1,81 @@
+{
+  "title": "Titan AgentLabs Desk Pass 9 cumulative",
+  "source_baseline": "Titan-Desk-Pass8-CUMULATIVE-AgentLabs-Source.zip",
+  "original_file_count": 707,
+  "cumulative_file_count": 714,
+  "prior_source_preserved_unchanged": 705,
+  "files_added": 7,
+  "files_modified": 2,
+  "files_removed": 0,
+  "lines_added": 202,
+  "lines_removed": 1,
+  "files": [
+    {
+      "path": "scripts/titan-local-link-check.mjs",
+      "status": "ADDED",
+      "sha256": "d71bde6795c7c1c992e225386a70883ef1a3ff5bb533046a577248b0c7148d1e",
+      "added_lines": 16,
+      "removed_lines": 0
+    },
+    {
+      "path": "server/integrations/titan-field/local-link-capabilities.mjs",
+      "status": "ADDED",
+      "sha256": "346fc019d3aba69acdaf5504bd91cde52c2d23bfbb0b71d90338bce4d6f6ee3a",
+      "added_lines": 8,
+      "removed_lines": 0
+    },
+    {
+      "path": "server/integrations/titan-field/local-link-probe.mjs",
+      "status": "ADDED",
+      "sha256": "a2802c4d6d1558ddd62fa24bc2f330ac2502c1c5fe6667ac93d72aa8597ab842",
+      "added_lines": 25,
+      "removed_lines": 0
+    },
+    {
+      "path": "server/integrations/titan-field/local-link-route.ts",
+      "status": "ADDED",
+      "sha256": "95f29e96ce1f382078bfe74ff2ee245dd76eb7a77e00c9307af21d5468cf1d03",
+      "added_lines": 24,
+      "removed_lines": 0
+    },
+    {
+      "path": "server/integrations/titan-field/local-link-topology.mjs",
+      "status": "ADDED",
+      "sha256": "90b546427ca452cd838a2c17627c6261880039aecb23998934635ee7a487de8c",
+      "added_lines": 30,
+      "removed_lines": 0
+    },
+    {
+      "path": "server/integrations/titan-field/local-link-wire.mjs",
+      "status": "ADDED",
+      "sha256": "2e2c356b4ec110614b25edb4ef7c1d11c30e55f5f2d1aa44824159bacda6430d",
+      "added_lines": 68,
+      "removed_lines": 0
+    },
+    {
+      "path": "server/integrations/titan-field/reply-sender.mjs",
+      "status": "MODIFIED",
+      "sha256": "3f1c294aa82b217eeeb333bd650a9b4fdaf43aed109f7817433715241a031d2a",
+      "added_lines": 3,
+      "removed_lines": 1
+    },
+    {
+      "path": "server/routes.ts",
+      "status": "MODIFIED",
+      "sha256": "93bafa4ddd354b276b67ab199ebd2d452c74824fd549e2200b7594aa622b852e",
+      "added_lines": 3,
+      "removed_lines": 0
+    },
+    {
+      "path": "tests/titan-local-link.test.mjs",
+      "status": "ADDED",
+      "sha256": "c61b8e993c2b5a4253c7c8907ce32466ff5c45e8519cd5b1fe27d4ffca2f2668",
+      "added_lines": 25,
+      "removed_lines": 0
+    }
+  ],
+  "database_migrations_changed": false,
+  "live_services_changed": false,
+  "deployment_ready": false,
+  "workstream": "Same-host signed connectivity; no DB schema, mapping, persistence, or provider delivery"
+}

@@ -1,0 +1,15 @@
+{
+  "schema": "titan-zero-verification/v1",
+  "packet_id": "TZ-FIX-COMPAT-RUNTIME-DECOMPOSITION-001",
+  "pass": 7,
+  "manager_merge": 46,
+  "tests_passed": 28,
+  "tests_failed": 0,
+  "syntax_checks": "PASS",
+  "reconstruction": "Merge46 + Pass07 cumulative overlay",
+  "initial_test_failures": [
+    "test used 1.0.0 instead of canonical major.minor version format",
+    "test expected throw instead of canonical company_mismatch recovery result"
+  ],
+  "final_status": "PASS"
+}

@@ -1,0 +1,61 @@
+{
+  "schema": "titan.field-desk.shadow-db-handoff.v1",
+  "owner": "separate-db-agent",
+  "do_not_execute_migrations": true,
+  "require_ports": {
+    "resolveCompany": {
+      "input": [
+        "company_id"
+      ],
+      "output": [
+        "company_id",
+        "desk_user_id",
+        "active"
+      ],
+      "fail_closed": true
+    },
+    "verifyConsent": {
+      "input": [
+        "intent",
+        "mapping"
+      ],
+      "output": "boolean",
+      "must_recheck_latest_opt_out": true
+    },
+    "claimEvent": {
+      "input": [
+        "companyId",
+        "eventId",
+        "correlationId",
+        "payloadHash",
+        "intent",
+        "deskUserId"
+      ],
+      "returns": [
+        "claimed",
+        "duplicate",
+        "conflict",
+        "unavailable"
+      ],
+      "atomic_unique_key": [
+        "company_id",
+        "event_id"
+      ]
+    },
+    "recordResult": {
+      "input": [
+        "intent",
+        "mapping",
+        "receipt"
+      ],
+      "persist_before_success": true
+    }
+  },
+  "out_of_scope": [
+    "schema migrations",
+    "database credential access",
+    "provider sends",
+    "worker deployment",
+    "live tenant provisioning"
+  ]
+}

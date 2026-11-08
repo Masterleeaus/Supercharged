@@ -1,0 +1,6 @@
+{
+  "courses": [
+    { "slug": "alpha-clean", "title": "Alpha clean", "group": "Cleaning & Hygiene" },
+    { "slug": "beta-pool", "title": "Beta pool", "group": "Aquatic" }
+  ]
+}

@@ -28,6 +28,27 @@ import { elevenLabsService, ElevenLabsService } from '../services/elevenlabs';
 import { ElevenLabsPoolService } from '../services/elevenlabs-pool';
 import twilio from 'twilio';
 import crypto from 'crypto';
+import { webhookRateLimiter } from '../middleware/rateLimiter';
+
+/**
+ * Runs the shared webhook rate limiter inside a handler. The handlers in this file are mounted
+ * from server/routes.ts, so the limiter cannot be added as route middleware here. Resolves true
+ * when the request may continue; on overflow it sends 429 and resolves false.
+ */
+async function enforceWebhookRateLimit(req: Request, res: Response): Promise<boolean> {
+  const allowed = await new Promise<boolean>((resolve) => {
+    (webhookRateLimiter as unknown as (q: Request, s: Response, n: (err?: unknown) => void) => void)(
+      req,
+      res,
+      (err?: unknown) => resolve(!err),
+    );
+  });
+  if (!allowed) {
+    res.status(429).json({ error: 'Too many webhook requests, please try again later' });
+  }
+  return allowed;
+}
+import { verifyElevenLabsWebhookAgainstSecrets } from '../services/elevenlabs-webhook-signature';
 import { storage } from '../storage';
 import { webhookDeliveryService } from '../services/webhook-delivery';
 import {
@@ -956,6 +977,7 @@ async function initializeElevenLabsConnection(
 
 // Handle incoming calls to Twilio numbers (for incoming agents)
 export async function handleIncomingCallWebhook(req: Request, res: Response) {
+  if (!(await enforceWebhookRateLimit(req, res))) return;
   try {
     console.log(`📞 [Incoming Call] Received incoming call from Twilio`);
     console.log(`   Body:`, req.body);
@@ -1084,6 +1106,7 @@ export async function handleIncomingCallWebhook(req: Request, res: Response) {
 
 // Handle outbound campaign calls
 export async function handleTwilioVoiceWebhook(req: Request, res: Response) {
+  if (!(await enforceWebhookRateLimit(req, res))) return;
   try {
     console.log(`🎙️ [Voice Webhook] Received request from Twilio`);
     console.log(`   Query params:`, req.query);
@@ -1142,6 +1165,7 @@ export async function handleTwilioVoiceWebhook(req: Request, res: Response) {
 }
 
 export async function handleTwilioStatusWebhook(req: Request, res: Response) {
+  if (!(await enforceWebhookRateLimit(req, res))) return;
   try {
     console.log(`📊 [Status Webhook] Received status update from Twilio`);
     console.log(`   Query params:`, JSON.stringify(req.query));
@@ -1394,6 +1418,7 @@ export async function handleTwilioStatusWebhook(req: Request, res: Response) {
 }
 
 export async function handleTwilioRecordingWebhook(req: Request, res: Response) {
+  if (!(await enforceWebhookRateLimit(req, res))) return;
   try {
     console.log(`📼 [Recording Webhook] Received request`);
     console.log(`   Query params:`, req.query);
@@ -1672,6 +1697,7 @@ function generateDeprecationTwiML(): string {
  * Initial webhook when flow-based call is answered (DEPRECATED)
  */
 export async function handleFlowVoiceAnswer(req: Request, res: Response) {
+  if (!(await enforceWebhookRateLimit(req, res))) return;
   console.warn(`⚠️ [Flow Answer] DEPRECATED: ${FLOW_DEPRECATED_MESSAGE}`);
   res.type('text/xml').send(generateDeprecationTwiML());
 }
@@ -1680,6 +1706,7 @@ export async function handleFlowVoiceAnswer(req: Request, res: Response) {
  * Serve TwiML for a specific node (DEPRECATED)
  */
 export async function handleFlowNode(req: Request, res: Response) {
+  if (!(await enforceWebhookRateLimit(req, res))) return;
   console.warn(`⚠️ [Flow Node] DEPRECATED: ${FLOW_DEPRECATED_MESSAGE}`);
   res.type('text/xml').send(generateDeprecationTwiML());
 }
@@ -1688,6 +1715,7 @@ export async function handleFlowNode(req: Request, res: Response) {
  * Handle user response from Question nodes (DEPRECATED)
  */
 export async function handleFlowGather(req: Request, res: Response) {
+  if (!(await enforceWebhookRateLimit(req, res))) return;
   console.warn(`⚠️ [Flow Gather] DEPRECATED: ${FLOW_DEPRECATED_MESSAGE}`);
   res.type('text/xml').send(generateDeprecationTwiML());
 }
@@ -1696,6 +1724,7 @@ export async function handleFlowGather(req: Request, res: Response) {
  * Continue to next node after Message/Delay (DEPRECATED)
  */
 export async function handleFlowContinue(req: Request, res: Response) {
+  if (!(await enforceWebhookRateLimit(req, res))) return;
   console.warn(`⚠️ [Flow Continue] DEPRECATED: ${FLOW_DEPRECATED_MESSAGE}`);
   res.type('text/xml').send(generateDeprecationTwiML());
 }
@@ -1705,6 +1734,7 @@ export async function handleFlowContinue(req: Request, res: Response) {
  * This one is kept functional to handle status updates for any in-progress calls
  */
 export async function handleFlowStatus(req: Request, res: Response) {
+  if (!(await enforceWebhookRateLimit(req, res))) return;
   try {
     console.log(`📊 [Flow Status] Received status update`);
     console.log(`   Query params:`, req.query);
@@ -1763,70 +1793,6 @@ export async function handleFlowStatus(req: Request, res: Response) {
   }
 }
 
-/**
- * Verify ElevenLabs webhook signature
- * Header format: ElevenLabs-Signature: t=<timestamp>,v0=<hash>
- * Signed payload: timestamp.request_body
- * Hash: HMAC-SHA256 with shared secret
- */
-function verifyElevenLabsWebhookSignature(
-  body: string,
-  signatureHeader: string | undefined,
-  secret: string
-): { valid: boolean; error?: string } {
-  if (!signatureHeader) {
-    return { valid: false, error: 'Missing ElevenLabs-Signature header' };
-  }
-
-  try {
-    // Parse signature header: "t=1700000000,v0=abc123..."
-    // Find timestamp and v0 signature
-    const parts = signatureHeader.split(',');
-    let timestamp: string | undefined;
-    let receivedSignature: string | undefined;
-
-    for (const part of parts) {
-      if (part.startsWith('t=')) {
-        timestamp = part.substring(2);
-      } else if (part.startsWith('v0=')) {
-        receivedSignature = part; // Keep the full 'v0=hash' for comparison
-      }
-    }
-
-    if (!timestamp || !receivedSignature) {
-      return { valid: false, error: `Invalid signature format. Got: ${signatureHeader.substring(0, 60)}...` };
-    }
-
-    // Check timestamp freshness (within 30 minutes as per ElevenLabs docs)
-    const currentTime = Math.floor(Date.now() / 1000);
-    const requestTime = parseInt(timestamp, 10);
-    if (requestTime < currentTime - 30 * 60) {
-      return { valid: false, error: 'Request expired - timestamp too old' };
-    }
-
-    // Compute expected signature: v0= + HMAC-SHA256(timestamp.body)
-    const signedPayload = `${timestamp}.${body}`;
-    const expectedHash = 'v0=' + crypto
-      .createHmac('sha256', secret)
-      .update(signedPayload)
-      .digest('hex');
-
-    // Constant-time comparison to prevent timing attacks
-    if (expectedHash.length !== receivedSignature.length) {
-      return { valid: false, error: 'Signature mismatch (length)' };
-    }
-
-    const isValid = crypto.timingSafeEqual(
-      Buffer.from(expectedHash),
-      Buffer.from(receivedSignature)
-    );
-
-    return { valid: isValid, error: isValid ? undefined : 'Signature mismatch' };
-  } catch (err: any) {
-    console.error('Signature verification error:', err.message);
-    return { valid: false, error: 'Signature verification failed' };
-  }
-}
 
 /**
  * Get all webhook secrets from the credential pool for multi-secret verification
@@ -1875,45 +1841,10 @@ async function getAllWebhookSecrets(): Promise<string[]> {
 async function verifyWithAllSecrets(
   rawBody: string,
   signatureHeader: string | undefined
-): Promise<{ verified: boolean; unverified?: boolean; matchedSecret?: string; error?: string }> {
-  // Fetch secrets first so we can make context-aware decisions below
+): Promise<{ verified: boolean; matchedSecret?: string; error?: string }> {
+  // Fail closed: no configured secret or a missing/invalid signature rejects the webhook.
   const allSecrets = await getAllWebhookSecrets();
-
-  // Case 1: No secrets configured on the platform AND ElevenLabs didn't send a signature.
-  // This is the "signing not set up on either side" scenario — nothing to verify against.
-  // Allow through with a warning so calls, credits, and analytics are not silently blocked.
-  if (allSecrets.length === 0 && !signatureHeader) {
-    console.warn(`⚠️ [ElevenLabs Webhook] No webhook secrets configured and no signature header — allowing unsigned webhook. Configure a webhook secret in Admin > ElevenLabs to enable signature verification.`);
-    return { verified: true, unverified: true };
-  }
-
-  // Case 2: Secrets ARE configured on the platform but the header is absent.
-  // ElevenLabs always sends the header when a secret is registered, so a missing
-  // header with secrets present is suspicious — reject it.
-  if (!signatureHeader) {
-    return { verified: false, error: 'Missing ElevenLabs-Signature header' };
-  }
-
-  // Case 3: Header is present but no secrets configured to verify against.
-  // Can't verify but also can't block — allow through with a warning.
-  if (allSecrets.length === 0) {
-    console.warn(`⚠️ [ElevenLabs Webhook] Signature header present but no secrets configured for verification — allowing through. Configure a webhook secret in Admin > ElevenLabs to enable full security.`);
-    return { verified: true, unverified: true };
-  }
-
-  console.log(`   🔐 Trying ${allSecrets.length} webhook secret(s) for verification...`);
-
-  // Case 4: Both secrets and header present — verify HMAC normally.
-  // Try each secret until one matches (supports credential pool rotation).
-  for (const secret of allSecrets) {
-    const verification = verifyElevenLabsWebhookSignature(rawBody, signatureHeader, secret);
-    if (verification.valid) {
-      console.log(`   ✅ Signature verified with credential secret`);
-      return { verified: true, matchedSecret: secret };
-    }
-  }
-
-  return { verified: false, error: 'Signature did not match any configured secrets' };
+  return verifyElevenLabsWebhookAgainstSecrets(rawBody, signatureHeader, allSecrets);
 }
 
 /**
@@ -1930,6 +1861,7 @@ async function verifyWithAllSecrets(
  * This approach is secure because we verify BEFORE trusting any body data
  */
 export async function handleElevenLabsWebhook(req: Request, res: Response) {
+  if (!(await enforceWebhookRateLimit(req, res))) return;
   try {
     console.log(`📞 [ElevenLabs Webhook] Received event`);
 
@@ -1948,32 +1880,13 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
     // This way we don't trust the body data until AFTER verification succeeds
     const verification = await verifyWithAllSecrets(rawBody, signatureHeader);
 
+    // Fail closed. Unsigned, badly signed, stale, or no-secret-configured webhooks are rejected
+    // in every environment. The former SIP-metadata and NODE_ENV=development bypasses are removed.
     if (!verification.verified) {
-      // SIP-originated webhooks from ElevenLabs may not include the signature header
-      // Detect SIP webhooks by checking for SIP-specific metadata in the payload
-      const bodyData = req.body?.data || req.body;
-      const webhookMetadata = bodyData?.metadata || bodyData?.call?.metadata || {};
-      const isSipWebhook = !signatureHeader && (
-        webhookMetadata?.sip_trunk_id ||
-        webhookMetadata?.phone_call?.sip_trunk_id ||
-        webhookMetadata?.phone_call?.sip_phone_number_id
-      );
-
-      if (isSipWebhook) {
-        console.warn(`⚠️ [ElevenLabs Webhook] Missing signature header (likely SIP-originated webhook) - allowing as sip-unverified`);
-      } else if (process.env.NODE_ENV === 'development') {
-        console.warn(`⚠️ [ElevenLabs Webhook] Signature verification failed: ${verification.error}`);
-        console.log(`   ⚠️ Continuing without signature verification (development mode)`);
-      } else {
-        console.warn(`⚠️ [ElevenLabs Webhook] Signature verification failed: ${verification.error}`);
-        return res.status(401).json({ error: 'Invalid webhook signature' });
-      }
-    } else if (verification.unverified) {
-      // Passed through without verification (no secrets configured on either side)
-      console.warn(`⚠️ [ElevenLabs Webhook] Processing without signature verification — no secrets configured. Set up a webhook secret in Admin > ElevenLabs credentials to enable security.`);
-    } else {
-      console.log(`   ✅ Signature verified`);
+      console.warn(`⚠️ [ElevenLabs Webhook] Signature verification failed: ${verification.error}`);
+      return res.status(401).json({ error: 'Invalid webhook signature' });
     }
+    console.log(`   ✅ Signature verified`);
 
     // Parse the webhook body according to ElevenLabs format
     // Standard format: { type: string, data: object, event_timestamp: number }
@@ -2178,7 +2091,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
               const contact = callRecord.contactId ? await storage.getContact(callRecord.contactId) : null;
               const campaign = callRecord.campaignId ? await storage.getCampaign(callRecord.campaignId) : null;
 
-              webhookDeliveryService.triggerEvent(callRecord.userId, 'call.failed', {
+              webhookDeliveryService.triggerEvent((callRecord as any).companyId ?? (callRecord as any).company_id ?? null, callRecord.userId, 'call.failed', {
                 campaign: campaign ? { id: campaign.id, name: campaign.name, type: campaign.type } : null,
                 contact: contact ? {
                   id: contact.id,
@@ -2930,6 +2843,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                 if (isCompletedCall && existingSipCall.user_id) {
                   triggerCallCompletedWebhook({
                     userId: existingSipCall.user_id,
+                    companyId: existingSipCall.company_id ?? null,
                     callId: existingSipCall.id,
                     callDirection: existingSipCall.direction || direction || 'inbound',
                     duration: resolvedDuration,
@@ -3263,6 +3177,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
               if (isCompletedCall && sipCallRecord && agent.userId) {
                 triggerCallCompletedWebhook({
                   userId: agent.userId,
+                  companyId: sipCallRecord.company_id ?? null,
                   callId: sipCallRecord.id,
                   callDirection: direction || 'inbound',
                   duration: resolvedDuration,
@@ -3522,6 +3437,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                     if (isCompletedCall && userId) {
                       triggerCallCompletedWebhook({
                         userId,
+                        companyId: existingSipCall.company_id ?? null,
                         callId: existingSipCall.id,
                         callDirection: direction || 'inbound',
                         duration: resolvedDuration,
@@ -3672,6 +3588,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                     if (isCompletedCall && sipCallRecord && userId) {
                       triggerCallCompletedWebhook({
                         userId,
+                        companyId: sipCallRecord.company_id ?? null,
                         callId: sipCallRecord.id,
                         callDirection: direction || 'inbound',
                         duration: resolvedDuration,
@@ -3745,9 +3662,18 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                 callDurationSecs: metadata?.call_duration_secs,
               });
 
+              // Provider webhooks carry no session, so company comes from the owning agent record.
+              // Fail closed: refuse rather than insert a row without company_id.
+              const companyId: string | null = agent.companyId ?? null;
+              if (!companyId) {
+                console.warn(`[ElevenLabs Webhook] Refusing fallback outbound call insert: agent ${agent.id} has no company_id`);
+                return res.sendStatus(403);
+              }
+
               // Create fallback call record with proper user ownership
               const outboundCallValues = {
                 userId: campaignMatch?.userId || campaignMatch?.user_id || agent.userId,
+                companyId,
                 campaignId: campaignMatch?.id || null,
                 contactId: null,
                 phoneNumber: syncedData.phoneNumber || webhookPhoneNumber,
@@ -3784,11 +3710,11 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                   const metadataJson = JSON.stringify(outboundCallValues.metadata);
                   const rawResult = await db.execute(sql`
                     INSERT INTO calls (
-                      user_id, campaign_id, contact_id, phone_number, from_number, to_number,
+                      company_id, user_id, campaign_id, contact_id, phone_number, from_number, to_number,
                       status, call_direction, elevenlabs_conversation_id, twilio_sid,
                       duration, transcript, ai_summary, classification, recording_url, ended_at, metadata
                     ) VALUES (
-                      ${outboundCallValues.userId}::text, ${outboundCallValues.campaignId}::text, NULL,
+                      ${companyId}::uuid, ${outboundCallValues.userId}::text, ${outboundCallValues.campaignId}::text, NULL,
                       ${outboundCallValues.phoneNumber}, ${outboundCallValues.fromNumber}, ${outboundCallValues.toNumber},
                       ${outboundCallValues.status}, ${outboundCallValues.callDirection},
                       ${outboundCallValues.elevenLabsConversationId}, ${outboundCallValues.twilioSid},
@@ -3813,6 +3739,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                   const executionId = nanoid();
                   await db.insert(flowExecutions).values({
                     id: executionId,
+                    companyId,
                     callId: callRecord.id,
                     flowId: agent.flowId,
                     currentNodeId: null,
@@ -3965,9 +3892,18 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
             console.log(`     Transcript: ${syncedData.transcript ? 'present' : 'N/A'}`);
             console.log(`     AI Summary: ${syncedData.aiSummary ? 'present' : 'N/A'}`);
 
+            // Provider webhooks carry no session, so company comes from the owning agent record.
+            // Fail closed: refuse rather than insert a row without company_id.
+            const companyId: string | null = agent.companyId ?? null;
+            if (!companyId) {
+              console.warn(`[ElevenLabs Webhook] Refusing incoming call insert: agent ${agent.id} has no company_id`);
+              return res.sendStatus(403);
+            }
+
             let newCallRecord;
             const callValues = {
               userId: resolvedUserId,
+              companyId,
               campaignId: null,
               contactId: null,
               incomingConnectionId: connection?.id || null,
@@ -4007,12 +3943,12 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                 const metadataJson = JSON.stringify(callValues.metadata);
                 const rawResult = await db.execute(sql`
                   INSERT INTO calls (
-                    user_id, campaign_id, contact_id, incoming_connection_id, incoming_agent_id,
+                    company_id, user_id, campaign_id, contact_id, incoming_connection_id, incoming_agent_id,
                     phone_number, from_number, to_number, status, call_direction,
                     elevenlabs_conversation_id, twilio_sid, duration, transcript, ai_summary,
                     classification, recording_url, ended_at, metadata
                   ) VALUES (
-                    ${callValues.userId}::text, NULL, NULL, ${callValues.incomingConnectionId}::text, NULL,
+                    ${companyId}::uuid, ${callValues.userId}::text, NULL, NULL, ${callValues.incomingConnectionId}::text, NULL,
                     ${callValues.phoneNumber}, ${callValues.fromNumber}, ${callValues.toNumber},
                     ${callValues.status}, ${callValues.callDirection},
                     ${callValues.elevenLabsConversationId}, ${callValues.twilioSid},
@@ -4131,9 +4067,17 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
             }
           }
 
-          // For non-SIP agents, create regular call record
+          // For non-SIP agents, create regular call record.
+          // Provider webhooks carry no session, so company comes from the owning agent record.
+          // Fail closed: refuse rather than insert a row without company_id.
+          const companyId: string | null = failedCallAgent.companyId ?? null;
+          if (!companyId) {
+            console.warn(`[ElevenLabs Webhook] Refusing failed call insert: agent ${failedCallAgent.id} has no company_id`);
+            return res.sendStatus(403);
+          }
           const failedCallValues = {
             userId: failedCallAgent.userId,
+            companyId,
             campaignId: null,
             contactId: null,
             phoneNumber: calledNumber !== 'Unknown' ? calledNumber : callerPhoneNumber,
@@ -4168,11 +4112,11 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
               const metaJson = JSON.stringify(failedCallValues.metadata);
               const rawResult = await db.execute(sql`
               INSERT INTO calls (
-                user_id, campaign_id, contact_id, phone_number, from_number, to_number,
+                company_id, user_id, campaign_id, contact_id, phone_number, from_number, to_number,
                 status, call_direction, elevenlabs_conversation_id, twilio_sid,
                 duration, transcript, ai_summary, classification, ended_at, metadata
               ) VALUES (
-                ${failedCallValues.userId}::text, NULL, NULL,
+                ${companyId}::uuid, ${failedCallValues.userId}::text, NULL, NULL,
                 ${failedCallValues.phoneNumber}, ${failedCallValues.fromNumber}, ${failedCallValues.toNumber},
                 ${failedCallValues.status}, ${failedCallValues.callDirection},
                 ${failedCallValues.elevenLabsConversationId}, ${failedCallValues.twilioSid},
@@ -4729,6 +4673,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
 
         triggerCallCompletedWebhook({
           userId: callRecord.userId,
+          companyId: (callRecord as any).companyId ?? (callRecord as any).company_id ?? null,
           callId: callRecord.id,
           callDirection: callRecord.callDirection || (callRecord.callDirection === 'incoming' ? 'inbound' : 'outbound'),
           duration: finalDuration,
@@ -5163,7 +5108,7 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
 
     // Look up agent by ElevenLabs agent ID to get database agent ID and userId
     let agent = await db
-      .select({ id: agents.id, userId: agents.userId, flowId: agents.flowId, name: agents.name })
+      .select({ id: agents.id, userId: agents.userId, companyId: agents.companyId, flowId: agents.flowId, name: agents.name })
       .from(agents)
       .where(eq(agents.elevenLabsAgentId, elevenLabsAgentId))
       .limit(1);
@@ -5176,7 +5121,7 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
       // Look up SIP call by external call ID or call ID to find the correct agent
       // This is safe because we're using the callId from the request, not guessing
       const sipCallByCallId = await db.execute(sql`
-        SELECT sc.agent_id, a.id as agent_id_verified, a.user_id, a.flow_id, a.name as agent_name, sc.id as call_id
+        SELECT sc.agent_id, a.id as agent_id_verified, a.user_id, a.company_id, a.flow_id, a.name as agent_name, sc.id as call_id
         FROM sip_calls sc
         JOIN agents a ON sc.agent_id = a.id
         WHERE (sc.external_call_id = ${callId} OR sc.id = ${callId} OR sc.elevenlabs_conversation_id = ${callId})
@@ -5190,6 +5135,7 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
         agent = [{
           id: sipCallAgent.agent_id_verified,
           userId: sipCallAgent.user_id,
+          companyId: sipCallAgent.company_id ?? null,
           flowId: sipCallAgent.flow_id,
           name: sipCallAgent.agent_name
         }];
@@ -5217,6 +5163,13 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
     const dbAgentId = agent[0].id;
     const userId = agent[0].userId;
     const flowId = agent[0].flowId;
+    // Provider webhooks carry no session, so company comes from the owning agent record.
+    // Fail closed: refuse rather than insert an appointment without company_id.
+    const companyId: string | null = agent[0].companyId ?? null;
+    if (!companyId) {
+      console.warn(`📅 [Appointment Webhook] Refusing appointment insert: agent ${dbAgentId} has no company_id`);
+      return res.status(403).json({ success: false, message: "Forbidden" });
+    }
 
     console.log(`📅 [Appointment Webhook] Found database agent ${dbAgentId} for user ${userId}`);
 
@@ -5510,6 +5463,7 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
       .values({
         id: appointmentId,
         userId,
+        companyId,
         callId: validatedCallId,
         flowId: flowId || null,
         contactName: finalContactName,
@@ -5560,7 +5514,7 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
 
     // Trigger appointment.booked webhook event
     try {
-      await webhookDeliveryService.triggerEvent(userId, 'appointment.booked', {
+      await webhookDeliveryService.triggerEvent(agent[0].companyId ?? null, userId, 'appointment.booked', {
         appointment: {
           id: appointmentId,
           contactName: finalContactName,
@@ -5688,7 +5642,7 @@ export async function handleFormSubmissionWebhook(req: Request, res: Response) {
 
     // Look up agent by ElevenLabs agent ID to get database agent ID and userId
     const agent = await db
-      .select({ id: agents.id, userId: agents.userId, flowId: agents.flowId })
+      .select({ id: agents.id, userId: agents.userId, companyId: agents.companyId, flowId: agents.flowId })
       .from(agents)
       .where(eq(agents.elevenLabsAgentId, elevenLabsAgentId))
       .limit(1);
@@ -5721,6 +5675,14 @@ export async function handleFormSubmissionWebhook(req: Request, res: Response) {
         success: false,
         message: "Could not find the form to submit."
       });
+    }
+
+    // Provider webhooks carry no session, so company comes from the owning form record.
+    // Fail closed: refuse rather than insert a submission without company_id.
+    const submissionCompanyId: string | null = form.companyId ?? null;
+    if (!submissionCompanyId) {
+      console.warn(`📋 [Form Webhook] Refusing submission insert: form ${formId} has no company_id`);
+      return res.status(403).json({ success: false, message: "Forbidden" });
     }
 
     // Get form fields for response mapping
@@ -5829,6 +5791,7 @@ export async function handleFormSubmissionWebhook(req: Request, res: Response) {
       .insert(formSubmissions)
       .values({
         id: submissionId,
+        companyId: submissionCompanyId,
         formId,
         callId: validatedCallId,
         flowExecutionId: null, // Set to null - we don't have execution ID in webhook context
@@ -5986,7 +5949,7 @@ export async function handleFormSubmissionWebhook(req: Request, res: Response) {
 
     // Trigger form.submitted webhook event
     try {
-      await webhookDeliveryService.triggerEvent(userId, 'form.submitted', {
+      await webhookDeliveryService.triggerEvent(agent[0].companyId ?? null, userId, 'form.submitted', {
         submission: {
           id: submissionId,
           formId: formId,
@@ -6100,8 +6063,8 @@ export async function handleRAGToolWebhook(req: Request, res: Response) {
 
     if (!validateRAGWebhookToken(providedToken)) {
       console.warn(`📚 [RAG Webhook] Invalid or missing authentication token`);
-      console.warn(`   URL token (full): ${urlToken || 'none'}`);
-      console.warn(`   Header token (full): ${headerToken || 'none'}`);
+      console.warn(`   Request path: ${urlToken ? req.path.replace(urlToken, '[redacted]') : req.path}`);
+      console.warn(`   Header token: ${headerToken ? `present (length ${headerToken.length})` : 'missing'}`);
       return res.status(401).json({
         response: "Unauthorized: Invalid authentication token",
         sources: []
@@ -6135,10 +6098,13 @@ export async function handleRAGToolWebhook(req: Request, res: Response) {
       .limit(1);
 
     let userId: string | null = null;
+    let companyId: string | null = null;
     let knowledgeBaseIds: string[] = [];
 
+    // Company and owner both come from the same agent row. Nothing is read from the request body for scope.
     if (agent.length > 0) {
       userId = agent[0].userId;
+      companyId = agent[0].companyId ?? null;
       knowledgeBaseIds = agent[0].knowledgeBaseIds || [];
       console.log(`📚 [RAG Webhook] Found incoming agent, user: ${userId}, KBs: ${knowledgeBaseIds.length}`);
     } else {
@@ -6151,6 +6117,7 @@ export async function handleRAGToolWebhook(req: Request, res: Response) {
 
       if (regularAgent.length > 0) {
         userId = regularAgent[0].userId;
+        companyId = regularAgent[0].companyId ?? null;
         knowledgeBaseIds = regularAgent[0].knowledgeBaseIds || [];
         console.log(`📚 [RAG Webhook] Found regular agent, user: ${userId}, KBs: ${knowledgeBaseIds.length}`);
       }
@@ -6158,6 +6125,15 @@ export async function handleRAGToolWebhook(req: Request, res: Response) {
 
     if (!userId) {
       console.warn(`📚 [RAG Webhook] ElevenLabs agent ${elevenLabsAgentId} not found`);
+      return res.json({
+        response: "I couldn't find the knowledge base for this agent.",
+        sources: []
+      });
+    }
+
+    if (!companyId) {
+      // Fail closed: an agent row with no company cannot be scoped, so no search runs.
+      console.warn(`📚 [RAG Webhook] ElevenLabs agent ${elevenLabsAgentId} has no company scope, refusing`);
       return res.json({
         response: "I couldn't find the knowledge base for this agent.",
         sources: []
@@ -6176,7 +6152,7 @@ export async function handleRAGToolWebhook(req: Request, res: Response) {
     const { handleAskKnowledgeToolCall } = await import('../services/rag-elevenlabs-tool');
 
     // Process the query through RAG
-    const result = await handleAskKnowledgeToolCall(query, knowledgeBaseIds, userId);
+    const result = await handleAskKnowledgeToolCall(query, knowledgeBaseIds, { companyId, userId });
 
     console.log(`📚 [RAG Webhook] Returning result with ${result.sources.length} sources`);
     console.log(`   Response preview: "${result.response.substring(0, 100)}..."`);

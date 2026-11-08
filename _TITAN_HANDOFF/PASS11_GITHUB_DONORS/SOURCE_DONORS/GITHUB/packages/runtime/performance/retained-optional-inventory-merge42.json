@@ -1,0 +1,51 @@
+{
+  "schema": "titan.zero.payload-feature-inventory.v1",
+  "baseline_merge": 42,
+  "manager_directive": "TZ-MGR-DONOR-SLIM-M42-001",
+  "removed_now": [
+    "monica-content.js",
+    "monica-content.css",
+    "monica-background.js",
+    "TITAN-ZERO-LINEAGE-EVIDENCE.zip"
+  ],
+  "must_preserve_now": [
+    "titan-zero-chat-content.compat.js",
+    "titan-zero-chat-content.compat.css",
+    "titan-zero-chat-background.compat.js",
+    "titan-zero-chat-runtime.compat.js",
+    "titan-zero-chat-runtime.compat.css",
+    "compatibility/monica/background-runtime-boundary.mjs",
+    "retriever-background.iife.js"
+  ],
+  "phase2_hold": [
+    "content.js",
+    "content.css",
+    "monica-popup.js",
+    "monica-popup.css",
+    "retriever-background.iife.js"
+  ],
+  "summary": {
+    "other:review": {
+      "files": 1194,
+      "bytes": 71521025
+    },
+    "marketplace:retain_lazy_candidate": {
+      "files": 95,
+      "bytes": 314953
+    },
+    "titan_owned:retain": {
+      "files": 1677,
+      "bytes": 58706260
+    },
+    "donor_compat:retain_until_adapter_convergence": {
+      "files": 57,
+      "bytes": 3183436
+    }
+  },
+  "rules": {
+    "deletion_requires_reachability_proof": true,
+    "runtime_adapters_required_before_phase2": true,
+    "company_id_only": true,
+    "identity_not_authority": true
+  }
+}

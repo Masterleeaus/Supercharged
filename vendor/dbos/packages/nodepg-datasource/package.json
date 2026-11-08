@@ -1,0 +1,32 @@
+{
+  "name": "@dbos-inc/node-pg-datasource",
+  "version": "0.0.0-placeholder",
+  "description": "DBOS DataSource library for Node-Postgres database client",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "homepage": "https://docs.dbos.dev/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dbos-inc/dbos-transact-ts",
+    "directory": "packages/nodepg-datasource"
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.json",
+    "test": "jest --detectOpenHandles"
+  },
+  "dependencies": {
+    "pg": "^8.11.3",
+    "superjson": "^1.13"
+  },
+  "peerDependencies": {
+    "@dbos-inc/dbos-sdk": "*"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/node": "^20.11.25",
+    "@types/pg": "^8.11.2",
+    "jest": "^30.5.2",
+    "typescript": "^5.4.5"
+  }
+}

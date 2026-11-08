@@ -1,0 +1,9 @@
+-- SUPERSEDED. This file creates nothing and is kept only so the history is clear.
+--
+-- Owner decision (O-02): order and return lifecycle transitions are recorded in the existing
+-- chatbot_commerce_order_events table, not in a separate chatbot_commerce_lifecycle_transitions table.
+-- Each status change writes one event row with company_id, order_id, sequence, and the status before and
+-- after in before_state and after_state. See writeOrderTransition and writeReturnTransition in
+-- server/modules/chatbot/orders/order-storage.ts.
+--
+-- No DDL here. The event table definition is in server/modules/chatbot/db/orders.ts.

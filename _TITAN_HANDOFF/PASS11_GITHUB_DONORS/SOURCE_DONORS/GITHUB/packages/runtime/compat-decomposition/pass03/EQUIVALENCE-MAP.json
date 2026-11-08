@@ -1,0 +1,461 @@
+{
+  "schema": "titan-zero-compat-decomposition-equivalence-map/v1",
+  "packet_id": "TZ-FIX-COMPAT-RUNTIME-DECOMPOSITION-001",
+  "pass": 3,
+  "manager_baseline": {
+    "merge": 46,
+    "sha256": "2bef6fd90116796c76fa1ba7cb0e59841b0788c7657dc59077dd0a9ba440f949"
+  },
+  "policy": {
+    "reuse_existing_source_modules_first": true,
+    "wholesale_replacement_allowed": false,
+    "equivalence_claim_requires_tested_contract": true,
+    "external_unmerged_code_may_be_referenced_as_candidate_only": true
+  },
+  "compat_bundles": [
+    {
+      "path": "titan-zero-chat-content.compat.js",
+      "sha256": "7823c16665d37581e460b70d3e888db7d45786b6a5c5ca868214d5b3088ff441",
+      "bytes": 28593247,
+      "modified_in_pass3": false
+    },
+    {
+      "path": "titan-zero-chat-background.compat.js",
+      "sha256": "ebbd0843eb12d0413af6aa13603be2b365aa702304df2f74b87e4951a3f9a805",
+      "bytes": 11561297,
+      "modified_in_pass3": false
+    },
+    {
+      "path": "titan-zero-chat-runtime.compat.js",
+      "sha256": "195e1860346583b62c518881837d72b90aa51bb12f177ee8994e76b026cd7533",
+      "bytes": 7778613,
+      "modified_in_pass3": false
+    }
+  ],
+  "candidates": [
+    {
+      "id": "lazy_surface_loader",
+      "source": "manager_merge_46",
+      "path": "titan-runtime/performance/lazy-surface-loader.mjs",
+      "sha256": "f672ea9d4aa17be3045460797e3f7681211cdbcea938de214b5a37848eb32814",
+      "status": "EXACT_REUSE_CANDIDATE",
+      "required_exports": [
+        "createLazySurfaceLoader",
+        "LAZY_SURFACE_SCHEMA"
+      ],
+      "detected_exports": [
+        "LAZY_SURFACE_SCHEMA",
+        "createLazySurfaceLoader"
+      ],
+      "missing_required_exports": [],
+      "coverage": [
+        "optional feature chunk activation",
+        "company-scoped loader contract"
+      ]
+    },
+    {
+      "id": "donor_surface_activation",
+      "source": "manager_merge_46",
+      "path": "titan-runtime/performance/donor-surface-activation.mjs",
+      "sha256": "2e29bf67d6f8b8c4b602cb1c903e84f924ba813cba4e6f8b488bca5b1f79cc02",
+      "status": "EXACT_REUSE_CANDIDATE",
+      "required_exports": [
+        "createDonorSurfaceActivation",
+        "getDefaultDonorSurfaceRegistry"
+      ],
+      "detected_exports": [
+        "DONOR_SURFACE_ACTIVATION_SCHEMA",
+        "createDonorSurfaceActivation",
+        "getDefaultDonorSurfaceRegistry"
+      ],
+      "missing_required_exports": [],
+      "coverage": [
+        "compat/donor surface activation registry"
+      ]
+    },
+    {
+      "id": "locale_loader",
+      "source": "manager_merge_46",
+      "path": "titan-runtime/performance/locale-on-demand-loader.mjs",
+      "sha256": "e8f54941f0f32c72f6ee44a6f1d6122380fb1a14cae3dd32d3cdc3259f5b63dc",
+      "status": "EXACT_REUSE_CANDIDATE",
+      "required_exports": [
+        "createLocaleOnDemandLoader",
+        "normalizeLocale"
+      ],
+      "detected_exports": [
+        "TITAN_LOCALE_LOADER_SCHEMA",
+        "createLocaleOnDemandLoader",
+        "normalizeLocale"
+      ],
+      "missing_required_exports": [],
+      "coverage": [
+        "translation/locale payload activation"
+      ]
+    },
+    {
+      "id": "adapter_negotiation",
+      "source": "manager_merge_46",
+      "path": "titan-runtime/adapters/adapter-negotiation.mjs",
+      "sha256": "4a6794e3d9d8df994b07bab75c9493a1d181034c23cc5535bed0b09321204262",
+      "status": "EXACT_REUSE_CANDIDATE",
+      "required_exports": [
+        "negotiateRuntimeAdapter",
+        "selectAdapterPath"
+      ],
+      "detected_exports": [
+        "ADAPTER_NEGOTIATION_SCHEMA",
+        "detectAdapterFeatures",
+        "negotiateRuntimeAdapter",
+        "selectAdapterPath"
+      ],
+      "missing_required_exports": [],
+      "coverage": [
+        "feature/runtime adapter selection"
+      ]
+    },
+    {
+      "id": "adapter_recovery",
+      "source": "manager_merge_46",
+      "path": "titan-runtime/adapters/adapter-session-recovery.mjs",
+      "sha256": "d5e15d65b6e357e8f7a542fc1f17016c262c7b38df7b1ee3f42d2a3e6ba8460c",
+      "status": "EXACT_REUSE_CANDIDATE",
+      "required_exports": [
+        "createAdapterSession",
+        "recoverAdapterSession"
+      ],
+      "detected_exports": [
+        "ADAPTER_SESSION_RECOVERY_SCHEMA",
+        "ADAPTER_SESSION_SCHEMA",
+        "classifyAdapterSession",
+        "createAdapterSession",
+        "createReconnectPlan",
+        "recoverAdapterSession"
+      ],
+      "missing_required_exports": [],
+      "coverage": [
+        "compat runtime reconnect/session recovery"
+      ]
+    },
+    {
+      "id": "legacy_dom_discovery",
+      "source": "manager_merge_46",
+      "path": "titan-runtime/adapters/legacy-dom-discovery.mjs",
+      "sha256": "5cac43fafeafa25b44063c5e2efb97e74e9d65c0f1b18424e4054a9020027f54",
+      "status": "PARTIAL_EQUIVALENCE",
+      "required_exports": [
+        "prepareLegacyDomFallback",
+        "submitLegacyDomFallback"
+      ],
+      "detected_exports": [
+        "LEGACY_DOM_DEPRECATION_CODE",
+        "LEGACY_DOM_DISCOVERY_SCHEMA",
+        "createLegacyDomDeprecationTelemetry",
+        "prepareLegacyDomFallback",
+        "submitLegacyDomFallback"
+      ],
+      "missing_required_exports": [],
+      "coverage": [
+        "page-overlay fallback discovery; not full DOM feature parity"
+      ]
+    },
+    {
+      "id": "browser_capability_pack",
+      "source": "manager_merge_46",
+      "path": "titan-runtime/browser/capability-pack.mjs",
+      "sha256": "7f1aed9f831b6161743076920d898dca6c38db59bce2da233f66e1c9d35fe233",
+      "status": "PARTIAL_EQUIVALENCE",
+      "required_exports": [
+        "normalizeBrowserCapabilityPack"
+      ],
+      "detected_exports": [
+        "contributionFromBrowserPack",
+        "normalizeBrowserCapabilityPack"
+      ],
+      "missing_required_exports": [],
+      "coverage": [
+        "browser capability declaration; not execution router"
+      ]
+    },
+    {
+      "id": "browser_session_registry",
+      "source": "manager_merge_46",
+      "path": "titan-runtime/browser/session-registry.mjs",
+      "sha256": "33447f34eb55a2b60d623a97665d7ff3d7b0c201257fee3b1002cf2c5805ee5e",
+      "status": "EXACT_REUSE_CANDIDATE",
+      "required_exports": [
+        "BrowserSessionRegistry",
+        "createBrowserSessionRegistry"
+      ],
+      "detected_exports": [
+        "BrowserSessionRegistry",
+        "createBrowserSessionRegistry"
+      ],
+      "missing_required_exports": [],
+      "coverage": [
+        "tab/session lifecycle storage"
+      ]
+    },
+    {
+      "id": "page_evidence",
+      "source": "manager_merge_46",
+      "path": "titan-runtime/knowledge/page-evidence.mjs",
+      "sha256": "aea02c469cc394d526cc848ff2cf3140829c495a3838aa949d99fd5945758b60",
+      "status": "EXACT_REUSE_CANDIDATE",
+      "required_exports": [
+        "capturePageEvidence"
+      ],
+      "detected_exports": [
+        "capturePageEvidence"
+      ],
+      "missing_required_exports": [],
+      "coverage": [
+        "document/page capture evidence"
+      ]
+    },
+    {
+      "id": "permission_gate",
+      "source": "manager_merge_46",
+      "path": "titan-runtime/permissions/permission-gate.mjs",
+      "sha256": "84eded1ccca2054970325f09bf748b66413a876452607ccf778cf22b60d8f15f",
+      "status": "EXACT_REUSE_CANDIDATE",
+      "required_exports": [
+        "createPermissionGate",
+        "normalizePermissionSpec"
+      ],
+      "detected_exports": [
+        "PERMISSION_AUDIT_SCHEMA",
+        "PERMISSION_GATE_SCHEMA",
+        "SENSITIVE_PERMISSION_NAMES",
+        "createPermissionAuditEvent",
+        "createPermissionGate",
+        "normalizePermissionSpec"
+      ],
+      "missing_required_exports": [],
+      "coverage": [
+        "auth/permission gating boundary"
+      ]
+    },
+    {
+      "id": "interaction_engine",
+      "source": "manager_merge_46",
+      "path": "titan-runtime/interaction-engine/index.mjs",
+      "sha256": "0aa58bd2ced783d74f0f6910108a01bb2d4b2c54e744de5a8ac1716f978dc020",
+      "status": "PARTIAL_EQUIVALENCE",
+      "required_exports": [
+        "createInteractionEngineEnvelope"
+      ],
+      "detected_exports": [
+        "AUTHORITY_CONFERRED_BY_ACTIVATION",
+        "CANONICAL_SURFACES",
+        "CONVERSATION_STATE_COLLECTIONS",
+        "CONVERSATION_STATE_MODULE_ID",
+        "CONVERSATION_STATE_RUNTIME_SCHEMA",
+        "DEFAULT_AMBIGUITY_MARGIN",
+        "DEFAULT_INTENT_THRESHOLD",
+        "DEFAULT_LOCALBRAIN_MIN_CONFIDENCE",
+        "DETERMINISTIC_CLASSIFIER_VERSION",
+        "INTERACTION_SCHEMA_VERSION",
+        "JOURNEY_COLLECTION",
+        "JOURNEY_DEFINITION_SCHEMA",
+        "JOURNEY_INSTANCE_SCHEMA",
+        "JOURNEY_MODULE_ID",
+        "JOURNEY_RUNTIME_SCHEMA",
+        "LOCALBRAIN_VERSION",
+        "RUNTIME_ID",
+        "RUNTIME_KIND",
+        "RUNTIME_NAME",
+        "RUNTIME_PURPOSE",
+        "WIZARD_COLLECTION",
+        "WIZARD_DEFINITION_SCHEMA",
+        "WIZARD_MODULE_ID",
+        "WIZARD_RUNTIME_SCHEMA",
+        "WIZARD_SESSION_SCHEMA",
+        "canonicalSurface",
+        "classifyDeterministicIntent",
+        "createAmbiguity",
+        "createCapabilityRequirement",
+        "createConversationState",
+        "createConversationStateRuntime",
+        "createEntity",
+        "createGoal",
+        "createInteractionContext",
+        "createInteractionEngineEnvelope",
+        "createInteractionInterpretation",
+        "createInteractionPresentationIntent",
+        "createJourneyDefinition",
+        "createJourneyRuntime",
+        "createJourneyState",
+        "createWizardDefinition",
+        "createWizardRuntime",
+        "interpretationRequiresDecision",
+        "listDeterministicIntentRules",
+        "reasonWithLocalBrain",
+        "runtimeDescriptor"
+      ],
+      "missing_required_exports": [],
+      "coverage": [
+        "chat intent/conversation/journey semantics; not compat UI implementation"
+      ]
+    },
+    {
+      "id": "interface_runtime",
+      "source": "manager_merge_46",
+      "path": "titan-runtime/interface-runtime/index.mjs",
+      "sha256": "2d77870e1b5c6992ee102f1af06941f71539569f330cb8c64e6833ec8ac8cd36",
+      "status": "PARTIAL_EQUIVALENCE",
+      "required_exports": [
+        "createInterfaceRuntimeEnvelope"
+      ],
+      "detected_exports": [
+        "AUTHORITY_CONFERRED_BY_ACTIVATION",
+        "RUNTIME_ID",
+        "RUNTIME_KIND",
+        "RUNTIME_NAME",
+        "RUNTIME_PURPOSE",
+        "auditPresentationAccessibility",
+        "auditResponsivePresentation",
+        "composeObjectWorkspace",
+        "composeWorkingSetWorkspace",
+        "createInterfaceContext",
+        "createInterfaceRuntimeEnvelope",
+        "createOfflineQueue",
+        "deriveInterfaceContext",
+        "hasInterfaceCapabilities",
+        "hasInterfaceCapability",
+        "planOfflineSync",
+        "resolveOfflineConflict",
+        "resolveOfflinePolicy",
+        "runtimeDescriptor",
+        "validateOfflineReplay"
+      ],
+      "missing_required_exports": [],
+      "coverage": [
+        "presentation composition/offline policy; not compat DOM implementation"
+      ]
+    },
+    {
+      "id": "visual_runtime",
+      "source": "manager_merge_46",
+      "path": "titan-runtime/visual-runtime/index.mjs",
+      "sha256": "b472c09454e0c7342924b527c8f4957e9fe8365be93587c9bd44355efc9076cb",
+      "status": "PARTIAL_EQUIVALENCE",
+      "required_exports": [
+        "createVisualRuntimeEnvelope"
+      ],
+      "detected_exports": [
+        "AUTHORITY_CONFERRED_BY_ACTIVATION",
+        "RUNTIME_ID",
+        "RUNTIME_KIND",
+        "RUNTIME_NAME",
+        "RUNTIME_PURPOSE",
+        "createVisualRuntimeEnvelope",
+        "runtimeDescriptor"
+      ],
+      "missing_required_exports": [],
+      "coverage": [
+        "visual/accessibility envelope; not compat CSS/UI implementation"
+      ]
+    },
+    {
+      "id": "background_boundary",
+      "source": "manager_merge_46",
+      "path": "compatibility/monica/background-runtime-boundary.mjs",
+      "sha256": "241aa3a08237a12c97c832d69a8328dae55d0a682117cdc1ae32b3251b104cbd",
+      "status": "COMPAT_BOUNDARY_RETAIN",
+      "required_exports": [
+        ""
+      ],
+      "detected_exports": [],
+      "missing_required_exports": [],
+      "coverage": [
+        "existing background import boundary; must remain until native parity proven"
+      ]
+    },
+    {
+      "id": "retriever_browser_execution",
+      "source": "builder_3_live_delta_pass04_unmerged",
+      "path": "titan-runtime/retriever-native/browser-execution-router.mjs",
+      "sha256": "d20de6b385c785e53dcb481bed8b7e09c90a02ffba66156e91c8319a94dbaeb9",
+      "status": "EXTERNAL_IN_PROGRESS",
+      "required_exports": [
+        "createNativeBrowserExecutionRouter"
+      ],
+      "detected_exports": [
+        "RETRIEVER_NATIVE_BROWSER_SCHEMA",
+        "TITAN_RETRIEVER_BROWSER_EXECUTE_TYPE",
+        "createNativeBrowserExecutionRouter"
+      ],
+      "missing_required_exports": [],
+      "coverage": [
+        "tabs navigation/page execution"
+      ],
+      "merge_policy": "do_not_vendor_or_depend_until_manager_converged"
+    },
+    {
+      "id": "retriever_upload_bytes",
+      "source": "builder_3_live_delta_pass04_unmerged",
+      "path": "titan-runtime/retriever-native/upload-bytes-transport.mjs",
+      "sha256": "1a8e02b4c540c6ff3207960cbce801dbc9a597ee7d2739362ad30dacd43e8aa8",
+      "status": "EXTERNAL_IN_PROGRESS",
+      "required_exports": [
+        "createNativeUploadBytesTransport"
+      ],
+      "detected_exports": [
+        "RETRIEVER_NATIVE_UPLOAD_SCHEMA",
+        "UPLOAD_BYTES_CHUNK_SIZE",
+        "UPLOAD_BYTES_TTL_MS",
+        "UPLOAD_FILE_MAX_BYTES",
+        "createIndexedDbUploadBytesStore",
+        "createNativeUploadBytesTransport"
+      ],
+      "missing_required_exports": [],
+      "coverage": [
+        "upload-byte/file transport"
+      ],
+      "merge_policy": "do_not_vendor_or_depend_until_manager_converged"
+    }
+  ],
+  "domain_summary": {
+    "always_on_shell": [
+      "lazy_surface_loader",
+      "adapter_negotiation",
+      "adapter_recovery",
+      "permission_gate",
+      "browser_session_registry"
+    ],
+    "page_overlay": [
+      "legacy_dom_discovery",
+      "page_evidence",
+      "browser_capability_pack",
+      "retriever_browser_execution"
+    ],
+    "chat": [
+      "interaction_engine",
+      "interface_runtime",
+      "visual_runtime"
+    ],
+    "document_pdf": [
+      "page_evidence",
+      "retriever_upload_bytes"
+    ],
+    "search": [
+      "NO_EXACT_NATIVE_EQUIVALENT_PROVEN_IN_PASS3"
+    ],
+    "media": [
+      "NO_EXACT_NATIVE_EQUIVALENT_PROVEN_IN_PASS3"
+    ],
+    "translation": [
+      "locale_loader"
+    ],
+    "auth": [
+      "permission_gate",
+      "adapter_recovery"
+    ],
+    "settings": [
+      "interface_runtime",
+      "NO_EXACT_COMPAT_SETTINGS_EQUIVALENT_PROVEN"
+    ]
+  },
+  "conclusion": "Use exact reusable primitives to build the Pass4 bootstrap, retain compat monolith execution until per-domain parity gates prove extraction safe."
+}

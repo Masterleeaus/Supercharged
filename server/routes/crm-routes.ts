@@ -12,6 +12,7 @@ import { insertLeadSchema, insertLeadStageSchema, insertLeadNoteSchema, AI_LEAD_
 import { z } from 'zod';
 // Team Management - uses adapter for optional plugin loading
 import { getTeamService } from '../plugins/team-management-adapter';
+import { getCompanyScope, CompanyScopeError } from '../middleware/company-scope';
 
 interface AuthRequest extends Request {
   userId?: string;
@@ -79,12 +80,24 @@ router.get('/stages', requireAuth, async (req: AuthRequest, res: Response) => {
 
 router.post('/stages', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
+    // Company comes only from the authenticated session (req.user.companyId).
+    let companyId: string;
+    try {
+      companyId = getCompanyScope(req);
+    } catch (scopeError) {
+      if (scopeError instanceof CompanyScopeError) {
+        return res.status(403).json({ error: 'Company scope required' });
+      }
+      throw scopeError;
+    }
+
     const data = insertLeadStageSchema.parse({
       ...req.body,
       userId: req.userId,
     });
 
-    const stage = await CRMStorage.createStage(data);
+    const stageData = { ...data, companyId };
+    const stage = await CRMStorage.createStage(stageData);
     res.json(stage);
   } catch (error: any) {
     console.error('[CRM] Error creating stage:', error);

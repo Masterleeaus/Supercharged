@@ -46,7 +46,7 @@ async function seedPolicyFlow() {
           url: 'https://appcloudams.com/api/policies/{{policyNumber}}',
           method: 'GET',
           headers: {
-            'X-API-Key': 'sk_live_8gH3aQnK2Lm9xR4Yv7Pz',
+            'X-API-Key': process.env.STRIPE_SECRET_KEY ?? '',
             'Content-Type': 'application/json',
           },
           payload: {},

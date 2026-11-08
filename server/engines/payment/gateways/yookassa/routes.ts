@@ -16,7 +16,10 @@ import {
   getYookassaCurrency,
   getSupportedCurrencies,
   initYookassaPayment,
+  getYookassaShopId,
+  getYookassaSecretKey,
 } from './service';
+import { fetchVerifiedYookassaPayment } from './notification-verify';
 import {
   handlePaymentSucceeded,
 } from './handlers';
@@ -146,11 +149,30 @@ router.post('/webhook', express.json(), async (req: Request, res: Response) => {
     logger.info(`YooKassa Webhook received: ${event.event}`, undefined, 'YooKassa');
 
     if (event.event === 'payment.succeeded' && event.object) {
-      const result = await handlePaymentSucceeded(event.object);
+      // YooKassa notifications are unsigned, so the body is not trusted. Re-fetch the
+      // payment from the YooKassa API and use only the API's status, amount and metadata.
+      let verified;
+      try {
+        verified = await fetchVerifiedYookassaPayment(event.object.id, {
+          shopId: await getYookassaShopId(),
+          secretKey: await getYookassaSecretKey(),
+        });
+      } catch (verifyError: any) {
+        logger.error(`YooKassa notification rejected: ${verifyError.message}`, undefined, 'YooKassa');
+        const status = verifyError.retriable ? 503 : 403;
+        return res.status(status).json({ error: 'Notification could not be verified' });
+      }
+
+      const result = await handlePaymentSucceeded({
+        ...event.object,
+        id: verified.id,
+        amount: verified.amount,
+        metadata: verified.metadata,
+      });
       if (result.success) {
-        logger.info(`YooKassa Payment Succeeded handled: ${event.object.id}`, result, 'YooKassa');
+        logger.info(`YooKassa Payment Succeeded handled: ${verified.id}`, result, 'YooKassa');
       } else {
-        logger.error(`YooKassa Payment Succeeded handle failure: ${event.object.id}`, new Error(result.error), 'YooKassa');
+        logger.error(`YooKassa Payment Succeeded handle failure: ${verified.id}`, new Error(result.error), 'YooKassa');
       }
     }
 

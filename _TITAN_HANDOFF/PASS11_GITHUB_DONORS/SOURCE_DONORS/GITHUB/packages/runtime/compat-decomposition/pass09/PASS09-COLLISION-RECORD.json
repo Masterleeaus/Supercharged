@@ -1,0 +1,8 @@
+{
+  "schema": "titan.zero.collision-record.v1",
+  "packet_id": "TZ-FIX-COMPAT-RUNTIME-DECOMPOSITION-001",
+  "pass": 9,
+  "collisions": [],
+  "retriever_native_reserved_files_touched": false,
+  "note": "Builder 3 reserved Retriever-native boundary remains untouched."
+}

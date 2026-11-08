@@ -1,0 +1,29 @@
+{
+  "schema": "titan-zero-compat-decomposition-pass/v1",
+  "packet_id": "TZ-FIX-COMPAT-RUNTIME-DECOMPOSITION-001",
+  "pass": 4,
+  "title": "Minimal compatibility bootstrap + lazy optional feature loading",
+  "manager_baseline": {
+    "merge": 46,
+    "sha256": "2bef6fd90116796c76fa1ba7cb0e59841b0788c7657dc59077dd0a9ba440f949"
+  },
+  "production_changes": [
+    "titan-runtime/compat-decomposition/compat-bootstrap.mjs"
+  ],
+  "reused_existing": [
+    "titan-runtime/performance/lazy-surface-loader.mjs"
+  ],
+  "compat_monoliths_modified": false,
+  "ui_changed": false,
+  "authority_changed": false,
+  "company_boundary": "company_id",
+  "semantics": [
+    "stable TitanCompatBootstrap global contract",
+    "no eager optional feature loading",
+    "deduplicated first-use load/cache",
+    "retry after lazy-load failure",
+    "event bridge registers once",
+    "company_id and legacy-boundary rejection inherited from existing lazy loader"
+  ],
+  "next": "Pass5: extract one low-risk optional feature domain and route existing calls through bootstrap after live collision rescan."
+}

@@ -25,6 +25,7 @@
  */
 
 import { getDomain } from '../utils/domain';
+import { getAppointmentWebhookSecret } from './appointment-elevenlabs-tool';
 
 export interface PlayAudioNodeInfo {
   nodeId: string;
@@ -66,14 +67,15 @@ export function getPlayAudioWebhookTool(
   elevenLabsAgentId: string
 ): PlayAudioWebhookToolConfig {
   const domain = getDomain();
-  const webhookUrl = `${domain}/api/elevenlabs/tools/play-audio/${elevenLabsAgentId}`;
-  
+  const secret = getAppointmentWebhookSecret();
+  const webhookUrl = `${domain}/api/elevenlabs/tools/play-audio/${encodeURIComponent(secret)}/${elevenLabsAgentId}`;
+
   const toolName = `play_audio_${nodeId.slice(-8)}`;
-  
+
   console.log(`🔊 [PlayAudio Tool] Creating webhook tool for agent ${elevenLabsAgentId}`);
   console.log(`   Tool name: ${toolName}`);
   console.log(`   Audio URL: ${audioUrl}`);
-  console.log(`   Webhook URL: ${webhookUrl}`);
+  console.log(`   Webhook URL: ${domain}/api/elevenlabs/tools/play-audio/[REDACTED]/${elevenLabsAgentId}`);
   
   return {
     type: "webhook",

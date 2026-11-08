@@ -1,0 +1,3 @@
+import assert from "node:assert/strict"; import {ObservationEngine} from "../runtime/observationEngine.js";
+const e=new ObservationEngine([{rule_id:"r1",kind:"decision_subject",when_field:"decision_needed",operator:"truthy",decision_question:"Best action?"}]);
+const o=e.observeSystem("c1","sys","job","j1",{status:"open",decision_needed:true}); assert.equal(o[0].company_id,"c1"); assert.ok(o.some(x=>x.kind==="state")); assert.ok(o.some(x=>x.kind==="decision_subject")); assert.throws(()=>e.observe({company_id:"c1",source_kind:"system",source_id:"x",tenant_id:"bad"})); console.log("Step10 TS tests passed");

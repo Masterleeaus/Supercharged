@@ -1,0 +1,9 @@
+{
+  "schema":"titan-zero-pass-verification/v1",
+  "packet_id":"TZ-FIX-COMPAT-RUNTIME-DECOMPOSITION-001",
+  "pass":8,
+  "status":"PASS",
+  "tests":{"compat_decomposition_pass01_to_pass08":"36/36 PASS","syntax":"PASS","zip_integrity":"PENDING_PACKAGE"},
+  "covered":["cold_start","warm_start","default_real_chunk_import","offline_retry","lazy_load_failure_recovery","concurrent_load_dedupe","duplicate_listener_prevention","listener_cleanup","company_id_fail_closed","legacy_tenant_rejection","authority_neutral_loading","side_panel_surface_presence","popup_surface_presence","content_script_compat_presence"],
+  "live_chrome":"NOT_CERTIFIED"
+}

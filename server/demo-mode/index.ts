@@ -18,6 +18,20 @@ import { sql } from 'drizzle-orm';
 import { authenticateToken, type AuthRequest } from '../middleware/auth';
 import jwt from 'jsonwebtoken';
 
+/**
+ * Returns the JWT signing secret used to verify demo-mode tokens.
+ * There is deliberately no fallback value: if JWT_SECRET is unset this
+ * throws, so every caller treats the request as unauthenticated (fail closed).
+ * Callers wrap this in try/catch, so startup is not affected.
+ */
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('JWT_SECRET is not set; refusing to verify demo-mode tokens without a signing secret.');
+  }
+  return secret;
+}
+
 export interface DemoModeConfig {
   blockAdminMutations: boolean;
   hideSensitiveData: boolean;
@@ -88,8 +102,7 @@ async function isRequestDemoUser(req: Request): Promise<boolean> {
   }
 
   try {
-    const JWT_SECRET = process.env.JWT_SECRET || "insecure-dev-secret-CHANGE-ME";
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+    const decoded = jwt.verify(token, getJwtSecret()) as { userId: string };
     if (decoded.userId) {
       const userResult = await db.execute(sql`SELECT email FROM users WHERE id = ${decoded.userId} LIMIT 1`);
       const email = (userResult.rows[0]?.email as string)?.toLowerCase();
@@ -317,8 +330,7 @@ export function registerDemoModeRoutes(app: Express): void {
       const token = authHeader && authHeader.split(" ")[1];
       if (token) {
         try {
-          const secret = process.env.JWT_SECRET || "insecure-dev-secret-CHANGE-ME";
-          const decoded = jwt.verify(token, secret) as { userId: string; role: string };
+          const decoded = jwt.verify(token, getJwtSecret()) as { userId: string; role: string };
           const userId = decoded.userId;
           if (userId) {
             const userResult = await db.execute(sql`SELECT email FROM users WHERE id = ${userId} LIMIT 1`);

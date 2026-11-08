@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "titan.zero.revenue-journey.lead-opportunity-lifecycle.v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema",
+    "company_id",
+    "revenue_journey_id",
+    "lifecycle_event_id",
+    "idempotency_key",
+    "kind",
+    "entity_ref",
+    "transition",
+    "provenance",
+    "sales_semantics",
+    "governance"
+  ],
+  "properties": {
+    "schema": {
+      "const": "titan.zero.revenue-journey.lead-opportunity-lifecycle.v1"
+    },
+    "company_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "revenue_journey_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "lifecycle_event_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "idempotency_key": {
+      "type": "string",
+      "minLength": 1
+    },
+    "kind": {
+      "enum": [
+        "lead",
+        "opportunity"
+      ]
+    },
+    "governance": {
+      "type": "object",
+      "required": [
+        "identity_is_authority",
+        "authority_granted",
+        "execution_permitted",
+        "owns_domain_truth",
+        "may_create_entities",
+        "may_mutate_entities"
+      ],
+      "properties": {
+        "identity_is_authority": {
+          "const": false
+        },
+        "authority_granted": {
+          "const": false
+        },
+        "execution_permitted": {
+          "const": false
+        },
+        "owns_domain_truth": {
+          "const": false
+        },
+        "may_create_entities": {
+          "const": false
+        },
+        "may_mutate_entities": {
+          "const": false
+        }
+      }
+    }
+  }
+}

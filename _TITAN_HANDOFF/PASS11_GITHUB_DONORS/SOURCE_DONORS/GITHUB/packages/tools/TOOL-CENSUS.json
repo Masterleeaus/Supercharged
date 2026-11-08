@@ -1,0 +1,471 @@
+{
+  "schema": "titan-zero-tool-census/v1",
+  "packet_id": "TZ-TOOLS-ABSORB-001",
+  "pass": 1,
+  "purpose": "Inventory useful tool capability already present in Titan Zero before any rewiring or replacement work.",
+  "rules": {
+    "preserve_existing_implementation": true,
+    "no_duplicate_tool_rebuild_before_evaluation": true,
+    "company_boundary": "company_id",
+    "identity_does_not_grant_authority": true,
+    "live_ui_required_for_final_integration_claims": true
+  },
+  "status_legend": {
+    "runtime_and_ui_evidence": "Code/runtime markers and user-facing assets or established surface evidence exist.",
+    "runtime_evidence": "Executable helper/runtime evidence exists; user-facing discovery still needs confirmation.",
+    "ui_asset_evidence": "Rich UI assets are retained, but Pass 1 does not claim working launch reachability.",
+    "static_parity_evidence": "Existing regression evidence says the family is statically retained; live use still requires later pass verification."
+  },
+  "tools": [
+    {
+      "id": "write",
+      "name": "Writing assistant",
+      "category": "Writing & language",
+      "status": "runtime_and_ui_evidence",
+      "evidence": [
+        "static/global/src/static/chatBox/chatHomeView/chatHomeViewWrite.png",
+        "static/global/src/static/chatBox/chatHomeView/writingAgent.png",
+        "titan-zero-chat-content.compat.js"
+      ],
+      "externalized_evidence": [
+        "static/writingToolExample.png"
+      ]
+    },
+    {
+      "id": "rewrite",
+      "name": "Rewrite text",
+      "category": "Writing & language",
+      "status": "runtime_and_ui_evidence",
+      "evidence": [
+        "titan-zero-chat-content.compat.js"
+      ],
+      "externalized_evidence": [
+        "static/global/src/static/OnboardingDialog/rewriteText.png"
+      ]
+    },
+    {
+      "id": "grammar",
+      "name": "Grammar checker",
+      "category": "Writing & language",
+      "status": "runtime_and_ui_evidence",
+      "evidence": [
+        "static/global/src/static/chatBox/chatHomeView/grammarly.png",
+        "static/grammarCheck.mp4",
+        "titan-zero-chat-content.compat.js"
+      ],
+      "externalized_evidence": [
+        "static/grammarCheckExample.png"
+      ]
+    },
+    {
+      "id": "translate",
+      "name": "Translate",
+      "category": "Writing & language",
+      "status": "runtime_and_ui_evidence",
+      "evidence": [
+        "static/global/src/static/chatBox/chatHomeView/chatHomeViewTranslate.png",
+        "static/global/src/static/discover/discoverTranslate.png",
+        "titan-zero-chat-content.compat.js"
+      ],
+      "externalized_evidence": [
+        "static/global/src/static/OnboardingDialog/webTranslate.png"
+      ]
+    },
+    {
+      "id": "summarize",
+      "name": "Summarise content",
+      "category": "Reading & research",
+      "status": "static_parity_evidence",
+      "evidence": [
+        "titan-regression/monica-retriever/PASS05-VISUAL-DOM-FEATURE-MATRIX.json",
+        "titan-zero-chat-content.compat.js"
+      ]
+    },
+    {
+      "id": "read",
+      "name": "Reading assistant",
+      "category": "Reading & research",
+      "status": "runtime_and_ui_evidence",
+      "evidence": [
+        "static/global/src/static/chatBox/chatHomeView/read.png",
+        "titan-zero-chat-content.compat.js"
+      ],
+      "externalized_evidence": [
+        "static/readingToolExample.png"
+      ]
+    },
+    {
+      "id": "search",
+      "name": "AI search",
+      "category": "Search & web",
+      "status": "runtime_and_ui_evidence",
+      "evidence": [
+        "static/global/src/static/chatBox/chatHomeView/aiSearch.png",
+        "titan-zero-chat-content.compat.js"
+      ],
+      "externalized_evidence": [
+        "static/SearchAssistantExample.png",
+        "static/global/src/static/OnboardingDialog/searchAgent.png"
+      ]
+    },
+    {
+      "id": "webpage_assistant",
+      "name": "Webpage assistant",
+      "category": "Search & web",
+      "status": "runtime_and_ui_evidence",
+      "evidence": [
+        "titan-regression/monica-retriever/fixtures/webpage-assistant.html",
+        "titan-zero-chat-content.compat.js"
+      ],
+      "externalized_evidence": [
+        "static/global/src/static/OnboardingDialog/webAccessV2.png",
+        "static/global/src/static/OnboardingDialog/webSummary.png"
+      ]
+    },
+    {
+      "id": "full_page",
+      "name": "Full-page assistant",
+      "category": "Search & web",
+      "status": "ui_asset_evidence",
+      "evidence": [
+        "static/global/src/static/chatBox/chatHomeView/fullPage.png",
+        "chatTab.html"
+      ]
+    },
+    {
+      "id": "text_selection",
+      "name": "Text-selection toolbar",
+      "category": "Search & web",
+      "status": "static_parity_evidence",
+      "evidence": [
+        "static/contextual-toolbar-guide.webp",
+        "titan-regression/monica-retriever/PASS05-VISUAL-DOM-FEATURE-MATRIX.json",
+        "titan-zero-chat-content.compat.js"
+      ]
+    },
+    {
+      "id": "floating_assistant",
+      "name": "Floating page assistant",
+      "category": "Search & web",
+      "status": "runtime_evidence",
+      "evidence": [
+        "titan-zero-chat-content.compat.js",
+        "content.css"
+      ]
+    },
+    {
+      "id": "chatpdf",
+      "name": "Chat with PDF / document assistant",
+      "category": "Documents",
+      "status": "runtime_and_ui_evidence",
+      "evidence": [
+        "static/global/src/static/chatBox/chatHomeView/chatHomeViewChatPdf.png",
+        "static/global/src/static/discover/discoverChatPdf.png",
+        "static/pdf.worker.min.mjs",
+        "titan-zero-chat-content.compat.js"
+      ],
+      "externalized_evidence": [
+        "static/global/src/static/OnboardingDialog/chatWithPDF.png"
+      ]
+    },
+    {
+      "id": "pdf_generate_fill",
+      "name": "Generate or fill PDFs",
+      "category": "Documents",
+      "status": "runtime_evidence",
+      "evidence": [
+        "retriever-capability-catalog.json"
+      ]
+    },
+    {
+      "id": "youtube_assistant",
+      "name": "YouTube assistant / summariser",
+      "category": "Documents",
+      "status": "static_parity_evidence",
+      "evidence": [
+        "static/youtube-injected-script.js",
+        "titan-regression/monica-retriever/PASS05-VISUAL-DOM-FEATURE-MATRIX.json",
+        "titan-zero-chat-content.compat.js"
+      ],
+      "externalized_evidence": [
+        "static/global/src/static/OnboardingDialog/youTubeSummary.png"
+      ]
+    },
+    {
+      "id": "mindmap",
+      "name": "Mind map",
+      "category": "Analysis",
+      "status": "runtime_and_ui_evidence",
+      "evidence": [
+        "static/global/src/static/chatBox/chatHomeView/chatHomeViewMindmap.png",
+        "static/global/src/static/discover/mindmap.png",
+        "titan-zero-chat-content.compat.js"
+      ],
+      "externalized_evidence": [
+        "static/global/src/static/lowCode/mindmapCover.webp"
+      ]
+    },
+    {
+      "id": "ai_detector",
+      "name": "AI content detector",
+      "category": "Analysis",
+      "status": "runtime_and_ui_evidence",
+      "evidence": [
+        "static/global/src/static/chatBox/chatHomeView/chatHomeViewAiDetector.png",
+        "static/global/src/static/discover/aiDetector.png",
+        "titan-zero-chat-content.compat.js"
+      ],
+      "externalized_evidence": [
+        "static/global/src/static/OnboardingDialog/aiContentDetector.webp"
+      ]
+    },
+    {
+      "id": "humanize",
+      "name": "Humanise text",
+      "category": "Analysis",
+      "status": "ui_asset_evidence",
+      "evidence": [
+        "static/global/src/static/chatBox/chatHomeView/chatHomeViewHumanize.png",
+        "static/global/src/static/discover/discoverHumanize.png"
+      ]
+    },
+    {
+      "id": "podcast",
+      "name": "Podcast tool",
+      "category": "Audio",
+      "status": "ui_asset_evidence",
+      "evidence": [
+        "static/global/src/static/chatBox/chatHomeView/chatHomeViewPodcast.png",
+        "static/global/src/static/discover/discoverPodcast.png"
+      ]
+    },
+    {
+      "id": "audio_to_text",
+      "name": "Audio to text",
+      "category": "Audio",
+      "status": "runtime_and_ui_evidence",
+      "evidence": [
+        "static/global/src/static/mainNav/fillAudioIcon.png",
+        "titan-zero-chat-content.compat.js"
+      ],
+      "externalized_evidence": [
+        "static/global/src/static/lowCode/audioToTextCover.webp"
+      ]
+    },
+    {
+      "id": "image_generate",
+      "name": "Image generator",
+      "category": "Image & media",
+      "status": "runtime_and_ui_evidence",
+      "evidence": [
+        "static/global/src/static/chatBox/chatHomeView/imageGenerator.webp",
+        "static/global/src/static/mainNav/fillAiArt.png",
+        "titan-zero-chat-content.compat.js"
+      ],
+      "externalized_evidence": [
+        "static/global/src/static/OnboardingDialog/imageToolsV2.png"
+      ]
+    },
+    {
+      "id": "image_edit",
+      "name": "Image editor",
+      "category": "Image & media",
+      "status": "runtime_evidence",
+      "evidence": [
+        "titan-zero-chat-content.compat.js"
+      ],
+      "externalized_evidence": [
+        "static/imageToolExample.png"
+      ]
+    },
+    {
+      "id": "image_realtime",
+      "name": "Realtime image/canvas generation",
+      "category": "Image & media",
+      "status": "runtime_evidence",
+      "evidence": [
+        "titan-zero-chat-content.compat.js"
+      ]
+    },
+    {
+      "id": "image_restore_transform",
+      "name": "Image restoration and creative transforms",
+      "category": "Image & media",
+      "status": "runtime_evidence",
+      "evidence": [
+        "titan-zero-chat-content.compat.js"
+      ],
+      "externalized_evidence": [
+        "static/global/src/static/lowCode/stableDiffusionCover.webp"
+      ]
+    },
+    {
+      "id": "video_generate",
+      "name": "Video generator",
+      "category": "Image & media",
+      "status": "runtime_and_ui_evidence",
+      "evidence": [
+        "static/global/src/static/chatBox/chatHomeView/videoGenerator.png",
+        "static/global/src/static/mainNav/fillVideo.png",
+        "static/global/src/static/video/image2VideoCover.webp",
+        "titan-zero-chat-content.compat.js"
+      ]
+    },
+    {
+      "id": "text_to_video",
+      "name": "Text to video",
+      "category": "Image & media",
+      "status": "runtime_evidence",
+      "evidence": [
+        "titan-zero-chat-content.compat.js"
+      ]
+    },
+    {
+      "id": "image_to_video",
+      "name": "Image to video",
+      "category": "Image & media",
+      "status": "runtime_and_ui_evidence",
+      "evidence": [
+        "static/global/src/static/video/image2VideoCover.webp",
+        "titan-zero-chat-content.compat.js"
+      ]
+    },
+    {
+      "id": "screenshots",
+      "name": "Screenshot/page capture",
+      "category": "Browser tools",
+      "status": "runtime_and_ui_evidence",
+      "evidence": [
+        "static/global/src/static/screenshotGuideVideo.mp4",
+        "titan-zero-chat-content.compat.js"
+      ]
+    },
+    {
+      "id": "attachments",
+      "name": "Attachments / file chat",
+      "category": "Conversation tools",
+      "status": "runtime_evidence",
+      "evidence": [
+        "titan-zero-chat-content.compat.js",
+        "titan-capabilities/donors/ai-extensions/catalog.json"
+      ]
+    },
+    {
+      "id": "model_selection",
+      "name": "Model selection",
+      "category": "Conversation tools",
+      "status": "runtime_evidence",
+      "evidence": [
+        "titan-zero-chat-content.compat.js",
+        "side-panel/assets/index-C8c-GDqp.js"
+      ]
+    },
+    {
+      "id": "prompts_skills",
+      "name": "Prompts and reusable skills",
+      "category": "Conversation tools",
+      "status": "runtime_evidence",
+      "evidence": [
+        "side-panel/assets/skillStorageService-LGvOYmp_.js",
+        "retriever-capability-catalog.json"
+      ]
+    },
+    {
+      "id": "browser_actions",
+      "name": "Browser actions",
+      "category": "Retriever tools",
+      "status": "runtime_evidence",
+      "evidence": [
+        "retriever-capability-catalog.json"
+      ]
+    },
+    {
+      "id": "crawl_extract",
+      "name": "Crawl, extract and scrape webpages",
+      "category": "Retriever tools",
+      "status": "runtime_evidence",
+      "evidence": [
+        "retriever-capability-catalog.json"
+      ]
+    },
+    {
+      "id": "structured_data",
+      "name": "Structured data discovery and enrichment",
+      "category": "Retriever tools",
+      "status": "runtime_evidence",
+      "evidence": [
+        "retriever-capability-catalog.json"
+      ]
+    },
+    {
+      "id": "sheets",
+      "name": "Spreadsheet tools",
+      "category": "Retriever tools",
+      "status": "runtime_evidence",
+      "evidence": [
+        "retriever-capability-catalog.json",
+        "titan-zero-chat-content.compat.js"
+      ]
+    },
+    {
+      "id": "docs_slides_web",
+      "name": "Create Docs, Slides and webpages",
+      "category": "Retriever tools",
+      "status": "runtime_evidence",
+      "evidence": [
+        "retriever-capability-catalog.json"
+      ]
+    },
+    {
+      "id": "custom_tools",
+      "name": "Create and manage custom tools",
+      "category": "Retriever tools",
+      "status": "runtime_evidence",
+      "evidence": [
+        "retriever-capability-catalog.json"
+      ]
+    },
+    {
+      "id": "multi_tool",
+      "name": "Run coordinated multi-tool workflows",
+      "category": "Retriever tools",
+      "status": "runtime_evidence",
+      "evidence": [
+        "retriever-capability-catalog.json"
+      ]
+    },
+    {
+      "id": "schedules",
+      "name": "Scheduled workflows",
+      "category": "Retriever tools",
+      "status": "runtime_evidence",
+      "evidence": [
+        "retriever-capability-catalog.json"
+      ]
+    },
+    {
+      "id": "triggers",
+      "name": "Event-triggered workflows",
+      "category": "Retriever tools",
+      "status": "runtime_evidence",
+      "evidence": [
+        "retriever-capability-catalog.json"
+      ]
+    }
+  ],
+  "pass1_findings": [
+    "The current canonical retains broad Monica-derived tool UI assets and runtime code; the tool deficit is primarily discovery, launch routing and integration rather than missing source capability.",
+    "Retriever already exposes browser, crawl/extract, structured data, Sheets, PDF generation/fill, Docs/Slides/webpage generation, custom tools, multi-tool execution, schedules and triggers.",
+    "Existing regression evidence statically preserves writing, reading, translate, summarise, search, ChatPDF, YouTube assistance and text-selection families.",
+    "Pass 1 does not claim that every retained tool is currently reachable or usable from the rendered Titan UI. Later packet passes must prove and repair launch paths."
+  ],
+  "phase3_retirement_migration": {
+    "directive": "TZ-MGR-DONOR-SLIM-M42-003",
+    "live_evidence_replacement": "titan-zero-chat-content.compat.js"
+  },
+  "provenance": {
+    "canonical_owner": "packages/tools",
+    "authority": "repository-source",
+    "historical_artifacts_are_authority": false
+  }
+}

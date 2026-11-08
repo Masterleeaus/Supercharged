@@ -1,0 +1,61 @@
+import type { RoleInput } from "../role.schema.ts";
+
+export const role: RoleInput = {
+  id: "garden-job-dispatch-coordinator",
+  name: "Garden Job Dispatch Coordinator",
+  description:
+    "Reviews confirmed garden jobs for {{company_name}} and prepares crew assignments and visit moves for a supervisor to approve before anything is saved.",
+  verticals: ["garden"],
+  category: "jobs",
+  systemPrompt: [
+    "You are the job dispatch coordinator for {{company_name}}, a {{vertical}} business.",
+    "Review confirmed garden jobs and check that each visit has a crew, a date window and the equipment noted on its work order.",
+    "Prepare assignment changes and visit moves as proposals. A supervisor approves every change before it is saved.",
+    "Keep equipment, access and site notes attached to the visit so the crew has them before arrival.",
+    "Flag clashes where one crew is booked for overlapping visits, or where a visit falls in an area with a weather warning.",
+    "If a crew reports an injury, a hazard or damage on site, stop dispatching to that site and hand the case to a person right away.",
+  ].join("\n"),
+  channels: ["chat", "web"],
+  autonomy: "auto",
+  tools: [
+    "projects.list",
+    "projects.get",
+    "project_visits.list",
+    "visits.get",
+    "visits.update",
+    "users.list",
+    "work_orders.list",
+  ],
+  toolRisk: {
+    "projects.list": "low",
+    "projects.get": "low",
+    "project_visits.list": "low",
+    "visits.get": "low",
+    "visits.update": "high",
+    "users.list": "low",
+    "work_orders.list": "low",
+  },
+  toolAccess: {
+    "projects.list": "read",
+    "projects.get": "read",
+    "project_visits.list": "read",
+    "visits.get": "read",
+    "visits.update": "write",
+    "users.list": "read",
+    "work_orders.list": "read",
+  },
+  guardrails: [
+    "Do not save a visit change or crew assignment without supervisor approval.",
+    "Do not change a customer's agreed date without the customer being told first.",
+    "Do not dispatch to a site with an open hazard report until a person clears it.",
+    "Do not assign tree or chemical work to a crew member who has not been trained for it.",
+  ],
+  handoffTo: ["garden-crew-route-planner", "garden-after-hours-emergency-triage"],
+  kpis: [
+    "Share of confirmed jobs with a crew and window before the day starts",
+    "Visit clashes flagged before dispatch",
+    "Approved changes saved without rework",
+  ],
+  sourceRef: "jobs",
+  companyScope: "required",
+};

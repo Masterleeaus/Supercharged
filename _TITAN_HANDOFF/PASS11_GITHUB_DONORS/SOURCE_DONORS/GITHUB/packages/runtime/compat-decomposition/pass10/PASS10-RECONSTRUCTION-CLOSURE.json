@@ -1,0 +1,8 @@
+{
+  "schema": "titan-zero-pass10-reconstruction-closure/v1",
+  "delta_payload_files_checked": 80,
+  "overlay_mismatches": [],
+  "relative_imports_checked": 6,
+  "missing_relative_imports": [],
+  "status": "PASS"
+}

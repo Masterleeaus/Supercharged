@@ -21,6 +21,8 @@ import cookieParser from "cookie-parser";
 import compression from "compression";
 import helmet from "helmet";
 import { registerRoutes } from "./routes";
+import { resolveTrustProxy } from "./middleware/trust-proxy";
+import { isChatbotWebhookPath } from "./middleware/raw-body";
 import { db } from "./db";
 import { sql } from "drizzle-orm";
 function log(message: string, source = "express") {
@@ -40,6 +42,7 @@ import { setupGlobalHandlers, registerServer, signalReady } from "./services/gra
 import { startWatchdog } from "./services/resource-watchdog";
 import { webhookRetryService } from "./services/webhook-retry-service";
 import { preloadJwtExpiry } from "./middleware/auth";
+import { applyEmbedCors } from "./middleware/embed-cors";
 import { cleanupStaleMaintenanceFlag } from "./services/system-update-service";
 import { storage } from "./storage";
 import { initializeMigrationEngine } from "./engines/elevenlabs-migration";
@@ -74,6 +77,11 @@ Unauthorized distribution prohibited
 
 const app = express();
 
+// Trust proxy: off by default so X-Forwarded-For cannot spoof req.ip (rate limits key on it).
+// Set TRUST_PROXY to the hop count or proxy address list that matches the front proxy.
+// Never set it to true. See server/middleware/trust-proxy.ts and docs/proxy/desk-modes.nginx.conf.
+app.set('trust proxy', resolveTrustProxy(process.env.TRUST_PROXY));
+
 // Enable gzip compression for all responses (improves load times by 60-80%)
 app.use(compression({
   level: 6, // Balanced compression level (1-9, 6 is default)
@@ -99,7 +107,16 @@ app.use(express.json({
     req.rawBody = buf;
   }
 }));
-app.use(express.urlencoded({ extended: false, limit: '50mb' }));
+app.use(express.urlencoded({
+  extended: false,
+  limit: '50mb',
+  // Chatbot channel webhooks (Twilio form posts) verify over the exact bytes. Other paths are unchanged.
+  verify: (req, _res, buf) => {
+    if (isChatbotWebhookPath(req.originalUrl ?? req.url)) {
+      req.rawBody = buf;
+    }
+  }
+}));
 app.use(cookieParser()); // Parse cookies for refresh token handling
 
 // Static file caching options (7 days for images/audio, reduces repeat requests)
@@ -122,8 +139,8 @@ app.use('/audio', express.static(path.join(process.cwd(), 'public', 'audio'), st
 
 // Serve widget files from public/widget folder (for embeddable voice widgets)
 // CORS enabled for cross-origin embedding on external websites
-app.use('/widget', (req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+app.use('/widget', async (req, res, next) => {
+  await applyEmbedCors(db, req, res);
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');

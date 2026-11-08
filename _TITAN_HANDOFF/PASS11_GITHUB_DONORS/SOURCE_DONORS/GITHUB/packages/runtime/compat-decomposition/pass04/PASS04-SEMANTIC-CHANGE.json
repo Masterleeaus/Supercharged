@@ -1,0 +1,12 @@
+{
+  "schema": "titan-zero-semantic-change/v1",
+  "classification": "ADDITIVE_BOOTSTRAP_NO_MONOLITH_RETIREMENT",
+  "changes": [
+    "stable TitanCompatBootstrap global contract",
+    "no eager optional feature loading",
+    "deduplicated first-use load/cache",
+    "retry after lazy-load failure",
+    "event bridge registers once",
+    "company_id and legacy-boundary rejection inherited from existing lazy loader"
+  ]
+}

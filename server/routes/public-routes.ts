@@ -24,6 +24,7 @@ import bcrypt from 'bcrypt';
 import fs from 'fs';
 import path from 'path';
 import { runAllSeedsForInstaller } from '../seed-all';
+import { applyEmbedCors } from '../middleware/embed-cors';
 
 /**
  * Creates public routes for unauthenticated endpoints.
@@ -31,7 +32,7 @@ import { runAllSeedsForInstaller } from '../seed-all';
  */
 export function createPublicRoutes(ctx: RouteContext): Router {
   const router = Router();
-  const { db, storage, authenticateToken, requireRole, emailService } = ctx;
+  const { db, storage, authenticateToken, requireRole, emailService, authRateLimiter } = ctx;
 
   async function getAppNameFallback(): Promise<string> {
     try {
@@ -72,10 +73,11 @@ export function createPublicRoutes(ctx: RouteContext): Router {
   // ============================================
   // Returns branding, installer status, and version in one request
   // Reduces initial page load from 5+ API calls to 1
-  router.get("/api/init", async (_req: Request, res: Response) => {
+  router.get("/api/init", async (req: Request, res: Response) => {
     // Cache for 2 minutes - reduces server load on repeat visits
     res.setHeader('Cache-Control', 'public, max-age=120');
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    // Cross-origin only for allowlisted embed domains; Vary: Origin is set by the helper
+    await applyEmbedCors(db, req, res);
 
     // Get version from VERSION file (same source as /api/system/version)
     let version = '5.4.5';
@@ -593,18 +595,20 @@ export function createPublicRoutes(ctx: RouteContext): Router {
   // ============================================
 
   // OPTIONS handler for CORS preflight requests (widget embedding)
-  router.options("/api/branding", (_req: Request, res: Response) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  router.options("/api/branding", async (req: Request, res: Response) => {
+    if (await applyEmbedCors(db, req, res)) {
+      res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    }
     res.sendStatus(200);
   });
 
-  router.get("/api/branding", async (_req: Request, res: Response) => {
-    // Enable CORS for widget embedding on external websites
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  router.get("/api/branding", async (req: Request, res: Response) => {
+    // Cross-origin only for allowlisted embed domains; Vary: Origin is set by the helper
+    if (await applyEmbedCors(db, req, res)) {
+      res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    }
 
     try {
       const brandingKeys = ['app_name', 'app_tagline', 'logo_url', 'logo_url_light', 'logo_url_dark', 'favicon_url', 'branding_updated_at', 'admin_email', 'app_location', 'social_twitter_url', 'social_linkedin_url', 'social_github_url', 'theme_primary', 'theme_primary_foreground', 'theme_accent', 'theme_background', 'theme_sidebar', 'theme_website_accent', 'theme_website_foreground'];
@@ -968,7 +972,7 @@ ${allUrls.map(u => {
   // CONTACT FORM ROUTE
   // ============================================
 
-  router.post("/api/contact", async (req: Request, res: Response) => {
+  router.post("/api/contact", authRateLimiter, async (req: Request, res: Response) => {
     try {
       const { z } = await import('zod');
 

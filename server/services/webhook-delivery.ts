@@ -17,8 +17,11 @@
 import crypto from 'crypto';
 import { storage } from '../storage';
 import { db } from '../db';
-import { webhooks, webhookLogs, Webhook, InsertWebhookLog } from '@shared/schema';
-import { eq, and } from 'drizzle-orm';
+import { webhooks, webhookLogs, Webhook, WebhookLog } from '@shared/schema';
+
+// Table insert shape for webhook logs; the drizzle-zod insert type resolves to {}.
+type WebhookLogInsertRow = typeof webhookLogs.$inferInsert;
+import { eq, and, desc } from 'drizzle-orm';
 import { validateWebhookUrl } from '../utils/url-validator';
 
 export interface WebhookPayload {
@@ -37,6 +40,20 @@ export interface DeliveryResult {
 
 const RETRY_DELAYS = [0, 60000, 300000]; // 0s, 1min, 5min
 
+// Header names the platform sets itself. Tenant custom headers may not use them (any casing).
+const RESERVED_HEADER_NAMES = new Set([
+  'authorization',
+  'content-type',
+  'content-length',
+  'host',
+  'connection',
+  'transfer-encoding',
+  'user-agent',
+  'x-webhook-event',
+  'x-webhook-delivery',
+  'x-webhook-signature',
+]);
+
 export class WebhookDeliveryService {
   private generateSignature(payload: string, secret: string): string {
     return crypto
@@ -45,14 +62,24 @@ export class WebhookDeliveryService {
       .digest('hex');
   }
 
-  private buildHeaders(webhook: Webhook, payloadString: string): Record<string, string> {
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'User-Agent': 'Platform-Webhook/1.0',
-      'X-Webhook-Event': webhook.events?.[0] || 'unknown',
-      'X-Webhook-Delivery': crypto.randomUUID(),
-      'X-Webhook-Signature': `sha256=${this.generateSignature(payloadString, webhook.secret)}`,
-    };
+  private buildHeaders(webhook: Webhook, payloadString: string, deliveryId: string): Record<string, string> {
+    const headers: Record<string, string> = {};
+
+    // Custom headers go first. Reserved names are skipped here and then set below,
+    // so a custom header can never replace the signature, delivery id or auth.
+    if (webhook.headers && typeof webhook.headers === 'object') {
+      for (const [name, value] of Object.entries(webhook.headers as Record<string, unknown>)) {
+        if (typeof value !== 'string') continue;
+        if (RESERVED_HEADER_NAMES.has(name.toLowerCase())) continue;
+        headers[name] = value;
+      }
+    }
+
+    headers['Content-Type'] = 'application/json';
+    headers['User-Agent'] = 'Platform-Webhook/1.0';
+    headers['X-Webhook-Event'] = webhook.events?.[0] || 'unknown';
+    headers['X-Webhook-Delivery'] = deliveryId;
+    headers['X-Webhook-Signature'] = `sha256=${this.generateSignature(payloadString, webhook.secret)}`;
 
     if (webhook.authType === 'basic' && webhook.authCredentials) {
       const creds = webhook.authCredentials as { username?: string; password?: string };
@@ -67,21 +94,17 @@ export class WebhookDeliveryService {
       }
     }
 
-    if (webhook.headers) {
-      const customHeaders = webhook.headers as Record<string, string>;
-      Object.assign(headers, customHeaders);
-    }
-
     return headers;
   }
 
   async deliverWebhook(
     webhook: Webhook,
     payload: WebhookPayload,
-    attemptNumber: number = 1
+    attemptNumber: number = 1,
+    deliveryId: string = crypto.randomUUID()
   ): Promise<DeliveryResult> {
     const payloadString = JSON.stringify(payload);
-    const headers = this.buildHeaders(webhook, payloadString);
+    const headers = this.buildHeaders(webhook, payloadString, deliveryId);
     const startTime = Date.now();
 
     console.log(`📤 [Webhook] Delivering to ${webhook.url} (attempt ${attemptNumber})`);
@@ -149,12 +172,39 @@ export class WebhookDeliveryService {
   async deliverWithRetry(
     webhook: Webhook,
     payload: WebhookPayload,
-    maxAttempts: number = 3
+    companyId: string | null,
+    maxAttemptsInput: number = 3
   ): Promise<void> {
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      const result = await this.deliverWebhook(webhook, payload, attempt);
+    // Normalise to a finite integer >= 1. A fractional value would skip the
+    // final-attempt check (dead_letter never written), and NaN or Infinity would
+    // either skip the loop or never end.
+    const maxAttempts = Number.isFinite(maxAttemptsInput)
+      ? Math.max(1, Math.floor(maxAttemptsInput))
+      : 3;
 
-      const logData: InsertWebhookLog = {
+    // One id per delivery. Every retry reuses it so a receiver can drop repeats.
+    const deliveryId = crypto.randomUUID();
+
+    // Ids of earlier rows this delivery wrote with 'retrying'. Once the delivery
+    // ends, each of them is moved to 'superseded' so none stays 'retrying'.
+    const retryingRowIds: number[] = [];
+    // Whether the row for the latest attempt was written. Earlier rows are only
+    // superseded when the terminal row exists, so a failed write does not hide history.
+    let latestAttemptLogged = false;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const result = await this.deliverWebhook(webhook, payload, attempt, deliveryId);
+
+      // delivery_status: 'delivered' on success, 'retrying' while attempts remain,
+      // 'dead_letter' on the final failed attempt (error carries the last failure).
+      // Earlier 'retrying' rows become 'superseded' once the delivery ends (see supersedeEarlierAttempts).
+      const deliveryStatus = result.success ? 'delivered' : attempt < maxAttempts ? 'retrying' : 'dead_letter';
+      const lastError = deliveryStatus === 'dead_letter'
+        ? (result.error || (result.httpStatus ? `HTTP ${result.httpStatus}` : null))
+        : (result.error || null);
+
+      // insertWebhookLogSchema omits companyId, so widen the type here.
+      const logData: WebhookLogInsertRow & { companyId: string | null } = {
         webhookId: webhook.id,
         event: payload.event,
         payload: payload as any,
@@ -162,10 +212,12 @@ export class WebhookDeliveryService {
         httpStatus: result.httpStatus || null,
         responseBody: result.responseBody || null,
         responseTime: result.responseTime || null,
-        error: result.error || null,
+        error: lastError,
         attemptNumber: attempt,
         maxAttempts,
         nextRetryAt: null,
+        deliveryStatus,
+        companyId,
       };
 
       if (!result.success && attempt < maxAttempts) {
@@ -174,11 +226,16 @@ export class WebhookDeliveryService {
         console.log(`⏳ [Webhook] Scheduling retry in ${delay / 1000}s`);
       }
 
+      latestAttemptLogged = false;
       try {
         // Check if webhook still exists before logging (might have been deleted)
         const webhookExists = await storage.getWebhook(webhook.id);
         if (webhookExists) {
-          await storage.createWebhookLog(logData);
+          const newLog = await storage.createWebhookLog(logData);
+          latestAttemptLogged = true;
+          if (deliveryStatus === 'retrying' && newLog?.id !== undefined) {
+            retryingRowIds.push(newLog.id);
+          }
         } else {
           console.log(`ℹ️ [Webhook] Skipping log - webhook ${webhook.id} was deleted`);
         }
@@ -193,6 +250,9 @@ export class WebhookDeliveryService {
 
       if (result.success) {
         console.log(`✅ [Webhook] Delivery successful on attempt ${attempt}`);
+        if (latestAttemptLogged) {
+          await this.supersedeEarlierAttempts(retryingRowIds);
+        }
         return;
       }
 
@@ -203,21 +263,50 @@ export class WebhookDeliveryService {
       }
     }
 
+    // The loop only reaches here when the final attempt failed and was written as dead_letter.
+    if (latestAttemptLogged) {
+      await this.supersedeEarlierAttempts(retryingRowIds);
+    }
     console.error(`❌ [Webhook] All ${maxAttempts} attempts failed for ${webhook.url}`);
   }
 
+  /**
+   * Moves earlier attempt rows of one delivery from 'retrying' to 'superseded'.
+   * The latest row carries the delivery's outcome (delivered or dead_letter), so
+   * only one row per delivery shows as dead-lettered. Each row keeps its own
+   * success flag and error, so the per-attempt history is still readable.
+   * A failed update is logged and does not change the delivery outcome.
+   */
+  private async supersedeEarlierAttempts(rowIds: number[]): Promise<void> {
+    for (const rowId of rowIds) {
+      try {
+        await storage.updateWebhookLog(rowId, { deliveryStatus: 'superseded', nextRetryAt: null });
+      } catch (err) {
+        console.error(`❌ [Webhook] Failed to supersede earlier attempt row ${rowId}:`, err);
+      }
+    }
+  }
+
   async triggerEvent(
+    companyId: string,
     userId: string,
     event: string,
     data: Record<string, any>,
     campaignId?: string | null
   ): Promise<void> {
+    // Fail closed: without a company there is no tenant to deliver for.
+    if (!companyId) {
+      console.error(`❌ [Webhook] Refused dispatch of ${event}: company context missing`);
+      return;
+    }
+
     console.log(`🔔 [Webhook] Triggering event: ${event}`);
     console.log(`   UserId: ${userId}, CampaignId: ${campaignId || 'N/A'}`);
 
     try {
-      const webhooks = await storage.getWebhooksForEvent(userId, event, campaignId || undefined);
-      
+      const webhooks = (await storage.getWebhooksForEvent(userId, event, campaignId || undefined))
+        .filter((webhook) => webhook.companyId === companyId);
+
       if (webhooks.length === 0) {
         console.log(`ℹ️ [Webhook] No webhooks configured for event: ${event}`);
         return;
@@ -232,7 +321,7 @@ export class WebhookDeliveryService {
       };
 
       const deliveryPromises = webhooks.map(webhook =>
-        this.deliverWithRetry(webhook, payload).catch(err => {
+        this.deliverWithRetry(webhook, payload, companyId).catch(err => {
           console.error(`❌ [Webhook] Error delivering to ${webhook.url}:`, err);
         })
       );
@@ -245,17 +334,21 @@ export class WebhookDeliveryService {
     }
   }
 
-  async testWebhook(webhookId: string, userId: string): Promise<{
+  async testWebhook(companyId: string, webhookId: string, userId: string): Promise<{
     success: boolean;
     statusCode: number;
     responseTime: number;
     responseBody: string;
     error?: string;
   }> {
+    if (!companyId) {
+      throw new Error('Company context required');
+    }
+
     const [webhook] = await db
       .select()
       .from(webhooks)
-      .where(and(eq(webhooks.id, webhookId), eq(webhooks.userId, userId)));
+      .where(and(eq(webhooks.id, webhookId), eq(webhooks.userId, userId), eq(webhooks.companyId, companyId)));
 
     if (!webhook) {
       throw new Error('Webhook not found');
@@ -283,24 +376,29 @@ export class WebhookDeliveryService {
     };
   }
 
-  async retryWebhook(logId: number, userId: string): Promise<{
+  async retryWebhook(companyId: string, logId: number, userId: string): Promise<{
     success: boolean;
     newLogId?: number;
     error?: string;
   }> {
+    if (!companyId) {
+      throw new Error('Company context required');
+    }
+
     const [log] = await db
       .select()
       .from(webhookLogs)
       .where(eq(webhookLogs.id, logId));
 
-    if (!log) {
+    // A log under another company is reported as not found, not as access denied.
+    if (!log || (log.companyId && log.companyId !== companyId)) {
       throw new Error('Webhook log not found');
     }
 
     const [webhook] = await db
       .select()
       .from(webhooks)
-      .where(and(eq(webhooks.id, log.webhookId!), eq(webhooks.userId, userId)));
+      .where(and(eq(webhooks.id, log.webhookId!), eq(webhooks.userId, userId), eq(webhooks.companyId, companyId)));
 
     if (!webhook) {
       throw new Error('Webhook not found or access denied');
@@ -314,9 +412,19 @@ export class WebhookDeliveryService {
       data: (log.payload as any)?.data || log.payload as any
     };
 
-    const result = await this.deliverWebhook(webhook, payload, 1);
+    const attempt = 1;
+    const maxAttempts = 1;
+    const result = await this.deliverWebhook(webhook, payload, attempt);
 
-    const logData: InsertWebhookLog = {
+    // Same status rule as deliverWithRetry. A manual retry is a single attempt,
+    // so a failure here is the final attempt and becomes a dead letter.
+    const deliveryStatus = result.success ? 'delivered' : attempt < maxAttempts ? 'retrying' : 'dead_letter';
+    const lastError = deliveryStatus === 'dead_letter'
+      ? (result.error || (result.httpStatus ? `HTTP ${result.httpStatus}` : null))
+      : (result.error || null);
+
+    // insertWebhookLogSchema omits companyId, so widen the type here.
+    const logData: WebhookLogInsertRow & { companyId: string | null } = {
       webhookId: webhook.id,
       event: log.event,
       payload: log.payload as any,
@@ -324,10 +432,14 @@ export class WebhookDeliveryService {
       httpStatus: result.httpStatus || null,
       responseBody: result.responseBody || null,
       responseTime: result.responseTime || null,
-      error: result.error || null,
-      attemptNumber: 1,
-      maxAttempts: 1,
+      error: lastError,
+      attemptNumber: attempt,
+      maxAttempts,
       nextRetryAt: null,
+      deliveryStatus,
+      // Keep the tenant the original delivery was logged under. Fall back to the
+      // subscription's company only for legacy logs that have no company_id.
+      companyId: log.companyId ?? webhook.companyId ?? null,
     };
 
     try {
@@ -345,6 +457,25 @@ export class WebhookDeliveryService {
       };
     }
   }
+}
+
+/**
+ * Returns outbound webhook log rows with delivery_status = 'dead_letter' for one company.
+ * webhook_logs carries company_id (schema column; populated by the company-scope migration).
+ */
+export async function listOutboundDeadLetters(companyId: string, limit = 100): Promise<WebhookLog[]> {
+  if (!companyId) {
+    throw new Error('listOutboundDeadLetters requires a companyId');
+  }
+  return db
+    .select()
+    .from(webhookLogs)
+    .where(and(
+      eq(webhookLogs.deliveryStatus, 'dead_letter'),
+      eq(webhookLogs.companyId, companyId),
+    ))
+    .orderBy(desc(webhookLogs.createdAt))
+    .limit(limit);
 }
 
 export const webhookDeliveryService = new WebhookDeliveryService();

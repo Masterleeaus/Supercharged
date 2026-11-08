@@ -8,7 +8,7 @@
  * All other admin routes should go in admin-routes.ts (main admin only)
  */
 import { Router, Response } from 'express';
-import { checkAdminOrTeamMember, AdminRequest } from '../middleware/admin-auth';
+import { checkAdminOrTeamMember, requireAdminPermission, AdminRequest } from '../middleware/admin-auth';
 import { storage } from '../storage';
 
 const router = Router();
@@ -16,7 +16,7 @@ const router = Router();
 // Apply checkAdminOrTeamMember only to specific routes, NOT globally via router.use
 // This prevents the middleware from running on unrelated /api/admin/* requests
 
-router.get('/analytics', checkAdminOrTeamMember, async (req: AdminRequest, res: Response) => {
+router.get('/analytics', checkAdminOrTeamMember, requireAdminPermission('settings', 'analytics_settings', 'read'), async (req: AdminRequest, res: Response) => {
   try {
     const { timeRange = '30d' } = req.query;
     const analytics = await storage.getGlobalAnalytics(timeRange as string);

@@ -1,0 +1,151 @@
+{
+  "wizard": {
+    "id": "new_customer_v1",
+    "version": "1.0.0",
+    "name": "New Customer",
+    "capability": "crm.customer.create",
+    "permissions": {
+      "required_roles": [
+        "customer",
+        "sales",
+        "support",
+        "admin",
+        "owner",
+        "manager"
+      ]
+    },
+    "metadata": {
+      "category": "customers",
+      "interfaces": [
+        "chat",
+        "mobile",
+        "tablet",
+        "desktop",
+        "voice"
+      ],
+      "surfaces": [
+        "hub",
+        "command"
+      ]
+    },
+    "offline": {
+      "enabled": true,
+      "sync_priority": "high",
+      "conflict_handling": "prompt_user"
+    },
+    "steps": [
+      {
+        "id": "customer_type",
+        "title": "Customer type",
+        "fields": [
+          {
+            "id": "customer_type",
+            "label": "Customer type",
+            "type": "select",
+            "required": true,
+            "options": [
+              "individual",
+              "business"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "contact_details",
+        "title": "Contact details",
+        "fields": [
+          {
+            "id": "display_name",
+            "label": "Customer or business name",
+            "type": "text",
+            "required": true,
+            "min": 2,
+            "max": 150
+          },
+          {
+            "id": "email",
+            "label": "Email",
+            "type": "email",
+            "required": true
+          },
+          {
+            "id": "phone",
+            "label": "Phone",
+            "type": "text",
+            "required": true,
+            "min": 8,
+            "max": 30
+          }
+        ]
+      },
+      {
+        "id": "service_address",
+        "title": "Service address",
+        "fields": [
+          {
+            "id": "street",
+            "label": "Street",
+            "type": "text",
+            "required": true
+          },
+          {
+            "id": "suburb",
+            "label": "Suburb",
+            "type": "text",
+            "required": true
+          },
+          {
+            "id": "state",
+            "label": "State",
+            "type": "text",
+            "required": true
+          },
+          {
+            "id": "postcode",
+            "label": "Postcode",
+            "type": "text",
+            "required": true,
+            "regex": "/^[0-9]{4}$/"
+          }
+        ]
+      },
+      {
+        "id": "preferences",
+        "title": "Preferences",
+        "fields": [
+          {
+            "id": "communication_preference",
+            "label": "Preferred contact",
+            "type": "select",
+            "required": true,
+            "options": [
+              "email",
+              "phone",
+              "sms"
+            ]
+          },
+          {
+            "id": "marketing_consent",
+            "label": "Marketing consent",
+            "type": "boolean",
+            "required": false
+          },
+          {
+            "id": "notes",
+            "label": "Notes",
+            "type": "text",
+            "required": false,
+            "max": 500
+          }
+        ]
+      }
+    ]
+  },
+  "_titan_provenance": {
+    "source_product": "Titan Interaction Engine",
+    "source_version": "10.12.0",
+    "source_path": "resources/wizards/new_customer.json",
+    "company_boundary": "company_id",
+    "copied_without_domain_authority": true
+  }
+}

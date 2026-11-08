@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "titan.worker.autonomy-snapshot.v1",
+  "type": "object",
+  "required": [
+    "company_id",
+    "decision_id",
+    "capability",
+    "effective_score",
+    "status",
+    "source",
+    "verified_at"
+  ],
+  "properties": {
+    "company_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "decision_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "capability": {
+      "type": "string",
+      "minLength": 1
+    },
+    "variant": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "workflow": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "context_ref": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "effective_score": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "status": {
+      "enum": [
+        "verified",
+        "suspended",
+        "revoked",
+        "expired"
+      ]
+    },
+    "source": {
+      "const": "titan-autonomy"
+    },
+    "verified_at": {
+      "type": "string"
+    },
+    "expires_at": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "trusted_auto_handshake": {
+      "type": "object"
+    },
+    "predictive_ready": {
+      "type": "boolean"
+    },
+    "delegation": {
+      "type": [
+        "object",
+        "null"
+      ]
+    }
+  },
+  "additionalProperties": true
+}

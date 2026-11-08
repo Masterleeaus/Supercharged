@@ -1,0 +1,7 @@
+{
+  "id": "S1",
+  "title": "Shared lesson referenced by two courses",
+  "status": "DRAFT",
+  "courseSlugs": [],
+  "instruction": [{ "heading": "Shared", "body": "Stored once, pinned to each referencing course." }]
+}

@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "titan://contracts/ConversationState/v1",
+  "title": "ConversationState",
+  "type": "object",
+  "required": [
+    "schema",
+    "company_id",
+    "surface",
+    "conversation_id",
+    "status",
+    "authority_neutral"
+  ],
+  "properties": {
+    "schema": {
+      "const": "titan.interaction.conversation-state.v1"
+    },
+    "company_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "surface": {
+      "enum": [
+        "zero",
+        "go",
+        "hub"
+      ]
+    },
+    "conversation_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "turn": {
+      "type": "number",
+      "minimum": 0
+    },
+    "status": {
+      "type": "string"
+    },
+    "last_intent": {},
+    "memory_refs": {
+      "type": "array"
+    },
+    "updated_at": {},
+    "authority_neutral": {
+      "const": true
+    }
+  }
+}

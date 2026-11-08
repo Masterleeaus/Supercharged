@@ -1,0 +1,5 @@
+{
+  "course": "alpha-folder",
+  "sharedLessonIds": ["S1", "S2"],
+  "note": "Fixture: lessons stored once under shared/ and referenced here."
+}

@@ -1,0 +1,80 @@
+{
+  "schema": "titan.zero.compat-decomposition.chunk-manifest.v1",
+  "packet_id": "TZ-FIX-COMPAT-RUNTIME-DECOMPOSITION-001",
+  "pass": 9,
+  "manager_base": {
+    "merge": 46,
+    "sha256": "2bef6fd90116796c76fa1ba7cb0e59841b0788c7657dc59077dd0a9ba440f949"
+  },
+  "protected_monoliths": [
+    {
+      "domain": "content",
+      "path": "titan-zero-chat-content.compat.js",
+      "sha256": "7823c16665d37581e460b70d3e888db7d45786b6a5c5ca868214d5b3088ff441",
+      "bytes": 28593247,
+      "semantic_equivalence_partial": true,
+      "zero_live_reachability": false,
+      "live_reachability": "manifest.content_scripts + chatTab.html",
+      "retirement": "BLOCKED_RETAIN"
+    },
+    {
+      "domain": "background",
+      "path": "titan-zero-chat-background.compat.js",
+      "sha256": "ebbd0843eb12d0413af6aa13603be2b365aa702304df2f74b87e4951a3f9a805",
+      "bytes": 11561297,
+      "semantic_equivalence_partial": true,
+      "zero_live_reachability": false,
+      "live_reachability": "compatibility/monica/background-runtime-boundary.mjs",
+      "retirement": "BLOCKED_RETAIN"
+    },
+    {
+      "domain": "runtime",
+      "path": "titan-zero-chat-runtime.compat.js",
+      "sha256": "195e1860346583b62c518881837d72b90aa51bb12f177ee8994e76b026cd7533",
+      "bytes": 7778613,
+      "semantic_equivalence_partial": true,
+      "zero_live_reachability": false,
+      "live_reachability": "monicaPopup.html",
+      "retirement": "BLOCKED_RETAIN"
+    }
+  ],
+  "chunks": [
+    {
+      "feature": "translation",
+      "path": "titan-runtime/compat-decomposition/chunks/translation.mjs",
+      "sha256": "45d49ad6b3133719190f1aae21985c73a64cd6a08d52d13889041c12202dcc5d",
+      "bytes": 731,
+      "startup_required": false
+    },
+    {
+      "feature": "documentEvidence",
+      "path": "titan-runtime/compat-decomposition/chunks/document-evidence.mjs",
+      "sha256": "91993358012c94d71415aedf28450e29db546e13fc507171c69b68f2f84c9ede",
+      "bytes": 604,
+      "startup_required": false
+    },
+    {
+      "feature": "browserSession",
+      "path": "titan-runtime/compat-decomposition/chunks/browser-session.mjs",
+      "sha256": "22754ec06d6f7593f53e2859f4e493301842bfaac5f677d33fe9fd4b1ffe6d6b",
+      "bytes": 740,
+      "startup_required": false
+    },
+    {
+      "feature": "typedAdapter",
+      "path": "titan-runtime/compat-decomposition/chunks/typed-adapter.mjs",
+      "sha256": "d3194f518c69f82f11b738bad0eb87568818720ab625fbf857976db50d9a323e",
+      "bytes": 874,
+      "startup_required": false
+    },
+    {
+      "feature": "bootstrap",
+      "path": "titan-runtime/compat-decomposition/compat-bootstrap.mjs",
+      "sha256": "34bfb3b2b7bea95f045517f988b642f14cb19d5ed01e54bb04e1cdbf12528adf",
+      "bytes": 3164,
+      "startup_required": true
+    }
+  ],
+  "retirement_policy": "Retire only when semantic equivalence is proven AND zero live reachability is proven.",
+  "protected_hash_migration": "Hashes are mirrored here for semantic/chunk convergence; original protected runtime evidence remains authoritative while files are live."
+}

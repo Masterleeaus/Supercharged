@@ -1,0 +1,5 @@
+{
+  "course": "beta-folder",
+  "sharedLessonIds": ["S1", "MISSING-1"],
+  "note": "Fixture: S1 is referenced by a second course. MISSING-1 has no lesson file."
+}

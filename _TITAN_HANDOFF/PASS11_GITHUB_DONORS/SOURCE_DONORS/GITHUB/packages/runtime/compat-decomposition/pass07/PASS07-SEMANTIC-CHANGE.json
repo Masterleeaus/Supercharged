@@ -1,0 +1,12 @@
+{
+  "schema": "titan-zero-semantic-change/v1",
+  "packet_id": "TZ-FIX-COMPAT-RUNTIME-DECOMPOSITION-001",
+  "pass": 7,
+  "changes": [
+    "typed adapter negotiation/recovery is now an optional company-scoped compat feature loaded on first use",
+    "canonical adapter negotiation and session recovery are reused instead of reauthored",
+    "Retriever/background donor execution remains unchanged and eagerly available through its existing boundary"
+  ],
+  "authority_effect": false,
+  "company_boundary": "company_id"
+}

@@ -1,0 +1,13 @@
+{
+  "schema": "titan-zero-collision-record/v1",
+  "packet_id": "TZ-FIX-COMPAT-RUNTIME-DECOMPOSITION-001",
+  "pass": 1,
+  "exclusive_hotspots_modified": [],
+  "shared_hotspots_modified": [],
+  "new_paths_only": [
+    "titan-runtime/performance/compat-decomposition/pass01/**",
+    "tests/compat_runtime_decomposition_pass01.test.mjs"
+  ],
+  "collision_status": "CLEAN_ADDITIVE",
+  "existing_path_collisions": []
+}

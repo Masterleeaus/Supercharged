@@ -1,0 +1,2993 @@
+import {
+  getCurrentContextStore,
+  runWithTopContext,
+  getNextWFID,
+  StepStatus,
+  DBOSContextOptions,
+  functionIDGetIncrement,
+  functionIDGet,
+  childWorkflowID,
+  nextWorkflowShardKey,
+  DBOSLocalCtx,
+  isInWorkflowCtx,
+} from './context';
+import {
+  DBOSConfig,
+  DBOSExecutor,
+  InternalWorkflowParams,
+  DBOS_QUEUE_MIN_PRIORITY,
+  DBOS_QUEUE_MAX_PRIORITY,
+} from './dbos-executor';
+import { DBOSSpan, getActiveSpan, installTraceContextManager, isTraceContextWorking, Tracer } from './telemetry/traces';
+import {
+  GetWorkflowsInput,
+  InternalWFHandle,
+  RetrievedHandle,
+  StepInfo,
+  ListWorkflowStepsOptions,
+  WorkflowConfig,
+  WorkflowHandle,
+  WorkflowParams,
+  WorkflowIDReusePolicy,
+  WorkflowSerializationFormat,
+  WorkflowStatus,
+  validateWorkflowAttributes,
+} from './workflow';
+import { DLogger, GlobalLogger } from './telemetry/logs';
+import {
+  DBOSError,
+  DBOSExecutorNotInitializedError,
+  DBOSInvalidWorkflowTransitionError,
+  DBOSNotRegisteredError,
+  DBOSAwaitedWorkflowCancelledError,
+  DBOSConflictingRegistrationError,
+  DBOSAwaitedWorkflowExceededMaxRecoveryAttempts,
+  DBOSUnexpectedStepError,
+  DBOSInvalidQueuePriorityError,
+  DBOSQueueDuplicatedError,
+  DBOSInitializationError,
+} from './error';
+import { overwriteConfigForDBOSCloud, translateDbosConfig } from './config';
+import {
+  AlertHandler,
+  associateClassWithExternal,
+  associateMethodWithExternal,
+  ExternalRegistration,
+  getAlertHandler,
+  getLifecycleListeners,
+  getRegisteredOperations,
+  getFunctionRegistration,
+  getRegistrationsForExternal,
+  MethodRegistration,
+  recordDBOSLaunch,
+  recordDBOSShutdown,
+  registerFunctionWrapper,
+  registerLifecycleCallback,
+  setAlertHandler,
+  transactionalDataSources,
+  MethodRegistrationBase,
+  TypedAsyncFunction,
+  UntypedAsyncFunction,
+  FunctionName,
+  wrapDBOSFunctionAndRegisterByUniqueName,
+  wrapDBOSFunctionAndRegisterByTarget,
+  wrapDBOSFunctionAndRegister,
+  ensureDBOSIsLaunched,
+  ConfiguredInstance,
+  DBOSLifecycleCallback,
+  finalizeClassRegistrations,
+  getClassRegistration,
+  clearAllRegistrations,
+  getRegisteredFunctionFullName,
+} from './decorators';
+import { globalParams, INTERNAL_QUEUE_NAME, sleepConfig, sleepms } from './utils';
+import {
+  DBOSJSON,
+  deserializeValue,
+  JSONValue,
+  registerSerializationRecipe,
+  SerializationRecipe,
+  serializeValue,
+} from './serialization';
+import { randomUUID } from 'node:crypto';
+
+import { StepConfig, validateStepConfig } from './step';
+import * as enterprise from './enterprise';
+import {
+  AutoUpgradeLoop,
+  autoUpgradableWorkflows,
+  DEFAULT_AUTO_UPGRADE_GRACE_MS,
+  DEFAULT_AUTO_UPGRADE_INTERVAL_MS,
+} from './auto_upgrade';
+import {
+  DuplicationPolicy,
+  EnqueueOptions,
+  DBOS_FUNCNAME_WRITESTREAM,
+  DBOS_FUNCNAME_READSTREAM,
+  DBOS_FUNCNAME_READSTREAMOFFSET,
+  WorkflowScheduleInternal,
+  WorkflowScheduleUpdate,
+  VersionInfo,
+  migrateSystemDatabase,
+  createSystemDatabase,
+  grantDbosSchemaPermissions,
+} from './system_database';
+import { readStreamCore, readStreamOffsetCore } from './streams';
+import { PoolClient } from 'pg';
+import {
+  WorkflowSchedule,
+  ScheduledWorkflowFn,
+  ScheduleOptions,
+  toWorkflowSchedule,
+  createScheduleId,
+  triggerSchedule as triggerScheduleImpl,
+  backfillSchedule as backfillScheduleImpl,
+  scheduleShardKey,
+} from './scheduler/scheduler';
+import { validateCrontab, validateTimezone } from './scheduler/crontab';
+import { logQueue, registerInternalQueue, RegisterQueueOptions, WorkflowQueue, wfQueueRunner } from './wfqueue';
+import { enqueueWorkflowWithOptions } from './enqueue_workflow';
+import type { EnqueueWorkflowOptions } from './enqueue_options';
+import assert from 'node:assert';
+import { bindShardKeys } from './shard_keys';
+
+type AnyConstructor = new (...args: unknown[]) => object;
+
+// Declare all the options a user can pass to the DBOS object during launch()
+export interface DBOSLaunchOptions {
+  // For DBOS Conductor, which requires the @dbos-inc/dbos-enterprise package
+  conductorURL?: string;
+  conductorKey?: string;
+  conductorExecutorMetadata?: Record<string, unknown>;
+  // Never send workflow data (inputs, outputs, errors, events, messages, streams, schedule context) to Conductor
+  conductorMetadataOnlyMode?: boolean;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type PossiblyWFFunc = (...args: any[]) => Promise<unknown>;
+type InvokeFunctionsAsync<T> =
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
+  T extends Function
+    ? {
+        [P in keyof T]: T[P] extends PossiblyWFFunc
+          ? (...args: Parameters<T[P]>) => Promise<WorkflowHandle<Awaited<ReturnType<T[P]>>>>
+          : never;
+      }
+    : never;
+
+type InvokeFunctionsAsyncInst<T> = T extends ConfiguredInstance
+  ? {
+      [P in keyof T]: T[P] extends PossiblyWFFunc
+        ? (...args: Parameters<T[P]>) => Promise<WorkflowHandle<Awaited<ReturnType<T[P]>>>>
+        : never;
+    }
+  : never;
+
+export interface StartWorkflowParams {
+  workflowID?: string;
+  queueName?: string;
+  timeoutMS?: number | null;
+  enqueueOptions?: EnqueueOptions;
+  /** The authenticated user recorded on the workflow. Defaults to the caller's ambient authenticated user, if any. */
+  authenticatedUser?: string;
+  /** The authenticated roles recorded on the workflow. Defaults to the caller's ambient authenticated roles, if any. */
+  authenticatedRoles?: string[];
+  // How to handle a collision with another workflow that has the same
+  // `enqueueOptions.deduplicationID` on the same queue, in any partition.
+  //   'reject' (default): throw `DBOSQueueDuplicatedError`.
+  //   'return-existing': return a handle to the existing workflow instead of throwing.
+  //     Requires `queueName` and `enqueueOptions.deduplicationID`. Arguments passed by the
+  //     colliding caller are discarded and the handle resolves with the original workflow's result.
+  duplicationPolicy?: DuplicationPolicy;
+  // How to handle an ID already in use, whatever its status. Defaults to 'return-existing'; match a rejection with `isWorkflowIDInUseError`.
+  workflowIDReusePolicy?: WorkflowIDReusePolicy;
+  // Custom key-value attributes to attach to the workflow at creation. Recorded in the
+  // workflow status and searchable via the `attributes` filter of `DBOS.listWorkflows`.
+  // Not inherited by child workflows.
+  workflowAttributes?: Record<string, unknown>;
+}
+
+/**
+ * Options for `DBOS.send`
+ */
+export interface SendOptions {
+  /** Serialization format override, allows cross-language send/recv */
+  serializationType?: WorkflowSerializationFormat;
+  /** The destination's shard key; required on a sharded system database. */
+  shardKey?: string;
+}
+
+/** Options naming the shard key of the workflow an operation addresses. */
+export interface ShardKeyOptions {
+  /** The workflow's shard key; required on a sharded system database. */
+  shardKey?: string;
+}
+
+/**
+ * Options for `DBOS.writeStream`
+ */
+export interface WriteStreamOptions {
+  /** Serialization format override, allows cross-language writeStream / readStream */
+  serializationType?: WorkflowSerializationFormat;
+}
+
+/**
+ * Options for `DBOS.readStream` and client `readStream`
+ */
+export interface ReadStreamOptions extends PollingOptions {
+  /** Offset to start reading from (defaults to 0, the start of the stream) */
+  offset?: number;
+  /**
+   * How long to wait for each value before throwing `DBOSStreamTimeoutError`, in seconds.
+   * The clock restarts every time a value is delivered. Defaults to waiting indefinitely.
+   *
+   * A replayed error is revived as a plain `Error`, so match it with `isStreamTimeoutError`,
+   * not `instanceof`.
+   */
+  timeoutSeconds?: number;
+  /** The shard key of the workflow whose stream is read; required on a sharded system database. */
+  shardKey?: string;
+}
+
+/**
+ * Options for `DBOS.readStreamOffset`, which takes its offset as an argument.
+ */
+export type ReadStreamOffsetOptions = Omit<ReadStreamOptions, 'offset'>;
+
+/**
+ * Options for DBOS operations that poll the system database while waiting.
+ */
+export interface PollingOptions {
+  /**
+   * Milliseconds to wait between system database polls. Must be positive and finite.
+   *
+   * This affects DB-backed polling waits. Live in-process workflow handles that await
+   * an already-running promise do not poll.
+   */
+  pollingIntervalMs?: number;
+}
+
+/**
+ * Options for `DBOS.getResult` and workflow handle `getResult`.
+ */
+export interface GetResultOptions extends PollingOptions, ShardKeyOptions {
+  /** Timeout in seconds; if the workflow does not complete before the timeout, `null` will be returned */
+  timeoutSeconds?: number;
+  /** Absolute deadline as a UNIX epoch timestamp in milliseconds; if the workflow does not complete before this time, `null` will be returned */
+  deadlineEpochMS?: number;
+}
+
+/**
+ * Options for `DBOS.waitFirst`.
+ */
+export type WaitFirstOptions = PollingOptions;
+
+/**
+ * Options for `DBOS.waitAll`.
+ */
+export type WaitAllOptions = PollingOptions;
+
+/**
+ * Options for `DBOS.recv`
+ */
+export interface RecvOptions extends PollingOptions {
+  /** Timeout in seconds; if no message is received before the timeout (default 60 seconds), `null` will be returned */
+  timeoutSeconds?: number;
+  /** Absolute deadline as a UNIX epoch timestamp in milliseconds; if no message is received before this time, `null` will be returned */
+  deadlineEpochMS?: number;
+  /**
+   * If true (requires suspend mode, a Transact Enterprise feature), a recv that has to wait parks the
+   * workflow in the database and exits its execution instead of holding it in memory; a send on the
+   * topic or the timeout re-enqueues it, and the replayed recv returns the message.
+   */
+  suspend?: boolean;
+}
+
+/**
+ * Options for `DBOS.sleep`
+ */
+export interface SleepOptions {
+  /**
+   * If true (requires suspend mode, a Transact Enterprise feature), the sleep parks the workflow in the
+   * database and exits its execution instead of holding it in memory; once the duration has passed the
+   * workflow is re-enqueued and the replayed sleep returns at once. A sleep of at most a second stays in place.
+   */
+  suspend?: boolean;
+}
+
+/**
+ * Options for `DBOS.getEvent`
+ */
+export interface GetEventOptions extends PollingOptions, ShardKeyOptions {
+  /** Timeout in seconds; if no event is received before the timeout (default 60 seconds), `null` will be returned */
+  timeoutSeconds?: number;
+  /** Absolute deadline as a UNIX epoch timestamp in milliseconds; if no event is received before this time, `null` will be returned */
+  deadlineEpochMS?: number;
+}
+
+/**
+ * Options for `DBOS.setWorkflowDelay`
+ */
+export interface SetWorkflowDelayOptions extends ShardKeyOptions {
+  /** Number of seconds to delay the workflow from now */
+  delaySeconds?: number;
+  /** Absolute deadline as a UNIX epoch timestamp in milliseconds; the workflow will remain DELAYED until this time */
+  delayUntilEpochMS?: number;
+}
+
+/**
+ * Options for `DBOS.cancelWorkflow` and `DBOS.cancelWorkflows`
+ */
+export interface CancelWorkflowsOptions extends ShardKeyOptions {
+  /** If true, also cancel all descendant (child) workflows recursively (default: false) */
+  cancelChildren?: boolean;
+}
+
+/**
+ * Options for `DBOS.setEvent`
+ */
+export interface SetEventOptions {
+  /**
+   * Serialization format override, allows event to be read by
+   *   workflows or clients written in other languages
+   */
+  serializationType?: WorkflowSerializationFormat;
+}
+
+export function resolveTimeoutSeconds(
+  options?: number | RecvOptions | GetEventOptions | GetResultOptions,
+): number | undefined {
+  if (options === undefined) return undefined;
+  if (typeof options === 'number') return options;
+  if (options.deadlineEpochMS !== undefined) {
+    return Math.max(0, (options.deadlineEpochMS - Date.now()) / 1000);
+  }
+  return options.timeoutSeconds;
+}
+
+/** The suspend-mode operations, or a refusal naming `operation` when suspend mode is off. */
+function requireSuspendMode(operation: 'recv' | 'sleep'): enterprise.Suspend {
+  const suspend = DBOSExecutor.globalInstance!.systemDatabase.suspend;
+  if (suspend === undefined) {
+    throw new DBOSError(
+      `${operation} with suspend: true requires suspend mode, a Transact Enterprise feature: ` +
+        'set suspendMode to true in the DBOS configuration.',
+    );
+  }
+  return suspend;
+}
+
+export function resolvePollingIntervalMs(options?: number | PollingOptions): number | undefined {
+  if (options === undefined || typeof options === 'number') return undefined;
+  const interval = options.pollingIntervalMs;
+  if (interval === undefined) return undefined;
+  if (!Number.isFinite(interval) || interval <= 0) {
+    throw new DBOSError('pollingIntervalMs must be a positive finite number');
+  }
+  return interval;
+}
+
+export function resolveStreamOffset(options: ReadStreamOptions): number {
+  const offset = options.offset ?? 0;
+  if (!Number.isInteger(offset) || offset < 0) {
+    throw new DBOSError('offset must be a non-negative integer');
+  }
+  return offset;
+}
+
+/** A stream read waits this long at minimum between polls; anything less would spin on the database. */
+const MIN_STREAM_POLLING_INTERVAL_MS = 1;
+
+export function resolveStreamPollingIntervalMs(options: ReadStreamOptions): number | undefined {
+  const interval = resolvePollingIntervalMs(options);
+  if (interval !== undefined && interval < MIN_STREAM_POLLING_INTERVAL_MS) {
+    throw new DBOSError(`pollingIntervalMs must be at least ${MIN_STREAM_POLLING_INTERVAL_MS} millisecond`);
+  }
+  return interval;
+}
+
+export function resolveStreamTimeoutMS(options: ReadStreamOptions): number | undefined {
+  const timeoutSeconds = options.timeoutSeconds;
+  if (timeoutSeconds === undefined) return undefined;
+  if (!Number.isFinite(timeoutSeconds) || timeoutSeconds < 0) {
+    throw new DBOSError('timeoutSeconds must not be negative');
+  }
+  return timeoutSeconds * 1000;
+}
+
+export function resolveDelayEpochMS(options: number | SetWorkflowDelayOptions): number {
+  if (typeof options === 'number') {
+    if (options <= 0) throw new DBOSError('delaySeconds must be greater than 0');
+    return Date.now() + options * 1000;
+  }
+  if (options.delayUntilEpochMS !== undefined) {
+    if (options.delayUntilEpochMS <= 0) throw new DBOSError('delayUntilEpochMS must be greater than 0');
+    return options.delayUntilEpochMS;
+  }
+  if (options.delaySeconds !== undefined) {
+    if (options.delaySeconds <= 0) throw new DBOSError('delaySeconds must be greater than 0');
+    return Date.now() + options.delaySeconds * 1000;
+  }
+  throw new DBOSError('SetWorkflowDelayOptions must specify either delaySeconds or delayUntilEpochMS');
+}
+
+export function getExecutor() {
+  if (!DBOSExecutor.globalInstance) {
+    throw new DBOSExecutorNotInitializedError();
+  }
+  return DBOSExecutor.globalInstance;
+}
+
+export function runInternalStep<T>(
+  callback: () => Promise<T>,
+  funcName: string,
+  childWFID?: string,
+  assignedFuncID?: number,
+): Promise<T> {
+  if (DBOS.isWithinWorkflow()) {
+    if (DBOS.isInStep()) {
+      // OK to use directly
+      return callback();
+    } else if (DBOS.isInWorkflow()) {
+      return DBOSExecutor.globalInstance!.runInternalStep<T>(
+        callback,
+        funcName,
+        DBOS.workflowID!,
+        assignedFuncID ?? functionIDGetIncrement(),
+        childWFID,
+      );
+    } else {
+      throw new DBOSInvalidWorkflowTransitionError(`Invalid call to \`${funcName}\` inside a \`transaction\``);
+    }
+  }
+  return callback();
+}
+
+export async function getResultInternal<T>(
+  workflowID: string,
+  timeoutSeconds?: number,
+  timerFuncID?: number,
+  assignedFuncID?: number,
+  pollingIntervalMs?: number,
+): Promise<T | null> {
+  return await runInternalStep(
+    () => awaitRecordedResult<T>(workflowID, timeoutSeconds, timerFuncID, pollingIntervalMs),
+    'DBOS.getResult',
+    workflowID,
+    assignedFuncID,
+  );
+}
+
+/** Poll for the outcome recorded for `workflowID`, or null on timeout; the body of a `DBOS.getResult` step. */
+export async function awaitRecordedResult<T>(
+  workflowID: string,
+  timeoutSeconds?: number,
+  timerFuncID?: number,
+  pollingIntervalMs?: number,
+): Promise<T | null> {
+  const rres = await DBOSExecutor.globalInstance!.systemDatabase.awaitWorkflowResult(
+    workflowID,
+    timeoutSeconds,
+    DBOS.workflowID,
+    timerFuncID,
+    pollingIntervalMs,
+  );
+  if (!rres) return null;
+  if (rres?.cancelled) {
+    throw new DBOSAwaitedWorkflowCancelledError(workflowID);
+  }
+  if (rres?.maxRecoveryAttemptsExceeded) {
+    throw new DBOSAwaitedWorkflowExceededMaxRecoveryAttempts(workflowID);
+  }
+  return await DBOSExecutor.reviveResultOrError<T>(rres, getExecutor().serializer);
+}
+
+/**
+ * Like runInternalStep, but when called from within a workflow, the callback and the step
+ * result recording run in the same database transaction (via runTransactionalStep).
+ * The callback receives a PoolClient that should be passed to any SystemDatabase
+ * methods so they participate in the same transaction.
+ * Outside a workflow, the callback is called directly with `undefined` as the client.
+ */
+export async function runTransactionalInternalStep<T>(
+  callback: (client: PoolClient | undefined) => Promise<T>,
+  funcName: string,
+): Promise<T> {
+  if (DBOS.isWithinWorkflow()) {
+    if (DBOS.isInStep()) {
+      return callback(undefined);
+    } else if (DBOS.isInWorkflow()) {
+      const executor = DBOSExecutor.globalInstance!;
+      // Reserve the function ID synchronously, before any await.
+      const functionID = functionIDGetIncrement();
+      let freshResult: T;
+
+      const stored = await executor.systemDatabase.runTransactionalStep(
+        DBOS.workflowID!,
+        functionID,
+        funcName,
+        async (client) => {
+          freshResult = await callback(client);
+          return await executor.serializer.stringify(freshResult !== undefined ? freshResult : null);
+        },
+      );
+
+      if (stored !== undefined) {
+        if (stored.functionName !== funcName) {
+          throw new DBOSUnexpectedStepError(DBOS.workflowID!, functionID, funcName, stored.functionName!);
+        }
+        return await DBOSExecutor.reviveResultOrError<T>(stored, executor.serializer);
+      }
+      return freshResult!;
+    } else {
+      throw new DBOSInvalidWorkflowTransitionError(`Invalid call to \`${funcName}\` inside a \`transaction\``);
+    }
+  }
+  return callback(undefined);
+}
+
+/**
+ * A step ID drawn by `DBOS.reserveStep`, run exactly once later with `run`.
+ * It must run in the workflow that reserved it; a reservation that never runs leaves a gap in the step IDs.
+ */
+export class StepReservation {
+  #used = false;
+
+  constructor(
+    /** The reserved step ID */
+    readonly stepID: number,
+    private readonly ctx: DBOSLocalCtx,
+  ) {}
+
+  /**
+   * Run `func` as a checkpointed step at the reserved step ID
+   * @param func - The function to run as a step
+   * @param config - Configuration information for the step, particularly the retry policy and name
+   * @returns - result (either obtained from invoking function, or retrieved if run before)
+   */
+  async run<Return>(func: () => Promise<Return>, config: StepConfig & { name?: string } = {}): Promise<Return> {
+    ensureDBOSIsLaunched('steps');
+    if (this.#used) {
+      throw new DBOSInvalidWorkflowTransitionError('A step reservation can only be run once');
+    }
+    const ctx = getCurrentContextStore();
+    if (
+      ctx === undefined ||
+      !isInWorkflowCtx(ctx) ||
+      ctx.workflowId !== this.ctx.workflowId ||
+      ctx.ownerXid !== this.ctx.ownerXid
+    ) {
+      throw new DBOSInvalidWorkflowTransitionError(
+        `Step ${this.stepID} was reserved in workflow ${this.ctx.workflowId} and must be run from that workflow, outside any step or transaction`,
+      );
+    }
+    const name = config.name ?? func.name;
+    validateStepConfig(config, name);
+    // Claimed before any await, so a concurrent second run is rejected.
+    this.#used = true;
+    return await DBOSExecutor.globalInstance!.callStepFunctionAt<[], Return>(
+      this.stepID,
+      this.ctx,
+      func as unknown as TypedAsyncFunction<[], Return>,
+      name,
+      config,
+      null,
+    );
+  }
+}
+
+export class DBOS {
+  ///////
+  // Lifecycle
+  ///////
+  // Blocks launch/shutdown overlap: `initialized` goes false before the drain, so it cannot do this job.
+  static #shuttingDown: boolean = false;
+
+  /**
+   * Set configuration of `DBOS` prior to `launch`
+   * @param config - configuration of services needed by DBOS
+   */
+  static setConfig(config: DBOSConfig) {
+    assert(!DBOS.isInitialized(), 'Cannot call DBOS.setConfig after DBOS.launch');
+    DBOS.#dbosConfig = config;
+  }
+
+  /**
+   * Check if DBOS has been `launch`ed (and not `shutdown`)
+   * @returns `true` if DBOS has been launched, or `false` otherwise
+   */
+  static isInitialized(): boolean {
+    return !!DBOSExecutor.globalInstance?.initialized;
+  }
+
+  /**
+   * Create or migrate the DBOS system database, typically with a privileged role, without launching DBOS.
+   * Pair it with `runMigrations: false` for application processes whose role cannot run DDL.
+   * @param systemDatabaseUrl - The system database to create or migrate
+   * @param options.schemaName - The schema holding the DBOS system tables (default: `dbos`)
+   * @param options.applicationRole - A role to grant access to the system schema once migrated
+   * @param options.sharding - Create or migrate a sharded system database (requires @dbos-inc/dbos-enterprise)
+   */
+  static async migrate(
+    systemDatabaseUrl: string,
+    options: { schemaName?: string; applicationRole?: string; sharding?: boolean } = {},
+  ): Promise<void> {
+    if (options.sharding) {
+      // Sharded migrations come from Transact Enterprise; the grant is the same.
+      const sysdb = createSystemDatabase({
+        systemDatabaseUrl,
+        logger: new GlobalLogger(),
+        serializer: DBOSJSON,
+        schemaName: options.schemaName ?? 'dbos',
+        sharding: true,
+      });
+      try {
+        await sysdb.runMigrations();
+      } finally {
+        await sysdb.destroy();
+      }
+      if (options.applicationRole) {
+        await grantDbosSchemaPermissions(
+          systemDatabaseUrl,
+          options.applicationRole,
+          new GlobalLogger(),
+          options.schemaName ?? 'dbos',
+        );
+      }
+      return;
+    }
+    await migrateSystemDatabase(
+      systemDatabaseUrl,
+      new GlobalLogger(),
+      options.schemaName ?? 'dbos',
+      options.applicationRole,
+    );
+  }
+
+  /**
+   * Launch DBOS, starting recovery and request handling
+   * @param options - Launch options for connecting to DBOS Conductor
+   */
+  static async launch(options?: DBOSLaunchOptions): Promise<void> {
+    if (DBOS.#shuttingDown) {
+      throw new DBOSError('Cannot call DBOS.launch while DBOS.shutdown is in progress.');
+    }
+
+    const config = globalParams.dbosCloud ? overwriteConfigForDBOSCloud(DBOS.#dbosConfig ?? {}) : DBOS.#dbosConfig;
+    if (!config) {
+      throw new DBOSInitializationError('No DBOS configuration was provided: call DBOS.setConfig before DBOS.launch.');
+    }
+    if (!config.name) {
+      throw new DBOSInitializationError('No application name was provided: set `name` in DBOS.setConfig.');
+    }
+    const internalConfig = translateDbosConfig(config);
+
+    globalParams.enableOTLP = DBOS.#dbosConfig?.enableOTLP ?? globalParams.dbosCloud;
+    globalParams.tracingEnabled = DBOS.#dbosConfig?.tracingEnabled || globalParams.enableOTLP;
+
+    if (!isTraceContextWorking()) installTraceContextManager(internalConfig.name);
+
+    // Do nothing if DBOS is already initialized
+    if (DBOS.isInitialized()) {
+      return;
+    }
+
+    finalizeClassRegistrations();
+
+    // Every enterprise feature requires Conductor to report the org entitled to it, and the package.
+    let features = enterprise.enabledFeatures(config);
+    if (internalConfig.sharding) {
+      // Auto-upgrade is disabled on a sharded system database, so it needs no entitlement.
+      features = features.filter((f) => f !== enterprise.AUTO_UPGRADE);
+    }
+    const entitlementOptions = {
+      enterpriseKey: config.transactEnterpriseKey,
+      conductorKey: options?.conductorKey,
+      conductorURL: options?.conductorURL,
+    };
+    await enterprise.requireEnterprise(features, entitlementOptions);
+    // DBOS Cloud always uses Conductor.
+    let loadedEnterprise =
+      options?.conductorKey || globalParams.dbosCloud
+        ? enterprise.load()
+        : features.length > 0
+          ? enterprise.load(features[0].description)
+          : undefined;
+    // Workflows can also enroll for auto-upgrade individually, which the config flag's check above does not cover.
+    const autoUpgradableWorkflowNames = autoUpgradableWorkflows(internalConfig.autoUpgrade);
+    if (autoUpgradableWorkflowNames.length > 0 && !internalConfig.autoUpgrade && !internalConfig.sharding) {
+      await enterprise.requireEnterprise([enterprise.AUTO_UPGRADE], entitlementOptions);
+      loadedEnterprise ??= enterprise.load(enterprise.AUTO_UPGRADE.description);
+    }
+
+    // Globally set the application name, version and executor ID.
+    // Only launch may change these: work outliving a shutdown still checkpoints under this identity.
+    globalParams.appName = internalConfig.name;
+    globalParams.appVersion = process.env.DBOS__APPVERSION || '';
+    globalParams.executorID = process.env.DBOS__VMID || 'local';
+    // In DBOS Cloud, instead use the value supplied through environment variables.
+    if (!globalParams.dbosCloud) {
+      if (DBOS.#dbosConfig?.applicationVersion) {
+        globalParams.appVersion = DBOS.#dbosConfig.applicationVersion;
+      } else if (DBOS.#dbosConfig?.enablePatching) {
+        globalParams.appVersion = 'PATCHING_ENABLED';
+      }
+      if (DBOS.#dbosConfig?.executorID) {
+        globalParams.executorID = DBOS.#dbosConfig.executorID;
+      }
+    }
+    if (options?.conductorKey && !globalParams.dbosCloud) {
+      // Always use a generated executor ID in Conductor.
+      globalParams.executorID = randomUUID();
+    }
+
+    registerInternalQueue(INTERNAL_QUEUE_NAME);
+    DBOSExecutor.globalInstance = new DBOSExecutor(internalConfig);
+
+    recordDBOSLaunch();
+
+    const executor: DBOSExecutor = DBOSExecutor.globalInstance;
+
+    if (DBOS.#dbosConfig?.enablePatching) {
+      executor.logger.warn(
+        'enablePatching is deprecated and will be removed in a future release. ' +
+          'DBOS.patch and DBOS.deprecatePatch no longer require it. ' +
+          'To keep every deployment on one application version, as the flag does, set applicationVersion explicitly.',
+      );
+    }
+
+    // Initialize data sources before executor.init() dispatches recovery, so recovered
+    // workflows can run their transactions immediately instead of racing initialization.
+    for (const [_n, ds] of transactionalDataSources) {
+      await ds.initialize();
+    }
+
+    const conductorMetadataOnlyMode = options?.conductorMetadataOnlyMode === true;
+    if (globalParams.dbosCloud) {
+      const cloudAppName = process.env.DBOS__CONDUCTOR_APP_NAME;
+      const cloudConductorKey = process.env.DBOS__CONDUCTOR_KEY;
+      const cloudConductorURL = process.env.DBOS__CONDUCTOR_URL;
+      if (loadedEnterprise && cloudAppName && cloudConductorKey && cloudConductorURL) {
+        DBOS.logger.debug('Starting Conductor connection (DBOS Cloud)');
+        executor.conductor = new loadedEnterprise.ConductorWebsocket(executor, {
+          appName: cloudAppName,
+          conductorKey: cloudConductorKey,
+          conductorURL: cloudConductorURL,
+          metadataOnlyMode: conductorMetadataOnlyMode,
+        });
+      }
+    } else if (loadedEnterprise && options?.conductorKey) {
+      if (!options.conductorURL) {
+        const dbosDomain = process.env.DBOS_DOMAIN || 'cloud.dbos.dev';
+        options.conductorURL = `wss://${dbosDomain}/conductor/v1alpha1`;
+      }
+      const executorMetadata = options.conductorExecutorMetadata;
+      if (executorMetadata !== undefined) {
+        // Validate that the metadata is JSON-serializable
+        try {
+          JSON.stringify(executorMetadata);
+        } catch (e) {
+          throw new DBOSError(`conductorExecutorMetadata must be JSON-serializable: ${(e as Error).message}`);
+        }
+      }
+      const appName = DBOSExecutor.globalInstance.appName;
+      assert(appName, 'Application name must be set in configuration in order to use DBOS Conductor');
+      executor.conductor = new loadedEnterprise.ConductorWebsocket(executor, {
+        appName,
+        conductorKey: options.conductorKey,
+        conductorURL: options.conductorURL,
+        executorMetadata,
+        metadataOnlyMode: conductorMetadataOnlyMode,
+      });
+    }
+
+    await executor.init();
+
+    // Register the current application version
+    await executor.systemDatabase.createApplicationVersion(globalParams.appVersion);
+    const latest = await executor.systemDatabase.getLatestApplicationVersion();
+    if (latest.versionName !== globalParams.appVersion) {
+      executor.logger.warn(
+        `Current version '${globalParams.appVersion}' is not the latest version. Latest version is '${latest.versionName}'.`,
+      );
+    }
+
+    await DBOSExecutor.globalInstance.initEventReceivers(this.#dbosConfig?.listenQueues || null);
+
+    if (executor.conductor) {
+      executor.conductor.start();
+    }
+
+    // Start the auto-upgrade loop if any workflow takes part.
+    if (autoUpgradableWorkflowNames.length > 0 && executor.systemDatabase.sharded) {
+      // Its queries aren't keyed by shard, so it doesn't run on a sharded database.
+      executor.logger.warn('Auto-upgrade is disabled: it is not supported on a sharded system database.');
+    } else if (autoUpgradableWorkflowNames.length > 0) {
+      assert(loadedEnterprise, 'the enterprise package is loaded whenever a workflow enrolls in auto-upgrade');
+      const upgradePass = new loadedEnterprise.AutoUpgradePass(executor, {
+        graceMs: internalConfig.autoUpgradeGraceMs ?? DEFAULT_AUTO_UPGRADE_GRACE_MS,
+      });
+      executor.autoUpgrader = new AutoUpgradeLoop(
+        upgradePass,
+        internalConfig.autoUpgradeIntervalMs ?? DEFAULT_AUTO_UPGRADE_INTERVAL_MS,
+        executor.logger,
+      );
+      executor.autoUpgrader.start();
+    }
+  }
+
+  /**
+   * Logs all workflows that can be invoked externally, rather than directly by the application:
+   *   the entrypoints of each registered event receiver (message queues, URLs, etc.)
+   */
+  static logRegisteredEndpoints(): void {
+    if (!DBOSExecutor.globalInstance) return;
+    for (const lcl of getLifecycleListeners()) {
+      lcl.logRegisteredEndpoints?.();
+    }
+  }
+
+  /**
+   * Shut down DBOS processing:
+   *   Stops receiving external workflow requests
+   *   Stops workflow processing, optionally waiting for workflows running here to finish
+   *   Disconnects from Conductor
+   *   Disconnects from the databases
+   * @param options Optional shutdown options.
+   * @param options.deregister
+   *   If true, clear the DBOS workflow, queue, instance, data source, listener, and other registries.
+   *   This is available for testing and development purposes only.
+   *   Functions may then be registered before the next call to DBOS.launch().
+   *   Decorated / registered functions created prior to `clearRegistry` may no longer be used.
+   *     Fresh wrappers may be created from the original functions.
+   * @param options.workflowCompletionTimeoutMS
+   *   How long to wait, after background processing stops, for workflows running in this process
+   *   to complete. If they do not finish in time, shutdown proceeds without them.
+   *   Default is to not wait.
+   */
+  static async shutdown(options?: { deregister?: boolean; workflowCompletionTimeoutMS?: number }) {
+    // Validate before tearing anything down, so a bad timeout leaves DBOS running.
+    const drainTimeoutMS = options?.workflowCompletionTimeoutMS;
+    if (
+      drainTimeoutMS !== undefined &&
+      (!Number.isFinite(drainTimeoutMS) || drainTimeoutMS < 0 || drainTimeoutMS > sleepConfig.maxTimeoutMS)
+    ) {
+      throw new DBOSError(
+        `Invalid workflowCompletionTimeoutMS '${drainTimeoutMS}': must be between 0 and ${sleepConfig.maxTimeoutMS} ms. Omit it to shut down without waiting.`,
+      );
+    }
+
+    // Tear down the executor this call started with, not whatever the global points at later.
+    const executor = DBOSExecutor.globalInstance;
+
+    DBOS.#shuttingDown = true;
+    try {
+      // Report uninitialized for the whole teardown; #shuttingDown is what blocks a relaunch.
+      if (executor) {
+        executor.initialized = false;
+      }
+
+      // Stop background processing, then drain the workflows still running in this process.
+      // Conductor stays connected for the drain, so it can still observe and cancel those workflows.
+      if (executor) {
+        await executor.deactivateEventReceivers();
+        // The upgrader stops before the drain: it holds the application's lease, which other
+        // executors on the latest version wait on, and nothing below depends on it.
+        if (executor.autoUpgrader) {
+          await executor.autoUpgrader.stop();
+          executor.autoUpgrader = undefined;
+        }
+        await executor.awaitRunningWorkflows(drainTimeoutMS);
+        await executor.stopBackgroundJobs();
+      }
+
+      // Stop the conductor
+      if (executor?.conductor) {
+        // A retention round still running past its grace is cut when the system database is destroyed.
+        await executor.conductor.stop();
+        executor.conductor = undefined;
+      }
+
+      // Disconnect the executor from the databases
+      if (executor) {
+        await executor.destroy();
+        if (DBOSExecutor.globalInstance === executor) {
+          DBOSExecutor.globalInstance = undefined;
+        }
+      }
+
+      for (const [_n, ds] of transactionalDataSources) {
+        await ds.destroy();
+      }
+
+      recordDBOSShutdown();
+    } finally {
+      DBOS.#shuttingDown = false;
+    }
+
+    if (options?.deregister) {
+      DBOS.clearRegistry();
+    }
+  }
+
+  /**
+   * Clear the DBOS workflow, queue, instance, data source, listener, and other registries.
+   *   This is available for testing and development purposes only.
+   *   This may only be done while DBOS is not launch()ed.
+   *   Decorated / registered functions created prior to `clearRegistry` may no longer be used.
+   *     Fresh wrappers may be created from the original functions.
+   */
+  private static clearRegistry() {
+    assert(!DBOS.isInitialized(), 'Cannot call DBOS.clearRegistry after DBOS.launch');
+    clearAllRegistrations();
+    wfQueueRunner.clearRegistrations();
+  }
+
+  /**
+   * Stop background work that brings new work into this process: queue dispatch, schedules,
+   *   and registered event receivers. Workflows already running here keep running.
+   *   Has no effect if receivers are already stopped. Throws if DBOS is not launched, or if called from within a workflow.
+   *   Restart them with `DBOS.initEventReceivers`.
+   */
+  static async deactivateEventReceivers(): Promise<void> {
+    if (!DBOS.isInitialized()) throw new DBOSExecutorNotInitializedError();
+    // Not a checkpointed step, so it would rerun on every replay of the calling workflow.
+    if (DBOS.isWithinWorkflow()) {
+      throw new DBOSInvalidWorkflowTransitionError('Invalid call to `DBOS.deactivateEventReceivers` inside a workflow');
+    }
+    await DBOS.#executor.deactivateEventReceivers();
+  }
+
+  /**
+   * Restart queue dispatch, schedules, and registered event receivers after `DBOS.deactivateEventReceivers`.
+   *   Has no effect if receivers are already running. Throws if DBOS is not launched, or if called from within a workflow.
+   *   If a receiver fails to start, stops whatever did start and rethrows the error, so the call can be retried.
+   */
+  static async initEventReceivers(): Promise<void> {
+    // A launch that failed before the system database was ready leaves an uninitialized executor behind; don't start receivers on it.
+    if (!DBOS.isInitialized()) throw new DBOSExecutorNotInitializedError();
+    // Receivers started here would run in the calling workflow's context and record steps against it.
+    if (DBOS.isWithinWorkflow()) {
+      throw new DBOSInvalidWorkflowTransitionError('Invalid call to `DBOS.initEventReceivers` inside a workflow');
+    }
+    const executor = DBOS.#executor;
+    await executor.receiversLock.runExclusive(async () => {
+      try {
+        await executor.initEventReceiversUnlocked(DBOS.#dbosConfig?.listenQueues || null);
+      } catch (e) {
+        // Tear down whatever did start, under the same lock, so a retry starts clean and a call queued behind this one isn't undone.
+        await executor.deactivateEventReceiversUnlocked();
+        throw e;
+      }
+    });
+  }
+
+  // Global DBOS executor instance
+  static get #executor() {
+    return getExecutor();
+  }
+
+  //////
+  // Globals
+  //////
+  static #dbosConfig?: DBOSConfig;
+
+  //////
+  // Context
+  //////
+  /** Get the current DBOS Logger, appropriate to the current context */
+  static get logger(): DLogger {
+    const lctx = getCurrentContextStore();
+    if (lctx?.logger) return lctx.logger;
+    const executor = DBOSExecutor.globalInstance;
+    if (executor) return executor.logger;
+    return new GlobalLogger(undefined, { logger: DBOS.#dbosConfig?.logger, logLevel: DBOS.#dbosConfig?.logLevel });
+  }
+
+  /** Get the current DBOS Tracer, for starting spans */
+  static get tracer(): Tracer | undefined {
+    const executor = DBOSExecutor.globalInstance;
+    if (executor) return executor.tracer;
+  }
+
+  /** Get the current DBOS tracing span, appropriate to the current context */
+  static get span(): DBOSSpan | undefined {
+    return getActiveSpan();
+  }
+
+  /** Get the current application version */
+  static get applicationVersion(): string {
+    return globalParams.appVersion;
+  }
+
+  /** Get the current executor ID */
+  static get executorID(): string {
+    return globalParams.executorID;
+  }
+
+  /** Get the current workflow ID */
+  static get workflowID(): string | undefined {
+    return getCurrentContextStore()?.workflowId;
+  }
+
+  /** The shard key of the currently executing workflow; undefined outside a workflow or on an unsharded database. */
+  static get shardKey(): string | undefined {
+    const ctx = getCurrentContextStore();
+    return ctx?.workflowId !== undefined ? ctx.shardKey : undefined;
+  }
+
+  /** Use portable serialization by default? */
+  static get #defaultSerializationType(): WorkflowSerializationFormat | undefined {
+    return getCurrentContextStore()?.serializationType;
+  }
+
+  /** Get the current step number, within the current workflow */
+  static get stepID(): number | undefined {
+    if (DBOS.isInStep()) {
+      return getCurrentContextStore()?.curStepFunctionId;
+    } else if (DBOS.isInTransaction()) {
+      return getCurrentContextStore()?.curTxFunctionId;
+    } else {
+      return undefined;
+    }
+  }
+
+  static get stepStatus(): StepStatus | undefined {
+    return getCurrentContextStore()?.stepStatus;
+  }
+
+  /** Get the current authenticated user */
+  static get authenticatedUser(): string {
+    return getCurrentContextStore()?.authenticatedUser ?? '';
+  }
+  /** Get the roles granted to the current authenticated user */
+  static get authenticatedRoles(): string[] {
+    return getCurrentContextStore()?.authenticatedRoles ?? [];
+  }
+  /** Get the role assumed by the current user giving authorization to execute the current function */
+  static get assumedRole(): string {
+    return getCurrentContextStore()?.assumedRole ?? '';
+  }
+
+  /** @returns true if called from within a transaction, false otherwise */
+  static isInTransaction(): boolean {
+    return getCurrentContextStore()?.curTxFunctionId !== undefined;
+  }
+
+  /** @returns true if called from within a step, false otherwise */
+  static isInStep(): boolean {
+    return getCurrentContextStore()?.curStepFunctionId !== undefined;
+  }
+
+  /**
+   * @returns true if called from within a workflow
+   *  (regardless of whether the workflow is currently executing a step
+   *   or transaction), false otherwise
+   */
+  static isWithinWorkflow(): boolean {
+    return getCurrentContextStore()?.workflowId !== undefined;
+  }
+
+  /**
+   * @returns true if called from within a workflow that is not currently executing
+   *  a step or transaction, or false otherwise
+   */
+  static isInWorkflow(): boolean {
+    return DBOS.isWithinWorkflow() && !DBOS.isInTransaction() && !DBOS.isInStep();
+  }
+
+  //////
+  // Workflow and other operations
+  //////
+
+  /**
+   * Get the workflow status given a workflow ID
+   * @param workflowID - ID of the workflow
+   * @returns status of the workflow as `WorkflowStatus`, or `null` if there is no workflow with `workflowID`
+   */
+  static async getWorkflowStatus(workflowID: string, options?: ShardKeyOptions): Promise<WorkflowStatus | null> {
+    ensureDBOSIsLaunched('getWorkflowStatus');
+    return await bindShardKeys([[workflowID, options?.shardKey]], () => {
+      if (DBOS.isWithinWorkflow()) {
+        if (DBOS.isInStep()) {
+          // OK to use directly
+          return DBOS.#executor.getWorkflowStatus(workflowID);
+        } else if (DBOS.isInWorkflow()) {
+          return DBOS.#executor.getWorkflowStatus(workflowID, DBOS.workflowID, functionIDGetIncrement());
+        } else {
+          throw new DBOSInvalidWorkflowTransitionError('Invalid call to `getWorkflowStatus` inside a `transaction`');
+        }
+      }
+      return DBOS.#executor.getWorkflowStatus(workflowID);
+    });
+  }
+
+  /**
+   * Get the workflow result, given a workflow ID
+   * @param workflowID - ID of the workflow
+   * @param timeoutSeconds - Maximum time to wait for result; if not provided, the operation does not time out
+   * @returns The return value of the workflow, or throws the exception thrown by the workflow, or `null` if times out
+   */
+  static async getResult<T>(workflowID: string, options?: number | GetResultOptions): Promise<T | null> {
+    ensureDBOSIsLaunched('getResult');
+    const timeoutSeconds = resolveTimeoutSeconds(options);
+    const pollingIntervalMs = resolvePollingIntervalMs(options);
+    let timerFuncID: number | undefined = undefined;
+    if (DBOS.isWithinWorkflow() && timeoutSeconds !== undefined) {
+      // Reserve the function ID synchronously, before any await.
+      timerFuncID = functionIDGetIncrement();
+    }
+    const shardKey = typeof options === 'object' ? options.shardKey : undefined;
+    return await bindShardKeys([[workflowID, shardKey]], () =>
+      getResultInternal<T>(workflowID, timeoutSeconds, timerFuncID, undefined, pollingIntervalMs),
+    );
+  }
+
+  /**
+   * Wait for any one of the given workflow handles to complete and return it.
+   * Polls the database until at least one workflow's status is no longer PENDING, ENQUEUED, DELAYED, or SUSPENDED,
+   * then returns the corresponding handle.
+   * @param handles - Non-empty array of workflow handles to wait on
+   * @returns The first handle whose workflow has completed
+   */
+  static async waitFirst(
+    handles: WorkflowHandle<unknown>[],
+    options?: WaitFirstOptions,
+  ): Promise<WorkflowHandle<unknown>> {
+    ensureDBOSIsLaunched('waitFirst');
+    const pollingIntervalMs = resolvePollingIntervalMs(options);
+    if (handles.length === 0) {
+      throw new Error('handles must not be empty');
+    }
+    // Build a map from workflow ID to handle, disallowing duplicates.
+    const handleMap = new Map<string, WorkflowHandle<unknown>>();
+    for (const handle of handles) {
+      if (handleMap.has(handle.workflowID)) {
+        throw new Error(`Duplicate workflow ID in waitFirst: ${handle.workflowID}`);
+      }
+      handleMap.set(handle.workflowID, handle);
+    }
+    const workflowIds = [...handleMap.keys()];
+
+    const completedId = await bindShardKeys(
+      handles.map((h) => [h.workflowID, h.shardKey] as const),
+      () =>
+        runInternalStep(async () => {
+          return await DBOSExecutor.globalInstance!.systemDatabase.awaitFirstWorkflowId(
+            workflowIds,
+            DBOS.workflowID,
+            pollingIntervalMs,
+          );
+        }, 'DBOS.waitFirst'),
+    );
+
+    return handleMap.get(completedId)!;
+  }
+
+  /**
+   * Wait for all of the given workflow handles to complete and return them.
+   * Polls the database until each workflow's status is no longer PENDING, ENQUEUED, DELAYED, or SUSPENDED.
+   * @param handles - Array of workflow handles to wait on
+   * @param options - Optional polling interval
+   * @returns The input handles, in the same order
+   */
+  static async waitAll<R>(handles: WorkflowHandle<R>[], options?: WaitAllOptions): Promise<WorkflowHandle<R>[]> {
+    ensureDBOSIsLaunched('waitAll');
+    if (handles.length === 0) {
+      return [];
+    }
+    const pollingIntervalMs = resolvePollingIntervalMs(options);
+    const workflowIds = [...new Set(handles.map((handle) => handle.workflowID))];
+
+    await bindShardKeys(
+      handles.map((h) => [h.workflowID, h.shardKey] as const),
+      () =>
+        runInternalStep(async () => {
+          await DBOSExecutor.globalInstance!.systemDatabase.awaitWorkflowIds(
+            workflowIds,
+            DBOS.workflowID,
+            pollingIntervalMs,
+          );
+        }, 'DBOS.waitAll'),
+    );
+
+    return handles;
+  }
+
+  /**
+   * Create a workflow handle with a given workflow ID.
+   * This call always returns a handle, even if the workflow does not exist.
+   * The resulting handle will check the database to provide any workflow information.
+   * @param workflowID - ID of the workflow
+   * @returns `WorkflowHandle` that can be used to poll for the status or result of any workflow with `workflowID`
+   */
+  static retrieveWorkflow<T = unknown>(workflowID: string, options?: ShardKeyOptions): WorkflowHandle<Awaited<T>> {
+    ensureDBOSIsLaunched('retrieveWorkflow');
+    if (DBOS.isWithinWorkflow() && !DBOS.isInWorkflow()) {
+      throw new DBOSInvalidWorkflowTransitionError(
+        'Invalid call to `retrieveWorkflow` inside a `transaction` or `step`',
+      );
+    }
+    // The resolved key, so the handle also works outside this binding.
+    const shardKey = bindShardKeys([[workflowID, options?.shardKey]], () =>
+      DBOS.#executor.systemDatabase.keyHint(workflowID),
+    );
+    return new RetrievedHandle(workflowID, shardKey);
+  }
+
+  /**
+   * Query the system database for all workflows matching the provided predicate
+   * @param input - `GetWorkflowsInput` predicate for filtering returned workflows
+   * @returns `WorkflowStatus` array containing details of the matching workflows
+   */
+  static async listWorkflows(input: GetWorkflowsInput): Promise<WorkflowStatus[]> {
+    ensureDBOSIsLaunched('listWorkflows');
+    return await runInternalStep(async () => {
+      return await DBOS.#executor.listWorkflows(input);
+    }, 'DBOS.listWorkflows');
+  }
+
+  /**
+   * Query the system database for all queued workflows matching the provided predicate
+   * @param input - `GetWorkflowsInput` predicate for filtering returned workflows
+   * @returns `WorkflowStatus` array containing details of the matching workflows
+   */
+  static async listQueuedWorkflows(input: GetWorkflowsInput): Promise<WorkflowStatus[]> {
+    ensureDBOSIsLaunched('listQueuedWorkflows');
+    return await runInternalStep(async () => {
+      return await DBOS.#executor.listQueuedWorkflows(input);
+    }, 'DBOS.listQueuedWorkflows');
+  }
+
+  /**
+   * Set the priority of a queued workflow.
+   * Only affects workflows with ENQUEUED or DELAYED status.
+   * @param workflowID - ID of the workflow
+   * @param priority - Priority value (0 to 2,147,483,647). Lower values are dequeued first.
+   */
+  static async setWorkflowPriority(workflowID: string, priority: number, options?: ShardKeyOptions): Promise<void> {
+    ensureDBOSIsLaunched('setWorkflowPriority');
+    if (priority < DBOS_QUEUE_MIN_PRIORITY || priority > DBOS_QUEUE_MAX_PRIORITY) {
+      throw new DBOSInvalidQueuePriorityError(priority, DBOS_QUEUE_MIN_PRIORITY, DBOS_QUEUE_MAX_PRIORITY);
+    }
+    return bindShardKeys([[workflowID, options?.shardKey]], () =>
+      runInternalStep(async () => {
+        return DBOSExecutor.globalInstance!.systemDatabase.setWorkflowPriority(workflowID, priority);
+      }, 'DBOS.setWorkflowPriority'),
+    );
+  }
+
+  /**
+   * Update the delay on a DELAYED workflow.
+   * The workflow will remain in DELAYED status until the delay expires, then transition to ENQUEUED.
+   * Only affects workflows with DELAYED status.
+   * @param workflowID - ID of the workflow
+   * @param options - {@link SetWorkflowDelayOptions} controlling delay duration or absolute deadline, or a number of seconds
+   */
+  static async setWorkflowDelay(workflowID: string, options: number | SetWorkflowDelayOptions): Promise<void> {
+    ensureDBOSIsLaunched('setWorkflowDelay');
+    const delayUntilEpochMS = resolveDelayEpochMS(options);
+    const shardKey = typeof options === 'object' ? options.shardKey : undefined;
+    return bindShardKeys([[workflowID, shardKey]], () =>
+      runInternalStep(async () => {
+        return DBOSExecutor.globalInstance!.systemDatabase.setWorkflowDelay(workflowID, delayUntilEpochMS);
+      }, 'DBOS.setWorkflowDelay'),
+    );
+  }
+
+  /**
+   * Retrieve the steps of a workflow
+   * @param workflowID - ID of the workflow
+   * @param options - Optional pagination parameters (limit, offset)
+   * @returns `StepInfo` array listing the executed steps of the workflow. If the workflow is not found, `undefined` is returned.
+   */
+  static async listWorkflowSteps(
+    workflowID: string,
+    options?: ListWorkflowStepsOptions & ShardKeyOptions,
+  ): Promise<StepInfo[] | undefined> {
+    ensureDBOSIsLaunched('listWorkflowSteps');
+    return await bindShardKeys([[workflowID, options?.shardKey]], () =>
+      runInternalStep(async () => {
+        return await DBOS.#executor.listWorkflowSteps(workflowID, true, options);
+      }, 'DBOS.listWorkflowSteps'),
+    );
+  }
+
+  /**
+   * Cancel a workflow given its ID.
+   * If the workflow is currently running, `DBOSWorkflowCancelledError` will be
+   *   thrown from its next DBOS call.
+   * @param workflowID - ID of the workflow
+   * @param options - If `cancelChildren` is true, also cancel all descendant workflows recursively
+   */
+  static async cancelWorkflow(workflowID: string, options?: CancelWorkflowsOptions): Promise<void> {
+    return this.cancelWorkflows([workflowID], options);
+  }
+
+  /**
+   * Cancel multiple workflows given their IDs.
+   * @param workflowIDs - IDs of the workflows to cancel
+   * @param options - If `cancelChildren` is true, also cancel all descendant workflows recursively
+   */
+  static async cancelWorkflows(workflowIDs: string[], options?: CancelWorkflowsOptions): Promise<void> {
+    ensureDBOSIsLaunched('cancelWorkflows');
+    return bindShardKeys(
+      workflowIDs.map((wid) => [wid, options?.shardKey] as const),
+      () =>
+        runInternalStep(async () => {
+          return DBOSExecutor.globalInstance!.systemDatabase.cancelWorkflows(workflowIDs, options?.cancelChildren);
+        }, 'DBOS.cancelWorkflow'),
+    );
+  }
+
+  /**
+   * Resume a workflow given its ID.
+   * @param workflowID - ID of the workflow
+   * @throws DBOSNonExistentWorkflowError if the workflow does not exist
+   */
+  static async resumeWorkflow<T>(
+    workflowID: string,
+    options?: { queueName?: string; shardKey?: string },
+  ): Promise<WorkflowHandle<Awaited<T>>> {
+    return await bindShardKeys([[workflowID, options?.shardKey]], async () => {
+      await this.resumeWorkflows<T>([workflowID], options);
+      // The resolved key, so the handle also works outside this binding.
+      return new RetrievedHandle<Awaited<T>>(workflowID, DBOS.#executor.systemDatabase.keyHint(workflowID));
+    });
+  }
+
+  /**
+   * Resume multiple workflows given their IDs.
+   * @param workflowIDs - IDs of the workflows to resume
+   * @returns An array of workflow handles
+   * @throws DBOSNonExistentWorkflowError if any workflow does not exist; none are resumed
+   */
+  static async resumeWorkflows<T>(
+    workflowIDs: string[],
+    options?: { queueName?: string; shardKey?: string },
+  ): Promise<WorkflowHandle<Awaited<T>>[]> {
+    ensureDBOSIsLaunched('resumeWorkflows');
+    return await bindShardKeys(
+      workflowIDs.map((wid) => [wid, options?.shardKey] as const),
+      async () => {
+        await runInternalStep(async () => {
+          return DBOSExecutor.globalInstance!.systemDatabase.resumeWorkflows(workflowIDs, options?.queueName);
+        }, 'DBOS.resumeWorkflow');
+        return workflowIDs.map((wfid) => new RetrievedHandle<Awaited<T>>(wfid, options?.shardKey));
+      },
+    );
+  }
+
+  /**
+   * Delete a workflow and optionally all its child workflows.
+   * This permanently removes the workflow from the system database.
+   *
+   * WARNING: This operation is irreversible.
+   *
+   * @param workflowID - ID of the workflow to delete
+   * @param deleteChildren - If true, also delete all child workflows recursively (default: false)
+   */
+  static async deleteWorkflow(
+    workflowID: string,
+    deleteChildren: boolean = false,
+    options?: ShardKeyOptions,
+  ): Promise<void> {
+    return this.deleteWorkflows([workflowID], deleteChildren, options);
+  }
+
+  /**
+   * Delete multiple workflows and optionally all their child workflows.
+   *
+   * WARNING: This operation is irreversible.
+   *
+   * @param workflowIDs - IDs of the workflows to delete
+   * @param deleteChildren - If true, also delete all child workflows recursively (default: false)
+   */
+  static async deleteWorkflows(
+    workflowIDs: string[],
+    deleteChildren: boolean = false,
+    options?: ShardKeyOptions,
+  ): Promise<void> {
+    ensureDBOSIsLaunched('deleteWorkflows');
+    return bindShardKeys(
+      workflowIDs.map((wid) => [wid, options?.shardKey] as const),
+      () =>
+        runInternalStep(async () => {
+          return DBOSExecutor.globalInstance!.systemDatabase.deleteWorkflows(workflowIDs, deleteChildren);
+        }, 'DBOS.deleteWorkflow'),
+    );
+  }
+
+  /**
+   * Fork a workflow given its ID.
+   * @param workflowID - ID of the workflow
+   * @param startStep - Step ID to start the forked workflow from
+   * @param applicationVersion - Version of the application to use for the forked workflow
+   * @returns A handle to the forked workflow
+   * @throws DBOSInvalidStepIDError if the `startStep` is greater than the maximum step ID of the workflow
+   */
+  static async forkWorkflow<T>(
+    workflowID: string,
+    startStep: number,
+    options?: {
+      newWorkflowID?: string;
+      applicationVersion?: string;
+      timeoutMS?: number;
+      queueName?: string;
+      queuePartitionKey?: string;
+      replacementChildren?: Record<string, string>;
+      shardKey?: string;
+    },
+  ): Promise<WorkflowHandle<Awaited<T>>> {
+    ensureDBOSIsLaunched('forkWorkflow');
+    return await bindShardKeys([[workflowID, options?.shardKey]], async () => {
+      const forkedID = await runInternalStep(async () => {
+        return await DBOS.#executor.forkWorkflow(workflowID, startStep, options);
+      }, 'DBOS.forkWorkflow');
+      // A fork lives under its original's shard key, however the caller supplied it.
+      const forkKey = DBOS.#executor.systemDatabase.keyHint(workflowID);
+      return new RetrievedHandle<Awaited<T>>(forkedID, forkKey);
+    });
+  }
+
+  /**
+   * Rewind a workflow given its ID: drop its recorded history from `startStep` onwards
+   * and re-enqueue it under the same ID, so a replay re-executes everything from there.
+   *
+   * Where {@link DBOS.forkWorkflow} copies the steps before the cut into a *new*
+   * workflow, a rewind replays in place. Keeping the ID is the point: peers go on
+   * sending to, receiving from, and reading events and streams off the same workflow,
+   * and children keep resolving to the same deterministic IDs.
+   *
+   * Only a workflow in a terminal state can be rewound; cancel a running one first.
+   * Every data source registered in this process is rewound with it.
+   *
+   * @param workflowID - ID of the workflow to rewind
+   * @param options.startStep - Step to rewind to; history from this step on is dropped (default 0, the whole history)
+   * @param options.applicationVersion - Version to restamp the workflow with before it replays
+   * @param options.queueName - Queue to re-enqueue on, instead of the internal queue
+   * @param options.queuePartitionKey - Partition key to re-enqueue under
+   * @returns A handle to the rewound workflow, under its original ID
+   */
+  static async rewindWorkflow<T>(
+    workflowID: string,
+    options?: {
+      startStep?: number;
+      applicationVersion?: string;
+      queueName?: string;
+      queuePartitionKey?: string;
+      shardKey?: string;
+    },
+  ): Promise<WorkflowHandle<Awaited<T>>> {
+    ensureDBOSIsLaunched('rewindWorkflow');
+    const startStep = options?.startStep ?? 0;
+    return await bindShardKeys([[workflowID, options?.shardKey]], async () => {
+      await runInternalStep(async () => {
+        return await DBOS.#executor.rewindWorkflow(workflowID, startStep, options ?? {});
+      }, 'DBOS.rewindWorkflow');
+      // The resolved key, so the handle also works outside this binding.
+      return new RetrievedHandle<Awaited<T>>(workflowID, DBOS.#executor.systemDatabase.keyHint(workflowID));
+    });
+  }
+
+  /**
+   * Sleep for the specified amount of time.
+   * If called from within a workflow, the sleep is "durable",
+   *   meaning that the workflow will sleep until the wakeup time
+   *   (calculated by adding `durationMS` to the original invocation time),
+   *   regardless of workflow recovery.
+   * @param durationMS - Length of sleep, in milliseconds.
+   * @param options - {@link SleepOptions}
+   */
+  static async sleepms(durationMS: number, options?: SleepOptions): Promise<void> {
+    if (!Number.isFinite(durationMS)) {
+      throw new DBOSError('sleep duration must be a finite number of milliseconds');
+    }
+    if (DBOS.isWithinWorkflow() && !DBOS.isInStep()) {
+      if (DBOS.isInTransaction()) {
+        throw new DBOSInvalidWorkflowTransitionError('Invalid call to `DBOS.sleep` inside a `transaction`');
+      }
+      // Reserve the function ID synchronously, before any await.
+      const functionID = functionIDGetIncrement();
+      if (durationMS <= 0) {
+        return;
+      }
+      const sysdb = DBOSExecutor.globalInstance!.systemDatabase;
+      if (options?.suspend) {
+        const remainingMS = await requireSuspendMode('sleep').sleepSuspend(DBOS.workflowID!, functionID, durationMS);
+        const endTime = Date.now() + remainingMS;
+        while (Date.now() < endTime) {
+          await sleepms(Math.min(endTime - Date.now(), sleepConfig.maxTimeoutMS));
+        }
+        return await sysdb.checkIfCanceled(DBOS.workflowID!);
+      }
+      return await sysdb.durableSleepms(DBOS.workflowID!, functionID, durationMS);
+    }
+    const endTime = Date.now() + durationMS;
+    while (Date.now() < endTime) {
+      await sleepms(Math.min(endTime - Date.now(), sleepConfig.maxTimeoutMS));
+    }
+  }
+  /** @see sleepms */
+  static async sleepSeconds(durationSec: number, options?: SleepOptions): Promise<void> {
+    return DBOS.sleepms(durationSec * 1000, options);
+  }
+  /** @see sleepms */
+  static async sleep(durationMS: number, options?: SleepOptions): Promise<void> {
+    return DBOS.sleepms(durationMS, options);
+  }
+
+  /**
+   * Get the current time in milliseconds, similar to `Date.now()`.
+   * This function is deterministic and can be used within workflows.
+   */
+  static async now(): Promise<number> {
+    if (DBOS.isInWorkflow()) {
+      return runInternalStep(async () => Promise.resolve(Date.now()), 'DBOS.now');
+    }
+    return Date.now();
+  }
+
+  /**
+   * Generate a random (v4) UUUID, similar to `node:crypto.randomUUID`.
+   * This function is deterministic and can be used within workflows.
+   */
+  static async randomUUID(): Promise<string> {
+    if (DBOS.isInWorkflow()) {
+      return runInternalStep(async () => Promise.resolve(randomUUID()), 'DBOS.randomUUID');
+    }
+    return randomUUID();
+  }
+
+  /**
+   * Use the provided `workflowID` as the identifier for first workflow started
+   *   within the `callback` function.
+   * @param workflowID - ID to assign to the first workflow started
+   * @param callback - Function to run, which would start a workflow
+   * @returns - Return value from `callback`
+   */
+  static async withNextWorkflowID<R>(workflowID: string, callback: () => Promise<R>): Promise<R> {
+    ensureDBOSIsLaunched('workflows');
+    return DBOS.#withTopContext({ idAssignedForNextWorkflow: workflowID }, callback);
+  }
+
+  /**
+   * Use the provided `authedUser` and `authedRoles` as the authenticated user for
+   *   any calls to `DBOS.authenticatedUser` or `DBOS.authenticatedRoles`
+   *   placed within the `callback` function.
+   * @param authedUser - Authenticated user
+   * @param authedRoles - Authenticated roles
+   * @param callback - Function to run with authentication context in place
+   * @returns - Return value from `callback`
+   */
+  static async withAuthedContext<R>(authedUser: string, authedRoles: string[], callback: () => Promise<R>): Promise<R> {
+    ensureDBOSIsLaunched('auth');
+    return DBOS.#withTopContext(
+      {
+        authenticatedUser: authedUser,
+        authenticatedRoles: authedRoles,
+      },
+      callback,
+    );
+  }
+
+  /**
+   * Runs `callback`. The caller name is not recorded or used.
+   * @param _callerName - Ignored
+   * @param callback - Function to run
+   * @returns - Return value from `callback`
+   */
+  static async withNamedContext<R>(_callerName: string, callback: () => Promise<R>): Promise<R> {
+    ensureDBOSIsLaunched('tracing');
+    return DBOS.#withTopContext({}, callback);
+  }
+
+  /**
+   * Use queue named `queueName` for any workflows started within the `callback`.
+   * @param queueName - Name of queue upon which all workflows called or started within `callback` will be run
+   * @param callback - Function to run, which would call or start workflows
+   * @returns - Return value from `callback`
+   */
+  static async withWorkflowQueue<R>(queueName: string, callback: () => Promise<R>): Promise<R> {
+    ensureDBOSIsLaunched('workflows');
+    return DBOS.#withTopContext({ queueAssignedForWorkflows: queueName }, callback);
+  }
+
+  /**
+   * Specify workflow timeout for any workflows started within the `callback`.
+   * @param timeoutMS - timeout length for all workflows started within `callback` will be run
+   * @param callback - Function to run, which would call or start workflows
+   * @returns - Return value from `callback`
+   */
+  static async withWorkflowTimeout<R>(timeoutMS: number | null, callback: () => Promise<R>): Promise<R> {
+    ensureDBOSIsLaunched('workflows');
+    return DBOS.#withTopContext({ workflowTimeoutMS: timeoutMS }, callback);
+  }
+
+  /** Set the shard key of each workflow started, enqueued, or called in `callback`; their children don't inherit it. */
+  static async withShardKey<R>(shardKey: string, callback: () => Promise<R>): Promise<R> {
+    if (typeof shardKey !== 'string' || shardKey === '') {
+      throw new DBOSError('shardKey must be a non-empty string');
+    }
+    return DBOS.#withTopContext({ shardKeyForNextWorkflow: shardKey }, callback);
+  }
+
+  static async #withTopContext<R>(options: DBOSContextOptions, callback: () => Promise<R>): Promise<R> {
+    const pctx = getCurrentContextStore();
+    if (pctx) {
+      // Save existing values and overwrite with new; hard to do cleanly but is actually type correct
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const existing: any = {};
+      for (const k of Object.keys(options) as (keyof DBOSContextOptions)[]) {
+        if (Object.hasOwn(pctx, k))
+          // Save the current value (not the incoming one) so the finally block can restore it,
+          // letting nested `with*` blocks correctly roll back to the outer value.
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+          existing[k] = pctx[k];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+        (pctx as any)[k] = options[k];
+      }
+
+      try {
+        return await callback();
+      } finally {
+        for (const k of Object.keys(options) as (keyof DBOSContextOptions)[]) {
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+          if (Object.hasOwn(existing, k))
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+            (pctx as any)[k] = existing[k];
+          else delete pctx[k];
+        }
+      }
+    } else {
+      return await runWithTopContext(options, callback);
+    }
+  }
+
+  /**
+   * Start a workflow in the background, returning a handle that can be used to check status,
+   *   await the result, or otherwise interact with the workflow.
+   * The full syntax is:
+   * `handle = await DBOS.startWorkflow(<target function>, <params>)(<args>);`
+   * @param func - The function to start.
+   * @param params - `StartWorkflowParams` which may specify the ID, queue, or other parameters for starting the workflow
+   * @returns `WorkflowHandle` which can be used to interact with the started workflow
+   */
+  static startWorkflow<Args extends unknown[], Return>(
+    target: (...args: Args) => Promise<Return>,
+    params?: StartWorkflowParams,
+  ): (...args: Args) => Promise<WorkflowHandle<Return>>;
+  /**
+   * Start a workflow in the background, returning a handle that can be used to check status, await a result,
+   *   or otherwise interact with the workflow.
+   * The full syntax is:
+   * `handle = await DBOS.startWorkflow(<target object>, <params>).<target method>(<args>);`
+   * @param target - Object (which must be a `ConfiguredInstance`) containing the instance method to invoke
+   * @param params - `StartWorkflowParams` which may specify the ID, queue, or other parameters for starting the workflow
+   * @returns - `WorkflowHandle` which can be used to interact with the workflow
+   */
+  static startWorkflow<T extends ConfiguredInstance>(
+    target: T,
+    params?: StartWorkflowParams,
+  ): InvokeFunctionsAsyncInst<T>;
+  /**
+   * Start a workflow in the background, returning a handle that can be used to check status, await a result,
+   *   or otherwise interact with the workflow.
+   * The full syntax is:
+   * `handle = await DBOS.startWorkflow(<target class>, <params>).<target method>(<args>);`
+   * @param target - Class containing the static method to invoke
+   * @param params - `StartWorkflowParams` which may specify the ID, queue, or other parameters for starting the workflow
+   * @returns - `WorkflowHandle` which can be used to interact with the workflow
+   */
+  static startWorkflow<T extends object>(targetClass: T, params?: StartWorkflowParams): InvokeFunctionsAsync<T>;
+  static startWorkflow(
+    target: UntypedAsyncFunction | ConfiguredInstance | object,
+    params?: StartWorkflowParams,
+  ): unknown {
+    ensureDBOSIsLaunched('workflows');
+    const instance = typeof target === 'function' ? null : (target as ConfiguredInstance);
+    if (instance && typeof instance !== 'function' && !(instance instanceof ConfiguredInstance)) {
+      throw new DBOSInvalidWorkflowTransitionError(
+        'Attempt to call `startWorkflow` on an object that is not a `ConfiguredInstance`',
+      );
+    }
+
+    const regOps = getRegisteredOperations(target);
+    const singletonWorkflow = params?.duplicationPolicy === 'return-existing';
+
+    const handler: ProxyHandler<object> = {
+      apply(target, _thisArg, args) {
+        const regOp = getFunctionRegistration(target);
+        if (!regOp) {
+          // eslint-disable-next-line @typescript-eslint/no-base-to-string
+          const name = typeof target === 'function' ? target.name : target.toString();
+          throw new DBOSNotRegisteredError(name, `${name} is not a registered DBOS workflow function`);
+        }
+        return singletonWorkflow
+          ? DBOS.#invokeSingletonWorkflow(instance, regOp, args, params)
+          : DBOS.#invokeWorkflow(instance, regOp, args, params);
+      },
+      get(target, p, receiver) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        const func = Reflect.get(target, p, receiver);
+        const regOp = getFunctionRegistration(func) ?? regOps.find((op) => op.name === p);
+        if (regOp) {
+          return (...args: unknown[]) =>
+            singletonWorkflow
+              ? DBOS.#invokeSingletonWorkflow(instance, regOp, args, params)
+              : DBOS.#invokeWorkflow(instance, regOp, args, params);
+        }
+
+        const name = typeof p === 'string' ? p : String(p);
+        throw new DBOSNotRegisteredError(name, `${name} is not a registered DBOS workflow function`);
+      },
+    };
+
+    return new Proxy(target, handler);
+  }
+
+  /**
+   * Send `message` on optional `topic` to the workflow with `destinationID`
+   *  This can be done from inside or outside of DBOS workflow functions
+   *  Use the optional `idempotencyKey` to guarantee that the message is sent exactly once
+   * @see `DBOS.recv`
+   *
+   * @param destinationID - ID of the workflow that will `recv` the message
+   * @param message - Message to send, which must be serializable as JSON
+   * @param topic - Optional topic; if specified the `recv` command can specify the same topic to receive selectively
+   * @param idempotencyKey - Optional key for sending the message exactly once
+   * @param options - `SendOptions`
+   */
+  static async send<T>(
+    destinationID: string,
+    message: T,
+    topic?: string,
+    idempotencyKey?: string,
+    options?: SendOptions,
+  ): Promise<void> {
+    ensureDBOSIsLaunched('send');
+    if (DBOS.isInWorkflow()) {
+      // Advance the function ID synchronously before any await, so concurrent step
+      // calls in the same workflow don't race for IDs.
+      const functionID: number = functionIDGetIncrement();
+      const sermsg = await serializeValue(
+        message,
+        DBOS.#executor.serializer,
+        options?.serializationType ?? DBOS.#defaultSerializationType,
+      );
+      return await DBOSExecutor.globalInstance!.systemDatabase.send(
+        DBOS.workflowID!,
+        functionID,
+        destinationID,
+        sermsg.serializedValue,
+        topic,
+        sermsg.serialization,
+        idempotencyKey,
+        options?.shardKey,
+      );
+    } else if (DBOS.isInStep()) {
+      // Inside a step: not recorded, but fenced on the enclosing workflow's ownership.
+      const sermsg = await serializeValue(
+        message,
+        DBOS.#executor.serializer,
+        options?.serializationType ?? DBOS.#defaultSerializationType,
+      );
+      return await DBOSExecutor.globalInstance!.systemDatabase.sendFromStep(
+        DBOS.workflowID!,
+        destinationID,
+        sermsg.serializedValue,
+        topic,
+        sermsg.serialization,
+        idempotencyKey,
+        options?.shardKey,
+      );
+    } else {
+      const sermsg = await serializeValue(
+        message,
+        DBOS.#executor.serializer,
+        options?.serializationType ?? DBOS.#defaultSerializationType,
+      );
+      return DBOSExecutor.globalInstance!.systemDatabase.sendDirect(
+        destinationID,
+        sermsg.serializedValue,
+        topic,
+        sermsg.serialization,
+        idempotencyKey,
+        undefined,
+        options?.shardKey,
+      );
+    }
+  }
+
+  /**
+   * Receive a message on optional `topic` from within a workflow.
+   *  This must be called from within a workflow; this workflow's ID is used to check for messages sent by `DBOS.send`
+   *  This can be configured to time out.
+   *  Messages are received in the order in which they are sent (per-sender / causal order).
+   * @see `DBOS.send`
+   *
+   * @param topic - Optional topic; if specified the `recv` command can specify the same topic to receive selectively
+   * @param options - {@link RecvOptions} controlling timeout or deadline; if neither is set, times out after 60 seconds
+   * @template T - The type of message that is expected to be received
+   * @returns Any message received, or `null` if the timeout expires
+   */
+  static async recv<T>(topic?: string, options?: number | RecvOptions): Promise<T | null> {
+    ensureDBOSIsLaunched('recv');
+    if (DBOS.isWithinWorkflow()) {
+      if (!DBOS.isInWorkflow()) {
+        throw new DBOSInvalidWorkflowTransitionError('Invalid call to `DBOS.recv` inside a `step` or `transaction`');
+      }
+      // Reserve the function IDs synchronously, before any await.
+      const functionID: number = functionIDGetIncrement();
+      const timeoutFunctionID: number = functionIDGetIncrement();
+      const timeoutSeconds = resolveTimeoutSeconds(options);
+      const pollingIntervalMs = resolvePollingIntervalMs(options);
+      const msg =
+        typeof options === 'object' && options.suspend
+          ? await requireSuspendMode('recv').recvSuspend(
+              DBOS.workflowID!,
+              functionID,
+              timeoutFunctionID,
+              topic,
+              timeoutSeconds,
+            )
+          : await DBOSExecutor.globalInstance!.systemDatabase.recv(
+              DBOS.workflowID!,
+              functionID,
+              timeoutFunctionID,
+              topic,
+              timeoutSeconds,
+              pollingIntervalMs,
+            );
+
+      return (await deserializeValue(msg.serializedValue, msg.serialization, DBOS.#executor.serializer)) as T;
+    }
+    throw new DBOSInvalidWorkflowTransitionError('Attempt to call `DBOS.recv` outside of a workflow'); // Only workflows can recv
+  }
+
+  /**
+   * Set an event, from within a DBOS workflow.  This value can be retrieved with `DBOS.getEvent`.
+   * If the event `key` already exists, its `value` is updated.
+   * This function can only be called from within a workflow.
+   * @see `DBOS.getEvent`
+   *
+   * @param key - The key for the event; at most one value is associated with a key at any given time.
+   * @param value - The value to associate with `key`
+   * @param options - `SetEventOptions` allowing control of the recorded event
+   */
+  static async setEvent<T>(key: string, value: T, options?: SetEventOptions): Promise<void> {
+    ensureDBOSIsLaunched('setEvent');
+    if (DBOS.isWithinWorkflow()) {
+      if (!DBOS.isInWorkflow()) {
+        throw new DBOSInvalidWorkflowTransitionError(
+          'Invalid call to `DBOS.setEvent` inside a `step` or `transaction`',
+        );
+      }
+      // Reserve the function ID synchronously, before any await.
+      const functionID = functionIDGetIncrement();
+      const serevt = await serializeValue(
+        value,
+        DBOS.#executor.serializer,
+        options?.serializationType ?? DBOS.#defaultSerializationType,
+      );
+      return DBOSExecutor.globalInstance!.systemDatabase.setEvent(
+        DBOS.workflowID!,
+        functionID,
+        key,
+        serevt.serializedValue,
+        serevt.serialization,
+      );
+    }
+    throw new DBOSInvalidWorkflowTransitionError('Attempt to call `DBOS.setEvent` outside of a workflow'); // Only workflows can set event
+  }
+
+  /**
+   * Get the value of a workflow event, or wait for it to be set.
+   * This function can be called inside or outside of DBOS workflow functions.
+   * If this function is called from within a workflow, its result is durably checkpointed.
+   * @see `DBOS.setEvent`
+   *
+   * @param workflowID - The ID of the workflow with the corresponding `setEvent`
+   * @param key - The key for the event; at most one value is associated with a key at any given time.
+   * @param options - {@link GetEventOptions} controlling timeout or deadline; if neither is set, times out after 60 seconds
+   * @template T - The expected type for the value assigned to `key`
+   * @returns The value to associate with `key`, or `null` if the timeout is hit
+   */
+  static async getEvent<T>(workflowID: string, key: string, options?: number | GetEventOptions): Promise<T | null> {
+    ensureDBOSIsLaunched('getEvent');
+    const shardKey = typeof options === 'object' ? options.shardKey : undefined;
+    return await bindShardKeys([[workflowID, shardKey]], () => DBOS.#getEvent<T>(workflowID, key, options));
+  }
+
+  static async #getEvent<T>(workflowID: string, key: string, options?: number | GetEventOptions): Promise<T | null> {
+    const timeoutSeconds = resolveTimeoutSeconds(options);
+    const pollingIntervalMs = resolvePollingIntervalMs(options);
+    if (DBOS.isWithinWorkflow()) {
+      if (!DBOS.isInWorkflow()) {
+        throw new DBOSInvalidWorkflowTransitionError(
+          'Invalid call to `DBOS.getEvent` inside a `step` or `transaction`',
+        );
+      }
+      // Reserve the function IDs synchronously, before any await.
+      const functionID: number = functionIDGetIncrement();
+      const timeoutFunctionID = functionIDGetIncrement();
+      const params = {
+        workflowID: DBOS.workflowID!,
+        functionID,
+        timeoutFunctionID,
+      };
+      const evt = await DBOSExecutor.globalInstance!.systemDatabase.getEvent(
+        workflowID,
+        key,
+        timeoutSeconds ?? DBOSExecutor.defaultNotificationTimeoutSec,
+        params,
+        pollingIntervalMs,
+      );
+      return (await deserializeValue(evt.serializedValue, evt.serialization, DBOS.#executor.serializer)) as T;
+    }
+    return DBOS.#executor.getEvent(workflowID, key, timeoutSeconds, pollingIntervalMs);
+  }
+
+  /**
+   * Write a value to a stream.
+   * @param key - The stream key/name within the workflow
+   * @param value - A serializable value to write to the stream
+   * @param options - `WriteStreamOptions` for controlling serialization
+   */
+  static async writeStream<T>(key: string, value: T, options: WriteStreamOptions = {}): Promise<void> {
+    ensureDBOSIsLaunched('writeStream');
+    if (DBOS.isInWorkflow()) {
+      // Advance the function ID synchronously before any await.
+      const functionID: number = functionIDGetIncrement();
+      const serval = await serializeValue(
+        value,
+        DBOS.#executor.serializer,
+        options.serializationType ?? DBOS.#defaultSerializationType,
+      );
+      return await DBOSExecutor.globalInstance!.systemDatabase.writeStreamFromWorkflow(
+        DBOS.workflowID!,
+        functionID,
+        key,
+        serval.serializedValue!,
+        serval.serialization,
+        DBOS_FUNCNAME_WRITESTREAM,
+      );
+    } else if (DBOS.isInStep()) {
+      const serval = await serializeValue(
+        value,
+        DBOS.#executor.serializer,
+        options.serializationType ?? DBOS.#defaultSerializationType,
+      );
+      return await DBOSExecutor.globalInstance!.systemDatabase.writeStreamFromStep(
+        DBOS.workflowID!,
+        DBOS.stepID!,
+        key,
+        serval.serializedValue!,
+        serval.serialization,
+      );
+    } else {
+      throw new DBOSInvalidWorkflowTransitionError('Invalid call to `DBOS.writeStream` outside of a workflow or step');
+    }
+  }
+
+  /**
+   * Close a stream by writing a sentinel value. May be called from a workflow or a step.
+   * @param key - The stream key/name within the workflow
+   */
+  static async closeStream(key: string): Promise<void> {
+    ensureDBOSIsLaunched('closeStream');
+    if (DBOS.isInWorkflow()) {
+      // Reserve the function ID synchronously, before any await.
+      const functionID: number = functionIDGetIncrement();
+      return await DBOSExecutor.globalInstance!.systemDatabase.closeStreamFromWorkflow(
+        DBOS.workflowID!,
+        functionID,
+        key,
+      );
+    } else if (DBOS.isInStep()) {
+      return await DBOSExecutor.globalInstance!.systemDatabase.closeStreamFromStep(DBOS.workflowID!, DBOS.stepID!, key);
+    } else {
+      throw new DBOSInvalidWorkflowTransitionError('Invalid call to `DBOS.closeStream` outside of a workflow or step');
+    }
+  }
+
+  /**
+   * Read values from a stream as an async generator.
+   * This function reads values from a stream identified by the workflowID and key,
+   * yielding each value in order until the stream is closed or the workflow terminates.
+   * @param workflowID - The workflow instance ID that owns the stream
+   * @param key - The stream key/name within the workflow
+   * @param options - Optional settings, including the offset to start reading from
+   * @returns An async generator that yields each value in the stream until the stream is closed
+   */
+  static async *readStream<T>(
+    workflowID: string,
+    key: string,
+    options: ReadStreamOptions = {},
+  ): AsyncGenerator<T, void, unknown> {
+    ensureDBOSIsLaunched('readStream');
+    const sysdb = DBOSExecutor.globalInstance!.systemDatabase;
+    yield* readStreamCore<T>(sysdb, sysdb.serializer, workflowID, key, {
+      offset: resolveStreamOffset(options),
+      pollingIntervalMs: resolveStreamPollingIntervalMs(options) ?? sysdb.dbPollingIntervalStreamMs,
+      timeoutMS: resolveStreamTimeoutMS(options),
+      functionName: DBOS_FUNCNAME_READSTREAM,
+      checkpoint: true,
+      shardKey: options.shardKey,
+    });
+  }
+
+  /**
+   * Read the single value at one offset of a stream, waiting for it to be written.
+   * Called from a workflow, this is one checkpointed step: a replay returns the recorded
+   * value or re-raises the recorded timeout.
+   * @param workflowID - The workflow instance ID that owns the stream
+   * @param key - The stream key/name within the workflow
+   * @param offset - The offset to read
+   * @param options - Optional settings, including how long to wait for the value
+   * @returns The value at the offset
+   * @throws DBOSStreamTimeoutError - If the timeout passes, or the stream ends before reaching the offset.
+   *   A replayed error is revived as a plain `Error`, so match it with `isStreamTimeoutError`, not `instanceof`.
+   */
+  static async readStreamOffset<T>(
+    workflowID: string,
+    key: string,
+    offset: number,
+    options: ReadStreamOffsetOptions = {},
+  ): Promise<T> {
+    ensureDBOSIsLaunched('readStreamOffset');
+    const sysdb = DBOSExecutor.globalInstance!.systemDatabase;
+    return await readStreamOffsetCore<T>(sysdb, sysdb.serializer, workflowID, key, {
+      offset: resolveStreamOffset({ ...options, offset }),
+      pollingIntervalMs: resolveStreamPollingIntervalMs(options) ?? sysdb.dbPollingIntervalStreamMs,
+      timeoutMS: resolveStreamTimeoutMS(options),
+      functionName: DBOS_FUNCNAME_READSTREAMOFFSET,
+      checkpoint: true,
+      shardKey: options.shardKey,
+    });
+  }
+
+  //////
+  // Decorators
+  //////
+
+  /**
+   * Allow a class to be assigned a name
+   */
+  static className(name: string) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    function clsdec<T extends { new (...args: any[]): object }>(ctor: T) {
+      const clsreg = getClassRegistration(ctor, true);
+      if (clsreg.reg?.name && clsreg.reg.name !== name && clsreg.reg.name !== ctor.name) {
+        throw new DBOSConflictingRegistrationError(
+          `Attempt to assign name ${name} to class ${ctor.name}, which has already been aliased to ${clsreg.reg.name}`,
+        );
+      }
+      clsreg.reg!.name = name;
+    }
+    return clsdec;
+  }
+
+  /**
+   * Decorator designating a method as a DBOS workflow
+   *   Durable execution will be applied within calls to the workflow function
+   *   This also registers the function so that it is available during recovery
+   * @param config - Configuration information for the workflow
+   */
+  static workflow(config: WorkflowConfig = {}) {
+    function decorator<This, Args extends unknown[], Return>(
+      target: object,
+      propertyKey: string,
+      inDescriptor: TypedPropertyDescriptor<(this: This, ...args: Args) => Promise<Return>>,
+    ) {
+      const { descriptor, registration } = wrapDBOSFunctionAndRegisterByTarget(
+        target,
+        propertyKey,
+        config.name ?? propertyKey,
+        inDescriptor,
+      );
+      const invoker = DBOS.#getWorkflowInvoker(registration, config);
+
+      descriptor.value = invoker;
+      registration.wrappedFunction = invoker;
+      registerFunctionWrapper(invoker, registration);
+
+      return descriptor;
+    }
+    return decorator;
+  }
+
+  /**
+   * Create a DBOS workflow function from a provided function.
+   *   Similar to the DBOS.workflow, but without requiring a decorator
+   *   Durable execution will be applied to calls to the function returned by registerWorkflow
+   *   This also registers the function so that it is available during recovery
+   * @param func - The function to register as a workflow
+   * @param name - The name of the registered workflow
+   * @param options - Configuration information for the registered workflow
+   */
+  static registerWorkflow<This, Args extends unknown[], Return>(
+    func: (this: This, ...args: Args) => Promise<Return>,
+    config?: FunctionName & WorkflowConfig,
+  ): (this: This, ...args: Args) => Promise<Return> {
+    const registration = wrapDBOSFunctionAndRegisterByUniqueName(
+      config?.ctorOrProto,
+      config?.className,
+      config?.name ?? func.name,
+      config?.name ?? func.name,
+      func,
+    );
+    return DBOS.#getWorkflowInvoker(registration, config);
+  }
+
+  static async #invokeWorkflow<This, Args extends unknown[], Return>(
+    $this: This,
+    regOP: MethodRegistrationBase,
+    args: Args,
+    params: StartWorkflowParams = {},
+    startWfFuncId?: number,
+  ): Promise<InternalWFHandle<Return>> {
+    ensureDBOSIsLaunched('workflows');
+    validateWorkflowAttributes(params.workflowAttributes);
+    const wfId = getNextWFID(params.workflowID);
+    const ppctx = getCurrentContextStore();
+
+    const queueName = params.queueName ?? ppctx?.queueAssignedForWorkflows;
+    const timeoutMS = params.timeoutMS ?? ppctx?.workflowTimeoutMS;
+    // Set by DBOS.withShardKey; a workflow never inherits its caller's own key.
+    const shardKey = nextWorkflowShardKey(ppctx);
+
+    const instance = $this === undefined || typeof $this === 'function' ? undefined : ($this as ConfiguredInstance);
+    if (instance && !(instance instanceof ConfiguredInstance)) {
+      throw new DBOSInvalidWorkflowTransitionError(
+        'Attempt to call a `workflow` function on an object that is not a `ConfiguredInstance`',
+      );
+    }
+
+    // If this is called from within a workflow, this is a child workflow.
+    // Reserve the child's function ID synchronously, before any await — otherwise
+    // concurrent step calls in the parent could race for IDs.
+    const isChild = DBOS.isWithinWorkflow();
+    if (isChild && !DBOS.isInWorkflow()) {
+      throw new DBOSInvalidWorkflowTransitionError(
+        'Invalid call to a `workflow` function from within a `step` or `transaction`',
+      );
+    }
+    const funcId = isChild ? (startWfFuncId ?? functionIDGetIncrement()) : undefined;
+
+    // Param-only checks: reading the queue's own config would cost a roundtrip on every enqueue.
+    if (queueName) {
+      const priority = params.enqueueOptions?.priority;
+      if (priority !== undefined && (priority < DBOS_QUEUE_MIN_PRIORITY || priority > DBOS_QUEUE_MAX_PRIORITY)) {
+        throw new DBOSInvalidQueuePriorityError(priority, DBOS_QUEUE_MIN_PRIORITY, DBOS_QUEUE_MAX_PRIORITY);
+      }
+    } else {
+      // Only the queue machinery reads these, and a stored dedup ID becomes a unique-constraint violation once anything assigns the row a queue name; applicationVersion is excluded because it still selects recovery executors.
+      const enqueueOnlyOptions: (keyof EnqueueOptions)[] = [
+        'deduplicationID',
+        'priority',
+        'queuePartitionKey',
+        'delaySeconds',
+        'applicationName',
+      ];
+      const setOptions = enqueueOnlyOptions.filter((name) => params.enqueueOptions?.[name] !== undefined);
+      if (setOptions.length > 0) {
+        throw new DBOSError(
+          `Enqueue option(s) ${setOptions.join(', ')} set on a workflow that is not being enqueued. ` +
+            'These options are only supported when enqueueing a workflow onto a queue.',
+        );
+      }
+    }
+
+    if (isChild) {
+      const pwfid = ppctx!.workflowId!;
+      const wfParams: WorkflowParams = {
+        workflowUUID: wfId || childWorkflowID(pwfid, funcId!, ppctx?.shardKey, shardKey),
+        configuredInstance: instance,
+        queueName,
+        timeoutMS,
+        // Detach child deadline if a null timeout is configured
+        deadlineEpochMS:
+          params.timeoutMS === null || ppctx?.workflowTimeoutMS === null ? undefined : ppctx?.deadlineEpochMS,
+        enqueueOptions: params.enqueueOptions,
+        duplicationPolicy: params.duplicationPolicy,
+        workflowIDReusePolicy: params.workflowIDReusePolicy,
+        workflowAttributes: params.workflowAttributes,
+        authenticatedUser: params.authenticatedUser,
+        authenticatedRoles: params.authenticatedRoles,
+        shardKey,
+      };
+
+      return await invokeRegOp(wfParams, pwfid, funcId);
+    } else {
+      const wfParams: InternalWorkflowParams = {
+        workflowUUID: wfId,
+        queueName,
+        enqueueOptions: params.enqueueOptions,
+        configuredInstance: instance,
+        timeoutMS,
+        duplicationPolicy: params.duplicationPolicy,
+        workflowIDReusePolicy: params.workflowIDReusePolicy,
+        workflowAttributes: params.workflowAttributes,
+        authenticatedUser: params.authenticatedUser,
+        authenticatedRoles: params.authenticatedRoles,
+        shardKey,
+      };
+
+      return await invokeRegOp(wfParams, undefined, undefined);
+    }
+
+    function invokeRegOp(wfParams: WorkflowParams, workflowID: string | undefined, funcNum: number | undefined) {
+      if (regOP.workflowConfig) {
+        const func = regOP.registeredFunction as TypedAsyncFunction<Args, Return>;
+        return DBOSExecutor.globalInstance!.internalWorkflow(func, wfParams, workflowID, funcNum, ...args);
+      }
+      if (regOP.stepConfig) {
+        throw new DBOSInvalidWorkflowTransitionError(
+          `Attempt to start or enqueue step '${regOP.name}'; only workflows can be started or enqueued`,
+        );
+      }
+
+      throw new DBOSNotRegisteredError(regOP.name, `${regOP.name} is not a registered DBOS workflow function`);
+    }
+  }
+
+  static async #invokeSingletonWorkflow<This, Args extends unknown[], Return>(
+    $this: This,
+    regOP: MethodRegistrationBase,
+    args: Args,
+    params: StartWorkflowParams,
+  ): Promise<WorkflowHandle<Return>> {
+    if (!params.queueName) {
+      throw new DBOSInvalidWorkflowTransitionError("`duplicationPolicy: 'return-existing'` requires a `queueName`");
+    }
+    const dedupID = params.enqueueOptions?.deduplicationID;
+    if (!dedupID) {
+      throw new DBOSInvalidWorkflowTransitionError(
+        "`duplicationPolicy: 'return-existing'` requires `enqueueOptions.deduplicationID`",
+      );
+    }
+    const queueName = params.queueName;
+
+    // Reserve the parent's child-funcID once, before any await. Each loop iteration passes it
+    // through so the return-existing retry loop consumes a single funcID instead of one per try.
+    const childFuncId = DBOS.isInWorkflow() ? functionIDGetIncrement() : undefined;
+    // The key the attached-to workflow lives under, as the start would have used.
+    const shardKey = nextWorkflowShardKey(getCurrentContextStore());
+
+    // Resolve the workflow ID once: if the caller supplied one explicitly or via
+    // `withNextWorkflowID`, reuse it on every iteration.
+    const resolvedWorkflowID = getNextWFID(params.workflowID);
+    const callParams: StartWorkflowParams =
+      resolvedWorkflowID !== undefined ? { ...params, workflowID: resolvedWorkflowID } : params;
+
+    while (true) {
+      try {
+        return await DBOS.#invokeWorkflow<This, Args, Return>($this, regOP, args, callParams, childFuncId);
+      } catch (e) {
+        if (!(e instanceof DBOSQueueDuplicatedError)) {
+          throw e;
+        }
+        const existingID = await DBOSExecutor.globalInstance!.systemDatabase.getDeduplicatedWorkflow(
+          queueName,
+          dedupID,
+        );
+        if (existingID) {
+          // Record the parent->child mapping at the reserved funcID so that on replay
+          // the parent uses the same child.
+          if (childFuncId !== undefined) {
+            const now = Date.now();
+            await DBOSExecutor.globalInstance!.systemDatabase.recordOperationResult(
+              DBOS.workflowID!,
+              childFuncId,
+              regOP.name,
+              true,
+              now,
+              now,
+              { childWorkflowID: existingID },
+            );
+          }
+          return new RetrievedHandle<Return>(existingID, shardKey);
+        }
+        // The prior workflow's deduplication_id was cleared between our INSERT and
+        // the lookup (it completed or was cancelled). Loop and try to claim the slot.
+      }
+    }
+  }
+
+  static #getWorkflowInvoker<This, Args extends unknown[], Return>(
+    registration: MethodRegistration<This, Args, Return>,
+    config: WorkflowConfig | undefined,
+  ): (this: This, ...args: Args) => Promise<Return> {
+    registration.setWorkflowConfig(config ?? {});
+    if (config?.inputSchema) {
+      const schema = config.inputSchema;
+      registration.validateArgs = (args) => schema.parse(args) as unknown[];
+    }
+    const invoker = async function (this: This, ...rawArgs: Args): Promise<Return> {
+      ensureDBOSIsLaunched('workflows');
+      if (DBOS.isInWorkflow()) {
+        // Reserve the function IDs synchronously, before any await.
+        const startWfFuncId = functionIDGetIncrement();
+        const getResFuncID = functionIDGetIncrement();
+        const handle = await DBOS.#invokeWorkflow<This, Args, Return>(
+          this,
+          registration,
+          rawArgs,
+          undefined,
+          startWfFuncId,
+        );
+        return await handle.getResult(getResFuncID);
+      }
+      const handle = await DBOS.#invokeWorkflow<This, Args, Return>(this, registration, rawArgs);
+      return await handle.getResult();
+    };
+    registerFunctionWrapper(invoker, registration as MethodRegistration<unknown, unknown[], unknown>);
+    Object.defineProperty(invoker, 'name', {
+      value: registration.name,
+    });
+    return invoker;
+  }
+
+  /**
+   * Decorator designating a method as a DBOS step.
+   *   Called from a workflow, a durable checkpoint will be made after the step completes
+   *   This ensures "at least once" execution of the step, and that the step will not
+   *    be executed again once the checkpoint is recorded
+   *   Called outside a workflow, it is an ordinary function call: no checkpoint, retries, or timeout
+   *
+   * @param config - Configuration information for the step, particularly the retry policy
+   */
+  static step(config: StepConfig = {}) {
+    function decorator<This, Args extends unknown[], Return>(
+      target: object,
+      propertyKey: string,
+      inDescriptor: TypedPropertyDescriptor<(this: This, ...args: Args) => Promise<Return>>,
+    ) {
+      const { descriptor, registration } = wrapDBOSFunctionAndRegisterByTarget(
+        target,
+        propertyKey,
+        config.name,
+        inDescriptor,
+      );
+      registration.setStepConfig(config);
+
+      const invokeWrapper = async function (this: This, ...rawArgs: Args): Promise<Return> {
+        ensureDBOSIsLaunched('steps');
+        let inst: ConfiguredInstance | undefined = undefined;
+        if (this === undefined || typeof this === 'function') {
+          // This is static
+        } else {
+          inst = this as ConfiguredInstance;
+          if (!(inst instanceof ConfiguredInstance)) {
+            throw new DBOSInvalidWorkflowTransitionError(
+              'Attempt to call a `step` function on an object that is not a `ConfiguredInstance`',
+            );
+          }
+        }
+
+        if (DBOS.isWithinWorkflow()) {
+          if (DBOS.isInTransaction()) {
+            throw new DBOSInvalidWorkflowTransitionError(
+              'Invalid call to a `step` function from within a `transaction`',
+            );
+          }
+          if (DBOS.isInStep()) {
+            // There should probably be checks here about the compatibility of the StepConfig...
+            return registration.registeredFunction!.call(this, ...rawArgs);
+          }
+          return await DBOSExecutor.globalInstance!.callStepFunction(
+            registration.registeredFunction as unknown as TypedAsyncFunction<Args, Return>,
+            undefined,
+            undefined,
+            inst ?? null,
+            ...rawArgs,
+          );
+        }
+
+        return registration.registeredFunction!.call(this, ...rawArgs);
+      };
+
+      descriptor.value = invokeWrapper;
+      registration.wrappedFunction = invokeWrapper;
+      registerFunctionWrapper(invokeWrapper, registration);
+
+      Object.defineProperty(invokeWrapper, 'name', {
+        value: registration.name,
+      });
+
+      return descriptor;
+    }
+    return decorator;
+  }
+
+  /**
+   * Create a check pointed DBOS step function from  a provided function
+   *   Similar to the DBOS.step decorator, but without requiring a decorator
+   *   Called from a workflow, a durable checkpoint will be made after the step completes
+   *   This ensures "at least once" execution of the step, and that the step will not
+   *    be executed again once the checkpoint is recorded
+   *   Called outside a workflow, it is an ordinary function call: no checkpoint, retries, or timeout
+   * @param func - The function to register as a step
+   * @param config - Configuration information for the step, particularly the retry policy and name
+   */
+  static registerStep<This, Args extends unknown[], Return>(
+    func: (this: This, ...args: Args) => Promise<Return>,
+    config: StepConfig & FunctionName = {},
+  ): (this: This, ...args: Args) => Promise<Return> {
+    const name = config.name ?? func.name;
+    validateStepConfig(config, name);
+
+    const reg = wrapDBOSFunctionAndRegister(config?.ctorOrProto, config?.className, name, name, func);
+
+    const invokeWrapper = async function (this: This, ...rawArgs: Args): Promise<Return> {
+      ensureDBOSIsLaunched('steps');
+
+      // eslint-disable-next-line @typescript-eslint/no-this-alias
+      const inst = this;
+      const callFunc = reg.registeredFunction ?? reg.origFunction;
+
+      if (DBOS.isWithinWorkflow()) {
+        if (DBOS.isInTransaction()) {
+          throw new DBOSInvalidWorkflowTransitionError('Invalid call to a `step` function from within a `transaction`');
+        }
+        if (DBOS.isInStep()) {
+          // There should probably be checks here about the compatibility of the StepConfig...
+          return callFunc.call(this, ...rawArgs);
+        }
+        return await DBOSExecutor.globalInstance!.callStepFunction(
+          callFunc as TypedAsyncFunction<Args, Return>,
+          name,
+          config,
+          inst ?? null,
+          ...rawArgs,
+        );
+      }
+
+      return callFunc.call(this, ...rawArgs);
+    };
+
+    registerFunctionWrapper(invokeWrapper, reg);
+
+    Object.defineProperty(invokeWrapper, 'name', { value: name });
+    return invokeWrapper;
+  }
+
+  /**
+   * Run the enclosed `callback` as a checkpointed step within a DBOS workflow
+   * @param callback - function containing code to run
+   * @param config - Configuration information for the step, particularly the retry policy
+   * @param config.name - The name of the step; if not provided, the function name will be used
+   * @returns - result (either obtained from invoking function, or retrieved if run before)
+   */
+  static runStep<Return>(func: () => Promise<Return>, config: StepConfig & { name?: string } = {}): Promise<Return> {
+    ensureDBOSIsLaunched('steps');
+
+    const name = config.name ?? func.name;
+    if (DBOS.isWithinWorkflow()) {
+      if (DBOS.isInTransaction()) {
+        throw new DBOSInvalidWorkflowTransitionError('Invalid call to a runStep from within a `transaction`');
+      }
+      if (DBOS.isInStep()) {
+        // There should probably be checks here about the compatibility of the StepConfig...
+        return func();
+      }
+      return DBOSExecutor.globalInstance!.callStepFunction<[], Return>(
+        func as unknown as TypedAsyncFunction<[], Return>,
+        name,
+        config,
+        null,
+      );
+    }
+
+    return func();
+  }
+
+  /**
+   * Draw the next step ID now, so a step can run at it later (for example, from another task) with `run`.
+   * This fixes the step's position in the workflow's history when it would otherwise depend on timing.
+   * Must be called from workflow code, not from a step or transaction.
+   * @returns - a `StepReservation` that runs a step at the reserved ID
+   */
+  static reserveStep(): StepReservation {
+    ensureDBOSIsLaunched('steps');
+    const ctx = getCurrentContextStore();
+    if (ctx === undefined || !isInWorkflowCtx(ctx)) {
+      throw new DBOSInvalidWorkflowTransitionError(
+        'DBOS.reserveStep must be called from a workflow, outside any step or transaction',
+      );
+    }
+    const stepID = functionIDGetIncrement();
+    return new StepReservation(stepID, { ...ctx });
+  }
+
+  /**
+   * Register serialization recipe; this is used to save/retrieve objects from the DBOS system
+   *  database.  This includes workflow inputs, function return values, messages, and events.
+   */
+  static registerSerialization<T, S extends JSONValue>(serReg: SerializationRecipe<T, S>) {
+    if (DBOS.isInitialized()) {
+      throw new TypeError(`Serializers/deserializers should not be registered after DBOS.launch()`);
+    }
+    registerSerializationRecipe(serReg);
+  }
+
+  /////
+  // Patching
+  /////
+
+  /**
+   * Check if a workflow execution has been patched.
+   *
+   * Patching allows reexecution of workflows to accommate changes to the workflow logic.
+   *
+   * Patches check the system database to see which code branch to take.  As this adds overhead,
+   *  they may eventually be removed; see `deprecatePatch`.
+   *
+   * @param patchName Name of the patch to check.
+   * @returns true if this is the patched(new) workflow variant, or false if the execution predates the patch
+   */
+  static async patch(patchName: string): Promise<boolean> {
+    if (!DBOS.isInWorkflow()) {
+      throw new DBOSInvalidWorkflowTransitionError(
+        '`DBOS.patch` must be called from a workflow, and not within a step',
+      );
+    }
+
+    const patched = await DBOSExecutor.globalInstance!.systemDatabase.checkPatch(
+      DBOS.workflowID!,
+      functionIDGet(),
+      patchName,
+      false,
+    );
+    if (patched.hasEntry) {
+      functionIDGetIncrement();
+    }
+    return patched.isPatched;
+  }
+
+  /**
+   * Check if a workflow execution has been patched, within a plan to eventually remove the unpatched (old) variant.
+   *
+   * `patch` may be changed to `deprecatePatch` after all unpatched workflows have completed and will not be reexecuted.
+   * Once all workflows started with `patch` have completed (in favor of those using `deprecatePatch`), the `deprecatePatch` may then be removed.
+   *
+   * @param patchName Name of the patch to check.
+   * @returns true if this is the patched(new) workflow variant, which it should always be if all unpatched workflows have been retired
+   */
+  static async deprecatePatch(patchName: string): Promise<boolean> {
+    if (!DBOS.isInWorkflow()) {
+      throw new DBOSInvalidWorkflowTransitionError(
+        '`DBOS.deprecatePatch` must be called from a workflow, and not within a step',
+      );
+    }
+
+    const patched = await DBOSExecutor.globalInstance!.systemDatabase.checkPatch(
+      DBOS.workflowID!,
+      functionIDGet(),
+      patchName,
+      true,
+    );
+    if (patched.hasEntry) {
+      functionIDGetIncrement();
+    }
+    return patched.isPatched;
+  }
+
+  /////
+  // Registration, etc
+  /////
+
+  /**
+   * Register a lifecycle listener
+   */
+  static registerLifecycleCallback(lcl: DBOSLifecycleCallback) {
+    registerLifecycleCallback(lcl);
+  }
+
+  /**
+   * Register information to be associated with a DBOS class
+   */
+  static associateClassWithInfo(external: AnyConstructor | object | string, cls: AnyConstructor | string): object {
+    return associateClassWithExternal(external, cls);
+  }
+
+  /**
+   * Register information to be associated with a DBOS function
+   */
+  static associateFunctionWithInfo<This, Args extends unknown[], Return>(
+    external: AnyConstructor | object | string,
+    func: (this: This, ...args: Args) => Promise<Return>,
+    target: FunctionName,
+  ) {
+    return associateMethodWithExternal(external, target.ctorOrProto, target.className, target.name ?? func.name, func);
+  }
+
+  /** Get registrations */
+  static getAssociatedInfo(
+    external: AnyConstructor | object | string,
+    cls?: object | string,
+    funcName?: string,
+  ): readonly ExternalRegistration[] {
+    return getRegistrationsForExternal(external, cls, funcName);
+  }
+
+  /////
+  // Alert Handling
+  /////
+
+  /**
+   * Register an alert handler to receive alerts from DBOS Conductor.
+   * Only one handler can be registered, and it must be registered before DBOS.launch().
+   * If no handler is registered, alerts will be logged.
+   *
+   * @param handler - Function to handle incoming alerts
+   * @throws Error if DBOS is already initialized or if a handler is already registered
+   *
+   * @example
+   * ```typescript
+   * DBOS.setAlertHandler(async (name: string, message: string, metadata: Record<string, string>) => {
+   *   console.log(`Alert: ${name} - ${message}`, metadata);
+   *   // Send to monitoring service, etc.
+   * });
+   * ```
+   */
+  static setAlertHandler(handler: AlertHandler): void {
+    if (DBOS.isInitialized()) {
+      throw new DBOSError('Cannot set alert handler after DBOS.launch()');
+    }
+    if (getAlertHandler()) {
+      throw new DBOSError('Alert handler is already registered. Only one handler is allowed.');
+    }
+    setAlertHandler(handler);
+  }
+
+  /////
+  // Dynamic Workflow Schedules
+  /////
+
+  static async createSchedule(options: {
+    scheduleName: string;
+    workflowFn: ScheduledWorkflowFn;
+    schedule: string;
+    context?: unknown;
+    options?: ScheduleOptions;
+  }): Promise<void> {
+    ensureDBOSIsLaunched('createSchedule');
+
+    const reg = getFunctionRegistration(options.workflowFn);
+    if (reg?.isInstance) {
+      throw new DBOSError(
+        `Cannot schedule instance method "${reg.name}". Only static methods and free functions can be used in schedules.`,
+      );
+    }
+
+    const { className, name: funcName } = getRegisteredFunctionFullName(options.workflowFn);
+    validateCrontab(options.schedule);
+    if (options.options?.cronTimezone) {
+      validateTimezone(options.options.cronTimezone);
+    }
+
+    const serializer = DBOSExecutor.globalInstance!.serializer;
+    const schedInternal: WorkflowScheduleInternal = {
+      scheduleId: createScheduleId(),
+      scheduleName: options.scheduleName,
+      workflowName: funcName,
+      workflowClassName: className,
+      schedule: options.schedule,
+      status: 'ACTIVE',
+      context: await serializer.stringify(options.context),
+      lastFiredAt: null,
+      automaticBackfill: options.options?.automaticBackfill ?? false,
+      cronTimezone: options.options?.cronTimezone ?? null,
+      queueName: options.options?.queueName ?? null,
+      applicationName: globalParams.appName,
+      shardKey: options.options?.shardKey,
+    };
+
+    await runTransactionalInternalStep(
+      (client) => DBOSExecutor.globalInstance!.systemDatabase.createSchedule(schedInternal, client),
+      'DBOS.createSchedule',
+    );
+  }
+
+  /**
+   * Return registered workflow schedules, optionally filtered. `applicationName`
+   * lists only schedules owned by these applications. By default, only lists this
+   * application's schedules.
+   */
+  static async listSchedules(filters?: {
+    applicationName?: string | string[];
+    status?: string | string[];
+    workflowName?: string | string[];
+    scheduleNamePrefix?: string | string[];
+  }): Promise<WorkflowSchedule[]> {
+    ensureDBOSIsLaunched('listSchedules');
+    const serializer = DBOSExecutor.globalInstance!.serializer;
+    const results = await runTransactionalInternalStep(
+      (client) => DBOSExecutor.globalInstance!.systemDatabase.listSchedules(filters, client),
+      'DBOS.listSchedules',
+    );
+    return await Promise.all(results.map((r) => toWorkflowSchedule(r, serializer)));
+  }
+
+  static async getSchedule(name: string): Promise<WorkflowSchedule | null> {
+    ensureDBOSIsLaunched('getSchedule');
+    const serializer = DBOSExecutor.globalInstance!.serializer;
+    const result = await runTransactionalInternalStep(
+      (client) => DBOSExecutor.globalInstance!.systemDatabase.getSchedule(name, client),
+      'DBOS.getSchedule',
+    );
+    return result ? await toWorkflowSchedule(result, serializer) : null;
+  }
+
+  static async deleteSchedule(name: string): Promise<void> {
+    ensureDBOSIsLaunched('deleteSchedule');
+    await runTransactionalInternalStep(
+      (client) => DBOSExecutor.globalInstance!.systemDatabase.deleteSchedule(name, client),
+      'DBOS.deleteSchedule',
+    );
+  }
+
+  static async pauseSchedule(name: string): Promise<void> {
+    ensureDBOSIsLaunched('pauseSchedule');
+    await runTransactionalInternalStep(
+      (client) => DBOSExecutor.globalInstance!.systemDatabase.setScheduleStatus(name, 'PAUSED', client),
+      'DBOS.pauseSchedule',
+    );
+  }
+
+  static async resumeSchedule(name: string): Promise<void> {
+    ensureDBOSIsLaunched('resumeSchedule');
+    await runTransactionalInternalStep(
+      (client) => DBOSExecutor.globalInstance!.systemDatabase.setScheduleStatus(name, 'ACTIVE', client),
+      'DBOS.resumeSchedule',
+    );
+  }
+
+  static async updateSchedule(
+    name: string,
+    updates: {
+      schedule?: string;
+      context?: unknown;
+      automaticBackfill?: boolean;
+      cronTimezone?: string | null;
+      queueName?: string | null;
+    },
+  ): Promise<void> {
+    ensureDBOSIsLaunched('updateSchedule');
+    if (updates.schedule !== undefined) {
+      validateCrontab(updates.schedule);
+    }
+    if (updates.cronTimezone) {
+      validateTimezone(updates.cronTimezone);
+    }
+    const serializer = DBOSExecutor.globalInstance!.serializer;
+    // Only the keys the caller provided are updated. An `undefined` value leaves a field unchanged; `null` clears a nullable field. Including `context` (even as `undefined`) sets it, since `undefined` is a valid empty context.
+    const internalUpdates: WorkflowScheduleUpdate = {};
+    if (updates.schedule !== undefined) internalUpdates.schedule = updates.schedule;
+    if ('context' in updates) internalUpdates.context = await serializer.stringify(updates.context);
+    if (updates.automaticBackfill !== undefined) internalUpdates.automaticBackfill = updates.automaticBackfill;
+    if (updates.cronTimezone !== undefined) internalUpdates.cronTimezone = updates.cronTimezone;
+    if (updates.queueName !== undefined) internalUpdates.queueName = updates.queueName;
+    await runTransactionalInternalStep(
+      (client) => DBOSExecutor.globalInstance!.systemDatabase.updateSchedule(name, internalUpdates, client),
+      'DBOS.updateSchedule',
+    );
+  }
+
+  static async applySchedules(
+    schedules: Array<{
+      scheduleName: string;
+      workflowFn: ScheduledWorkflowFn;
+      schedule: string;
+      context?: unknown;
+      automaticBackfill?: boolean;
+      cronTimezone?: string;
+      queueName?: string;
+      shardKey?: string;
+    }>,
+  ): Promise<void> {
+    ensureDBOSIsLaunched('applySchedules');
+    if (DBOS.isWithinWorkflow()) {
+      throw new DBOSError('applySchedules cannot be called from within a workflow');
+    }
+
+    const serializer = DBOSExecutor.globalInstance!.serializer;
+    const internals: WorkflowScheduleInternal[] = [];
+    for (const sched of schedules) {
+      const reg = getFunctionRegistration(sched.workflowFn);
+      if (reg?.isInstance) {
+        throw new DBOSError(
+          `Cannot schedule instance method "${reg.name}". Only static methods and free functions can be used in schedules.`,
+        );
+      }
+      const { className, name: funcName } = getRegisteredFunctionFullName(sched.workflowFn);
+      validateCrontab(sched.schedule);
+      if (sched.cronTimezone) {
+        validateTimezone(sched.cronTimezone);
+      }
+      internals.push({
+        scheduleId: createScheduleId(),
+        scheduleName: sched.scheduleName,
+        workflowName: funcName,
+        workflowClassName: className,
+        schedule: sched.schedule,
+        status: 'ACTIVE',
+        context: await serializer.stringify(sched.context),
+        lastFiredAt: null,
+        applicationName: globalParams.appName,
+        automaticBackfill: sched.automaticBackfill ?? false,
+        cronTimezone: sched.cronTimezone ?? null,
+        queueName: sched.queueName ?? null,
+        shardKey: sched.shardKey,
+      });
+    }
+
+    await DBOSExecutor.globalInstance!.systemDatabase.applySchedules(internals);
+  }
+
+  static async triggerSchedule(name: string): Promise<WorkflowHandle<unknown>> {
+    ensureDBOSIsLaunched('triggerSchedule');
+    if (DBOS.isWithinWorkflow()) {
+      throw new DBOSError('triggerSchedule cannot be called from within a workflow');
+    }
+    const executor = DBOSExecutor.globalInstance!;
+    const workflowID = await triggerScheduleImpl(executor.systemDatabase, executor.serializer, name);
+    return new RetrievedHandle(workflowID, await scheduleShardKey(executor.systemDatabase, name));
+  }
+
+  static async backfillSchedule(name: string, start: Date, end: Date): Promise<WorkflowHandle<unknown>[]> {
+    ensureDBOSIsLaunched('backfillSchedule');
+    if (DBOS.isWithinWorkflow()) {
+      throw new DBOSError('backfillSchedule cannot be called from within a workflow');
+    }
+    const executor = DBOSExecutor.globalInstance!;
+    const workflowIDs = await backfillScheduleImpl(executor.systemDatabase, executor.serializer, name, start, end);
+    const shardKey = await scheduleShardKey(executor.systemDatabase, name);
+    return workflowIDs.map((id) => new RetrievedHandle(id, shardKey));
+  }
+
+  // ==================== Application Versions ====================
+
+  /**
+   * List all registered application versions, ordered by version_timestamp descending (latest first).
+   */
+  static async listApplicationVersions(): Promise<VersionInfo[]> {
+    ensureDBOSIsLaunched('listApplicationVersions');
+    return await DBOSExecutor.globalInstance!.systemDatabase.listApplicationVersions();
+  }
+
+  /**
+   * Get the latest application version (the one with the highest version_timestamp).
+   * Throws if no versions are registered.
+   */
+  static async getLatestApplicationVersion(): Promise<VersionInfo> {
+    ensureDBOSIsLaunched('getLatestApplicationVersion');
+    return await DBOSExecutor.globalInstance!.systemDatabase.getLatestApplicationVersion();
+  }
+
+  /**
+   * Set a version as the latest by updating its version_timestamp to now.
+   * @param versionName - The version name to promote to latest
+   */
+  static async setLatestApplicationVersion(versionName: string, options?: { applicationName?: string }): Promise<void> {
+    ensureDBOSIsLaunched('setLatestApplicationVersion');
+    await DBOSExecutor.globalInstance!.systemDatabase.updateApplicationVersionTimestamp(
+      versionName,
+      Date.now(),
+      options?.applicationName,
+    );
+  }
+
+  /**
+   * Register a workflow queue and persist its configuration in the system
+   * database. Returns a `WorkflowQueue` whose `setX` methods write through
+   * to the database so the queue can be reconfigured at runtime.
+   *
+   * @param name - Unique name of the queue.
+   * @param options - Queue parameters plus an `onConflict` policy that
+   *   controls what happens when a row with this name already exists.
+   *   Defaults to `update_if_latest_version`, which only overwrites when the
+   *   running application version matches the latest registered version —
+   *   safe for rolling deploys.
+   *
+   *   A queue already registered by a different application throws in every mode:
+   *   the name is its address, so a collision is not ours to resolve.
+   */
+  static async registerQueue(name: string, options: RegisterQueueOptions = {}): Promise<WorkflowQueue> {
+    ensureDBOSIsLaunched('registerQueue');
+    const { onConflict = 'update_if_latest_version', ...params } = options;
+    WorkflowQueue.validateQueueRegistration(name, params);
+
+    const sysdb = DBOSExecutor.globalInstance!.systemDatabase;
+    let updateExisting: boolean;
+    if (onConflict === 'always_update') {
+      updateExisting = true;
+    } else if (onConflict === 'never_update') {
+      updateExisting = false;
+    } else {
+      const latest = await sysdb.getLatestApplicationVersion();
+      updateExisting = latest.versionName === globalParams.appVersion;
+    }
+
+    const record = WorkflowQueue.recordFromParams(name, params);
+    const inserted = await sysdb.upsertQueue(record, updateExisting);
+
+    const persisted = await sysdb.getQueue(name);
+    if (persisted === null) {
+      throw new Error(`Queue '${name}' missing from database after upsert`);
+    }
+    const queue = new WorkflowQueue(persisted);
+    if (inserted) {
+      DBOSExecutor.globalInstance!.logger.info(`Registered new queue:`);
+      logQueue(DBOSExecutor.globalInstance!.logger, queue);
+    }
+    return queue;
+  }
+
+  /**
+   * Enqueue a workflow by name, without a reference to its function.
+   *
+   * Takes the same options as `DBOSClient.enqueue` and builds the same row, so the
+   * workflow may be implemented by another process — or in another language — as long
+   * as it shares this system database. Safe to call from inside a workflow: the
+   * enqueued workflow is recorded as a child.
+   *
+   * Unlike `DBOS.startWorkflow`, options are deliberately not validated against the
+   * local registry, and `appVersion` is left unset unless given. An unset `appVersion`
+   * is only dequeued by an executor running the latest registered application version.
+   *
+   * The enqueued workflow is owned by this application unless `applicationName` names
+   * another one.
+   */
+  static async enqueueWorkflowWithOptions<T = unknown>(
+    options: EnqueueWorkflowOptions,
+    ...args: unknown[]
+  ): Promise<WorkflowHandle<T>> {
+    ensureDBOSIsLaunched('enqueueWorkflowWithOptions');
+    return await enqueueWorkflowWithOptions<T>(options, args);
+  }
+
+  /**
+   * Enqueue a workflow by name with portable arguments, for targets that take named
+   * arguments — a Python workflow with keyword arguments, say. The counterpart of
+   * `DBOSClient.enqueuePortable`; see `enqueueWorkflowWithOptions` for the semantics.
+   */
+  static async enqueueWorkflowWithOptionsPortable<T = unknown>(
+    options: EnqueueWorkflowOptions,
+    positionalArgs: unknown[],
+    namedArgs?: Record<string, unknown>,
+  ): Promise<WorkflowHandle<T>> {
+    ensureDBOSIsLaunched('enqueueWorkflowWithOptionsPortable');
+    return await enqueueWorkflowWithOptions<T>(
+      { serializationType: 'portable', ...options },
+      positionalArgs,
+      namedArgs,
+    );
+  }
+
+  /** Retrieve a database-backed queue by name, or `null` if no row exists. */
+  static async retrieveQueue(name: string): Promise<WorkflowQueue | null> {
+    ensureDBOSIsLaunched('retrieveQueue');
+    const record = await DBOSExecutor.globalInstance!.systemDatabase.getQueue(name);
+    return record === null ? null : new WorkflowQueue(record);
+  }
+
+  /** Delete a database-backed queue. Pending workflows on it are unrecoverable. */
+  static async deleteQueue(name: string): Promise<void> {
+    ensureDBOSIsLaunched('deleteQueue');
+    await DBOSExecutor.globalInstance!.systemDatabase.deleteQueue(name);
+  }
+
+  /**
+   * List database-backed queues registered in the system database. `applicationName`
+   * lists only queues owned by these applications. By default, only lists this
+   * application's queues.
+   */
+  static async listQueues(applicationName?: string | string[]): Promise<WorkflowQueue[]> {
+    ensureDBOSIsLaunched('listQueues');
+    const records = await DBOSExecutor.globalInstance!.systemDatabase.listQueues(applicationName);
+    return records.map((record) => new WorkflowQueue(record));
+  }
+}

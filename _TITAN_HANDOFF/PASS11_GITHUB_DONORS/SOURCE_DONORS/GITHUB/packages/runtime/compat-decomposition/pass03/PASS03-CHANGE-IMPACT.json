@@ -1,0 +1,8 @@
+{
+  "runtime_execution": "UNCHANGED",
+  "startup_behavior": "UNCHANGED",
+  "ui": "UNCHANGED",
+  "authority": "UNCHANGED",
+  "company_boundary": "UNCHANGED",
+  "future_impact": "Pass4 may compose exact reusable primitives behind a compatibility bootstrap; monolith execution remains authoritative until parity gates pass."
+}

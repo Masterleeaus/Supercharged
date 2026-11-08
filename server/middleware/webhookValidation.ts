@@ -79,8 +79,7 @@ export async function validateStripeWebhook(
   try {
     const stripe = await getStripeClient();
     if (!stripe) {
-      console.warn("[Stripe Webhook] Stripe not configured, skipping validation");
-      return next();
+      throw new WebhookValidationError("stripe", "Stripe not configured; webhook rejected");
     }
 
     const sig = req.headers["stripe-signature"];
@@ -91,8 +90,7 @@ export async function validateStripeWebhook(
     }
 
     if (!webhookSecret) {
-      console.warn("[Stripe Webhook] No webhook secret configured, skipping signature verification");
-      return next();
+      throw new WebhookValidationError("stripe", "No Stripe webhook secret configured; webhook rejected");
     }
 
     const rawBody = req.rawBody?.toString() || JSON.stringify(req.body);
@@ -137,8 +135,7 @@ export async function validateRazorpayWebhook(
     const webhookSecret = webhookSecretSetting?.value;
 
     if (!webhookSecret || typeof webhookSecret !== "string") {
-      console.warn("[Razorpay Webhook] No webhook secret configured, skipping signature verification");
-      return next();
+      throw new WebhookValidationError("razorpay", "No Razorpay webhook secret configured; webhook rejected");
     }
 
     const rawBody = req.rawBody?.toString() || JSON.stringify(req.body);
@@ -185,16 +182,14 @@ export async function validateTwilioWebhook(
     const twilioSignature = req.headers["x-twilio-signature"] as string;
     
     if (!twilioSignature) {
-      console.warn("[Twilio Webhook] No signature header found, skipping validation");
-      return next();
+      throw new WebhookValidationError("twilio", "Missing Twilio signature header");
     }
 
     const authTokenSetting = await storage.getGlobalSetting("twilio_auth_token");
     const authTokenValue = authTokenSetting?.value || process.env.TWILIO_AUTH_TOKEN;
 
     if (!authTokenValue || typeof authTokenValue !== "string") {
-      console.warn("[Twilio Webhook] No auth token configured, skipping signature verification");
-      return next();
+      throw new WebhookValidationError("twilio", "No Twilio auth token configured; webhook rejected");
     }
 
     const authToken: string = authTokenValue;
@@ -271,57 +266,6 @@ export async function validateTwilioWebhook(
 }
 
 /**
- * Validates ElevenLabs webhook signatures using HMAC-SHA256.
- * 
- * @param {Request} req - Express request object
- * @param {Response} res - Express response object
- * @param {NextFunction} next - Express next function
- */
-export async function validateElevenLabsWebhook(
-  req: RawBodyRequest,
-  res: Response,
-  next: NextFunction
-): Promise<void> {
-  try {
-    const signature = req.headers["x-elevenlabs-signature"] as string;
-    
-    if (!signature) {
-      console.warn("[ElevenLabs Webhook] No signature header found, skipping validation");
-      return next();
-    }
-
-    const webhookSecretSetting = await storage.getGlobalSetting("elevenlabs_webhook_secret");
-    const webhookSecret = webhookSecretSetting?.value;
-
-    if (!webhookSecret || typeof webhookSecret !== "string") {
-      console.warn("[ElevenLabs Webhook] No webhook secret configured, skipping signature verification");
-      return next();
-    }
-
-    const rawBody = req.rawBody?.toString() || JSON.stringify(req.body);
-
-    const expectedSignature = crypto
-      .createHmac("sha256", webhookSecret as string)
-      .update(rawBody)
-      .digest("hex");
-
-    if (expectedSignature !== signature) {
-      throw new WebhookValidationError("elevenlabs", "Invalid webhook signature");
-    }
-
-    console.log("[ElevenLabs Webhook] Signature verified successfully");
-    next();
-  } catch (error) {
-    if (error instanceof WebhookValidationError) {
-      console.error(`[ElevenLabs Webhook] Validation failed: ${error.message}`);
-      res.status(401).json(error.toJSON());
-    } else {
-      next(error);
-    }
-  }
-}
-
-/**
  * Generic HMAC-SHA256 webhook signature validator.
  * Can be configured for different providers.
  * 
@@ -343,16 +287,14 @@ export function createHmacWebhookValidator(config: {
       const signature = req.headers[config.signatureHeader.toLowerCase()] as string;
       
       if (!signature) {
-        console.warn(`[${config.provider} Webhook] No signature header found, skipping validation`);
-        return next();
+        throw new WebhookValidationError(config.provider, "Missing webhook signature header");
       }
 
       const secretSetting = await storage.getGlobalSetting(config.secretKey);
       const secretValue = secretSetting?.value || (config.secretEnvVar ? process.env[config.secretEnvVar] : undefined);
 
       if (!secretValue || typeof secretValue !== "string") {
-        console.warn(`[${config.provider} Webhook] No secret configured, skipping signature verification`);
-        return next();
+        throw new WebhookValidationError(config.provider, "No webhook secret configured; webhook rejected");
       }
 
       const secret: string = secretValue;

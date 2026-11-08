@@ -1,0 +1,17 @@
+{
+  "schema": "titan-zero-verification/v1",
+  "packet_id": "TZ-FIX-COMPAT-RUNTIME-DECOMPOSITION-001",
+  "pass": 1,
+  "manager_merge": 46,
+  "status": "PASS",
+  "checks": {
+    "canonical_sha256_match": true,
+    "target_bundle_byte_total": 47933157,
+    "bundle_hashes_verified": 3,
+    "manifest_startup_reachability_verified": true,
+    "node_pass01_test": "PASS",
+    "production_runtime_modified": false,
+    "collision_status": "CLEAN_ADDITIVE"
+  },
+  "note": "Pass 1 is census/evidence only. No compatibility runtime, CSS, manifest, HTML, authority, or UI behavior changed."
+}

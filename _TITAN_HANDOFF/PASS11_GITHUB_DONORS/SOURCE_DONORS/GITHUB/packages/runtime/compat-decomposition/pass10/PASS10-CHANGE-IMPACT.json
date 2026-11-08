@@ -1,0 +1,13 @@
+{
+  "schema": "titan-zero-change-impact/v1",
+  "packet_id": "TZ-FIX-COMPAT-RUNTIME-DECOMPOSITION-001",
+  "pass": 10,
+  "runtime_files_changed_in_pass10": [],
+  "evidence_only": true,
+  "manager_merge_required": true,
+  "recommended_convergence_class": "CLEAN_FORWARD_PORT",
+  "notes": [
+    "Builder 3 Retriever-native work remains independently converged; this lane does not overwrite its reserved files.",
+    "Deploy artifact must be regenerated from promoted development canonical; do not merge deploy ZIP over development canonical."
+  ]
+}

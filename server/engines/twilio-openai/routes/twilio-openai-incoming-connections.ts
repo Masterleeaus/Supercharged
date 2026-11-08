@@ -3,9 +3,23 @@ import { db } from "../../../db";
 import { incomingConnections, agents, phoneNumbers, insertIncomingConnectionSchema, campaigns } from "@shared/schema";
 import { eq, and, isNull, inArray } from "drizzle-orm";
 import { authenticateToken, type AuthRequest } from "../../../middleware/auth";
+import { getCompanyScope, CompanyScopeError } from "../../../middleware/company-scope";
 import { getDomain } from "../../../utils/domain";
 
 const router = Router();
+
+/**
+ * Company for read and list scoping. Company comes only from the verified session.
+ * Sends 403 and returns null when the session has no company (fail closed).
+ */
+function companyForRead(req: AuthRequest, res: Response): string | null {
+  try {
+    return getCompanyScope(req);
+  } catch {
+    res.status(403).json({ error: "Company scope required" });
+    return null;
+  }
+}
 
 router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
@@ -13,6 +27,8 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
     if (!userId) {
       return res.status(401).json({ error: "Unauthorized" });
     }
+    const companyId = companyForRead(req, res);
+    if (!companyId) return;
 
     const connections = await db
       .select({
@@ -47,6 +63,7 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
       .where(
         and(
           eq(incomingConnections.userId, userId),
+          eq(incomingConnections.companyId, companyId),
           eq(agents.telephonyProvider, "twilio_openai")
         )
       );
@@ -55,7 +72,7 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
     const allUserConnections = await db
       .select({ phoneNumberId: incomingConnections.phoneNumberId })
       .from(incomingConnections)
-      .where(eq(incomingConnections.userId, userId));
+      .where(and(eq(incomingConnections.userId, userId), eq(incomingConnections.companyId, companyId)));
     
     const allConnectedPhoneIds = allUserConnections.map((c) => c.phoneNumberId);
     
@@ -66,6 +83,7 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
       .where(
         and(
           eq(phoneNumbers.userId, userId),
+          eq(phoneNumbers.companyId, companyId),
           eq(phoneNumbers.isSystemPool, false),
           inArray(phoneNumbers.status, ["active", "assigned"])
         )
@@ -89,6 +107,7 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
       .where(
         and(
           inArray(campaigns.phoneNumberId, phoneIdsToCheck),
+          eq(campaigns.companyId, companyId),
           inArray(campaigns.status, activeStatuses),
           isNull(campaigns.deletedAt)
         )
@@ -123,6 +142,7 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
       .where(
         and(
           eq(agents.userId, userId), 
+          eq(agents.companyId, companyId),
           eq(agents.type, "incoming"), 
           eq(agents.isActive, true),
           eq(agents.telephonyProvider, "twilio_openai")
@@ -152,6 +172,17 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response) => {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
+    // Company comes only from the authenticated session (req.user.companyId).
+    let companyId: string;
+    try {
+      companyId = getCompanyScope(req);
+    } catch (scopeError) {
+      if (scopeError instanceof CompanyScopeError) {
+        return res.status(403).json({ error: "Company scope required" });
+      }
+      throw scopeError;
+    }
+
     const validatedData = insertIncomingConnectionSchema.parse({
       ...req.body,
       userId,
@@ -166,6 +197,7 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response) => {
         and(
           eq(agents.id, agentId), 
           eq(agents.userId, userId), 
+          eq(agents.companyId, companyId),
           eq(agents.type, "incoming"),
           eq(agents.telephonyProvider, "twilio_openai")
         )
@@ -189,6 +221,7 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response) => {
         and(
           eq(phoneNumbers.id, phoneNumberId),
           eq(phoneNumbers.userId, userId),
+          eq(phoneNumbers.companyId, companyId),
           eq(phoneNumbers.isSystemPool, false)
         )
       )
@@ -201,7 +234,7 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response) => {
     const existingConnection = await db
       .select()
       .from(incomingConnections)
-      .where(eq(incomingConnections.phoneNumberId, phoneNumberId))
+      .where(and(eq(incomingConnections.phoneNumberId, phoneNumberId), eq(incomingConnections.companyId, companyId)))
       .limit(1);
 
     if (existingConnection.length) {
@@ -212,6 +245,7 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response) => {
       .insert(incomingConnections)
       .values({
         userId,
+        companyId,
         agentId,
         phoneNumberId,
       })
@@ -250,6 +284,8 @@ router.post("/:id/resync-webhook", authenticateToken, async (req: AuthRequest, r
     if (!userId) {
       return res.status(401).json({ error: "Unauthorized" });
     }
+    const companyId = companyForRead(req, res);
+    if (!companyId) return;
 
     const connection = await db
       .select({
@@ -260,7 +296,7 @@ router.post("/:id/resync-webhook", authenticateToken, async (req: AuthRequest, r
       })
       .from(incomingConnections)
       .leftJoin(phoneNumbers, eq(incomingConnections.phoneNumberId, phoneNumbers.id))
-      .where(and(eq(incomingConnections.id, id), eq(incomingConnections.userId, userId)))
+      .where(and(eq(incomingConnections.id, id), eq(incomingConnections.userId, userId), eq(incomingConnections.companyId, companyId)))
       .limit(1);
 
     if (!connection.length) {
@@ -293,6 +329,8 @@ router.delete("/:id", authenticateToken, async (req: AuthRequest, res: Response)
     if (!userId) {
       return res.status(401).json({ error: "Unauthorized" });
     }
+    const companyId = companyForRead(req, res);
+    if (!companyId) return;
 
     const connection = await db
       .select({
@@ -303,7 +341,7 @@ router.delete("/:id", authenticateToken, async (req: AuthRequest, res: Response)
       })
       .from(incomingConnections)
       .leftJoin(phoneNumbers, eq(incomingConnections.phoneNumberId, phoneNumbers.id))
-      .where(and(eq(incomingConnections.id, id), eq(incomingConnections.userId, userId)))
+      .where(and(eq(incomingConnections.id, id), eq(incomingConnections.userId, userId), eq(incomingConnections.companyId, companyId)))
       .limit(1);
 
     if (!connection.length) {

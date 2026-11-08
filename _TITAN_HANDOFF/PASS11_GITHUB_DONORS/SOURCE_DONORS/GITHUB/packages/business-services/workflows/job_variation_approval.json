@@ -1,0 +1,164 @@
+{
+  "wizard": {
+    "id": "job_variation_approval_v1",
+    "version": "1.0.0",
+    "name": "Job Variation Approval",
+    "capability": "crm.work_order.update",
+    "permissions": {
+      "required_roles": [
+        "supervisor",
+        "manager",
+        "admin",
+        "owner"
+      ]
+    },
+    "metadata": {
+      "category": "field_services",
+      "template_id": "job-variation-approval",
+      "template_version": "1.0.0",
+      "verticals": [
+        "field_services",
+        "home_services",
+        "cleaning"
+      ],
+      "interfaces": [
+        "chat",
+        "mobile",
+        "tablet",
+        "desktop",
+        "voice"
+      ],
+      "surfaces": [
+        "go",
+        "command"
+      ]
+    },
+    "offline": {
+      "enabled": true,
+      "sync_priority": "high",
+      "conflict_handling": "prompt_user"
+    },
+    "governance": {
+      "required_context": [
+        "company_id",
+        "user_id",
+        "device_id",
+        "correlation_id"
+      ],
+      "completion_rules": [
+        {
+          "when": {
+            "field": "cost_impact",
+            "gt": 0
+          },
+          "require_fields": [
+            "evidence_attachment_ids",
+            "customer_approval_id",
+            "approved_by",
+            "approved_at"
+          ],
+          "message_prefix": "Missing required paid variation approval"
+        }
+      ]
+    },
+    "steps": [
+      {
+        "id": "job",
+        "title": "Job variation",
+        "fields": [
+          {
+            "id": "job_id",
+            "label": "Job ID",
+            "type": "text",
+            "required": true
+          },
+          {
+            "id": "customer_id",
+            "label": "Customer ID",
+            "type": "text",
+            "required": true
+          },
+          {
+            "id": "variation_summary",
+            "label": "Variation summary",
+            "type": "text",
+            "required": true
+          }
+        ]
+      },
+      {
+        "id": "impact",
+        "title": "Impact",
+        "fields": [
+          {
+            "id": "cost_impact",
+            "label": "Cost impact",
+            "type": "number",
+            "required": true
+          },
+          {
+            "id": "schedule_impact_days",
+            "label": "Schedule impact days",
+            "type": "number",
+            "required": true
+          },
+          {
+            "id": "material_change",
+            "label": "Material change",
+            "type": "boolean",
+            "required": true
+          }
+        ]
+      },
+      {
+        "id": "evidence",
+        "title": "Evidence and approval",
+        "fields": [
+          {
+            "id": "evidence_attachment_ids",
+            "label": "Evidence attachments",
+            "type": "array",
+            "required": false
+          },
+          {
+            "id": "customer_approval_id",
+            "label": "Customer approval ID",
+            "type": "text",
+            "required": false
+          },
+          {
+            "id": "approved_by",
+            "label": "Approved by",
+            "type": "text",
+            "required": false
+          },
+          {
+            "id": "approved_at",
+            "label": "Approved at",
+            "type": "text",
+            "required": false
+          }
+        ]
+      },
+      {
+        "id": "declaration",
+        "title": "Review",
+        "fields": [
+          {
+            "id": "declaration_accepted",
+            "label": "Declaration accepted",
+            "type": "boolean",
+            "required": true
+          }
+        ]
+      }
+    ]
+  },
+  "_titan_provenance": {
+    "source_product": "Titan Interaction Engine",
+    "source_version": "10.12.0",
+    "source_path": "resources/wizards/job_variation_approval.json",
+    "company_boundary": "company_id",
+    "copied_without_domain_authority": true
+  }
+}

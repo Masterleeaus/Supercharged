@@ -19,6 +19,7 @@ import express, { Request, Response, Router } from 'express';
 import Stripe from 'stripe';
 import { storage } from '../storage';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
+import { webhookRateLimiter } from '../middleware/rateLimiter';
 import { NotificationService } from '../services/notification-service';
 import { hasActiveMembership, syncUserWithSubscription } from '../services/membership-service';
 import { 
@@ -36,8 +37,19 @@ import { emailService } from '../services/email-service';
 import { generateInvoiceForTransaction } from '../services/invoice-service';
 import { FRONTEND_URL } from '../engines/payment/webhook-helper';
 import { applyRefund } from '../services/credit-service';
+import { createReplayGuard } from '../middleware/webhook-replay';
 
 const router: Router = express.Router();
+
+// Replay protection for Stripe deliveries. Checked only after constructEvent
+// has verified the signature. Per-process, in-memory state.
+const stripeReplayGuard = createReplayGuard({
+  now: () => Date.now(),
+  windowMs: 5 * 60 * 1000,
+  maxEntries: 10000,
+  // Fail closed at capacity: refuse the new event rather than evict a remembered one.
+  onFull: 'refuse',
+});
 
 /**
  * Gets or creates a valid Stripe customer for the user.
@@ -518,7 +530,7 @@ router.post('/cancel-subscription', authenticateToken, async (req: AuthRequest, 
 });
 
 // Stripe Webhook Handler
-router.post('/webhook', async (req, res) => {
+router.post('/webhook', webhookRateLimiter, async (req, res) => {
   const stripe = await getStripeClient();
   if (!stripe) {
     return res.status(400).send('Stripe is not configured');
@@ -532,21 +544,37 @@ router.post('/webhook', async (req, res) => {
     return res.status(400).send('No signature provided');
   }
 
+  if (!webhookSecret) {
+    console.error('[Stripe Webhook] STRIPE_WEBHOOK_SECRET not configured; refusing webhook');
+    return res.status(403).send('Stripe webhook secret not configured');
+  }
+
   let event: Stripe.Event;
 
   try {
     // Use rawBody saved by express.json verify callback
     const rawBody = rawReq.rawBody || Buffer.from(JSON.stringify(req.body));
-    
-    // In development/testing, skip signature verification if no webhook secret
-    if (!webhookSecret) {
-      event = req.body as Stripe.Event;
-    } else {
-      event = stripe.webhooks.constructEvent(rawBody, sig as string, webhookSecret);
-    }
+    event = stripe.webhooks.constructEvent(rawBody, sig as string, webhookSecret);
   } catch (err: any) {
     console.error('Webhook signature verification failed:', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  // Use the signature's own timestamp (already checked by constructEvent), not
+  // event.created: Stripe retries old events with a fresh signature time.
+  const signedAtSeconds = Number((sig as string).match(/(?:^|,)\s*t=(\d+)/)?.[1]);
+  const replay = stripeReplayGuard.check({
+    provider: 'stripe',
+    eventId: event.id,
+    timestampMs: Number.isFinite(signedAtSeconds) ? signedAtSeconds * 1000 : null,
+  });
+  if (!replay.accepted) {
+    console.warn(`[Stripe Webhook] Rejected ${event.id}: ${replay.reason}`);
+    if (replay.reason === 'capacity') {
+      // Guard is full: ask Stripe to retry later. The body is generic.
+      return res.status(503).json({ error: 'Webhook temporarily unavailable' });
+    }
+    return res.status(409).json({ error: 'Duplicate or stale webhook event', reason: replay.reason });
   }
 
   try {
@@ -1124,7 +1152,10 @@ router.post('/webhook', async (req, res) => {
     res.json({ received: true });
   } catch (error: any) {
     console.error('Webhook processing error:', error);
-    
+
+    // Processing failed, so let Stripe's retry of this event through the replay guard.
+    stripeReplayGuard.forget({ provider: 'stripe', eventId: event.id });
+
     await queueFailedWebhook(
       'stripe',
       event.type,

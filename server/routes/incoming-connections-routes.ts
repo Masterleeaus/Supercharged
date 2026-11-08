@@ -14,17 +14,31 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
-import { Router } from "express";
+import { Router, Response } from "express";
 import { db } from "../db";
 import { incomingConnections, agents, phoneNumbers, insertIncomingConnectionSchema, campaigns } from "@shared/schema";
 import { eq, and, isNull, or, inArray, ne } from "drizzle-orm";
 import { type AuthRequest } from "../middleware/auth";
 import { authenticateHybrid } from "../middleware/hybrid-auth";
+import { getCompanyScope, CompanyScopeError } from "../middleware/company-scope";
 import { twilioService } from "../services/twilio";
 import { getDomain } from "../utils/domain";
 import { PhoneMigrator } from "../engines/elevenlabs-migration";
 
 const router = Router();
+
+/**
+ * Company for read and list scoping. Company comes only from the verified session.
+ * Sends 403 and returns null when the session has no company (fail closed).
+ */
+function companyForRead(req: AuthRequest, res: Response): string | null {
+  try {
+    return getCompanyScope(req);
+  } catch {
+    res.status(403).json({ error: "Company scope required" });
+    return null;
+  }
+}
 
 // GET /api/incoming-connections - List all connections for the user
 router.get("/", authenticateHybrid, async (req: AuthRequest, res) => {
@@ -33,6 +47,8 @@ router.get("/", authenticateHybrid, async (req: AuthRequest, res) => {
     if (!userId) {
       return res.status(401).json({ error: "Unauthorized" });
     }
+    const companyId = companyForRead(req, res);
+    if (!companyId) return;
 
     // Get all connections with agent and phone number details
     // Filter to only include Twilio + ElevenLabs connections (exclude plivo and twilio_openai agents)
@@ -67,7 +83,7 @@ router.get("/", authenticateHybrid, async (req: AuthRequest, res) => {
       .from(incomingConnections)
       .leftJoin(agents, eq(incomingConnections.agentId, agents.id))
       .leftJoin(phoneNumbers, eq(incomingConnections.phoneNumberId, phoneNumbers.id))
-      .where(eq(incomingConnections.userId, userId));
+      .where(and(eq(incomingConnections.userId, userId), eq(incomingConnections.companyId, companyId)));
 
     // Filter out connections with OpenAI-based agents (plivo or twilio_openai) for UI display
     const connections = allConnections.filter(c => {
@@ -85,6 +101,7 @@ router.get("/", authenticateHybrid, async (req: AuthRequest, res) => {
       .where(
         and(
           eq(phoneNumbers.userId, userId),
+          eq(phoneNumbers.companyId, companyId),
           eq(phoneNumbers.isSystemPool, false),
           inArray(phoneNumbers.status, ["active", "assigned"])
         )
@@ -109,6 +126,7 @@ router.get("/", authenticateHybrid, async (req: AuthRequest, res) => {
       .where(
         and(
           inArray(campaigns.phoneNumberId, phoneIdsToCheck),
+          eq(campaigns.companyId, companyId),
           inArray(campaigns.status, activeStatuses),
           isNull(campaigns.deletedAt)
         )
@@ -144,7 +162,7 @@ router.get("/", authenticateHybrid, async (req: AuthRequest, res) => {
     const allIncomingAgents = await db
       .select()
       .from(agents)
-      .where(and(eq(agents.userId, userId), eq(agents.type, "incoming"), eq(agents.isActive, true)));
+      .where(and(eq(agents.userId, userId), eq(agents.companyId, companyId), eq(agents.type, "incoming"), eq(agents.isActive, true)));
 
     // Filter out OpenAI-based agents
     const incomingAgents = allIncomingAgents.filter(a => {
@@ -178,6 +196,17 @@ router.post("/", authenticateHybrid, async (req: AuthRequest, res) => {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
+    // Company comes only from the authenticated session (req.user.companyId).
+    let companyId: string;
+    try {
+      companyId = getCompanyScope(req);
+    } catch (scopeError) {
+      if (scopeError instanceof CompanyScopeError) {
+        return res.status(403).json({ error: "Company scope required" });
+      }
+      throw scopeError;
+    }
+
     // Validate request body using Zod schema
     const validatedData = insertIncomingConnectionSchema.parse({
       ...req.body,
@@ -186,11 +215,11 @@ router.post("/", authenticateHybrid, async (req: AuthRequest, res) => {
 
     const { agentId, phoneNumberId } = validatedData;
 
-    // Verify agent exists, belongs to user, and is type='incoming'
+    // Verify agent exists, belongs to user and company, and is type='incoming'
     const agent = await db
       .select()
       .from(agents)
-      .where(and(eq(agents.id, agentId), eq(agents.userId, userId), eq(agents.type, "incoming")))
+      .where(and(eq(agents.id, agentId), eq(agents.userId, userId), eq(agents.companyId, companyId), eq(agents.type, "incoming")))
       .limit(1);
 
     if (!agent.length) {
@@ -213,6 +242,7 @@ router.post("/", authenticateHybrid, async (req: AuthRequest, res) => {
         and(
           eq(phoneNumbers.id, phoneNumberId),
           eq(phoneNumbers.userId, userId),
+          eq(phoneNumbers.companyId, companyId),
           eq(phoneNumbers.isSystemPool, false)
         )
       )
@@ -226,7 +256,7 @@ router.post("/", authenticateHybrid, async (req: AuthRequest, res) => {
     const existingConnection = await db
       .select()
       .from(incomingConnections)
-      .where(eq(incomingConnections.phoneNumberId, phoneNumberId))
+      .where(and(eq(incomingConnections.phoneNumberId, phoneNumberId), eq(incomingConnections.companyId, companyId)))
       .limit(1);
 
     if (existingConnection.length) {
@@ -239,7 +269,7 @@ router.post("/", authenticateHybrid, async (req: AuthRequest, res) => {
         assignedIncomingAgentId: phoneNumbers.assignedIncomingAgentId,
       })
       .from(phoneNumbers)
-      .where(eq(phoneNumbers.id, phoneNumberId))
+      .where(and(eq(phoneNumbers.id, phoneNumberId), eq(phoneNumbers.companyId, companyId)))
       .limit(1);
 
     if (deprecatedAssignment.length && deprecatedAssignment[0].assignedIncomingAgentId) {
@@ -260,6 +290,7 @@ router.post("/", authenticateHybrid, async (req: AuthRequest, res) => {
       .where(
         and(
           eq(campaigns.phoneNumberId, phoneNumberId),
+          eq(campaigns.companyId, companyId),
           or(
             eq(campaigns.status, 'pending'),
             eq(campaigns.status, 'running'),
@@ -421,6 +452,7 @@ router.post("/", authenticateHybrid, async (req: AuthRequest, res) => {
       .insert(incomingConnections)
       .values({
         userId,
+        companyId,
         agentId,
         phoneNumberId,
       })
@@ -448,7 +480,7 @@ router.post("/", authenticateHybrid, async (req: AuthRequest, res) => {
       .from(incomingConnections)
       .leftJoin(agents, eq(incomingConnections.agentId, agents.id))
       .leftJoin(phoneNumbers, eq(incomingConnections.phoneNumberId, phoneNumbers.id))
-      .where(eq(incomingConnections.id, newConnection.id))
+      .where(and(eq(incomingConnections.id, newConnection.id), eq(incomingConnections.companyId, companyId)))
       .limit(1);
 
     // Sync agent assignment to ElevenLabs (native integration)
@@ -580,6 +612,8 @@ router.post("/:id/sync-webhook", authenticateHybrid, async (req: AuthRequest, re
     if (!userId) {
       return res.status(401).json({ error: "Unauthorized" });
     }
+    const companyId = companyForRead(req, res);
+    if (!companyId) return;
 
     const { id } = req.params;
 
@@ -596,7 +630,7 @@ router.post("/:id/sync-webhook", authenticateHybrid, async (req: AuthRequest, re
       })
       .from(incomingConnections)
       .leftJoin(agents, eq(incomingConnections.agentId, agents.id))
-      .where(and(eq(incomingConnections.id, id), eq(incomingConnections.userId, userId)))
+      .where(and(eq(incomingConnections.id, id), eq(incomingConnections.userId, userId), eq(incomingConnections.companyId, companyId)))
       .limit(1);
 
     if (!connection.length) {
@@ -666,6 +700,8 @@ router.delete("/:id", authenticateHybrid, async (req: AuthRequest, res) => {
     if (!userId) {
       return res.status(401).json({ error: "Unauthorized" });
     }
+    const companyId = companyForRead(req, res);
+    if (!companyId) return;
 
     const { id } = req.params;
 
@@ -686,7 +722,7 @@ router.delete("/:id", authenticateHybrid, async (req: AuthRequest, res) => {
       .from(incomingConnections)
       .leftJoin(phoneNumbers, eq(incomingConnections.phoneNumberId, phoneNumbers.id))
       .leftJoin(agents, eq(incomingConnections.agentId, agents.id))
-      .where(and(eq(incomingConnections.id, id), eq(incomingConnections.userId, userId)))
+      .where(and(eq(incomingConnections.id, id), eq(incomingConnections.userId, userId), eq(incomingConnections.companyId, companyId)))
       .limit(1);
 
     if (!connection.length) {
@@ -750,6 +786,8 @@ router.get("/:id/diagnose", authenticateHybrid, async (req: AuthRequest, res) =>
     if (!userId) {
       return res.status(401).json({ error: "Unauthorized" });
     }
+    const companyId = companyForRead(req, res);
+    if (!companyId) return;
 
     const { id } = req.params;
     const diagnostics: any = { checks: [] };
@@ -779,7 +817,7 @@ router.get("/:id/diagnose", authenticateHybrid, async (req: AuthRequest, res) =>
       .from(incomingConnections)
       .leftJoin(agents, eq(incomingConnections.agentId, agents.id))
       .leftJoin(phoneNumbers, eq(incomingConnections.phoneNumberId, phoneNumbers.id))
-      .where(and(eq(incomingConnections.id, id), eq(incomingConnections.userId, userId)))
+      .where(and(eq(incomingConnections.id, id), eq(incomingConnections.userId, userId), eq(incomingConnections.companyId, companyId)))
       .limit(1);
 
     if (!connection.length) {

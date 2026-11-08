@@ -1,0 +1,12 @@
+{
+  "schema": "titan-zero-collision-record/v1",
+  "packet_id": "TZ-FIX-COMPAT-RUNTIME-DECOMPOSITION-001",
+  "pass": 10,
+  "collisions": [],
+  "avoided_hotspots": [
+    "compatibility/monica/background-runtime-boundary.mjs",
+    "titan-runtime/adapters/retriever-adapter.mjs",
+    "titan-runtime/retriever-native/**"
+  ],
+  "status": "NO_COLLISION"
+}

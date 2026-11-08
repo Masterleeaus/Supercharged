@@ -1,0 +1,128 @@
+{
+  "name": "@dbos-inc/dbos-sdk",
+  "version": "0.0.0-placeholder",
+  "description": "Lightweight durable workflows built on Postgres",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dbos-inc/dbos-transact-ts"
+  },
+  "homepage": "https://docs.dbos.dev/",
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "dbos",
+    "task manager",
+    "workflow engine",
+    "workflows",
+    "orchestration",
+    "scheduled jobs",
+    "cron jobs",
+    "queue",
+    "background jobs",
+    "step function",
+    "durable execution",
+    "long-running",
+    "durable workflow",
+    "reliability",
+    "parallel processing",
+    "flow control",
+    "agentic workflow",
+    "postgresql"
+  ],
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js",
+      "require": "./dist/src/index.js"
+    },
+    "./datasource": {
+      "types": "./dist/src/datasource.d.ts",
+      "import": "./dist/src/datasource.js",
+      "require": "./dist/src/datasource.js"
+    },
+    "./eventreceiver": {
+      "types": "./dist/src/eventreceiver.d.ts",
+      "import": "./dist/src/eventreceiver.js",
+      "require": "./dist/src/eventreceiver.js"
+    },
+    "./internal/*": {
+      "types": "./dist/src/*.d.ts",
+      "default": "./dist/src/*.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "datasource": [
+        "./dist/src/datasource.d.ts"
+      ],
+      "eventreceiver": [
+        "./dist/src/eventreceiver.d.ts"
+      ],
+      "internal/*": [
+        "./dist/src/*.d.ts"
+      ]
+    }
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "tsc --project tsconfig.json && npm run --workspaces build",
+    "lint": "eslint --ignore-pattern **/coverage/ .",
+    "test": "npm run build && npm run test:packages && npm run test:unit",
+    "test:unit": "jest ./tests --coverage --collectCoverageFrom='src/**/*' --detectOpenHandles",
+    "test:packages": "npm run --workspaces test",
+    "check:package": "npm run build && publint && attw --pack .",
+    "test:publish": "node --test publish/peer_range.test.mjs",
+    "prepare": "husky"
+  },
+  "bin": {
+    "dbos": "./dist/src/cli/cli.js",
+    "dbos-sdk": "./dist/src/cli/cli.js"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.4",
+    "@dbos-inc/otel": "packages/otel",
+    "@eslint/js": "^9.22.0",
+    "@testcontainers/postgresql": "^12.0.1",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^20.19.1",
+    "@types/pg": "^8.11.2",
+    "eslint": "^9.22.0",
+    "husky": "^9.1.7",
+    "jest": "^30.5.2",
+    "jest-util": "^30.5.1",
+    "lint-staged": "^16.4.0",
+    "prettier": "^3.4.2",
+    "publint": "^0.3.21",
+    "ts-jest": "^29.4.15",
+    "typescript": "^5.4.5",
+    "typescript-eslint": "^8.26.1",
+    "zod": "^4.3.6"
+  },
+  "dependencies": {
+    "commander": "^12.0.0",
+    "pg": "^8.11.3",
+    "serialize-error": "^8.1.0",
+    "superjson": "^1.13.3",
+    "yaml": "^2.8.3"
+  },
+  "peerDependencies": {
+    "@dbos-inc/dbos-enterprise": "*"
+  },
+  "peerDependenciesMeta": {
+    "@dbos-inc/dbos-enterprise": {
+      "optional": true
+    }
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,json,css,scss,md}": "prettier --write"
+  },
+  "overrides": {
+    "js-yaml@<4.2.0": "^4.2.0"
+  }
+}

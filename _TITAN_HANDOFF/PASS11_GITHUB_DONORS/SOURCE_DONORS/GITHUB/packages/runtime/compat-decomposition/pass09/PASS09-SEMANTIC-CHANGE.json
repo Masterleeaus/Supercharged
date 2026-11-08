@@ -1,0 +1,14 @@
+{
+  "schema": "titan.zero.semantic-change.v1",
+  "packet_id": "TZ-FIX-COMPAT-RUNTIME-DECOMPOSITION-001",
+  "pass": 9,
+  "production_behavior_changed": false,
+  "changes": [
+    "added retirement ledger",
+    "added semantic/chunk manifest",
+    "added size/startup metrics",
+    "added zero-reachability retirement guard test"
+  ],
+  "authority_changed": false,
+  "company_boundary_changed": false
+}

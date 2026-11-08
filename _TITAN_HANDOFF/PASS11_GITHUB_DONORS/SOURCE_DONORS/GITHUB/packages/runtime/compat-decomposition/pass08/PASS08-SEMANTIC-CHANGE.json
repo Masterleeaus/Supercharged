@@ -1,0 +1,9 @@
+{
+  "schema":"titan-zero-semantic-change/v1",
+  "packet_id":"TZ-FIX-COMPAT-RUNTIME-DECOMPOSITION-001",
+  "pass":8,
+  "changes":["Corrected extracted chunk descriptor paths for the lazy loader's resolver base.","Added regression coverage for startup, retry, races/listeners, Chrome surface preservation and authority/company boundaries."],
+  "authority_change":"NONE",
+  "company_boundary_change":"NONE",
+  "feature_removal":"NONE"
+}

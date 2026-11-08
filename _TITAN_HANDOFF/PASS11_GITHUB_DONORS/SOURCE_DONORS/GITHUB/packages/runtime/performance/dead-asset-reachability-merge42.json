@@ -1,0 +1,312 @@
+{
+  "schema": "titan.zero.payload-reachability-audit.v1",
+  "baseline": {
+    "manager_merge": 42,
+    "sha256": "1c4b6f471ba16f44d7b27db546ba41db18032ce9967b1d725dc0926cd73cc930"
+  },
+  "pass2_retirements": [
+    "monica-content.js",
+    "monica-content.css",
+    "monica-background.js",
+    "TITAN-ZERO-LINEAGE-EVIDENCE.zip"
+  ],
+  "duplicate_groups": [
+    {
+      "files": [
+        {
+          "path": "content.js",
+          "exists": true,
+          "bytes": 28593053,
+          "sha256": "8e2062cda9c2de67235a44b7fa2520175bfdf1d02719de4a9ad3e0ecda4c08fb"
+        },
+        {
+          "path": "monica-content.js",
+          "exists": false,
+          "bytes": null,
+          "sha256": null
+        }
+      ],
+      "exact_duplicate": false
+    },
+    {
+      "files": [
+        {
+          "path": "content.css",
+          "exists": true,
+          "bytes": 2543371,
+          "sha256": "bac75be20e6f66f1ea5291141a2067157687a764012c5fc8478ce6191f9e464c"
+        },
+        {
+          "path": "titan-zero-chat-content.compat.css",
+          "exists": true,
+          "bytes": 2543371,
+          "sha256": "bac75be20e6f66f1ea5291141a2067157687a764012c5fc8478ce6191f9e464c"
+        },
+        {
+          "path": "monica-content.css",
+          "exists": false,
+          "bytes": null,
+          "sha256": null
+        }
+      ],
+      "exact_duplicate": true
+    },
+    {
+      "files": [
+        {
+          "path": "monica-popup.css",
+          "exists": true,
+          "bytes": 2223230,
+          "sha256": "3efa011dc4965bf2035763086654bfa223a1a9a86aea849be1703fa500c6f845"
+        },
+        {
+          "path": "titan-zero-chat-runtime.compat.css",
+          "exists": true,
+          "bytes": 2223230,
+          "sha256": "3efa011dc4965bf2035763086654bfa223a1a9a86aea849be1703fa500c6f845"
+        }
+      ],
+      "exact_duplicate": true
+    }
+  ],
+  "phase2_reachability": [
+    {
+      "path": "content.js",
+      "exists": true,
+      "reference_count": 49,
+      "runtime_or_route_references": [
+        "chatTab.html",
+        "manifest.json",
+        "monicaOptions.html",
+        "titan-runtime/performance/payload-baseline-merge41.json",
+        "titan-runtime/performance/retained-optional-inventory-merge42.json",
+        "titan-runtime/permissions/permission-api-inventory.json",
+        "titan-runtime/permissions/permission-risk-matrix.json",
+        "titan-settings/control-plane/pass01-fresh-settings-authority-census.json",
+        "titan-settings/settings-census-scan.mjs",
+        "titan-settings/settings-census.json",
+        "titan-settings/settings-merge-map.json"
+      ],
+      "all_reference_examples": [
+        "AGENT3-YJS-PASS01-MANIFEST.json",
+        "TITAN-ZERO-P2-008-PASS1-VERIFICATION.json",
+        "TITAN-ZERO-v0.19.0-CONSOLIDATION-REPORT.json",
+        "TZ-FINISH-004-PASS01-UI-INVENTORY.json",
+        "TZ-PAGE-WIRING-CERT-001-PASS01-INVENTORY.json",
+        "Titan-Zero-TZ-FINISH-004-Pass02-VERIFICATION.json",
+        "WORKFORCE-CONVERSION-REPORT.json",
+        "chatTab.html",
+        "diagnostics/startup/content-script-injection-contract.mjs",
+        "diagnostics/startup/load-failure-evidence-map.json",
+        "docs/performance/payload-retention-classification-pass02.md",
+        "manifest.json",
+        "monicaOptions.html",
+        "tests/chrome_load_pass07_deterministic_harness.test.mjs",
+        "tests/chrome_load_repair09_update_reinjection.test.mjs",
+        "tests/tz_tools_absorb_pass03_language_workspace.test.mjs",
+        "tests/tz_tools_absorb_pass07_media_tools.test.mjs",
+        "tests/ui_restore_primary_shell_pass3.test.mjs",
+        "titan-regression/agent3-yjs/pass01-yjs-single-injection.test.mjs",
+        "titan-regression/chrome-load-repair/README.md"
+      ],
+      "decision": "RETAIN_UNTIL_RUNTIME_ADAPTERS_CONVERGED"
+    },
+    {
+      "path": "content.css",
+      "exists": true,
+      "reference_count": 24,
+      "runtime_or_route_references": [
+        "chatTab.html",
+        "monicaOptions.html",
+        "titan-runtime/performance/payload-baseline-merge41.json",
+        "titan-runtime/performance/retained-optional-inventory-merge42.json",
+        "titan-settings/control-plane/pass01-fresh-settings-authority-census.json"
+      ],
+      "all_reference_examples": [
+        "AGENT3-YJS-PASS01-MANIFEST.json",
+        "TITAN-ZERO-P2-008-PASS1-VERIFICATION.json",
+        "TITAN-ZERO-v0.19.0-CONSOLIDATION-REPORT.json",
+        "TZ-FINISH-004-PASS01-UI-INVENTORY.json",
+        "chatTab.html",
+        "content.js",
+        "docs/performance/payload-retention-classification-pass02.md",
+        "monicaOptions.html",
+        "titan-regression/agent3-yjs/pass01-yjs-single-injection.test.mjs",
+        "titan-regression/monica-retriever/FEATURE-PRESERVATION-BASELINE.json",
+        "titan-regression/monica-retriever/MONICA-DONOR-COMPARISON.json",
+        "titan-regression/monica-retriever/PASS05-VISUAL-DOM-FEATURE-MATRIX.json",
+        "titan-regression/monica-retriever/PASS10-TITAN-COMPATIBILITY-BOUNDARY.json",
+        "titan-regression/monica-retriever/PROTECTED-RUNTIME-HASHES.json",
+        "titan-regression/monica-retriever/tests/pass02-conversation-surface.test.mjs",
+        "titan-regression/monica-retriever/tests/pass04-webpage-overlay.test.mjs",
+        "titan-regression/monica-retriever/tests/pass09-full-parity-gate.test.mjs",
+        "titan-runtime/performance/payload-baseline-merge41.json",
+        "titan-runtime/performance/retained-optional-inventory-merge42.json",
+        "titan-settings/control-plane/pass01-fresh-settings-authority-census.json"
+      ],
+      "decision": "RETAIN_UNTIL_RUNTIME_ADAPTERS_CONVERGED"
+    },
+    {
+      "path": "monica-popup.js",
+      "exists": true,
+      "reference_count": 15,
+      "runtime_or_route_references": [
+        "monicaPopup.html",
+        "titan-runtime/performance/payload-baseline-merge41.json",
+        "titan-runtime/performance/retained-optional-inventory-merge42.json",
+        "titan-runtime/permissions/permission-api-inventory.json",
+        "titan-runtime/permissions/permission-risk-matrix.json",
+        "titan-settings/control-plane/pass01-fresh-settings-authority-census.json"
+      ],
+      "all_reference_examples": [
+        "TZ-FINISH-004-PASS01-UI-INVENTORY.json",
+        "TZ-PAGE-WIRING-CERT-001-PASS01-INVENTORY.json",
+        "WORKFORCE-CONVERSION-REPORT.json",
+        "monicaPopup.html",
+        "tests/ui_restore_primary_shell_pass3.test.mjs",
+        "titan-regression/monica-retriever/FEATURE-PRESERVATION-BASELINE.json",
+        "titan-regression/monica-retriever/MONICA-DONOR-COMPARISON.json",
+        "titan-regression/monica-retriever/PASS10-TITAN-COMPATIBILITY-BOUNDARY.json",
+        "titan-regression/monica-retriever/PROTECTED-RUNTIME-HASHES.json",
+        "titan-regression/workforce-ui-restore/pass01-bots-ui-inventory.json",
+        "titan-runtime/performance/payload-baseline-merge41.json",
+        "titan-runtime/performance/retained-optional-inventory-merge42.json",
+        "titan-runtime/permissions/permission-api-inventory.json",
+        "titan-runtime/permissions/permission-risk-matrix.json",
+        "titan-settings/control-plane/pass01-fresh-settings-authority-census.json"
+      ],
+      "decision": "RETAIN_UNTIL_RUNTIME_ADAPTERS_CONVERGED"
+    },
+    {
+      "path": "monica-popup.css",
+      "exists": true,
+      "reference_count": 8,
+      "runtime_or_route_references": [
+        "monicaPopup.html",
+        "titan-runtime/performance/payload-baseline-merge41.json",
+        "titan-runtime/performance/retained-optional-inventory-merge42.json",
+        "titan-settings/control-plane/pass01-fresh-settings-authority-census.json"
+      ],
+      "all_reference_examples": [
+        "TZ-FINISH-004-PASS01-UI-INVENTORY.json",
+        "monicaPopup.html",
+        "titan-regression/monica-retriever/FEATURE-PRESERVATION-BASELINE.json",
+        "titan-regression/monica-retriever/MONICA-DONOR-COMPARISON.json",
+        "titan-regression/monica-retriever/PROTECTED-RUNTIME-HASHES.json",
+        "titan-runtime/performance/payload-baseline-merge41.json",
+        "titan-runtime/performance/retained-optional-inventory-merge42.json",
+        "titan-settings/control-plane/pass01-fresh-settings-authority-census.json"
+      ],
+      "decision": "RETAIN_UNTIL_RUNTIME_ADAPTERS_CONVERGED"
+    },
+    {
+      "path": "retriever-background.iife.js",
+      "exists": true,
+      "reference_count": 22,
+      "runtime_or_route_references": [
+        "compatibility/monica/background-runtime-boundary.mjs",
+        "titan-runtime/performance/payload-baseline-merge41.json",
+        "titan-runtime/performance/retained-optional-inventory-merge42.json",
+        "titan-runtime/permissions/permission-api-inventory.json",
+        "titan-runtime/permissions/permission-risk-matrix.json",
+        "titan-settings/control-plane/pass01-fresh-settings-authority-census.json",
+        "titan-settings/control-plane/settings-registry.json"
+      ],
+      "all_reference_examples": [
+        "CHANGELOG-v0.7.0.md",
+        "CHROME-LOAD-REPAIR-02-CHANGELOG.md",
+        "CHROME-LOAD-REPAIR-02-DELTA-MANIFEST.json",
+        "REPAIR-06-TOUCHED-FILES.json",
+        "TITAN-ZERO-P2-008-PASS1-COMPATIBILITY-BOUNDARY.md",
+        "TITAN-ZERO-SETTINGS-CONTROL-PLANE-PASS19-COLLISION-RECORD.json",
+        "TZ-FINISH-004-PASS01-UI-INVENTORY.json",
+        "TZ-PAGE-WIRING-CERT-001-PASS01-INVENTORY.json",
+        "WORKFORCE-CONVERSION-REPORT.json",
+        "compatibility/monica/background-runtime-boundary.mjs",
+        "docs/performance/payload-retention-classification-pass02.md",
+        "tests/retriever_instance_id_compat.test.mjs",
+        "titan-regression/monica-retriever/FEATURE-PRESERVATION-BASELINE.json",
+        "titan-regression/monica-retriever/PROTECTED-RUNTIME-HASHES.json",
+        "titan-regression/monica-retriever/tests/finish004-pass05-route-reachability.test.mjs",
+        "titan-reliability/performance-budgets.json",
+        "titan-runtime/performance/payload-baseline-merge41.json",
+        "titan-runtime/performance/retained-optional-inventory-merge42.json",
+        "titan-runtime/permissions/permission-api-inventory.json",
+        "titan-runtime/permissions/permission-risk-matrix.json"
+      ],
+      "decision": "RETAIN_UNTIL_RUNTIME_ADAPTERS_CONVERGED"
+    }
+  ],
+  "donor_static_assets_deferred": [
+    {
+      "path": "static/monicaSearchGuide.mp4",
+      "bytes": 797681,
+      "reachable_from_held_content_bundle": true,
+      "references": [
+        "content.js",
+        "titan-regression/monica-retriever/MONICA-DONOR-COMPARISON.json",
+        "titan-regression/monica-retriever/PROTECTED-RUNTIME-HASHES.json",
+        "titan-runtime/performance/payload-baseline-merge41.json",
+        "titan-settings/settings-census.json"
+      ],
+      "decision": "DEFER_WITH_HELD_DONOR_BUNDLE"
+    },
+    {
+      "path": "static/global/src/static/monicaSearch.png",
+      "bytes": 4248,
+      "reachable_from_held_content_bundle": true,
+      "references": [
+        "content.js",
+        "titan-regression/monica-retriever/MONICA-DONOR-COMPARISON.json",
+        "titan-regression/monica-retriever/PROTECTED-RUNTIME-HASHES.json"
+      ],
+      "decision": "DEFER_WITH_HELD_DONOR_BUNDLE"
+    },
+    {
+      "path": "static/global/src/static/video/monicaApp.png",
+      "bytes": 19907,
+      "reachable_from_held_content_bundle": true,
+      "references": [
+        "content.js",
+        "titan-regression/monica-retriever/MONICA-DONOR-COMPARISON.json",
+        "titan-regression/monica-retriever/PROTECTED-RUNTIME-HASHES.json"
+      ],
+      "decision": "DEFER_WITH_HELD_DONOR_BUNDLE"
+    },
+    {
+      "path": "static/global/src/static/video/monicaAppQr.png",
+      "bytes": 2842,
+      "reachable_from_held_content_bundle": true,
+      "references": [
+        "content.js",
+        "titan-regression/monica-retriever/MONICA-DONOR-COMPARISON.json",
+        "titan-regression/monica-retriever/PROTECTED-RUNTIME-HASHES.json"
+      ],
+      "decision": "DEFER_WITH_HELD_DONOR_BUNDLE"
+    },
+    {
+      "path": "static/global/src/static/brand/monicaCode.png",
+      "bytes": 3304,
+      "reachable_from_held_content_bundle": true,
+      "references": [
+        "content.js",
+        "titan-regression/monica-retriever/MONICA-DONOR-COMPARISON.json",
+        "titan-regression/monica-retriever/PROTECTED-RUNTIME-HASHES.json"
+      ],
+      "decision": "DEFER_WITH_HELD_DONOR_BUNDLE"
+    }
+  ],
+  "new_deletion_proposals": [],
+  "gate": {
+    "runtime_adapters_packet": "TZ-FIX-RUNTIME-ADAPTERS-001",
+    "runtime_adapters_current_pass": 6,
+    "manager_converged": false,
+    "destructive_phase2_allowed": false
+  },
+  "invariants": {
+    "company_id_only": true,
+    "identity_not_authority": true,
+    "permission_not_authority": true,
+    "no_wholesale_replacement": true
+  }
+}

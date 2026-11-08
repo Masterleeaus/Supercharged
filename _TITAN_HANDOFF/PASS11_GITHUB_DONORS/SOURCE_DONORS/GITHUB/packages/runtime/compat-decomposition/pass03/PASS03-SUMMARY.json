@@ -1,0 +1,15 @@
+{
+  "schema": "titan-zero-pass-summary/v1",
+  "packet_id": "TZ-FIX-COMPAT-RUNTIME-DECOMPOSITION-001",
+  "pass": 3,
+  "status": "COMPLETE",
+  "title": "Existing source/module equivalence mapping",
+  "manager_merge": 46,
+  "findings": {
+    "canonical_exact_reuse_candidates": 8,
+    "canonical_partial_candidates": 5,
+    "external_in_progress_candidates": 2,
+    "compat_bundles_modified": 0
+  },
+  "next_pass": "Create minimal compatibility bootstrap preserving globals/events/contracts and loading optional feature chunks on first use."
+}

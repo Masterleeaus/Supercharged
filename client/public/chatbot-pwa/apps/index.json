@@ -1,0 +1,13 @@
+{
+  "version": "1.0.0",
+  "apps": [
+    {
+      "id": "titan-train",
+      "name": "Titan Train",
+      "manifest": "/chatbot-pwa/apps/titan-train.json",
+      "bridge": "/chatbot-pwa/apps/titan-train.js",
+      "launch_url": "/train",
+      "online_only": true
+    }
+  ]
+}

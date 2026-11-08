@@ -1,0 +1,223 @@
+import fs from 'node:fs';
+import path from 'node:path';
+
+/*
+ * A wrapper of readFile used for mocking in tests
+ **/
+export async function readFile(path: string, encoding: BufferEncoding = 'utf8'): Promise<string> {
+  return await fs.promises.readFile(path, { encoding });
+}
+
+function loadDbosVersion(): string {
+  try {
+    function findPackageRoot(start: string | string[]): string {
+      if (typeof start === 'string') {
+        if (!start.endsWith(path.sep)) {
+          start += path.sep;
+        }
+        start = start.split(path.sep);
+      }
+
+      if (start.length === 0) {
+        throw new Error('package.json not found in path');
+      }
+
+      start.pop();
+      const dir = start.join(path.sep);
+
+      if (fs.existsSync(path.join(dir, 'package.json'))) {
+        return dir;
+      }
+
+      return findPackageRoot(start);
+    }
+    const packageJsonPath = path.join(findPackageRoot(__dirname), 'package.json');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const packageJson = require(packageJsonPath) as { version: string };
+    return packageJson.version;
+  } catch (error) {
+    // Return "unknown" if package.json cannot be found or loaded
+    // This can happen in bundled environments where the file system structure is different
+    return 'unknown';
+  }
+}
+
+export const globalParams = {
+  appVersion: process.env.DBOS__APPVERSION || '', // The one true source of appVersion
+  executorID: process.env.DBOS__VMID || 'local', // The one true source of executorID
+  appName: undefined as string | undefined, // Set at launch from the configured application name; undefined until the first launch
+  appID: process.env.DBOS__APPID || '', // The one true source of appID
+  enableOTLP: process.env.DBOS__CLOUD === 'true', // Whether OTLP is enabled; on by default only in DBOS Cloud
+  tracingEnabled: false, // Whether span creation is active (enableOTLP or external TracerProvider)
+  dbosVersion: loadDbosVersion(), // The version of the DBOS library
+  dbosCloud: process.env.DBOS__CLOUD === 'true', // Whether running in DBOS Cloud
+};
+export const sleepms = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// Node.js setTimeout uses a 32-bit signed integer for the delay, so the max is 2^31 - 1 ms (~24.8 days).
+export const sleepConfig = {
+  maxTimeoutMS: 2_147_483_647,
+};
+
+// Backoff, in seconds, for retrying system database operations after a lost connection.
+export const dbRetryConfig = {
+  initialBackoffSec: 1.0,
+  maxBackoffSec: 60.0,
+};
+
+// DBOS's own queues are named under this prefix, so users may not claim it.
+export const RESERVED_QUEUE_NAME_PREFIX = '_dbos_';
+
+// The name of the internal queue used by DBOS
+export const INTERNAL_QUEUE_NAME = '_dbos_internal_queue';
+
+/*
+A cancellable sleep function that returns a promise and a callback
+The promise can be awaited for and will automatically resolve after the given time
+When cancel is called, not only it clears the timeout, but also resolves the promise
+So any waiters on the cancelable sleep will be resolved
+*/
+export function cancellableSleep(ms: number) {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined = undefined;
+  let resolvePromise: () => void;
+  let resolved = false;
+
+  const promise = new Promise<void>((resolve) => {
+    resolvePromise = () => {
+      if (resolved) return;
+      resolved = true;
+      resolve();
+      timeoutId = undefined;
+    };
+    timeoutId = setTimeout(resolvePromise, ms);
+  });
+
+  const cancel = () => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      timeoutId = undefined;
+      resolvePromise();
+    }
+  };
+
+  return { promise, cancel };
+}
+
+/**
+ * A minimal counting semaphore used to cap how many operations may run
+ * concurrently. Acquirers that arrive while the limit is exhausted queue in
+ * FIFO order and are woken as permits are released.
+ *
+ * A non-positive limit disables the semaphore: acquire resolves immediately and
+ * release is a no-op, so the limiter adds no overhead when it is turned off.
+ */
+export class Semaphore {
+  private available: number;
+  private readonly waiters: Array<() => void> = [];
+  private readonly enabled: boolean;
+
+  constructor(limit: number) {
+    this.enabled = Number.isFinite(limit) && limit > 0;
+    this.available = this.enabled ? limit : 0;
+  }
+
+  /** Acquire a permit, waiting if necessary. Resolves once a permit is held. */
+  acquire(): Promise<void> {
+    if (!this.enabled) return Promise.resolve();
+    if (this.available > 0) {
+      this.available--;
+      return Promise.resolve();
+    }
+    return new Promise<void>((resolve) => {
+      this.waiters.push(resolve);
+    });
+  }
+
+  /** Release a previously acquired permit, waking the next waiter if any. */
+  release(): void {
+    if (!this.enabled) return;
+    const next = this.waiters.shift();
+    if (next) {
+      // Hand the permit directly to the next waiter without touching `available`.
+      next();
+    } else {
+      this.available++;
+    }
+  }
+
+  /** Run `fn` while holding a permit, releasing it on every resolution path. */
+  async runExclusive<T>(fn: () => Promise<T>): Promise<T> {
+    await this.acquire();
+    try {
+      return await fn();
+    } finally {
+      this.release();
+    }
+  }
+}
+
+/**
+ * Sleep for `ms` milliseconds, resolving early (without throwing) when
+ * `signal` aborts. The abort listener is detached on every resolution path,
+ * so calling this in a tight loop against a long-lived signal does not
+ * accumulate listeners — unlike a `Promise.race([timer, stopPromise])`
+ * pattern, which leaks a `.then` handler on each iteration.
+ */
+export function interruptibleSleep(ms: number, signal: AbortSignal): Promise<void> {
+  if (signal.aborted) return Promise.resolve();
+  return new Promise<void>((resolve) => {
+    const onAbort = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    signal.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
+// Capture original functions
+const originalStdoutWrite = process.stdout.write.bind(process.stdout);
+const originalStderrWrite = process.stderr.write.bind(process.stderr);
+
+export function interceptStreams(onMessage: (msg: string, stream: 'stdout' | 'stderr') => void) {
+  const intercept = (stream: 'stdout' | 'stderr', originalWrite: typeof process.stdout.write) => {
+    return (
+      chunk: Uint8Array | string,
+      encodingOrCb?: BufferEncoding | ((err?: Error | null) => void),
+      cb?: (err?: Error | null) => void,
+    ): boolean => {
+      const message = chunk.toString();
+      onMessage(message, stream);
+      if (typeof encodingOrCb === 'function') {
+        return originalWrite(chunk, encodingOrCb); // Handle case where encodingOrCb is a callback
+      }
+      return originalWrite(chunk, encodingOrCb as BufferEncoding, cb); // Handle case where encodingOrCb is a BufferEncoding
+    };
+  };
+
+  process.stdout.write = intercept('stdout', originalStdoutWrite);
+  process.stderr.write = intercept('stderr', originalStderrWrite);
+}
+
+// The `pg` package we use does not parse the connect_timeout parameter, so we need to handle it ourselves.
+export function getClientConfig(databaseUrl: string | URL) {
+  const connectionString = typeof databaseUrl === 'string' ? databaseUrl : databaseUrl.toString();
+  const timeout = getTimeout(typeof databaseUrl === 'string' ? new URL(databaseUrl) : databaseUrl);
+  return {
+    connectionString,
+    connectionTimeoutMillis: timeout ? timeout * 1000 : 10000,
+  };
+
+  function getTimeout(url: URL) {
+    try {
+      const $timeout = url.searchParams.get('connect_timeout');
+      return $timeout ? Number.parseInt($timeout, 10) : undefined;
+    } catch {
+      // Ignore errors in parsing the connect_timeout parameter
+      return undefined;
+    }
+  }
+}

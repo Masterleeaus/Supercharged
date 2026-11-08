@@ -1,0 +1,40 @@
+{
+  "schema": "titan.zero.compat-decomposition.retirement-ledger.v1",
+  "packet_id": "TZ-FIX-COMPAT-RUNTIME-DECOMPOSITION-001",
+  "pass": 9,
+  "retired": [],
+  "retained": [
+    {
+      "domain": "content",
+      "path": "titan-zero-chat-content.compat.js",
+      "sha256": "7823c16665d37581e460b70d3e888db7d45786b6a5c5ca868214d5b3088ff441",
+      "bytes": 28593247,
+      "semantic_equivalence_partial": true,
+      "zero_live_reachability": false,
+      "live_reachability": "manifest.content_scripts + chatTab.html",
+      "retirement": "BLOCKED_RETAIN"
+    },
+    {
+      "domain": "background",
+      "path": "titan-zero-chat-background.compat.js",
+      "sha256": "ebbd0843eb12d0413af6aa13603be2b365aa702304df2f74b87e4951a3f9a805",
+      "bytes": 11561297,
+      "semantic_equivalence_partial": true,
+      "zero_live_reachability": false,
+      "live_reachability": "compatibility/monica/background-runtime-boundary.mjs",
+      "retirement": "BLOCKED_RETAIN"
+    },
+    {
+      "domain": "runtime",
+      "path": "titan-zero-chat-runtime.compat.js",
+      "sha256": "195e1860346583b62c518881837d72b90aa51bb12f177ee8994e76b026cd7533",
+      "bytes": 7778613,
+      "semantic_equivalence_partial": true,
+      "zero_live_reachability": false,
+      "live_reachability": "monicaPopup.html",
+      "retirement": "BLOCKED_RETAIN"
+    }
+  ],
+  "decision": "NO_RETIREMENT",
+  "reason": "All three monoliths remain live-reachable from production surfaces; deleting any would regress current Chrome behavior."
+}

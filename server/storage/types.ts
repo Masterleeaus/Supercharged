@@ -247,7 +247,7 @@ export interface ITemplateStorage {
   getUserPromptTemplates(userId: string): Promise<PromptTemplate[]>;
   getSystemPromptTemplates(): Promise<PromptTemplate[]>;
   getPublicPromptTemplates(): Promise<PromptTemplate[]>;
-  createPromptTemplate(template: InsertPromptTemplate): Promise<PromptTemplate>;
+  createPromptTemplate(template: InsertPromptTemplate & { companyId?: string }): Promise<PromptTemplate>;
   updatePromptTemplate(id: string, template: Partial<InsertPromptTemplate>): Promise<void>;
   deletePromptTemplate(id: string): Promise<void>;
   incrementPromptTemplateUsage(id: string): Promise<void>;

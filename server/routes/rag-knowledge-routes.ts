@@ -23,12 +23,12 @@
  * Set USE_RAG_KNOWLEDGE=true to use these routes instead of legacy.
  */
 
-import { Router, Request, Response } from "express";
+import { Router, Request, Response, RequestHandler } from "express";
 import multer from "multer";
 import { RAGKnowledgeService } from "../services/rag-knowledge";
 import { storage } from "../storage";
 import { db } from "../db";
-import { knowledgeBase, knowledgeChunks } from "@shared/schema";
+import { agents, knowledgeBase, knowledgeChunks } from "@shared/schema";
 import { eq, and, sql } from "drizzle-orm";
 
 // Extend Request to include userId
@@ -234,7 +234,15 @@ function extractTextFromHtml(html: string): string {
   return text;
 }
 
-export function createRAGKnowledgeRoutes(authenticateToken: any): Router {
+export function createRAGKnowledgeRoutes(
+  authenticateToken: any,
+  guards: { requireCompanyScope: RequestHandler }
+): Router {
+  // Guards are injected by the mount site. Fail closed at build time if the company guard is missing.
+  if (!guards || typeof guards.requireCompanyScope !== "function") {
+    throw new Error("createRAGKnowledgeRoutes requires requireCompanyScope");
+  }
+  const { requireCompanyScope } = guards;
   const router = Router();
 
   /**
@@ -560,7 +568,7 @@ export function createRAGKnowledgeRoutes(authenticateToken: any): Router {
    * Search knowledge base - internal API for agents
    * This is called by the ElevenLabs custom tool
    */
-  router.post("/search", authenticateToken, async (req: AuthRequest, res: Response) => {
+  router.post("/search", authenticateToken, requireCompanyScope, async (req: AuthRequest, res: Response) => {
     try {
       const { query, knowledgeBaseIds, maxResults = 5 } = req.body;
 
@@ -572,10 +580,11 @@ export function createRAGKnowledgeRoutes(authenticateToken: any): Router {
         return res.status(400).json({ error: "Knowledge base IDs are required" });
       }
 
+      // Company comes only from the verified session (set by requireCompanyScope), never from the body.
       const results = await RAGKnowledgeService.searchKnowledge(
+        { companyId: res.locals.companyId, userId: req.userId! },
         query,
         knowledgeBaseIds,
-        req.userId!,
         maxResults
       );
 
@@ -618,17 +627,32 @@ export function createRAGKnowledgeRoutes(authenticateToken: any): Router {
 
       console.log(`[RAG Tool] Received query: "${query}" for agent ${agent_id}`);
 
-      if (!query || !knowledge_base_ids || !user_id) {
-        return res.status(400).json({ 
+      if (!query || !knowledge_base_ids || !user_id || typeof agent_id !== "string" || !agent_id) {
+        return res.status(400).json({
           error: "Missing required parameters",
           response: "I couldn't access the knowledge base. Please try asking again."
         });
       }
 
+      // Company and owner come from the agent row, not the request. The owner in the body must match it.
+      const [agentRow] = await db
+        .select({ companyId: agents.companyId, userId: agents.userId })
+        .from(agents)
+        .where(eq(agents.id, agent_id))
+        .limit(1);
+
+      if (!agentRow || !agentRow.companyId || agentRow.userId !== user_id) {
+        console.warn(`[RAG Tool] Refused: agent scope does not match`);
+        return res.status(403).json({
+          error: "Knowledge base access refused",
+          response: "I couldn't access the knowledge base for this agent."
+        });
+      }
+
       const results = await RAGKnowledgeService.searchKnowledge(
+        { companyId: agentRow.companyId, userId: agentRow.userId },
         query,
         knowledge_base_ids,
-        user_id,
         3 // Limit to 3 results for concise response
       );
 

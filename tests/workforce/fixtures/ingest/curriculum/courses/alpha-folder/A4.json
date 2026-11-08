@@ -1,0 +1,7 @@
+{
+  "id": "A4",
+  "title": "Alpha lesson under review",
+  "status": "REVIEW",
+  "courseSlugs": ["alpha-clean"],
+  "instruction": [{ "heading": "Review", "body": "Still under review." }]
+}

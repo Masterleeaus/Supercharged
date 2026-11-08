@@ -1,0 +1,10 @@
+{
+  "schema": "titan-zero-semantic-change/v1",
+  "packet_id": "TZ-FIX-COMPAT-RUNTIME-DECOMPOSITION-001",
+  "pass": 2,
+  "production_runtime_changed": false,
+  "ui_changed": false,
+  "feature_removed": false,
+  "change": "Added deterministic outer startup/call graph, reachability map, and candidate shell/domain classification for compatibility runtimes.",
+  "next_pass": "Identify existing Titan source/module equivalents and produce extraction/equivalence map with hashes/tests before modifying runtime."
+}

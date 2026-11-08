@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, timestamp, boolean, jsonb, decimal, doublePrecision, serial, date, time, unique, uniqueIndex, index } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, uuid, integer, timestamp, boolean, jsonb, decimal, doublePrecision, serial, date, time, unique, uniqueIndex, index, foreignKey, check, primaryKey } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 const users = pgTable("users", {
@@ -63,8 +63,11 @@ const users = pgTable("users", {
   company: text("company"),
   // Company name for profile and team naming
   createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow()
-});
+  updatedAt: timestamp("updated_at").defaultNow(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  usersCompanyIdIdx: index("users_company_id_idx").on(table.companyId),
+}));
 const otpVerifications = pgTable("otp_verifications", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   email: text("email").notNull(),
@@ -72,8 +75,11 @@ const otpVerifications = pgTable("otp_verifications", {
   expiresAt: timestamp("expires_at").notNull(),
   attempts: integer("attempts").notNull().default(0),
   verified: boolean("verified").notNull().default(false),
-  createdAt: timestamp("created_at").notNull().defaultNow()
-});
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  otpVerificationsCompanyIdIdx: index("otp_verifications_company_id_idx").on(table.companyId),
+}));
 const refreshTokens = pgTable("refresh_tokens", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
@@ -83,8 +89,10 @@ const refreshTokens = pgTable("refresh_tokens", {
   userAgent: text("user_agent"),
   ipAddress: text("ip_address"),
   lastUsedAt: timestamp("last_used_at"),
-  createdAt: timestamp("created_at").notNull().defaultNow()
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
 }, (table) => ({
+  refreshTokensCompanyIdIdx: index("refresh_tokens_company_id_idx").on(table.companyId),
   refreshTokensUserIdIdx: index("refresh_tokens_user_id_idx").on(table.userId),
   refreshTokensExpiresAtIdx: index("refresh_tokens_expires_at_idx").on(table.expiresAt)
 }));
@@ -126,8 +134,10 @@ const syncedVoices = pgTable("synced_voices", {
   status: text("status").notNull().default("synced"),
   // synced, failed, pending
   errorMessage: text("error_message"),
-  syncedAt: timestamp("synced_at").notNull().defaultNow()
+  syncedAt: timestamp("synced_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
 }, (table) => ({
+  syncedVoicesCompanyIdIdx: index("synced_voices_company_id_idx").on(table.companyId),
   credentialVoiceUnique: unique().on(table.credentialId, table.voiceId)
 }));
 const agents = pgTable("agents", {
@@ -199,8 +209,11 @@ const agents = pgTable("agents", {
   config: jsonb("config"),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow()
-});
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  agentsCompanyIdIdx: index("agents_company_id_idx").on(table.companyId),
+}));
 const knowledgeBase = pgTable("knowledge_base", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
@@ -212,8 +225,11 @@ const knowledgeBase = pgTable("knowledge_base", {
   elevenLabsDocId: text("eleven_labs_doc_id"),
   metadata: jsonb("metadata"),
   storageSize: integer("storage_size").notNull().default(0),
-  createdAt: timestamp("created_at").notNull().defaultNow()
-});
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  knowledgeBaseCompanyIdIdx: index("knowledge_base_company_id_idx").on(table.companyId),
+}));
 const incomingAgents = pgTable("incoming_agents", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
@@ -250,8 +266,10 @@ const incomingAgents = pgTable("incoming_agents", {
   // Metadata
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow()
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
 }, (table) => ({
+  incomingAgentsCompanyIdIdx: index("incoming_agents_company_id_idx").on(table.companyId),
   agentsUserIdIdx: index("agents_user_id_idx").on(table.userId),
   agentsCredentialIdIdx: index("agents_credential_id_idx").on(table.elevenLabsCredentialId),
   agentsElevenLabsAgentIdIdx: index("agents_eleven_labs_agent_id_idx").on(table.elevenLabsAgentId)
@@ -283,8 +301,10 @@ const phoneNumbers = pgTable("phone_numbers", {
   credentialsSyncedAt: timestamp("credentials_synced_at"),
   // Last time Twilio credentials were re-synced into ElevenLabs (null = never explicitly synced)
   // DEPRECATED: Use incoming_connections table instead
-  assignedIncomingAgentId: varchar("assigned_incoming_agent_id").references(() => incomingAgents.id, { onDelete: "set null" })
+  assignedIncomingAgentId: varchar("assigned_incoming_agent_id").references(() => incomingAgents.id, { onDelete: "set null" }),
+  companyId: uuid("company_id"),
 }, (table) => ({
+  phoneNumbersCompanyIdIdx: index("phone_numbers_company_id_idx").on(table.companyId),
   phoneNumbersUserIdIdx: index("phone_numbers_user_id_idx").on(table.userId),
   phoneNumbersStatusIdx: index("phone_numbers_status_idx").on(table.status),
   phoneNumbersNextBillingDateIdx: index("phone_numbers_next_billing_date_idx").on(table.nextBillingDate)
@@ -297,8 +317,11 @@ const incomingConnections = pgTable("incoming_connections", {
   phoneNumberId: varchar("phone_number_id").notNull().references(() => phoneNumbers.id, { onDelete: "cascade" }).unique(),
   // One connection per phone number
   createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow()
-});
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  incomingConnectionsCompanyIdIdx: index("incoming_connections_company_id_idx").on(table.companyId),
+}));
 const campaigns = pgTable("campaigns", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
@@ -363,8 +386,10 @@ const campaigns = pgTable("campaigns", {
   errorCode: text("error_code"),
   // Error code for categorization (e.g., AGENT_NOT_SYNCED, NO_CONTACTS)
   config: jsonb("config"),
-  createdAt: timestamp("created_at").notNull().defaultNow()
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
 }, (table) => ({
+  campaignsCompanyIdIdx: index("campaigns_company_id_idx").on(table.companyId),
   campaignsUserIdIdx: index("campaigns_user_id_idx").on(table.userId),
   campaignsStatusIdx: index("campaigns_status_idx").on(table.status),
   campaignsDeletedAtIdx: index("campaigns_deleted_at_idx").on(table.deletedAt),
@@ -386,8 +411,10 @@ const contacts = pgTable("contacts", {
   // When the last call was attempted
   nextRetryAt: timestamp("next_retry_at"),
   // When the next retry is scheduled (null if not queued)
-  createdAt: timestamp("created_at").notNull().defaultNow()
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
 }, (table) => ({
+  contactsCompanyIdIdx: index("contacts_company_id_idx").on(table.companyId),
   contactsCampaignIdIdx: index("contacts_campaign_id_idx").on(table.campaignId),
   contactsStatusIdx: index("contacts_status_idx").on(table.status)
   // Note: contacts has no userId column — ownership is via campaignId → campaigns.userId.
@@ -438,8 +465,10 @@ const calls = pgTable("calls", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
   agentId: varchar("agent_id"),
   engineType: text("engine_type"),
-  creditsUsed: integer("credits_used").default(0)
+  creditsUsed: integer("credits_used").default(0),
+  companyId: uuid("company_id"),
 }, (table) => ({
+  callsCompanyIdIdx: index("calls_company_id_idx").on(table.companyId),
   callsUserIdIdx: index("calls_user_id_idx").on(table.userId),
   callsCampaignIdIdx: index("calls_campaign_id_idx").on(table.campaignId),
   callsContactIdIdx: index("calls_contact_id_idx").on(table.contactId),
@@ -460,8 +489,10 @@ const creditTransactions = pgTable("credit_transactions", {
   // Unique constraint for idempotency
   widgetId: varchar("widget_id"),
   // For widget-originated credit deductions
-  createdAt: timestamp("created_at").notNull().defaultNow()
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
 }, (table) => ({
+  creditTransactionsCompanyIdIdx: index("credit_transactions_company_id_idx").on(table.companyId),
   userReferenceUnique: uniqueIndex("credit_transactions_user_reference_unique").on(table.userId, table.reference).where(sql`reference IS NOT NULL`),
   creditTransactionsUserIdIdx: index("credit_transactions_user_id_idx").on(table.userId),
   creditTransactionsCreatedAtIdx: index("credit_transactions_created_at_idx").on(table.createdAt)
@@ -473,8 +504,11 @@ const tools = pgTable("tools", {
   type: text("type").notNull(),
   config: jsonb("config").notNull(),
   isActive: boolean("is_active").notNull().default(true),
-  createdAt: timestamp("created_at").notNull().defaultNow()
-});
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  toolsCompanyIdIdx: index("tools_company_id_idx").on(table.companyId),
+}));
 const voices = pgTable("voices", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
@@ -484,8 +518,11 @@ const voices = pgTable("voices", {
   accent: text("accent"),
   tone: text("tone"),
   isCustom: boolean("is_custom").notNull().default(false),
-  createdAt: timestamp("created_at").notNull().defaultNow()
-});
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  voicesCompanyIdIdx: index("voices_company_id_idx").on(table.companyId),
+}));
 const plans = pgTable("plans", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull().unique(),
@@ -693,8 +730,11 @@ const userSubscriptions = pgTable("user_subscriptions", {
   overrideIncludedCredits: integer("override_included_credits"),
   // Override plan's includedCredits
   createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow()
-});
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  userSubscriptionsCompanyIdIdx: index("user_subscriptions_company_id_idx").on(table.companyId),
+}));
 const phoneNumberRentals = pgTable("phone_number_rentals", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   phoneNumberId: varchar("phone_number_id").notNull().references(() => phoneNumbers.id, { onDelete: "cascade" }),
@@ -704,8 +744,11 @@ const phoneNumberRentals = pgTable("phone_number_rentals", {
   status: text("status").notNull().default("success"),
   // 'success', 'failed', 'insufficient_credits'
   transactionId: varchar("transaction_id").references(() => creditTransactions.id),
-  createdAt: timestamp("created_at").notNull().defaultNow()
-});
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  phoneNumberRentalsCompanyIdIdx: index("phone_number_rentals_company_id_idx").on(table.companyId),
+}));
 const usageRecords = pgTable("usage_records", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
@@ -715,8 +758,11 @@ const usageRecords = pgTable("usage_records", {
   minutesUsed: integer("minutes_used").notNull().default(0),
   cost: decimal("cost", { precision: 10, scale: 2 }).notNull().default("0.00"),
   billingStatus: text("billing_status").notNull().default("pending"),
-  createdAt: timestamp("created_at").notNull().defaultNow()
-});
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  usageRecordsCompanyIdIdx: index("usage_records_company_id_idx").on(table.companyId),
+}));
 const legacyWebhooks = pgTable("webhooks", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
@@ -725,8 +771,11 @@ const legacyWebhooks = pgTable("webhooks", {
   secret: text("secret").notNull(),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow()
-});
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  legacyWebhooksCompanyIdIdx: index("webhooks_company_id_idx").on(table.companyId),
+}));
 const legacyWebhookDeliveries = pgTable("webhook_deliveries", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   webhookId: varchar("webhook_id").notNull().references(() => legacyWebhooks.id, { onDelete: "cascade" }),
@@ -738,8 +787,11 @@ const legacyWebhookDeliveries = pgTable("webhook_deliveries", {
   errorMessage: text("error_message"),
   attemptCount: integer("attempt_count").notNull().default(1),
   lastAttemptAt: timestamp("last_attempt_at").notNull().defaultNow(),
-  createdAt: timestamp("created_at").notNull().defaultNow()
-});
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  legacyWebhookDeliveriesCompanyIdIdx: index("webhook_deliveries_company_id_idx").on(table.companyId),
+}));
 const notifications = pgTable("notifications", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }),
@@ -763,8 +815,11 @@ const notifications = pgTable("notifications", {
   isRead: boolean("is_read").notNull().default(false),
   isDismissed: boolean("is_dismissed").notNull().default(false),
   // For banner dismissals
-  createdAt: timestamp("created_at").notNull().defaultNow()
-});
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  notificationsCompanyIdIdx: index("notifications_company_id_idx").on(table.companyId),
+}));
 const emailTemplates = pgTable("email_templates", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   templateType: text("template_type").notNull().unique(),
@@ -805,8 +860,11 @@ const promptTemplates = pgTable("prompt_templates", {
   usageCount: integer("usage_count").notNull().default(0),
   // Track popularity
   createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow()
-});
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  promptTemplatesCompanyIdIdx: index("prompt_templates_company_id_idx").on(table.companyId),
+}));
 const agentVersions = pgTable("agent_versions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   agentId: varchar("agent_id").notNull().references(() => agents.id, { onDelete: "cascade" }),
@@ -819,8 +877,11 @@ const agentVersions = pgTable("agent_versions", {
   editedBy: varchar("edited_by").references(() => users.id, { onDelete: "set null" }),
   note: text("note"),
   // Optional note about why changes were made
-  createdAt: timestamp("created_at").notNull().defaultNow()
-});
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  agentVersionsCompanyIdIdx: index("agent_versions_company_id_idx").on(table.companyId),
+}));
 const auditLogs = pgTable("audit_logs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   action: text("action").notNull(),
@@ -839,8 +900,11 @@ const auditLogs = pgTable("audit_logs", {
   // Additional context
   severity: text("severity").notNull().default("info"),
   // 'info', 'warning', 'error', 'critical'
-  createdAt: timestamp("created_at").notNull().defaultNow()
-});
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  auditLogsCompanyIdIdx: index("audit_logs_company_id_idx").on(table.companyId),
+}));
 const platformLanguages = pgTable("platform_languages", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   code: text("code").notNull().unique(),
@@ -876,38 +940,46 @@ const insertElevenLabsCredentialSchema = createInsertSchema(elevenLabsCredential
   totalAssignedAgents: true
 });
 const insertSyncedVoiceSchema = createInsertSchema(syncedVoices).omit({
+  companyId: true,
   id: true,
   syncedAt: true
 });
 const insertAgentSchema = createInsertSchema(agents).omit({
+  companyId: true,
   id: true,
   createdAt: true
 });
 const insertKnowledgeBaseSchema = createInsertSchema(knowledgeBase).omit({
+  companyId: true,
   id: true,
   createdAt: true
 });
 const insertIncomingAgentSchema = createInsertSchema(incomingAgents).omit({
+  companyId: true,
   id: true,
   createdAt: true,
   updatedAt: true
 });
 const insertPromptTemplateSchema = createInsertSchema(promptTemplates).omit({
+  companyId: true,
   id: true,
   createdAt: true,
   updatedAt: true,
   usageCount: true
 });
 const insertAgentVersionSchema = createInsertSchema(agentVersions).omit({
+  companyId: true,
   id: true,
   createdAt: true
 });
 const insertIncomingConnectionSchema = createInsertSchema(incomingConnections).omit({
+  companyId: true,
   id: true,
   createdAt: true,
   updatedAt: true
 });
 const insertCampaignSchema = createInsertSchema(campaigns).omit({
+  companyId: true,
   id: true,
   createdAt: true,
   completedCalls: true,
@@ -915,22 +987,27 @@ const insertCampaignSchema = createInsertSchema(campaigns).omit({
   failedCalls: true
 });
 const insertContactSchema = createInsertSchema(contacts).omit({
+  companyId: true,
   id: true,
   createdAt: true
 });
 const insertCallSchema = createInsertSchema(calls).omit({
+  companyId: true,
   id: true,
   createdAt: true
 });
 const insertCreditTransactionSchema = createInsertSchema(creditTransactions).omit({
+  companyId: true,
   id: true,
   createdAt: true
 });
 const insertToolSchema = createInsertSchema(tools).omit({
+  companyId: true,
   id: true,
   createdAt: true
 });
 const insertVoiceSchema = createInsertSchema(voices).omit({
+  companyId: true,
   id: true,
   createdAt: true
 });
@@ -972,32 +1049,39 @@ const insertCreditPackageSchema = createInsertSchema(creditPackages).omit({
   yookassaPrice: z.union([z.string(), z.number()]).transform((v) => v != null ? String(v) : null).nullable().optional()
 });
 const insertUserSubscriptionSchema = createInsertSchema(userSubscriptions).omit({
+  companyId: true,
   id: true,
   createdAt: true,
   updatedAt: true
 });
 const insertPhoneNumberSchema = createInsertSchema(phoneNumbers).omit({
+  companyId: true,
   id: true,
   createdAt: true
 });
 const insertUsageRecordSchema = createInsertSchema(usageRecords).omit({
+  companyId: true,
   id: true,
   createdAt: true
 });
 const insertLegacyWebhookSchema = createInsertSchema(legacyWebhooks).omit({
+  companyId: true,
   id: true,
   createdAt: true,
   updatedAt: true
 });
 const insertLegacyWebhookDeliverySchema = createInsertSchema(legacyWebhookDeliveries).omit({
+  companyId: true,
   id: true,
   createdAt: true
 });
 const insertPhoneNumberRentalSchema = createInsertSchema(phoneNumberRentals).omit({
+  companyId: true,
   id: true,
   createdAt: true
 });
 const insertNotificationSchema = createInsertSchema(notifications).omit({
+  companyId: true,
   id: true,
   createdAt: true,
   isRead: true,
@@ -1029,8 +1113,11 @@ const userKnowledgeStorageLimits = pgTable("user_knowledge_storage_limits", {
   // 20MB default per user
   usedStorageBytes: integer("used_storage_bytes").notNull().default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow()
-});
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  userKnowledgeStorageLimitsCompanyIdIdx: index("user_knowledge_storage_limits_company_id_idx").on(table.companyId),
+}));
 const knowledgeChunks = pgTable("knowledge_chunks", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   knowledgeBaseId: varchar("knowledge_base_id").notNull().references(() => knowledgeBase.id, { onDelete: "cascade" }),
@@ -1044,8 +1131,11 @@ const knowledgeChunks = pgTable("knowledge_chunks", {
   tokenCount: integer("token_count").notNull().default(0),
   metadata: jsonb("metadata"),
   // Page number, section, source info
-  createdAt: timestamp("created_at").notNull().defaultNow()
-});
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  knowledgeChunksCompanyIdIdx: index("knowledge_chunks_company_id_idx").on(table.companyId),
+}));
 const knowledgeProcessingQueue = pgTable("knowledge_processing_queue", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   knowledgeBaseId: varchar("knowledge_base_id").notNull().references(() => knowledgeBase.id, { onDelete: "cascade" }),
@@ -1056,18 +1146,24 @@ const knowledgeProcessingQueue = pgTable("knowledge_processing_queue", {
   totalChunks: integer("total_chunks").default(0),
   processedChunks: integer("processed_chunks").default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow()
-});
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  knowledgeProcessingQueueCompanyIdIdx: index("knowledge_processing_queue_company_id_idx").on(table.companyId),
+}));
 const insertUserKnowledgeStorageLimitSchema = createInsertSchema(userKnowledgeStorageLimits).omit({
+  companyId: true,
   id: true,
   createdAt: true,
   updatedAt: true
 });
 const insertKnowledgeChunkSchema = createInsertSchema(knowledgeChunks).omit({
+  companyId: true,
   id: true,
   createdAt: true
 });
 const insertKnowledgeProcessingQueueSchema = createInsertSchema(knowledgeProcessingQueue).omit({
+  companyId: true,
   id: true,
   createdAt: true,
   updatedAt: true
@@ -1089,9 +1185,13 @@ const flows = pgTable("flows", {
   compiledStates: jsonb("compiled_states").$type(),
   compiledTools: jsonb("compiled_tools").$type(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull()
-});
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  flowsCompanyIdIdx: index("flows_company_id_idx").on(table.companyId),
+}));
 const insertFlowSchema = createInsertSchema(flows).omit({
+  companyId: true,
   id: true,
   createdAt: true,
   updatedAt: true,
@@ -1112,9 +1212,13 @@ const flowExecutions = pgTable("flow_executions", {
   metadata: jsonb("metadata").$type(),
   error: text("error"),
   startedAt: timestamp("started_at").defaultNow().notNull(),
-  completedAt: timestamp("completed_at")
-});
+  completedAt: timestamp("completed_at"),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  flowExecutionsCompanyIdIdx: index("flow_executions_company_id_idx").on(table.companyId),
+}));
 const insertFlowExecutionSchema = createInsertSchema(flowExecutions).omit({
+  companyId: true,
   id: true,
   startedAt: true
 });
@@ -1131,9 +1235,13 @@ const flowTestQueue = pgTable("flow_test_queue", {
   // set when status=failed|cancelled
   processedAt: timestamp("processed_at"),
   // set when leaving waiting
-  createdAt: timestamp("created_at").notNull().defaultNow()
-});
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  flowTestQueueCompanyIdIdx: index("flow_test_queue_company_id_idx").on(table.companyId),
+}));
 const insertFlowTestQueueSchema = createInsertSchema(flowTestQueue).omit({
+  companyId: true,
   id: true,
   createdAt: true
 });
@@ -1152,10 +1260,14 @@ const webhookSubscriptions = pgTable("webhook_subscriptions", {
   campaignIds: jsonb("campaign_ids").$type(),
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull()
-});
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  webhookSubscriptionsCompanyIdIdx: index("webhook_subscriptions_company_id_idx").on(table.companyId),
+}));
 const webhooks = webhookSubscriptions;
 const insertWebhookSchema = createInsertSchema(webhooks).omit({
+  companyId: true,
   id: true,
   createdAt: true,
   updatedAt: true
@@ -1174,10 +1286,15 @@ const webhookDeliveryLogs = pgTable("webhook_logs", {
   attemptNumber: integer("attempt").default(1).notNull(),
   maxAttempts: integer("max_attempts").default(3),
   nextRetryAt: timestamp("next_retry_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull()
-});
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  companyId: uuid("company_id"),
+  deliveryStatus: text("delivery_status"),
+}, (table) => ({
+  webhookDeliveryLogsCompanyIdIdx: index("webhook_logs_company_id_idx").on(table.companyId),
+}));
 const webhookLogs = webhookDeliveryLogs;
 const insertWebhookLogSchema = createInsertSchema(webhookLogs).omit({
+  companyId: true,
   id: true,
   createdAt: true
 });
@@ -1199,9 +1316,13 @@ const appointments = pgTable("appointments", {
   googleCalendarEventId: varchar("google_calendar_event_id", { length: 255 }),
   metadata: jsonb("metadata").$type(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull()
-});
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  appointmentsCompanyIdIdx: index("appointments_company_id_idx").on(table.companyId),
+}));
 const insertAppointmentSchema = createInsertSchema(appointments).omit({
+  companyId: true,
   id: true,
   createdAt: true,
   updatedAt: true
@@ -1215,9 +1336,13 @@ const appointmentSettings = pgTable("appointment_settings", {
   syncToGoogleCalendar: boolean("sync_to_google_calendar").default(false).notNull(),
   workingHours: jsonb("working_hours").notNull().$type(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull()
-});
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  appointmentSettingsCompanyIdIdx: index("appointment_settings_company_id_idx").on(table.companyId),
+}));
 const insertAppointmentSettingsSchema = createInsertSchema(appointmentSettings).omit({
+  companyId: true,
   id: true,
   createdAt: true,
   updatedAt: true
@@ -1230,9 +1355,13 @@ const forms = pgTable("forms", {
   description: text("description"),
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull()
-});
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  formsCompanyIdIdx: index("forms_company_id_idx").on(table.companyId),
+}));
 const insertFormSchema = createInsertSchema(forms).omit({
+  companyId: true,
   id: true,
   createdAt: true,
   updatedAt: true
@@ -1246,9 +1375,13 @@ const formFields = pgTable("form_fields", {
   options: jsonb("options").$type(),
   isRequired: boolean("is_required").default(true).notNull(),
   order: integer("order").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull()
-});
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  formFieldsCompanyIdIdx: index("form_fields_company_id_idx").on(table.companyId),
+}));
 const insertFormFieldSchema = createInsertSchema(formFields).omit({
+  companyId: true,
   id: true,
   createdAt: true
 });
@@ -1260,9 +1393,13 @@ const formSubmissions = pgTable("form_submissions", {
   contactName: varchar("contact_name", { length: 255 }),
   contactPhone: varchar("contact_phone", { length: 50 }),
   responses: jsonb("responses").notNull().$type(),
-  submittedAt: timestamp("submitted_at").defaultNow().notNull()
-});
+  submittedAt: timestamp("submitted_at").defaultNow().notNull(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  formSubmissionsCompanyIdIdx: index("form_submissions_company_id_idx").on(table.companyId),
+}));
 const insertFormSubmissionSchema = createInsertSchema(formSubmissions).omit({
+  companyId: true,
   id: true,
   submittedAt: true
 });
@@ -1400,9 +1537,13 @@ const paymentTransactions = pgTable("payment_transactions", {
   // Timestamps
   completedAt: timestamp("completed_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow()
-});
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  paymentTransactionsCompanyIdIdx: index("payment_transactions_company_id_idx").on(table.companyId),
+}));
 const insertPaymentTransactionSchema = createInsertSchema(paymentTransactions).omit({
+  companyId: true,
   id: true,
   createdAt: true,
   updatedAt: true
@@ -1451,9 +1592,13 @@ const refunds = pgTable("refunds", {
   // Timestamps
   processedAt: timestamp("processed_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow()
-});
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  refundsCompanyIdIdx: index("refunds_company_id_idx").on(table.companyId),
+}));
 const insertRefundSchema = createInsertSchema(refunds).omit({
+  companyId: true,
   id: true,
   createdAt: true,
   updatedAt: true
@@ -1496,9 +1641,13 @@ const invoices = pgTable("invoices", {
   dueAt: timestamp("due_at"),
   paidAt: timestamp("paid_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow()
-});
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  invoicesCompanyIdIdx: index("invoices_company_id_idx").on(table.companyId),
+}));
 const insertInvoiceSchema = createInsertSchema(invoices).omit({
+  companyId: true,
   id: true,
   createdAt: true,
   updatedAt: true
@@ -1534,9 +1683,13 @@ const paymentWebhookQueue = pgTable("payment_webhook_queue", {
   processedAt: timestamp("processed_at"),
   expiresAt: timestamp("expires_at").notNull(),
   // 24 hours from receivedAt
-  createdAt: timestamp("created_at").notNull().defaultNow()
-});
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  paymentWebhookQueueCompanyIdIdx: index("payment_webhook_queue_company_id_idx").on(table.companyId),
+}));
 const insertPaymentWebhookQueueSchema = createInsertSchema(paymentWebhookQueue).omit({
+  companyId: true,
   id: true,
   createdAt: true
 });
@@ -1608,9 +1761,13 @@ const contentViolations = pgTable("content_violations", {
   // 'warning', 'blocked', 'dismissed', etc.
   notes: text("notes"),
   // Admin notes
-  createdAt: timestamp("created_at").notNull().defaultNow()
-});
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  contentViolationsCompanyIdIdx: index("content_violations_company_id_idx").on(table.companyId),
+}));
 const insertContentViolationSchema = createInsertSchema(contentViolations).omit({
+  companyId: true,
   id: true,
   createdAt: true
 });
@@ -1682,9 +1839,13 @@ const plivoPhoneNumbers = pgTable("plivo_phone_numbers", {
   assignedAgentId: varchar("assigned_agent_id").references(() => agents.id, { onDelete: "set null" }),
   purchasedAt: timestamp("purchased_at").notNull().defaultNow(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow()
-});
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  plivoPhoneNumbersCompanyIdIdx: index("plivo_phone_numbers_company_id_idx").on(table.companyId),
+}));
 const insertPlivoPhoneNumberSchema = createInsertSchema(plivoPhoneNumbers).omit({
+  companyId: true,
   id: true,
   purchasedAt: true,
   createdAt: true,
@@ -1739,8 +1900,10 @@ const plivoCalls = pgTable("plivo_calls", {
   answeredAt: timestamp("answered_at"),
   endedAt: timestamp("ended_at"),
   metadata: jsonb("metadata"),
-  createdAt: timestamp("created_at").notNull().defaultNow()
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
 }, (table) => ({
+  plivoCallsCompanyIdIdx: index("plivo_calls_company_id_idx").on(table.companyId),
   plivoCallsUserIdIdx: index("plivo_calls_user_id_idx").on(table.userId),
   plivoCallsCampaignIdIdx: index("plivo_calls_campaign_id_idx").on(table.campaignId),
   plivoCallsContactIdIdx: index("plivo_calls_contact_id_idx").on(table.contactId),
@@ -1750,6 +1913,7 @@ const plivoCalls = pgTable("plivo_calls", {
   plivoCallsPlivoCallUuidIdx: index("plivo_calls_plivo_call_uuid_idx").on(table.plivoCallUuid)
 }));
 const insertPlivoCallSchema = createInsertSchema(plivoCalls).omit({
+  companyId: true,
   id: true,
   createdAt: true
 });
@@ -1767,9 +1931,13 @@ const campaignJobs = pgTable("campaign_jobs", {
   // For distributed processing
   createdAt: timestamp("created_at").notNull().defaultNow(),
   processedAt: timestamp("processed_at"),
-  completedAt: timestamp("completed_at")
-});
+  completedAt: timestamp("completed_at"),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  campaignJobsCompanyIdIdx: index("campaign_jobs_company_id_idx").on(table.companyId),
+}));
 const insertCampaignJobSchema = createInsertSchema(campaignJobs).omit({
+  companyId: true,
   id: true,
   createdAt: true
 });
@@ -1800,9 +1968,13 @@ const userKycDocuments = pgTable("user_kyc_documents", {
   filePath: text("file_path").notNull(),
   mimeType: text("mime_type").notNull(),
   fileSize: integer("file_size"),
-  uploadedAt: timestamp("uploaded_at").notNull().defaultNow()
-});
+  uploadedAt: timestamp("uploaded_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  userKycDocumentsCompanyIdIdx: index("user_kyc_documents_company_id_idx").on(table.companyId),
+}));
 const insertUserKycDocumentSchema = createInsertSchema(userKycDocuments).omit({
+  companyId: true,
   id: true,
   uploadedAt: true
 });
@@ -1839,8 +2011,10 @@ const twilioOpenaiCalls = pgTable("twilio_openai_calls", {
   answeredAt: timestamp("answered_at"),
   endedAt: timestamp("ended_at"),
   metadata: jsonb("metadata"),
-  createdAt: timestamp("created_at").notNull().defaultNow()
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
 }, (table) => ({
+  twilioOpenaiCallsCompanyIdIdx: index("twilio_openai_calls_company_id_idx").on(table.companyId),
   twilioOpenaiCallsUserIdIdx: index("twilio_openai_calls_user_id_idx").on(table.userId),
   twilioOpenaiCallsCampaignIdIdx: index("twilio_openai_calls_campaign_id_idx").on(table.campaignId),
   twilioOpenaiCallsContactIdIdx: index("twilio_openai_calls_contact_id_idx").on(table.contactId),
@@ -1850,6 +2024,7 @@ const twilioOpenaiCalls = pgTable("twilio_openai_calls", {
   twilioOpenaiCallsTwilioSidIdx: index("twilio_openai_calls_twilio_call_sid_idx").on(table.twilioCallSid)
 }));
 const insertTwilioOpenaiCallSchema = createInsertSchema(twilioOpenaiCalls).omit({
+  companyId: true,
   id: true,
   createdAt: true
 });
@@ -1888,9 +2063,13 @@ const leadStages = pgTable("lead_stages", {
   isCustom: boolean("is_custom").notNull().default(true),
   // User-created stages
   createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow()
-});
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  leadStagesCompanyIdIdx: index("lead_stages_company_id_idx").on(table.companyId),
+}));
 const insertLeadStageSchema = createInsertSchema(leadStages).omit({
+  companyId: true,
   id: true,
   createdAt: true,
   updatedAt: true
@@ -1955,9 +2134,13 @@ const leads = pgTable("leads", {
   // Assignment for team accounts
   assignedUserId: varchar("assigned_user_id").references(() => users.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow()
-});
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  leadsCompanyIdIdx: index("leads_company_id_idx").on(table.companyId),
+}));
 const insertLeadSchema = createInsertSchema(leads).omit({
+  companyId: true,
   id: true,
   createdAt: true,
   updatedAt: true
@@ -2023,9 +2206,13 @@ const leadNotes = pgTable("lead_notes", {
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   content: text("content").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow()
-});
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  leadNotesCompanyIdIdx: index("lead_notes_company_id_idx").on(table.companyId),
+}));
 const insertLeadNoteSchema = createInsertSchema(leadNotes).omit({
+  companyId: true,
   id: true,
   createdAt: true,
   updatedAt: true
@@ -2043,9 +2230,13 @@ const leadActivities = pgTable("lead_activities", {
   // Longer description if needed
   // Metadata for different activity types
   metadata: jsonb("metadata").$type(),
-  createdAt: timestamp("created_at").notNull().defaultNow()
-});
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  leadActivitiesCompanyIdIdx: index("lead_activities_company_id_idx").on(table.companyId),
+}));
 const insertLeadActivitySchema = createInsertSchema(leadActivities).omit({
+  companyId: true,
   id: true,
   createdAt: true
 });
@@ -2070,9 +2261,13 @@ const crmCategoryPreferences = pgTable("crm_category_preferences", {
   // Hide specific classifications from view
   hiddenCategories: text("hidden_categories").array().default(sql`ARRAY[]::text[]`),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow()
-});
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  crmCategoryPreferencesCompanyIdIdx: index("crm_category_preferences_company_id_idx").on(table.companyId),
+}));
 const insertCrmCategoryPreferencesSchema = createInsertSchema(crmCategoryPreferences).omit({
+  companyId: true,
   id: true,
   createdAt: true,
   updatedAt: true
@@ -2139,9 +2334,13 @@ const websiteWidgets = pgTable("website_widgets", {
   totalCalls: integer("total_calls").notNull().default(0),
   totalMinutes: integer("total_minutes").notNull().default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow()
-});
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  websiteWidgetsCompanyIdIdx: index("website_widgets_company_id_idx").on(table.companyId),
+}));
 const insertWebsiteWidgetSchema = createInsertSchema(websiteWidgets).omit({
+  companyId: true,
   id: true,
   totalCalls: true,
   totalMinutes: true,
@@ -2173,9 +2372,13 @@ const widgetCallSessions = pgTable("widget_call_sessions", {
   openaiCredentialId: varchar("openai_credential_id"),
   startedAt: timestamp("started_at"),
   endedAt: timestamp("ended_at"),
-  createdAt: timestamp("created_at").notNull().defaultNow()
-});
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  widgetCallSessionsCompanyIdIdx: index("widget_call_sessions_company_id_idx").on(table.companyId),
+}));
 const insertWidgetCallSessionSchema = createInsertSchema(widgetCallSessions).omit({
+  companyId: true,
   id: true,
   createdAt: true
 });
@@ -2232,9 +2435,13 @@ const apiKeys = pgTable("api_keys", {
   description: text("description"),
   metadata: jsonb("metadata"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow()
-});
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  apiKeysCompanyIdIdx: index("api_keys_company_id_idx").on(table.companyId),
+}));
 const insertApiKeySchema = createInsertSchema(apiKeys).omit({
+  companyId: true,
   id: true,
   lastUsedAt: true,
   lastUsedIp: true,
@@ -2268,9 +2475,13 @@ const apiAuditLogs = pgTable("api_audit_logs", {
   // Correlation
   requestId: text("request_id").notNull(),
   // Unique ID for request tracing
-  createdAt: timestamp("created_at").notNull().defaultNow()
-});
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  apiAuditLogsCompanyIdIdx: index("api_audit_logs_company_id_idx").on(table.companyId),
+}));
 const insertApiAuditLogSchema = createInsertSchema(apiAuditLogs).omit({
+  companyId: true,
   id: true,
   createdAt: true
 });
@@ -2279,8 +2490,11 @@ const apiRateLimits = pgTable("api_rate_limits", {
   apiKeyId: varchar("api_key_id").notNull().references(() => apiKeys.id, { onDelete: "cascade" }),
   windowStart: timestamp("window_start").notNull(),
   requestCount: integer("request_count").notNull().default(0),
-  createdAt: timestamp("created_at").notNull().defaultNow()
-});
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  apiRateLimitsCompanyIdIdx: index("api_rate_limits_company_id_idx").on(table.companyId),
+}));
 const sipTrunks = pgTable("sip_trunks", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
@@ -2312,9 +2526,13 @@ const sipTrunks = pgTable("sip_trunks", {
   healthStatus: text("health_status").notNull().default("unknown"),
   lastHealthCheck: timestamp("last_health_check"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow()
-});
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  sipTrunksCompanyIdIdx: index("sip_trunks_company_id_idx").on(table.companyId),
+}));
 const insertSipTrunkSchema = createInsertSchema(sipTrunks).omit({
+  companyId: true,
   id: true,
   healthStatus: true,
   lastHealthCheck: true,
@@ -2338,9 +2556,13 @@ const sipPhoneNumbers = pgTable("sip_phone_numbers", {
   credentialsSyncedAt: timestamp("credentials_synced_at"),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow()
-});
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  sipPhoneNumbersCompanyIdIdx: index("sip_phone_numbers_company_id_idx").on(table.companyId),
+}));
 const insertSipPhoneNumberSchema = createInsertSchema(sipPhoneNumbers).omit({
+  companyId: true,
   id: true,
   createdAt: true,
   updatedAt: true
@@ -2378,8 +2600,10 @@ const sipCalls = pgTable("sip_calls", {
   answeredAt: timestamp("answered_at"),
   endedAt: timestamp("ended_at"),
   createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow()
+  updatedAt: timestamp("updated_at").defaultNow(),
+  companyId: uuid("company_id"),
 }, (table) => ({
+  sipCallsCompanyIdIdx: index("sip_calls_company_id_idx").on(table.companyId),
   sipCallsUserIdIdx: index("sip_calls_user_id_idx").on(table.userId),
   sipCallsCampaignIdIdx: index("sip_calls_campaign_id_idx").on(table.campaignId),
   sipCallsContactIdIdx: index("sip_calls_contact_id_idx").on(table.contactId),
@@ -2390,6 +2614,7 @@ const sipCalls = pgTable("sip_calls", {
   sipCallsElevenlabsConversationIdIdx: index("sip_calls_elevenlabs_conversation_id_idx").on(table.elevenlabsConversationId)
 }));
 const insertSipCallSchema = createInsertSchema(sipCalls).omit({
+  companyId: true,
   id: true,
   createdAt: true,
   updatedAt: true
@@ -2420,9 +2645,13 @@ const userAddresses = pgTable("user_addresses", {
   // Reason if rejected
   // Timestamps
   createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow()
-});
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  userAddressesCompanyIdIdx: index("user_addresses_company_id_idx").on(table.companyId),
+}));
 const insertUserAddressSchema = createInsertSchema(userAddresses).omit({
+  companyId: true,
   id: true,
   twilioAddressSid: true,
   status: true,
@@ -2453,9 +2682,13 @@ const userFeedback = pgTable("user_feedback", {
   screenshot: text("screenshot"),
   // Optional base64 screenshot
   createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow()
-});
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  userFeedbackCompanyIdIdx: index("user_feedback_company_id_idx").on(table.companyId),
+}));
 const insertUserFeedbackSchema = createInsertSchema(userFeedback).omit({
+  companyId: true,
   id: true,
   status: true,
   priority: true,
@@ -2473,9 +2706,13 @@ const googleCalendarCredentials = pgTable("google_calendar_credentials", {
   tokenExpiry: timestamp("token_expiry").notNull(),
   connectedEmail: text("connected_email").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow()
-});
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  googleCalendarCredentialsCompanyIdIdx: index("google_calendar_credentials_company_id_idx").on(table.companyId),
+}));
 const insertGoogleCalendarCredentialSchema = createInsertSchema(googleCalendarCredentials).omit({
+  companyId: true,
   id: true,
   createdAt: true,
   updatedAt: true
@@ -2488,9 +2725,13 @@ const googleSheetsCredentials = pgTable("google_sheets_credentials", {
   tokenExpiry: timestamp("token_expiry").notNull(),
   connectedEmail: text("connected_email").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow()
-});
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
+}, (table) => ({
+  googleSheetsCredentialsCompanyIdIdx: index("google_sheets_credentials_company_id_idx").on(table.companyId),
+}));
 const insertGoogleSheetsCredentialSchema = createInsertSchema(googleSheetsCredentials).omit({
+  companyId: true,
   id: true,
   createdAt: true,
   updatedAt: true
@@ -2507,17 +2748,221 @@ const phoneReleaseRetryQueue = pgTable("phone_release_retry_queue", {
   lastError: text("last_error"),
   nextRetryAt: timestamp("next_retry_at").notNull().defaultNow(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow()
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  companyId: uuid("company_id"),
 }, (table) => ({
+  phoneReleaseRetryQueueCompanyIdIdx: index("phone_release_retry_queue_company_id_idx").on(table.companyId),
   phoneReleaseRetryQueueNextRetryAtIdx: index("phone_release_retry_queue_next_retry_at_idx").on(table.nextRetryAt),
   phoneReleaseRetryQueuePhoneNumberIdIdx: index("phone_release_retry_queue_phone_number_id_idx").on(table.phoneNumberId)
 }));
 const insertPhoneReleaseRetryQueueSchema = createInsertSchema(phoneReleaseRetryQueue).omit({
+  companyId: true,
   id: true,
   createdAt: true,
   updatedAt: true
 });
+const companies = pgTable("companies", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+
+
+// Chatbot tables (web chat widget). Column names match migrations/DRAFT_chatbot.sql.
+// Every table carries company_id (NOT NULL). Child tables use composite foreign keys on (company_id, id),
+// so a conversation cannot point at another company's chatbot, and a message cannot point at another company's conversation.
+const chatbots = pgTable("chatbots", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  companyId: uuid("company_id").notNull(),
+  title: varchar("title", { length: 200 }).notNull(),
+  language: varchar("language", { length: 10 }).notNull().default("en"),
+  welcomeMessage: text("welcome_message"),
+  instructions: text("instructions"),
+  generativeUiEnabled: boolean("generative_ui_enabled").notNull().default(true),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => ({
+  chatbotsCompanyIdUidx: uniqueIndex("chatbots_company_id_uidx").on(table.companyId, table.id),
+  chatbotsCompanyActiveIdx: index("chatbots_company_active_idx").on(table.companyId, table.active),
+}));
+
+const chatbotConversations = pgTable("chatbot_conversations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  companyId: uuid("company_id").notNull(),
+  chatbotId: varchar("chatbot_id").notNull(),
+  sessionId: varchar("session_id", { length: 128 }).notNull(),
+  channel: varchar("channel", { length: 32 }).notNull().default("web"),
+  connectAgentAt: timestamp("connect_agent_at"), // null while the bot handles the chat
+  isShownOnHistory: boolean("is_shown_on_history").notNull().default(true),
+  ticketStatus: varchar("ticket_status", { length: 16 }).notNull().default("new"), // new | closed
+  pinned: boolean("pinned").notNull().default(false),
+  lastActivityAt: timestamp("last_activity_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => ({
+  chatbotConversationsCompanyIdUidx: unique("chatbot_conversations_company_id_uidx").on(table.companyId, table.id),
+  chatbotConversationsCompanyChatbotFk: foreignKey({
+    name: "chatbot_conversations_company_chatbot_fk",
+    columns: [table.companyId, table.chatbotId],
+    foreignColumns: [chatbots.companyId, chatbots.id],
+  }),
+  chatbotConversationsTicketStatusCheck: check("chatbot_conversations_ticket_status_check", sql`${table.ticketStatus} IN ('new', 'closed')`),
+  chatbotConversationsCompanyActivityIdx: index("chatbot_conversations_company_activity_idx").on(table.companyId, table.lastActivityAt),
+  chatbotConversationsCompanySessionIdx: index("chatbot_conversations_company_session_idx").on(table.companyId, table.sessionId),
+}));
+
+const chatbotMessages = pgTable("chatbot_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  companyId: uuid("company_id").notNull(),
+  conversationId: varchar("conversation_id").notNull(),
+  role: varchar("role", { length: 16 }).notNull(), // user | assistant
+  message: text("message").notNull(),
+  contentType: varchar("content_type", { length: 16 }).notNull().default("text"), // text | titan-ui
+  uiSpec: jsonb("ui_spec"), // validated spec, null for plain text
+  mediaUrl: text("media_url"),
+  mediaName: text("media_name"),
+  isInternalNote: boolean("is_internal_note").notNull().default(false),
+  readAt: timestamp("read_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  chatbotMessagesCompanyConversationFk: foreignKey({
+    name: "chatbot_messages_company_conversation_fk",
+    columns: [table.companyId, table.conversationId],
+    foreignColumns: [chatbotConversations.companyId, chatbotConversations.id],
+  }),
+  chatbotMessagesRoleCheck: check("chatbot_messages_role_check", sql`${table.role} IN ('user', 'assistant')`),
+  chatbotMessagesContentTypeCheck: check("chatbot_messages_content_type_check", sql`${table.contentType} IN ('text', 'titan-ui')`),
+  chatbotMessagesCompanyConversationIdx: index("chatbot_messages_company_conversation_idx").on(table.companyId, table.conversationId, table.createdAt),
+  chatbotMessagesUnreadIdx: index("chatbot_messages_unread_idx").on(table.companyId, table.conversationId, table.role, table.readAt),
+}));
+
+// Workforce runtime persistence (server/workforce/runtime/pg-store.ts). Tenant key is company_id.
+// No foreign keys to companies, consistent with the DRAFT migrations. Schema only; not applied.
+const workforceRuns = pgTable("workforce_runs", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  companyId: uuid("company_id").notNull(),
+  status: varchar("status", { length: 24 }).notNull(), // RUN_STATUSES in run.ts
+  version: integer("version").notNull().default(1), // compare-and-set key
+  team: jsonb("team").notNull(), // snapshot of the team at start
+  path: jsonb("path").notNull().default(sql`'[]'::jsonb`),
+  delegations: jsonb("delegations").notNull().default(sql`'[]'::jsonb`),
+  limits: jsonb("limits").notNull(),
+  budgetMaxTokens: integer("budget_max_tokens").notNull(),
+  budgetMaxToolCalls: integer("budget_max_tool_calls").notNull(),
+  budgetTokensUsed: integer("budget_tokens_used").notNull().default(0),
+  budgetToolCalls: integer("budget_tool_calls").notNull().default(0),
+  retry: jsonb("retry").notNull(),
+  pendingApproval: jsonb("pending_approval"),
+  reason: text("reason"), // reason for the latest status change
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  workforceRunsCompanyStatusIdx: index("workforce_runs_company_status_idx").on(table.companyId, table.status),
+  workforceRunsCompanyCreatedIdx: index("workforce_runs_company_created_idx").on(table.companyId, table.createdAt),
+  workforceRunsVersionCheck: check("workforce_runs_version_check", sql`${table.version} >= 1`),
+  workforceRunsStatusCheck: check("workforce_runs_status_check", sql`${table.status} IN ('queued', 'running', 'awaiting_approval', 'completed', 'failed', 'cancelled', 'budget_exhausted')`),
+}));
+
+const workforceTasks = pgTable("workforce_tasks", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  companyId: uuid("company_id").notNull(),
+  runId: uuid("run_id").notNull(),
+  roleId: varchar("role_id", { length: 128 }).notNull(),
+  status: varchar("status", { length: 24 }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  workforceTasksCompanyRunIdx: index("workforce_tasks_company_run_idx").on(table.companyId, table.runId),
+}));
+
+const workforceToolCalls = pgTable("workforce_tool_calls", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  companyId: uuid("company_id").notNull(),
+  runId: uuid("run_id").notNull(),
+  attempt: integer("attempt").notNull().default(1),
+  toolName: varchar("tool_name", { length: 128 }).notNull(),
+  paramsSha256: varchar("params_sha256", { length: 64 }).notNull(), // params are hashed, never stored raw
+  outcome: varchar("outcome", { length: 24 }).notNull(),
+  reason: text("reason"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  workforceToolCallsCompanyRunIdx: index("workforce_tool_calls_company_run_idx").on(table.companyId, table.runId, table.createdAt),
+  workforceToolCallsOutcomeCheck: check("workforce_tool_calls_outcome_check", sql`${table.outcome} IN ('executed', 'failed', 'awaiting_approval', 'refused')`),
+  workforceToolCallsAttemptCheck: check("workforce_tool_calls_attempt_check", sql`${table.attempt} >= 1`),
+}));
+
+// Append-only: the store has no update or delete for this table.
+const workforceAuditEvents = pgTable("workforce_audit_events", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  seq: serial("seq").notNull().unique(), // append order
+  companyId: uuid("company_id").notNull(),
+  runId: uuid("run_id"), // null only for events with no run
+  kind: varchar("kind", { length: 32 }).notNull(),
+  actor: varchar("actor", { length: 128 }),
+  outcome: varchar("outcome", { length: 32 }),
+  data: jsonb("data").notNull().default(sql`'{}'::jsonb`), // hashes and ids only, never raw params or output
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  workforceAuditEventsCompanyRunIdx: index("workforce_audit_events_company_run_idx").on(table.companyId, table.runId, table.seq),
+  workforceAuditEventsKindCheck: check("workforce_audit_events_kind_check", sql`${table.kind} IN ('run.created', 'run.status', 'run.retry', 'run.handoff', 'run.delegation', 'run.delegation_closed', 'run.approval_resumed', 'tool.decision', 'tool.execution')`),
+}));
+
+// Agent roster persistence (server/workforce/pg-roster.ts). Tenant key is company_id; primary key is (company_id, id).
+// No foreign keys, consistent with the DRAFT migrations. Schema only; not applied.
+const workforceAgents = pgTable("workforce_agents", {
+  id: text("id").notNull(), // agent id, unique per company
+  companyId: uuid("company_id").notNull(),
+  roleId: text("role_id").notNull(),
+  teamId: text("team_id"),
+  channels: jsonb("channels").notNull().default(sql`'[]'::jsonb`),
+  permissions: jsonb("permissions").notNull().default(sql`'[]'::jsonb`),
+  autonomy: text("autonomy").notNull(),
+  status: text("status").notNull().default("active"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  workforceAgentsPk: primaryKey({ columns: [table.companyId, table.id] }),
+  workforceAgentsCompanyIdx: index("workforce_agents_company_idx").on(table.companyId),
+  workforceAgentsAutonomyCheck: check("workforce_agents_autonomy_check", sql`${table.autonomy} IN ('assist', 'suggest', 'auto', 'predictive')`),
+  workforceAgentsStatusCheck: check("workforce_agents_status_check", sql`${table.status} IN ('active', 'paused', 'retired')`),
+}));
+
+const insertChatbotSchema = createInsertSchema(chatbots).omit({
+  companyId: true,
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+const insertChatbotConversationSchema = createInsertSchema(chatbotConversations).omit({
+  companyId: true,
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+const insertChatbotMessageSchema = createInsertSchema(chatbotMessages).omit({
+  companyId: true,
+  id: true,
+  createdAt: true,
+});
+
 export {
+  companies,
+  chatbots,
+  chatbotConversations,
+  chatbotMessages,
+  workforceRuns,
+  workforceTasks,
+  workforceToolCalls,
+  workforceAuditEvents,
+  workforceAgents,
+  insertChatbotSchema,
+  insertChatbotConversationSchema,
+  insertChatbotMessageSchema,
   AI_CATEGORY_COLORS,
   AI_CATEGORY_LABELS,
   AI_CATEGORY_PRIORITY,

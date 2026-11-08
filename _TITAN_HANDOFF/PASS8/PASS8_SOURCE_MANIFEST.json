@@ -1,0 +1,94 @@
+{
+  "pass": 8,
+  "base": "Pass 7 cumulative Field overlay and Desk AgentLabs source",
+  "github_baseline": "b6fed9da4ab411dc8f147b30e418854e015b216c (not fetched as full checkout)",
+  "source_changes": [
+    {
+      "path": "field/apps/web/app/api/v1/titan/desk-bridge/reply-proposals/route.ts",
+      "status": "added",
+      "sha256": "3de146922618cffd2ddba8207a55f180fb58d1c0ff35aed0d9fed98d0ceb9a98",
+      "lines": 43,
+      "bytes": 2168
+    },
+    {
+      "path": "field/apps/web/lib/titan/desk-bridge/reply-policy.mjs",
+      "status": "added",
+      "sha256": "c0b8666ba44ddd4bf9471d12a1c92c74eb30f072c8cbc21a1391f65aaf02cc7f",
+      "lines": 30,
+      "bytes": 1728
+    },
+    {
+      "path": "field/apps/web/lib/titan/desk-bridge/reply-projection.mjs",
+      "status": "added",
+      "sha256": "be00aacb8f2cfe676d5a58f42fe12ee61f4361bb0ed61d245a0b59a3091e0c39",
+      "lines": 18,
+      "bytes": 948
+    },
+    {
+      "path": "field/apps/web/lib/titan/desk-bridge/reply-protocol.mjs",
+      "status": "added",
+      "sha256": "0e64e0a1a58d0f357de002b211a57fb1440a45fb1ecd17f7ff250596e519765e",
+      "lines": 117,
+      "bytes": 6917
+    },
+    {
+      "path": "field/apps/web/lib/titan/desk-bridge/reply-receiver.mjs",
+      "status": "added",
+      "sha256": "5b72cbdea679189242ad9c37b4d4d039e432b61f0a030a09532374c6408c84e7",
+      "lines": 50,
+      "bytes": 3241
+    },
+    {
+      "path": "desk/server/integrations/titan-field/bridge-readiness.mjs",
+      "status": "added",
+      "sha256": "fdc1edf7c27ae03a99e6df1c7791cd826a2badd9c4e9131b2a009ccf80353c5d",
+      "lines": 16,
+      "bytes": 1037
+    },
+    {
+      "path": "desk/server/integrations/titan-field/reply-batch.mjs",
+      "status": "added",
+      "sha256": "1c68a9870803dbc8138fbd85dac2f420deaf0ac6311be725514e77466e27d0f5",
+      "lines": 54,
+      "bytes": 2260
+    },
+    {
+      "path": "desk/server/integrations/titan-field/reply-capture.mjs",
+      "status": "added",
+      "sha256": "4ea12f394e978d6b11080051bf0ddcefc4b513ae06c4e09c655ed686863ae9c4",
+      "lines": 78,
+      "bytes": 4803
+    },
+    {
+      "path": "desk/server/integrations/titan-field/reply-protocol.mjs",
+      "status": "added",
+      "sha256": "0e64e0a1a58d0f357de002b211a57fb1440a45fb1ecd17f7ff250596e519765e",
+      "lines": 117,
+      "bytes": 6917
+    },
+    {
+      "path": "desk/server/integrations/titan-field/reply-sender.mjs",
+      "status": "added",
+      "sha256": "251aa069f79658816c6f4ee4649cfaf9f81837ac52ec4654a472ffdb603a1002",
+      "lines": 35,
+      "bytes": 2092
+    }
+  ],
+  "old_files_preserved": 1242,
+  "new_application_source_files": 10,
+  "added_application_source_lines": 558,
+  "modified_application_source_files": 0,
+  "deleted_files": 0,
+  "database_files_changed": 0,
+  "tests_passed": 108,
+  "tests_failed": 0,
+  "production_integrations_verified": 0,
+  "not_deployable_reasons": [
+    "field repository incomplete; overlay and protected conflicts only",
+    "Desk backup lacks deployment configs",
+    "DB identity/ledger/consent ports not connected",
+    "real messaging provider disabled",
+    "full application builds not run"
+  ],
+  "database_integration_owner": "separate agent"
+}

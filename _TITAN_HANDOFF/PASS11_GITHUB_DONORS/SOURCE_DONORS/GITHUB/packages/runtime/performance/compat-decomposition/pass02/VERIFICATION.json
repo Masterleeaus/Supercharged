@@ -1,0 +1,20 @@
+{
+  "schema": "titan-zero-verification/v1",
+  "packet_id": "TZ-FIX-COMPAT-RUNTIME-DECOMPOSITION-001",
+  "pass": 2,
+  "manager_merge": 46,
+  "status": "PASS",
+  "checks": {
+    "reconstructed_from_manager_merge46": true,
+    "pass01_regression": "PASS",
+    "pass02_test": "PASS",
+    "deterministic_outer_graph_edges": 8,
+    "startup_roots": 3,
+    "target_bundle_hashes_unchanged": true,
+    "production_runtime_modified": false,
+    "ui_modified": false,
+    "feature_removed": false,
+    "collision_status": "CLEAN_ADDITIVE"
+  },
+  "note": "Pass 2 is classification/evidence only. Optional-domain labels do not prove safe separability and grant no authority to extract or retire code."
+}

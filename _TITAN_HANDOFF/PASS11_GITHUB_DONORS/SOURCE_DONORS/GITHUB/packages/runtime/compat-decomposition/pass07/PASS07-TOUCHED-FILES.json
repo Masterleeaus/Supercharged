@@ -1,0 +1,10 @@
+{
+  "schema": "titan-zero-touched-files/v1",
+  "packet_id": "TZ-FIX-COMPAT-RUNTIME-DECOMPOSITION-001",
+  "pass": 7,
+  "files": [
+    "titan-runtime/compat-decomposition/compat-bootstrap.mjs",
+    "titan-runtime/compat-decomposition/chunks/typed-adapter.mjs",
+    "tests/compat_runtime_decomposition_pass07.test.mjs"
+  ]
+}

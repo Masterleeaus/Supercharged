@@ -1,0 +1,94 @@
+{
+  "schema": "titan-zero-compat-decomposition-pass10-verification/v1",
+  "manager_base": {
+    "merge": 46,
+    "artifact": "Titan-Zero-CANONICAL-MASTER-2026-09-09-MERGE-46-BULK-AGENT-ANALYTICS-CONVERGED.zip",
+    "sha256": "2bef6fd90116796c76fa1ba7cb0e59841b0788c7657dc59077dd0a9ba440f949"
+  },
+  "node_full_regression": {
+    "files": 485,
+    "batches": [
+      {
+        "batch": 0,
+        "tests": 383,
+        "pass": 383,
+        "fail": 0
+      },
+      {
+        "batch": 1,
+        "tests": 309,
+        "pass": 309,
+        "fail": 0
+      },
+      {
+        "batch": 2,
+        "tests": 341,
+        "pass": 341,
+        "fail": 0
+      },
+      {
+        "batch": 3,
+        "tests": 331,
+        "pass": 331,
+        "fail": 0
+      },
+      {
+        "batch": 4,
+        "tests": 163,
+        "pass": 163,
+        "fail": 0
+      }
+    ],
+    "special_positional_root_test_pass": true,
+    "tests": 1528,
+    "passed": 1528,
+    "failed": 0,
+    "status": "PASS"
+  },
+  "decomposition_regression": {
+    "tests": 41,
+    "pass": 41,
+    "fail": 0,
+    "status": "PASS"
+  },
+  "python_full_regression": {
+    "passed": 102,
+    "duration_seconds": 5.62,
+    "status": "PASS"
+  },
+  "json_validation": {
+    "files": 1566,
+    "invalid": 0,
+    "status": "PASS"
+  },
+  "syntax_validation": {
+    "js_mjs_files": 1109,
+    "invalid": 0,
+    "method": "vm.Script with SourceTextModule fallback",
+    "status": "PASS"
+  },
+  "reconstruction_closure": "PASS",
+  "chrome_live_certification": "NOT_CERTIFIED",
+  "monolith_retirement": {
+    "retired_files": 0,
+    "retired_bytes": 0,
+    "retained": [
+      {
+        "path": "titan-zero-chat-content.compat.js",
+        "bytes": 28593247,
+        "sha256": "7823c16665d37581e460b70d3e888db7d45786b6a5c5ca868214d5b3088ff441"
+      },
+      {
+        "path": "titan-zero-chat-background.compat.js",
+        "bytes": 11561297,
+        "sha256": "ebbd0843eb12d0413af6aa13603be2b365aa702304df2f74b87e4951a3f9a805"
+      },
+      {
+        "path": "titan-zero-chat-runtime.compat.js",
+        "bytes": 7778613,
+        "sha256": "195e1860346583b62c518881837d72b90aa51bb12f177ee8994e76b026cd7533"
+      }
+    ]
+  },
+  "overall_status": "PASS"
+}

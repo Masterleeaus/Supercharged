@@ -1,0 +1,480 @@
+{
+  "schema": "titan-zero-cumulative-delta-manifest/v1",
+  "packet_id": "TZ-FIX-COMPAT-RUNTIME-DECOMPOSITION-001",
+  "builder": "Builder 5",
+  "pass": 10,
+  "manager_base": {
+    "merge": 46,
+    "sha256": "2bef6fd90116796c76fa1ba7cb0e59841b0788c7657dc59077dd0a9ba440f949"
+  },
+  "files": [
+    {
+      "path": "Agent Mesh/Builder 5/OUTBOX/PASS09-HANDOFF.json",
+      "bytes": 555,
+      "sha256": "2ec8be160f3f45f85d0ecf60a15bf1fe956ffeb8a8f8356855decc5c450d66e1"
+    },
+    {
+      "path": "Agent Mesh/Builder 5/OUTBOX/PASS10-HANDOFF.json",
+      "bytes": 3522,
+      "sha256": "106272c14ec017fc349824f4e0226fd161bdac3f48d8823dff81443337ba4cb5"
+    },
+    {
+      "path": "Agent Mesh/Builder 5/ROLE.json",
+      "bytes": 2398,
+      "sha256": "ff1a5bde84f6cb8684788ec20480f9e36f1a73e9dfa2da0377918100ead4adae"
+    },
+    {
+      "path": "Agent Mesh/Builder 5/STATUS.json",
+      "bytes": 395,
+      "sha256": "aa4499919f0aff4d6bfd1057aa7dc7662cbcecd64ff9bca2a32885aa169966c2"
+    },
+    {
+      "path": "Agent Mesh/Builder 5/WORK/TZ-FIX-COMPAT-RUNTIME-DECOMPOSITION-001.json",
+      "bytes": 6477,
+      "sha256": "92d8ffb4afa8e3a03dd1bafab8266d879eaeda9127a87f1552a6807bd79692f2"
+    },
+    {
+      "path": "Agent Mesh/Builder 5/WORK-PACKET/TZ-FIX-COMPAT-RUNTIME-DECOMPOSITION-001.json",
+      "bytes": 6477,
+      "sha256": "92d8ffb4afa8e3a03dd1bafab8266d879eaeda9127a87f1552a6807bd79692f2"
+    },
+    {
+      "path": "tests/compat_runtime_decomposition_pass01.test.mjs",
+      "bytes": 1437,
+      "sha256": "06a6a2e60834cad7280e57c2c32ec5d3dfef3ed68f1adb942f50bbaabcb29b2e"
+    },
+    {
+      "path": "tests/compat_runtime_decomposition_pass02.test.mjs",
+      "bytes": 1829,
+      "sha256": "be56d8ceaa8d61950ec1cdf7878d19ac5b2c8f83d0a282ffb6a8c8aa3bb5484f"
+    },
+    {
+      "path": "tests/compat_runtime_decomposition_pass03.test.mjs",
+      "bytes": 1813,
+      "sha256": "9cb9d25622f202cd2af48e354489813e475b8440eac6faafd755455ac30b9396"
+    },
+    {
+      "path": "tests/compat_runtime_decomposition_pass04.test.mjs",
+      "bytes": 2788,
+      "sha256": "2b3dd1a38230cdf204a5fb1d844dcbba08cf643b16e50dac5f4b42cf3adf7b6e"
+    },
+    {
+      "path": "tests/compat_runtime_decomposition_pass05.test.mjs",
+      "bytes": 2737,
+      "sha256": "b6fa4a6c8950be3e7590249f896bb1fd56890845843eed97d0944b77db117a79"
+    },
+    {
+      "path": "tests/compat_runtime_decomposition_pass06.test.mjs",
+      "bytes": 4161,
+      "sha256": "a83ebc7e5548b8ba34e3dc8a91e128c7a5b420ca1b922ce59a6ba81a86c70089"
+    },
+    {
+      "path": "tests/compat_runtime_decomposition_pass07.test.mjs",
+      "bytes": 3145,
+      "sha256": "8ff615a0125e22792765e8679ec91fb6fdd447d044edd74d8c426134ef4adf87"
+    },
+    {
+      "path": "tests/compat_runtime_decomposition_pass08.test.mjs",
+      "bytes": 4531,
+      "sha256": "eb93faa360f0b0c593ad551c5fc6c0f4d21d77cf4f5216206d101f810c369aba"
+    },
+    {
+      "path": "tests/compat_runtime_decomposition_pass09.test.mjs",
+      "bytes": 2197,
+      "sha256": "2b04cb4b6cf1b7da2bd56d06c27a4a7b0d2327a8352cda4f7e538017579caf1d"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/chunks/browser-session.mjs",
+      "bytes": 740,
+      "sha256": "22754ec06d6f7593f53e2859f4e493301842bfaac5f677d33fe9fd4b1ffe6d6b"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/chunks/document-evidence.mjs",
+      "bytes": 604,
+      "sha256": "91993358012c94d71415aedf28450e29db546e13fc507171c69b68f2f84c9ede"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/chunks/translation.mjs",
+      "bytes": 731,
+      "sha256": "45d49ad6b3133719190f1aae21985c73a64cd6a08d52d13889041c12202dcc5d"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/chunks/typed-adapter.mjs",
+      "bytes": 874,
+      "sha256": "d3194f518c69f82f11b738bad0eb87568818720ab625fbf857976db50d9a323e"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/compat-bootstrap.mjs",
+      "bytes": 3164,
+      "sha256": "34bfb3b2b7bea95f045517f988b642f14cb19d5ed01e54bb04e1cdbf12528adf"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass03/CUMULATIVE-DELTA-MANIFEST.json",
+      "bytes": 5597,
+      "sha256": "05661eb76a65ab59041395655e96e6c98502c506f0af6b31d3451a355d7f8aa6"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass03/EQUIVALENCE-MAP.json",
+      "bytes": 14848,
+      "sha256": "3f52b63da91cd803fa89b2f0244893b2b60397bbf04e90b1774fe59d843d19d6"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass03/PASS03-CHANGE-IMPACT.json",
+      "bytes": 323,
+      "sha256": "198d3fc117f46ad7c0fcca2492b1ad3aae773b70baab5580f50ff19540af5f6f"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass03/PASS03-COLLISION-RECORD.json",
+      "bytes": 217,
+      "sha256": "a2822c7bd58ea727f8ce6ec75d79227e0ae9f37999a3c4f801dde5cdbfcfbbd7"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass03/PASS03-HANDOFF.json",
+      "bytes": 607,
+      "sha256": "cc1e4a227e2553452f5f6fa78e26aa5be71bdd10b6280e882e98dcb327d7f5c5"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass03/PASS03-SEMANTIC-CHANGE.json",
+      "bytes": 179,
+      "sha256": "c6617db494b5429f0551d7c548a96141b28763a4e4aacc7d1aabfd0ceebfc424"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass03/PASS03-SUMMARY.json",
+      "bytes": 540,
+      "sha256": "e33b72d0715419b11d0c9a8c0b3236719a428458b585d46bbbfad2557dc53b41"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass03/PASS03-TOUCHED-FILES.json",
+      "bytes": 445,
+      "sha256": "b0d85dfcec0ae233ee800c0d09b35d7ec9a0ddc366f385f872ecb2b2f420f444"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass03/PASS03-VERIFICATION.json",
+      "bytes": 218,
+      "sha256": "1b9ab4a69969514256450a8dc2ae5dfb3b313f8914a377b54ca3f89fb551ee94"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass04/CUMULATIVE-DELTA-MANIFEST.json",
+      "bytes": 7399,
+      "sha256": "252ca8f5821d07a1ac87a577a93e05f8203b1034d6978419da969f2d94ca2908"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass04/PASS04-CHANGE-IMPACT.json",
+      "bytes": 373,
+      "sha256": "06807ce3b8eb6448933ef6dcbfed4873d2ad1372f38fe7530955d6e34a3f9a8a"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass04/PASS04-COLLISION-RECORD.json",
+      "bytes": 209,
+      "sha256": "259f8219892457bf5bbda9d111f6a94c85fd03945585ca3f375a2f39f315dd39"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass04/PASS04-HANDOFF.json",
+      "bytes": 286,
+      "sha256": "bd33b966033a7bba0b07cee09fc4e099f86466069d93277a7bc47ec08d12c48d"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass04/PASS04-SEMANTIC-CHANGE.json",
+      "bytes": 421,
+      "sha256": "d8817164733a535a986849e2d5630f8f46d5398939d5afbe9fc2473f54825b26"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass04/PASS04-SUMMARY.json",
+      "bytes": 1085,
+      "sha256": "f808d691bb83a8e339e7541e70a171ed278dd27e99ce488847727f4c5898e50f"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass04/PASS04-VERIFICATION.json",
+      "bytes": 246,
+      "sha256": "4452ebd4f27c5d84c6ad61581a31ad8109667d1dbe48b205f796cd602f0d6056"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass05/CUMULATIVE-DELTA-MANIFEST.json",
+      "bytes": 9187,
+      "sha256": "c289f9a0da3f6034563466e562b17db939d76983d2359eb313651faa95547e86"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass05/PASS05-CHANGE-IMPACT.json",
+      "bytes": 211,
+      "sha256": "b36667629b4e4d5baf88d1eb17047f7364dd48a6ea1cae59ba9bc8fc47b07ae2"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass05/PASS05-COLLISION-RECORD.json",
+      "bytes": 167,
+      "sha256": "d77d359bfafbab5489ad5e58b44db45fe28aba088e727e29cc16b360d10ae7d0"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass05/PASS05-HANDOFF.json",
+      "bytes": 175,
+      "sha256": "20e87e95aa3c84af48905854c11f8b8bd73d6cd59b5003bfc73209bcfe0aa890"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass05/PASS05-SEMANTIC-CHANGE.json",
+      "bytes": 223,
+      "sha256": "43f7ce41218a3fb392437d88f2cc57af55839055ef219b1b874a071de37c0068"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass05/PASS05-SUMMARY.json",
+      "bytes": 468,
+      "sha256": "916f75f19997905302d9dd51af56409bf235f63887734cfdce5a27d0eecb5704"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass05/PASS05-VERIFICATION.json",
+      "bytes": 608,
+      "sha256": "d88a8ede02ac81565e5d0d7dbddb363820db52b46a01196369fae13d9db95271"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass06/CUMULATIVE-DELTA-MANIFEST.json",
+      "bytes": 11327,
+      "sha256": "50cbf5733ce136cfa21a551b693f2ea2a4cb030f143b54f8f9ba0355c2f8ff17"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass06/PASS06-CHANGE-IMPACT.json",
+      "bytes": 304,
+      "sha256": "122edb1c9be520d476855db01d96176311170316094495fa10d9c1792c948f63"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass06/PASS06-COLLISION-RECORD.json",
+      "bytes": 216,
+      "sha256": "33fcd8b1dbd903d964e5a72e5c8e59b4e9fa8d97a109f986b2fdecc513ad4003"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass06/PASS06-HANDOFF.json",
+      "bytes": 210,
+      "sha256": "fcab810c42f050c7ebc4982a75940a704d79d9b0172d81480ee92ecd6a015d3a"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass06/PASS06-SEMANTIC-CHANGE.json",
+      "bytes": 284,
+      "sha256": "6af267f77cd074d2363f1f295a377a573611a98869119a88e94e5e00c47e7946"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass06/PASS06-SUMMARY.json",
+      "bytes": 685,
+      "sha256": "b5834e97ba5337ef1d66b789c5cb650da8f589edcdbec3503521db3fb42159cc"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass06/PASS06-VERIFICATION.json",
+      "bytes": 725,
+      "sha256": "1ddfb379b506690aff4b51ca57d1bfda319ec6eac55fcd3811871df2bbbae0cd"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass07/CUMULATIVE-DELTA-MANIFEST.json",
+      "bytes": 12779,
+      "sha256": "7f0cd1780482b8e3fe2ec094ce9caa5bcbab0e7bb5de1644402fce3eaa90cd2f"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass07/PASS07-CHANGE-IMPACT.json",
+      "bytes": 418,
+      "sha256": "9ee4b2a44cec75daeb1b5e6a8ed274aeb793c2382d6b693c1fc51f163d3cf521"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass07/PASS07-COLLISION-RECORD.json",
+      "bytes": 427,
+      "sha256": "92efd87b7a0869a134b04a00595fba1adf0378dea19ec0b909d233867c75b5bb"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass07/PASS07-HANDOFF.json",
+      "bytes": 654,
+      "sha256": "c8efd884404bc15b25b43bdce594847964108f1b645967f66ab332c0709f0fd8"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass07/PASS07-SEMANTIC-CHANGE.json",
+      "bytes": 519,
+      "sha256": "afb0a05e3edf42b1e913883d6b73c73a712786234050bc0a48b19f568aa3f3c6"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass07/PASS07-SUMMARY.json",
+      "bytes": 466,
+      "sha256": "a8caab772906dc98a7f807eba3599df82838901dac1d8d8349bddf3efea4aa1e"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass07/PASS07-TOUCHED-FILES.json",
+      "bytes": 322,
+      "sha256": "77c553d5bfcbe534f7e67a431b06fa5becc8df7d14ba427add5339ab7bd3e20a"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass07/PASS07-VERIFICATION.json",
+      "bytes": 479,
+      "sha256": "657f0d4175445f7a821ca3ebf701c489cc913b2d38afe23da4ac82629c8d01ee"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass08/CUMULATIVE-DELTA-MANIFEST.json",
+      "bytes": 14722,
+      "sha256": "6747adf8dfda7dc892fd325b8ffe746d2f52fcc4b062e8828b65ad72038606d9"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass08/PASS08-COLLISION-RECORD.json",
+      "bytes": 256,
+      "sha256": "dc8d9f829dedeb161701025a00802c45bc97cb2ef97bbb2e8317b89b054cbcfe"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass08/PASS08-HANDOFF.json",
+      "bytes": 453,
+      "sha256": "cd4d0612737f83fac10eaea0da8b704c8856f64abfe0edd75cda4eb013d55207"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass08/PASS08-SEMANTIC-CHANGE.json",
+      "bytes": 433,
+      "sha256": "593c773374f9eee4fef855e6ba4fbdbbae54f3d6b823b6e590b959f63bfc71f5"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass08/PASS08-SUMMARY.json",
+      "bytes": 810,
+      "sha256": "1928a8c86459808e925687d71561d27a3a59d99049f55deaa8a0f4820369f63b"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass08/PASS08-VERIFICATION.json",
+      "bytes": 643,
+      "sha256": "c79cb53efdf7bdfde76aacb4040478b98d72e077d35c5000eefc665564871c3c"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass09/CHUNK-MANIFEST.json",
+      "bytes": 3055,
+      "sha256": "881173f055b340dc06bf2ce6afe52f22631317cbbab006b12e0ffac29cd9c09d"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass09/PASS09-CHANGE-IMPACT.json",
+      "bytes": 389,
+      "sha256": "25365d9bb0f5f159842df83e9c113f49a691b841d3cb7f255982e4a59a8d37e1"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass09/PASS09-COLLISION-RECORD.json",
+      "bytes": 269,
+      "sha256": "9680bb7dc7a1e7bcea29ef913b4942d6944c55b6a4de6e5eb9b75e0e3eeed89d"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass09/PASS09-SEMANTIC-CHANGE.json",
+      "bytes": 400,
+      "sha256": "802de1674f28fd8122daab7459f18860b20231905a296569295b5a5d126f5a90"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass09/PASS09-SUMMARY.json",
+      "bytes": 394,
+      "sha256": "85e7b6431618d8557482fadf9541506bb261918443ec326cdee56b7e0bede45b"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass09/PASS09-VERIFICATION.json",
+      "bytes": 456,
+      "sha256": "85db3fb7284b951b12f59ebb559a5619f89b2b33e97c7f2e36c2e02397b80195"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass09/RETIREMENT-LEDGER.json",
+      "bytes": 1510,
+      "sha256": "bb86ca45c6958bbe5b202a590c9c7479f32acb2ad3e74a3c4beb25aae47c1b0a"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass09/SIZE-STARTUP-METRICS.json",
+      "bytes": 504,
+      "sha256": "b1b276796ebf90e9f78b4197b3d4cccc09f5f49f8ec9bf788989e390bddd6089"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass10/PASS10-CHANGE-IMPACT.json",
+      "bytes": 545,
+      "sha256": "974cf0643afcceef89716757c287610c5e95fb1f1ee24ffabe3a0828d5a28c22"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass10/PASS10-COLLISION-RECORD.json",
+      "bytes": 350,
+      "sha256": "3b18f25ebac844c3adf5e7849e48966b982f9fb4b212254c1feeb82a5d3b1666"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass10/PASS10-HANDOFF.json",
+      "bytes": 3522,
+      "sha256": "106272c14ec017fc349824f4e0226fd161bdac3f48d8823dff81443337ba4cb5"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass10/PASS10-RECONSTRUCTION-CLOSURE.json",
+      "bytes": 214,
+      "sha256": "57fc60214cb7b2b8f11dbd031d701e4aa279babfc8401e94be684eb9541114a5"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass10/PASS10-SEMANTIC-CHANGE.json",
+      "bytes": 470,
+      "sha256": "f2eff36f5a82dc39bdf06fc373627035f815a254ee23622c65a7c1507b52739b"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass10/PASS10-SUMMARY.json",
+      "bytes": 616,
+      "sha256": "d77a82fab77bc410ce1c57a13c3fb8f790fcbd1e5eacc7eab09212886a226ff0"
+    },
+    {
+      "path": "titan-runtime/compat-decomposition/pass10/PASS10-VERIFICATION.json",
+      "bytes": 2199,
+      "sha256": "bb3683f2d48a8e3cf7c8b8129cafed444b21cffa59980b0a9f309edac51d06fb"
+    },
+    {
+      "path": "titan-runtime/performance/compat-decomposition/pass01/COLLISION.json",
+      "bytes": 412,
+      "sha256": "f6c834d424504adfc7427b63817e829e6ca573a58525ed9d6edf97b3f4b42d47"
+    },
+    {
+      "path": "titan-runtime/performance/compat-decomposition/pass01/COMPAT-RUNTIME-CENSUS.json",
+      "bytes": 5067,
+      "sha256": "11bcc7db2a53b93e9f3f247e85448d2f4bf3c28a250d9d658902c5a1ed45f4e4"
+    },
+    {
+      "path": "titan-runtime/performance/compat-decomposition/pass01/RAW-SIGNAL-CENSUS.json",
+      "bytes": 12822,
+      "sha256": "24a215370b018a422cca42762e3db603ac79bfb4a3e8ad99c076425872a2bd83"
+    },
+    {
+      "path": "titan-runtime/performance/compat-decomposition/pass01/SEMANTIC-CHANGE.json",
+      "bytes": 479,
+      "sha256": "a2f991769233c20762e048798e5e08b4eb8f64aad68862db0780bfede5367aa0"
+    },
+    {
+      "path": "titan-runtime/performance/compat-decomposition/pass01/STARTUP-REACHABILITY.json",
+      "bytes": 1080,
+      "sha256": "488181dc60181f88244e237fd9b7fe82d5fd37df3b13bf16e054aeac65814c21"
+    },
+    {
+      "path": "titan-runtime/performance/compat-decomposition/pass01/TOUCHED-FILES.json",
+      "bytes": 608,
+      "sha256": "4e8371cf26e2fa3566188cf287d8009252a05b7c5cc0b5dd4dcfb485d3815b76"
+    },
+    {
+      "path": "titan-runtime/performance/compat-decomposition/pass01/VERIFICATION.json",
+      "bytes": 582,
+      "sha256": "59a1b78953946d178895aeebe06e4dd0ba4208e4959ccf9153973d73a436bff8"
+    },
+    {
+      "path": "titan-runtime/performance/compat-decomposition/pass02/COLLISION.json",
+      "bytes": 466,
+      "sha256": "51edbb1526451663ca01f5eb8ff7e3979c5182c9381ea294bbc48eb87f70fa35"
+    },
+    {
+      "path": "titan-runtime/performance/compat-decomposition/pass02/DOMAIN-CLASSIFICATION.json",
+      "bytes": 10542,
+      "sha256": "56bdf6cf5d77838f453cab985f0ec1cdd621af51969836a9a339d77c3a82fbd0"
+    },
+    {
+      "path": "titan-runtime/performance/compat-decomposition/pass02/SEMANTIC-CHANGE.json",
+      "bytes": 508,
+      "sha256": "f91582357a8f761a9cacd9afebb3ae306b8fcf9523d96eea761ae674a610e792"
+    },
+    {
+      "path": "titan-runtime/performance/compat-decomposition/pass02/STARTUP-CALL-GRAPH.json",
+      "bytes": 2717,
+      "sha256": "60ef9b16859bb14e589ba9ce638827cb2b4d78c837f32a0a108b1841f3f5b3ca"
+    },
+    {
+      "path": "titan-runtime/performance/compat-decomposition/pass02/STARTUP-REACHABILITY-MAP.json",
+      "bytes": 1764,
+      "sha256": "96c18c367d884ac0279965353028c2ab250ec1b67c022f5343abe7ba106310f5"
+    },
+    {
+      "path": "titan-runtime/performance/compat-decomposition/pass02/TOUCHED-FILES.json",
+      "bytes": 692,
+      "sha256": "a7455d68315c1c8fcbf0e340f9bf14d3650991bdcde567a6f20d3c9c8d9ec061"
+    },
+    {
+      "path": "titan-runtime/performance/compat-decomposition/pass02/VERIFICATION.json",
+      "bytes": 691,
+      "sha256": "7112d9709893bcf3885e351131cdc1772254a51568819580628a07fe5c7322f7"
+    }
+  ],
+  "file_count": 93,
+  "recommended_convergence_class": "CLEAN_FORWARD_PORT",
+  "status": "READY_FOR_MANAGER_MERGE"
+}

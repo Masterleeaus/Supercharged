@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "titan.zero.revenue-journey.quote-lifecycle.v1",
+  "title": "Revenue Quote Lifecycle",
+  "type": "object",
+  "required": [
+    "schema",
+    "company_id",
+    "revenue_journey_id",
+    "quote_id",
+    "transition",
+    "provenance",
+    "evidence",
+    "idempotency_key",
+    "quote_semantics",
+    "governance"
+  ],
+  "properties": {
+    "schema": {
+      "const": "titan.zero.revenue-journey.quote-lifecycle.v1"
+    },
+    "company_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "revenue_journey_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "quote_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "idempotency_key": {
+      "type": "string",
+      "minLength": 1
+    },
+    "transition": {
+      "type": "object"
+    },
+    "provenance": {
+      "type": "object"
+    },
+    "evidence": {
+      "type": "array",
+      "minItems": 1
+    },
+    "quote_semantics": {
+      "type": "object"
+    },
+    "governance": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": true
+}

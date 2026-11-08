@@ -1,0 +1,46 @@
+{
+  "name": "@dbos-inc/drizzle-datasource",
+  "version": "0.0.0-placeholder",
+  "description": "DBOS DataSource library for Drizzle ORM with PostgreSQL support",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "homepage": "https://docs.dbos.dev/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dbos-inc/dbos-transact-ts",
+    "directory": "packages/drizzle-datasource"
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.json && node scripts/emit-esm-types.js",
+    "test": "jest --detectOpenHandles"
+  },
+  "dependencies": {
+    "pg": "^8.11.3",
+    "superjson": "^1.13"
+  },
+  "peerDependencies": {
+    "@dbos-inc/dbos-sdk": "*",
+    "drizzle-orm": "*"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/pg": "^8.15.2",
+    "drizzle-orm": "^0.45.2",
+    "jest": "^30.5.2",
+    "typescript": "^5.4.5"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "comms",
+  "displayName": "Comms",
+  "version": "0.1.0",
+  "description": "Wraps the existing chatbot module and approvals for the comms mode. Inbox, campaigns and marketing are not built yet, so they are not listed. Registers nothing unless its enable flag is set.",
+  "author": "Titan Zero integration",
+  "entryPoint": "index.mjs",
+  "registerFunction": "registerPlugin",
+  "mode": "comms",
+  "modules": ["chatbot", "approvals"],
+  "features": ["fail-closed", "env-gated", "no-database-migration", "wraps-existing-modules"]
+}

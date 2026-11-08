@@ -8,9 +8,11 @@
  * Uses the Team Management adapter for optional plugin loading.
  */
 
-import { Request, Response, NextFunction } from "express";
+import type { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import { 
+import { companyIdFromClaims } from "./auth";
+import { lookupParentCompanyId } from "./team-member-company";
+import {
   validateUserTeamSession, 
   validateAdminTeamSession,
   isTeamManagementInstalled,
@@ -58,7 +60,7 @@ export async function authenticateHybrid(req: HybridAuthRequest, res: Response, 
 
   // First, try to validate as a regular JWT token
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; role: string };
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; role: string; companyId?: unknown };
     req.userId = decoded.userId;
     req.userRole = decoded.role;
     req.isTeamMember = false;
@@ -66,7 +68,8 @@ export async function authenticateHybrid(req: HybridAuthRequest, res: Response, 
     // Also set req.user for backward compatibility
     (req as any).user = {
       id: decoded.userId,
-      role: decoded.role
+      role: decoded.role,
+      companyId: companyIdFromClaims(decoded.companyId)
     };
     
     return next();
@@ -93,12 +96,15 @@ export async function authenticateHybrid(req: HybridAuthRequest, res: Response, 
           isAdminTeam: false,
         };
         
-        // Also set req.user for backward compatibility
+        // Also set req.user for backward compatibility.
+        // companyId comes only from the parent user's row; left unset if none.
+        const parentCompanyId = await lookupParentCompanyId(teamMember.userId.toString());
         (req as any).user = {
           id: teamMember.userId,
-          role: 'user'
+          role: 'user',
+          companyId: parentCompanyId
         };
-        
+
         console.log(`[HybridAuth] Team member ${teamMember.memberId} authenticated as user ${teamMember.userId}`);
         return next();
       }
@@ -155,14 +161,15 @@ export async function optionalHybridAuth(req: HybridAuthRequest, res: Response, 
 
   // First, try to validate as a regular JWT token
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; role: string };
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; role: string; companyId?: unknown };
     req.userId = decoded.userId;
     req.userRole = decoded.role;
     req.isTeamMember = false;
     
     (req as any).user = {
       id: decoded.userId,
-      role: decoded.role
+      role: decoded.role,
+      companyId: companyIdFromClaims(decoded.companyId)
     };
     
     return next();
@@ -188,11 +195,14 @@ export async function optionalHybridAuth(req: HybridAuthRequest, res: Response, 
           isAdminTeam: false,
         };
         
+        // companyId comes only from the parent user's row; left unset if none.
+        const parentCompanyId = await lookupParentCompanyId(teamMember.userId.toString());
         (req as any).user = {
           id: teamMember.userId,
-          role: 'user'
+          role: 'user',
+          companyId: parentCompanyId
         };
-        
+
         return next();
       }
     } catch (error) {

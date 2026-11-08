@@ -920,6 +920,50 @@ function htmlToText(html: string): string {
     .trim();
 }
 
+/** Header names the send path builds itself. A caller header may not replace them. */
+const PROTECTED_HEADER_NAMES = new Set([
+  'from', 'sender', 'to', 'cc', 'bcc', 'subject', 'reply-to', 'date', 'mime-version', 'content-type',
+  'content-transfer-encoding',
+]);
+
+type HeaderCheck = { ok: true; headers?: Record<string, string> } | { ok: false; error: string };
+
+/**
+ * Checks caller-supplied custom headers: a plain token name, a single-line value, and no
+ * name the send path owns. Any failure returns an error and the send does not run.
+ */
+function validateCustomHeaders(headers: Record<string, string> | undefined): HeaderCheck {
+  if (headers === undefined || headers === null) return { ok: true };
+  if (typeof headers !== 'object' || Array.isArray(headers)) {
+    return { ok: false, error: 'Invalid custom email headers: expected an object' };
+  }
+  const checked: Record<string, string> = {};
+  for (const [name, value] of Object.entries(headers)) {
+    if (!/^[A-Za-z0-9-]+$/.test(name)) {
+      return { ok: false, error: 'Invalid custom email header name' };
+    }
+    if (PROTECTED_HEADER_NAMES.has(name.toLowerCase())) {
+      return { ok: false, error: `Custom email header not allowed: ${name}` };
+    }
+    if (typeof value !== 'string' || /[\r\n\0]/.test(value)) {
+      return { ok: false, error: `Invalid value for custom email header: ${name}` };
+    }
+    checked[name] = value;
+  }
+  return { ok: true, headers: checked };
+}
+
+/** Pulls Message-ID (any case) out of the header map so it can be sent as nodemailer's messageId. */
+function splitMessageId(headers: Record<string, string>): { messageId?: string; rest: Record<string, string> } {
+  const rest: Record<string, string> = {};
+  let messageId: string | undefined;
+  for (const [name, value] of Object.entries(headers)) {
+    if (name.toLowerCase() === 'message-id') messageId = value.trim();
+    else rest[name] = value;
+  }
+  return { messageId: messageId || undefined, rest };
+}
+
 export class EmailService {
   private transporter: Transporter | null = null;
   private smtpConfigured: boolean = false;
@@ -1158,8 +1202,16 @@ export class EmailService {
     subject: string,
     html: string,
     attachments?: EmailAttachment[],
-    options?: { replyTo?: string; text?: string }
+    options?: { replyTo?: string; text?: string; headers?: Record<string, string> }
   ): Promise<{ success: boolean; error?: string; messageId?: string }> {
+    // Custom headers are validated before anything is sent. A bad header fails the send
+    // (fail closed) instead of being dropped or passed through unchecked.
+    const headerCheck = validateCustomHeaders(options?.headers);
+    if (!headerCheck.ok) {
+      logger.error(`[EMAIL ERROR] ${headerCheck.error}`, undefined, SOURCE);
+      return { success: false, error: headerCheck.error };
+    }
+
     // Check if SMTP is enabled
     if (!this.isEnabled()) {
       const reason = !this.smtpConfigured 
@@ -1222,6 +1274,15 @@ export class EmailService {
       // Add optional replyTo if provided
       if (options?.replyTo) {
         mailOptions.replyTo = options.replyTo;
+      }
+
+      // Custom headers reach the wire. A Message-ID is passed as nodemailer's messageId so the
+      // sent message keeps the id the caller chose (inbound threading matches on it); the rest
+      // go in as plain headers, e.g. List-Unsubscribe.
+      if (headerCheck.headers) {
+        const { messageId, rest } = splitMessageId(headerCheck.headers);
+        if (messageId) mailOptions.messageId = messageId;
+        if (Object.keys(rest).length > 0) mailOptions.headers = rest;
       }
 
       console.log(`📧 [Email] Sending to: ${to}, Subject: "${subject}", From: ${fromAddress}${options?.replyTo ? `, Reply-To: ${options.replyTo}` : ''}`);

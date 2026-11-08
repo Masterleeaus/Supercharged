@@ -1,0 +1,63 @@
+{
+  "schema": "titan-zero-packaging-optimization-audit/v1",
+  "manager_merge": 42,
+  "pass": 8,
+  "scope": "minification_compression_tree_shaking",
+  "compression": {
+    "deflate_level_6_bytes": 38564418,
+    "deflate_level_9_bytes": 38471117,
+    "level_9_saving_bytes": 93301,
+    "level_9_saving_percent": 0.241935,
+    "recommendation": "Use deterministic ZIP DEFLATE level 9 for Manager packaging when practical; savings are modest and require no source mutation."
+  },
+  "temporary_build_artifacts": {
+    "retire_now": [
+      "pytest.out",
+      "node-tests.out",
+      ".pytest_cache/**",
+      "tests/__pycache__/**"
+    ],
+    "uncompressed_bytes": 26710,
+    "level_9_zip_saving_bytes": 5556,
+    "reason": "Generated test command outputs, unreferenced by runtime/tests/provenance and reproducible from source tests."
+  },
+  "protected_compiled_assets": {
+    "policy": "DO_NOT_MINIFY_OR_REBUNDLE_IN_PASS8",
+    "paths": [
+      "titan-zero-chat-content.compat.js",
+      "titan-zero-chat-content.compat.css",
+      "titan-zero-chat-background.compat.js",
+      "titan-zero-chat-runtime.compat.js",
+      "titan-zero-chat-runtime.compat.css",
+      "retriever-background.iife.js",
+      "content.css"
+    ],
+    "reason": "Already compiled/minified and/or protected compatibility boundaries; byte mutation risks MV3 behavior, source provenance, or active compatibility contracts."
+  },
+  "tree_shaking": {
+    "runtime_adapters_manager_converged": false,
+    "destructive_donor_tree_shaking": "BLOCKED_UNTIL_MANAGER_MERGE",
+    "candidate_after_gate": [
+      "retriever-background.iife.js",
+      "content.css and remaining donor-only assets only after fresh reachability/equivalence proof"
+    ],
+    "generated_python_cache": "RETIRED_BY_MANAGER_PHASE3_AUTHORIZATION"
+  },
+  "titan_owned_source": {
+    "performance_layer_bytes": 49417,
+    "minification_decision": "KEEP_READABLE",
+    "reason": "Savings would be negligible relative to package size and would reduce reviewability/provenance clarity."
+  },
+  "authority_effect": false,
+  "company_boundary_effect": false,
+  "phase3": {
+    "directive": "TZ-MGR-DONOR-SLIM-M42-003",
+    "applied": true,
+    "retired_count": 198,
+    "candidate_zip_bytes_level9": 36510877,
+    "reduction_vs_merge42_bytes": 34999113,
+    "reduction_vs_merge42_percent": 48.94297,
+    "runtime_code_hits_for_removed_paths": 0,
+    "canonical_titan_locale_count": 55
+  }
+}

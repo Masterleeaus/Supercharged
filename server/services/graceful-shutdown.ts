@@ -19,6 +19,7 @@ import { Server } from 'http';
 import { CampaignScheduler } from './campaign-scheduler';
 import { stopPhoneBillingCron } from './phone-billing-cron';
 import { pool } from '../db';
+import { flushAuditLogsOnShutdown } from './audit-log';
 
 /**
  * Graceful Shutdown Service
@@ -90,6 +91,7 @@ export async function gracefulShutdown(signal: string, exitCode: number = 0): Pr
 
     // Step 4: Close database pool
     console.log('   [4/4] Closing database connections...');
+    await flushAuditLogsOnShutdown(5000);
     try {
       await pool.end();
       console.log('   ✓ Database pool closed');

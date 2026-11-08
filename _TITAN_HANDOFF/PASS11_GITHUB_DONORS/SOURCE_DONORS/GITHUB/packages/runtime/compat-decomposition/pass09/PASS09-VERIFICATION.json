@@ -1,0 +1,16 @@
+{
+  "schema": "titan.zero.pass-verification.v1",
+  "packet_id": "TZ-FIX-COMPAT-RUNTIME-DECOMPOSITION-001",
+  "pass": 9,
+  "status": "PASS",
+  "checks": [
+    "all monolith hashes captured",
+    "content live reachability proven",
+    "background live reachability proven",
+    "runtime live reachability proven",
+    "zero unsafe retirement",
+    "chunk hashes captured",
+    "no authority/company boundary changes"
+  ],
+  "live_chrome": "NOT_CERTIFIED"
+}

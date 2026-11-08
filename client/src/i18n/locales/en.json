@@ -170,7 +170,8 @@
     "websiteWidget": "Website Widget",
     "conversations": "Conversations",
     "tools": "Tools",
-    "settings": "Settings"
+    "settings": "Settings",
+    "approvals": "Approvals"
   },
   "sidebar": {
     "build": "Build",
@@ -7226,5 +7227,74 @@
     "settingsSaved": "Settings saved",
     "settingsSavedDesc": "Your filter settings have been updated.",
     "done": "Done"
+  },
+  "approvals": {
+    "title": "Approvals",
+    "subtitle": "Review actions that AI agents want to take and record your decision.",
+    "notice": {
+      "title": "Nothing has been executed by this page",
+      "body": "Approving or rejecting here only records a decision. This page does not run the requested tool."
+    },
+    "status": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "expired": "Expired"
+    },
+    "empty": {
+      "pending": {
+        "title": "No pending approvals",
+        "body": "When an agent requests an action that needs a person's sign-off, it will appear here."
+      },
+      "approved": {
+        "title": "No approved requests",
+        "body": "Requests you approve will be listed here."
+      },
+      "rejected": {
+        "title": "No rejected requests",
+        "body": "Requests you reject will be listed here."
+      },
+      "expired": {
+        "title": "No expired requests",
+        "body": "Requests that passed their deadline without a decision will be listed here."
+      }
+    },
+    "card": {
+      "server": "Server",
+      "requestedBy": "Requested by",
+      "createdAt": "Requested",
+      "policyReason": "Policy reason",
+      "noPolicyReason": "No policy reason was given.",
+      "arguments": "Arguments (redacted)",
+      "expiredOn": "Expired {{date}}",
+      "noExpiry": "No expiry set",
+      "pastExpiry": "This request is past its expiry time and can no longer be decided here."
+    },
+    "timeLeft": {
+      "expired": "Expired",
+      "hoursMinutes": "{{hours}}h {{minutes}}m left",
+      "minutesSeconds": "{{minutes}}m {{seconds}}s left",
+      "seconds": "{{seconds}}s left"
+    },
+    "actions": {
+      "approve": "Approve",
+      "reject": "Reject"
+    },
+    "toast": {
+      "approved": "Decision recorded: approved",
+      "rejected": "Decision recorded: rejected",
+      "actionFailed": "Could not record the decision"
+    },
+    "reject": {
+      "title": "Reject request",
+      "description": "Give a reason for rejecting",
+      "reasonLabel": "Reason (required)",
+      "reasonPlaceholder": "Explain why this action should not run",
+      "reasonHint": "The reason is recorded with the decision. Nothing is executed by this page."
+    },
+    "error": {
+      "title": "Could not load approvals"
+    },
+    "loadMore": "Load more"
   }
 }

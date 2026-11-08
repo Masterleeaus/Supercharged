@@ -1,0 +1,35 @@
+{
+  "schema": "titan.zero.lazy-surface-registry.v1",
+  "baseline_merge": 42,
+  "surfaces": {
+    "diagnostics.bootstrapProfiler": {
+      "kind": "module",
+      "path": "../../diagnostics/startup/bootstrap-performance-profiler.mjs",
+      "startup_required": false,
+      "company_scoped": false,
+      "authority_effect": false
+    },
+    "workforce.graph": {
+      "kind": "module",
+      "path": "../../titan-workforce/graph/workforce-graph.mjs",
+      "startup_required": false,
+      "company_scoped": true,
+      "authority_effect": false
+    },
+    "marketplace.catalog": {
+      "kind": "json",
+      "path": "../../titan-modules/marketplace/catalog.json",
+      "startup_required": false,
+      "company_scoped": true,
+      "authority_effect": false
+    }
+  },
+  "rules": {
+    "load_only_on_explicit_surface_request": true,
+    "deduplicate_concurrent_loads": true,
+    "failed_loads_are_retryable": true,
+    "company_id_only_for_company_scoped_surfaces": true,
+    "identity_not_authority": true,
+    "loading_never_grants_authority": true
+  }
+}

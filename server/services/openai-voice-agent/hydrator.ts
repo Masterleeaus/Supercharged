@@ -90,6 +90,7 @@ export interface AgentConfigWithContext {
  */
 export interface ToolContext {
   userId: string;
+  companyId: string;
   agentId: string;
   callId?: string;
 }
@@ -232,21 +233,22 @@ function createTransferHandler(transferPhoneNumber?: string): (params: Record<st
  */
 function createKnowledgeBaseHandler(
   knowledgeBaseIds: string[],
-  userId: string
+  userId: string,
+  companyId: string
 ): (params: Record<string, unknown>) => Promise<unknown> {
   return async (params: Record<string, unknown>) => {
     try {
       const query = params.query as string;
       console.log(`[KB Tool] Searching: "${query?.substring(0, 50)}..."`);
-      
+
       if (!knowledgeBaseIds || knowledgeBaseIds.length === 0) {
         return { found: false, message: 'No knowledge base configured.' };
       }
-      
+
       const results = await RAGKnowledgeService.searchKnowledge(
+        { companyId, userId },
         query,
         knowledgeBaseIds,
-        userId,
         5
       );
       
@@ -288,11 +290,21 @@ function createAppointmentHandler(
       
       // Get agent's flowId if available
       const [agent] = await db
-        .select({ flowId: agents.flowId })
+        .select({ flowId: agents.flowId, companyId: agents.companyId })
         .from(agents)
         .where(eq(agents.id, agentId))
         .limit(1);
-      
+
+      // company_id comes from the owning agent record, never from tool params
+      if (!agent?.companyId) {
+        console.error(`[Appointment Tool] Refusing insert: agent ${agentId} has no company scope`);
+        return {
+          success: false,
+          message: 'Appointment could not be booked right now. Please try again later.'
+        };
+      }
+      const appointmentCompanyId = agent.companyId;
+
       // Check user's appointment settings for overlap validation and working hours
       const [settings] = await db
         .select()
@@ -436,6 +448,7 @@ function createAppointmentHandler(
         .insert(appointments)
         .values({
           id: appointmentId,
+          companyId: appointmentCompanyId,
           userId,
           callId: callId || null,
           flowId: agent?.flowId || null,
@@ -603,11 +616,21 @@ function createFormSubmissionHandler(
       
       // No fallback loop needed - we only store responses for known form fields
       
+      // company_id comes from the owning form record, never from tool params
+      if (!form.companyId) {
+        console.error(`[Form Tool] Refusing submission: form ${formId} has no company scope`);
+        return {
+          success: false,
+          message: 'Form submission could not be saved right now. Please try again later.'
+        };
+      }
+
       const submissionId = nanoid();
       await db
         .insert(formSubmissions)
         .values({
           id: submissionId,
+          companyId: form.companyId,
           formId,
           callId: callId || null,
           contactName: (params.contactName as string) || (params.fullName as string) || null,
@@ -897,6 +920,7 @@ export function hydrateCompiledTools(
   compiledTools: CompiledFunctionTool[],
   context: {
     userId: string;
+    companyId: string;
     agentId: string;
     callId?: string;
     knowledgeBaseIds?: string[];
@@ -925,7 +949,8 @@ export function hydrateCompiledTools(
       case 'lookup_knowledge_base':
         handler = createKnowledgeBaseHandler(
           context.knowledgeBaseIds || [],
-          context.userId
+          context.userId,
+          context.companyId
         );
         break;
         
@@ -1157,6 +1182,7 @@ You MUST speak ONLY in ${languageName}. From the very first word you say, speak 
   // Hydrate the compiled tools with proper handlers
   const tools = hydrateCompiledTools(compiledTools, {
     userId: toolContext.userId,
+    companyId: toolContext.companyId,
     agentId: toolContext.agentId,
     callId: toolContext.callId,
     knowledgeBaseIds,

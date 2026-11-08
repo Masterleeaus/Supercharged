@@ -1,0 +1,369 @@
+// using https://github.com/brianc/node-postgres
+
+import { DBOS, FunctionName } from '@dbos-inc/dbos-sdk';
+import {
+  type DataSourceTransactionHandler,
+  isPGRetriableTransactionError,
+  DBOSError,
+  DBOSStepAlreadyRecordedError,
+  DBOSWorkflowConflictError,
+  assertStillOwnsWorkflow,
+  checkpointWorkflowID,
+  replayRecordedStep,
+  registerTransaction,
+  runTransaction,
+  PGTransactionConfig,
+  DBOSDataSource,
+  registerDataSource,
+  DataSourceMigrationOptions,
+  DataSourceSQLExecutor,
+  initializeDataSourceSchemaPG,
+  migrateDataSourcePG,
+  verifyDataSourcePG,
+  guardDataSourcePoolPG,
+} from '@dbos-inc/dbos-sdk/datasource';
+import { Client, type ClientBase, type ClientConfig, Pool, type PoolConfig } from 'pg';
+import { AsyncLocalStorage } from 'node:async_hooks';
+import { SuperJSON } from 'superjson';
+
+interface NodePostgresDataSourceContext {
+  client: ClientBase;
+  owner: NodePostgresTransactionHandler;
+}
+
+interface NodePostgresTransactionOptions extends PGTransactionConfig {
+  name?: string;
+}
+
+export { NodePostgresTransactionOptions };
+
+const asyncLocalCtx = new AsyncLocalStorage<NodePostgresDataSourceContext>();
+
+function clientExecutor(client: ClientBase): DataSourceSQLExecutor {
+  return async (sql) => (await client.query<Record<string, unknown>>(sql)).rows;
+}
+
+class NodePostgresTransactionHandler implements DataSourceTransactionHandler {
+  #poolField: Pool | undefined;
+  readonly schemaName: string;
+
+  constructor(
+    readonly name: string,
+    private readonly config: PoolConfig,
+    schemaName: string = 'dbos',
+    private readonly options: DataSourceMigrationOptions = {},
+  ) {
+    this.schemaName = schemaName;
+  }
+
+  async initialize(): Promise<void> {
+    const pool = this.#poolField;
+    this.#poolField = new Pool(this.config);
+    guardDataSourcePoolPG(this.#poolField, 'NodePostgresDataSource');
+    await pool?.end();
+
+    if (this.options.runMigrations === false) {
+      const client = await this.#poolField.connect();
+      try {
+        await verifyDataSourcePG(clientExecutor(client), this.schemaName, this.name);
+      } finally {
+        client.release();
+      }
+      return;
+    }
+
+    try {
+      await this.#transaction((client) => migrateDataSourcePG(clientExecutor(client), this.schemaName));
+    } catch (err) {
+      throw new Error(
+        `In initialization of 'NodePostgresDataSource' ${this.name}: The '${this.schemaName}' transaction schema could not be migrated: ${(err as Error).message}. This should be added to your database migrations.
+        See: https://docs.dbos.dev/typescript/tutorials/transaction-tutorial#installing-the-dbos-schema`,
+      );
+    }
+  }
+
+  async destroy(): Promise<void> {
+    const pool = this.#poolField;
+    this.#poolField = undefined;
+    await pool?.end();
+  }
+
+  get #pool(): Pool {
+    if (!this.#poolField) {
+      throw new Error(`DataSource ${this.name} is not initialized.`);
+    }
+    return this.#poolField;
+  }
+
+  async deleteCheckpoints(workflowID: string, startStep: number, beforeCommit?: () => Promise<void>): Promise<void> {
+    await this.#transaction(async (client) => {
+      await client.query(
+        /*sql*/
+        `DELETE FROM "${this.schemaName}".transaction_completion
+         WHERE workflow_id = $1 AND function_num >= $2`,
+        [checkpointWorkflowID(workflowID), startStep],
+      );
+      await beforeCommit?.();
+    });
+  }
+
+  async #checkExecution(
+    workflowID: string,
+    stepID: number,
+  ): Promise<{ output: string | null } | { error: string } | undefined> {
+    type Result = { output: string | null; error: string | null };
+    const { rows } = await this.#pool.query<Result>(
+      /*sql*/
+      `SELECT output, error FROM "${this.schemaName}".transaction_completion
+       WHERE workflow_id = $1 AND function_num = $2`,
+      [checkpointWorkflowID(workflowID), stepID],
+    );
+    if (rows.length === 0) {
+      return undefined;
+    }
+    const { output, error } = rows[0];
+    return error !== null ? { error } : { output };
+  }
+
+  static async #recordOutput(
+    client: ClientBase,
+    workflowID: string,
+    stepID: number,
+    output: string | null,
+    schemaName: string,
+  ): Promise<void> {
+    const { rows } = await client.query(
+      /*sql*/
+      `INSERT INTO "${schemaName}".transaction_completion (workflow_id, function_num, output)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (workflow_id, function_num) DO NOTHING
+       RETURNING workflow_id`,
+      [checkpointWorkflowID(workflowID), stepID, output],
+    );
+    if (rows.length === 0) {
+      throw new DBOSStepAlreadyRecordedError(workflowID, stepID);
+    }
+    // Holding this step's row, so a later owner's insert waits on our commit.
+    await assertStillOwnsWorkflow(workflowID);
+  }
+
+  async #recordError(workflowID: string, stepID: number, error: string): Promise<void> {
+    const { rows } = await this.#pool.query(
+      /*sql*/
+      `INSERT INTO "${this.schemaName}".transaction_completion (workflow_id, function_num, error)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (workflow_id, function_num) DO NOTHING
+       RETURNING workflow_id`,
+      [checkpointWorkflowID(workflowID), stepID, error],
+    );
+    if (rows.length === 0) {
+      throw new DBOSStepAlreadyRecordedError(workflowID, stepID);
+    }
+  }
+
+  // A duplicate execution won the race, so its recorded outcome is the durable one.
+  async #replayConflictingStep<Return>(workflowID: string, stepID: number): Promise<Return> {
+    const recorded = await this.#checkExecution(workflowID, stepID);
+    if (recorded === undefined) {
+      throw new DBOSError(
+        `Step ${stepID} of workflow ${workflowID} conflicted with a concurrent execution, but no recorded outcome was found`,
+      );
+    }
+    return replayRecordedStep<Return>(recorded);
+  }
+
+  async #transaction<Return>(
+    func: (client: ClientBase) => Promise<Return>,
+    config: NodePostgresTransactionOptions = {},
+  ): Promise<Return> {
+    const isolationLevel = config?.isolationLevel ? `ISOLATION LEVEL ${config.isolationLevel}` : '';
+    const readOnly = config?.readOnly ?? false;
+    const accessMode = config?.readOnly === undefined ? '' : readOnly ? 'READ ONLY' : 'READ WRITE';
+
+    const client = await this.#pool.connect();
+    try {
+      await client.query(/*sql*/ `BEGIN ${isolationLevel} ${accessMode}`);
+      const result = await func(client);
+      await client.query(/*sql*/ `COMMIT`);
+      return result;
+    } catch (error) {
+      await client.query(/*sql*/ `ROLLBACK`);
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async invokeTransactionFunction<This, Args extends unknown[], Return>(
+    config: NodePostgresTransactionOptions | undefined,
+    target: This,
+    func: (this: This, ...args: Args) => Promise<Return>,
+    ...args: Args
+  ): Promise<Return> {
+    const workflowID = DBOS.workflowID;
+    const stepID = DBOS.stepID;
+    if (workflowID !== undefined && stepID === undefined) {
+      throw new Error('DBOS.stepID is undefined inside a workflow.');
+    }
+
+    const readOnly = config?.readOnly ?? false;
+    const saveResults = !readOnly && workflowID !== undefined;
+
+    // Retry loop if appropriate
+    let retryWaitMS = 1;
+    const backoffFactor = 1.5;
+    const maxRetryWaitMS = 2000; // Maximum wait 2 seconds.
+
+    while (true) {
+      // Check to see if this tx has already been executed
+      const previousResult = saveResults ? await this.#checkExecution(workflowID, stepID!) : undefined;
+      if (previousResult) {
+        return replayRecordedStep<Return>(previousResult);
+      }
+
+      try {
+        const result = await this.#transaction<Return>(async (client) => {
+          // execute user's transaction function
+          const result = await asyncLocalCtx.run({ client, owner: this }, async () => {
+            return (await func.call(target, ...args)) as Return;
+          });
+
+          // save the output of read/write transactions
+          if (saveResults) {
+            await NodePostgresTransactionHandler.#recordOutput(
+              client,
+              workflowID,
+              stepID!,
+              SuperJSON.stringify(result),
+              this.schemaName,
+            );
+          }
+
+          return result;
+        }, config);
+
+        return result;
+      } catch (error) {
+        if (saveResults && error instanceof DBOSStepAlreadyRecordedError) {
+          return await this.#replayConflictingStep<Return>(workflowID, stepID!);
+        }
+        // The new owner wins; recording an error here would replay it as this step's outcome.
+        if (error instanceof DBOSWorkflowConflictError) throw error;
+        if (isPGRetriableTransactionError(error)) {
+          DBOS.span?.addEvent('TXN SERIALIZATION FAILURE', { retryWaitMillis: retryWaitMS }, performance.now());
+          await new Promise((resolve) => setTimeout(resolve, retryWaitMS));
+          retryWaitMS = Math.min(retryWaitMS * backoffFactor, maxRetryWaitMS);
+          continue;
+        } else {
+          if (saveResults) {
+            const message = SuperJSON.stringify(error);
+            try {
+              await this.#recordError(workflowID, stepID!, message);
+            } catch (recordError) {
+              if (recordError instanceof DBOSStepAlreadyRecordedError) {
+                return await this.#replayConflictingStep<Return>(workflowID, stepID!);
+              }
+              throw recordError;
+            }
+          }
+
+          throw error;
+        }
+      }
+    }
+  }
+}
+
+export class NodePostgresDataSource implements DBOSDataSource<NodePostgresTransactionOptions> {
+  static #getClient(p?: NodePostgresTransactionHandler): ClientBase {
+    if (!DBOS.isInTransaction()) {
+      throw new Error('Invalid use of NodePostgresDataSource.client outside of a DBOS transaction.');
+    }
+    const ctx = asyncLocalCtx.getStore();
+    if (!ctx) {
+      throw new Error('Invalid use of NodePostgresDataSource.client outside of a DBOS transaction.');
+    }
+    if (p && p !== ctx.owner) {
+      throw new Error('Use of `NodePostgresDataSource.client` from the wrong object');
+    }
+    return ctx.client;
+  }
+
+  static get client() {
+    return NodePostgresDataSource.#getClient(undefined);
+  }
+
+  get client() {
+    return NodePostgresDataSource.#getClient(this.#provider);
+  }
+
+  /**
+   * Create or migrate the DBOS transaction schema, typically with a privileged role,
+   * optionally granting `applicationRole` the minimal permissions to use it.
+   */
+  static async initializeDBOSSchema(
+    config: ClientConfig,
+    schemaName: string = 'dbos',
+    options: { applicationRole?: string } = {},
+  ): Promise<void> {
+    const client = new Client(config);
+    try {
+      await client.connect();
+      await client.query('BEGIN');
+      try {
+        await initializeDataSourceSchemaPG(clientExecutor(client), schemaName, options.applicationRole);
+        await client.query('COMMIT');
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      }
+    } finally {
+      await client.end();
+    }
+  }
+
+  #provider: NodePostgresTransactionHandler;
+
+  constructor(
+    readonly name: string,
+    config: PoolConfig,
+    schemaName: string = 'dbos',
+    options: DataSourceMigrationOptions = {},
+  ) {
+    this.#provider = new NodePostgresTransactionHandler(name, config, schemaName, options);
+    registerDataSource(this.#provider);
+  }
+
+  async runTransaction<T>(func: () => Promise<T>, config?: NodePostgresTransactionOptions) {
+    return await runTransaction(func, config?.name ?? func.name, { dsName: this.name, config });
+  }
+
+  registerTransaction<This, Args extends unknown[], Return>(
+    func: (this: This, ...args: Args) => Promise<Return>,
+    config?: NodePostgresTransactionOptions & FunctionName,
+  ): (this: This, ...args: Args) => Promise<Return> {
+    return registerTransaction(this.name, func, config);
+  }
+
+  transaction(config?: NodePostgresTransactionOptions) {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    const ds = this;
+    return function decorator<This, Args extends unknown[], Return>(
+      target: object,
+      propertyKey: PropertyKey,
+      descriptor: TypedPropertyDescriptor<(this: This, ...args: Args) => Promise<Return>>,
+    ) {
+      if (!descriptor.value) {
+        throw Error('Use of decorator when original method is undefined');
+      }
+
+      descriptor.value = ds.registerTransaction(descriptor.value, {
+        ...config,
+        name: config?.name ?? String(propertyKey),
+        ctorOrProto: target,
+      });
+
+      return descriptor;
+    };
+  }
+}

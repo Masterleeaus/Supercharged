@@ -1,0 +1,47 @@
+{
+  "schema": "titan.pass5.delta-manifest.v1",
+  "added_sources": [
+    "desk/server/integrations/titan-field/template-policy.mjs",
+    "field/apps/web/app/api/v1/titan/desk-bridge/revenue-shadow/route.ts",
+    "field/apps/web/lib/titan/desk-bridge/booking-shadow.mjs",
+    "field/apps/web/lib/titan/desk-bridge/estimate-shadow.mjs",
+    "field/apps/web/lib/titan/desk-bridge/invoice-shadow.mjs",
+    "field/apps/web/lib/titan/desk-bridge/response-projection.mjs",
+    "field/apps/web/lib/titan/desk-bridge/shadow-foundation.mjs",
+    "field/apps/web/lib/titan/desk-bridge/shadow-router.mjs"
+  ],
+  "modified_sources": [
+    "desk/server/integrations/titan-field/protocol.mjs",
+    "desk/server/integrations/titan-field/receiver.mjs",
+    "field/apps/web/app/api/v1/titan/desk-bridge/preview/route.ts",
+    "field/apps/web/lib/titan/desk-bridge/protocol.mjs"
+  ],
+  "deleted_sources": [],
+  "new_tests": [
+    "verification/response-projection.test.mjs",
+    "verification/template-policy.test.mjs",
+    "verification/revenue-shadow.test.mjs"
+  ],
+  "sha256": {
+    "README_FIRST.md": "a6c5b2179e11ea89a0eb1f6263bc42511cbee98a8c36d015dc322ecb724ea8a3",
+    "SOURCE_MANIFEST.json": "cb9d14bc6a0366ee93a0e4a04188f098b515d615fefc0a17aa4a8e2e83b361eb",
+    "desk/server/integrations/titan-field/protocol.mjs": "6995e95c23f0d18c2a1fe00636f9ca7decb0d5c9564bc8cfe84907f7a31434c5",
+    "desk/server/integrations/titan-field/receiver.mjs": "0fce82bd90afd4cf7c4d2cbd73587d5bf86dc008751e9bfb0d941d8c67a96864",
+    "desk/server/integrations/titan-field/template-policy.mjs": "a171eb25efe16c9b8a3e97aae84f7886f8f18dff6bb19ef3557de6ad32e902ba",
+    "field/apps/web/app/api/v1/titan/desk-bridge/preview/route.ts": "e16f0803cdbed8ae0b047e81aa69b366d83f2681413c93311745f95e3e7c48ec",
+    "field/apps/web/app/api/v1/titan/desk-bridge/revenue-shadow/route.ts": "ae4e4ea284dc81e03e1faae553f74b7a32ee756b3225b59d446626a28263c3ab",
+    "field/apps/web/lib/titan/desk-bridge/booking-shadow.mjs": "05c7350c5a3e28b8b726723ec06e2468ed3e5fbb86790e41c99872a502dcb8d8",
+    "field/apps/web/lib/titan/desk-bridge/estimate-shadow.mjs": "d43226561cfa7b02c5f5bdceba263cbaad31371c30b120b2fe0e732cbd1dd857",
+    "field/apps/web/lib/titan/desk-bridge/invoice-shadow.mjs": "ed1f5bf414474559e9b43479e09bf9c5a6d31d051e44dc8b89b715f61222be49",
+    "field/apps/web/lib/titan/desk-bridge/protocol.mjs": "6995e95c23f0d18c2a1fe00636f9ca7decb0d5c9564bc8cfe84907f7a31434c5",
+    "field/apps/web/lib/titan/desk-bridge/response-projection.mjs": "c8716d85b5cd1cff55fbc09797a44656ebe67e1b65b9200e43cce2cc0179aec7",
+    "field/apps/web/lib/titan/desk-bridge/shadow-foundation.mjs": "666c47170c423ae464c64a16c069f0184646dd5a4256c0ef57cae0bd66d6bc15",
+    "field/apps/web/lib/titan/desk-bridge/shadow-router.mjs": "c73a37f71eec4e755d51d8bb0861c5ced241b99531ae032546ceab7bc66e6d3e",
+    "verification/DB_AGENT_CONTRACT_NOT_IMPLEMENTATION.json": "6c8f673787dace8bc1db5ba624d5b75ae0c4a1e38f6220c71d85a9d7be2a5953",
+    "verification/HANDOFF-PASS5.md": "a6c5b2179e11ea89a0eb1f6263bc42511cbee98a8c36d015dc322ecb724ea8a3",
+    "verification/PASS5_SOURCE_DIFF.csv": "52b4a4ce1f38696f33f52d2456ca121e4fde783f30a56af9ad80a6ea379d0f90",
+    "verification/response-projection.test.mjs": "bdbd7c357585725cb70f379682c6506f263a00c1504ae0ce8b9865c25b98bbff",
+    "verification/revenue-shadow.test.mjs": "4491de5d321800c9cea4be753b8ec7a28d042d83270647a8d8c99bc877ff9465",
+    "verification/template-policy.test.mjs": "c1c9a9edf633955d6ef579aea99d50c5f0a55e9b460e96792b2b0da02e0b8c00"
+  }
+}

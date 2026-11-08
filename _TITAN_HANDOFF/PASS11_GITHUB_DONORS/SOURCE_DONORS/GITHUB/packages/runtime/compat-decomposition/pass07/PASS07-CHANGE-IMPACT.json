@@ -1,0 +1,14 @@
+{
+  "schema": "titan-zero-change-impact/v1",
+  "packet_id": "TZ-FIX-COMPAT-RUNTIME-DECOMPOSITION-001",
+  "pass": 7,
+  "runtime_files_changed": [
+    "titan-runtime/compat-decomposition/compat-bootstrap.mjs"
+  ],
+  "runtime_files_added": [
+    "titan-runtime/compat-decomposition/chunks/typed-adapter.mjs"
+  ],
+  "compat_monoliths_modified": false,
+  "background_boundary_modified": false,
+  "feature_removed": false
+}

@@ -1,0 +1,14 @@
+{
+  "schema": "titan.zero.change-impact.v1",
+  "packet_id": "TZ-FIX-COMPAT-RUNTIME-DECOMPOSITION-001",
+  "pass": 9,
+  "risk": "LOW",
+  "runtime_files_modified": [],
+  "retired_files": [],
+  "preserved_files": [
+    "titan-zero-chat-content.compat.js",
+    "titan-zero-chat-background.compat.js",
+    "titan-zero-chat-runtime.compat.js"
+  ],
+  "manager_convergence": "CLEAN_FORWARD_PORT"
+}

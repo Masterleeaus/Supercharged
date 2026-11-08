@@ -31,6 +31,7 @@ import { eq, and, or, sql } from 'drizzle-orm';
 export interface CallData {
   id: string;
   userId: string;
+  companyId?: string | null;
   phoneNumber: string;
   fromNumber?: string | null;
   toNumber?: string | null;
@@ -359,7 +360,7 @@ export class CRMLeadProcessor {
       try {
         const { webhookDeliveryService } = await import('../../services/webhook-delivery');
         
-        await webhookDeliveryService.triggerEvent(callData.userId, 'form.lead_created', {
+        await webhookDeliveryService.triggerEvent(callData.companyId ?? null, callData.userId, 'form.lead_created', {
           lead: {
             id: lead.id,
             name: lead.firstName || lead.lastName ? `${lead.firstName || ''} ${lead.lastName || ''}`.trim() : 'Unknown',
@@ -1051,6 +1052,7 @@ export class CRMLeadProcessor {
     const callData: CallData = {
       id: call.id,
       userId: call.userId,
+      companyId: call.companyId ?? null,
       phoneNumber: call.phoneNumber || '',
       fromNumber: call.fromNumber,
       toNumber: call.toNumber,
@@ -1105,6 +1107,7 @@ export class CRMLeadProcessor {
     const callData: CallData = {
       id: call.id,
       userId: call.userId,
+      companyId: call.companyId ?? null,
       phoneNumber: call.fromNumber || call.toNumber || '',
       fromNumber: call.fromNumber,
       toNumber: call.toNumber,
@@ -1155,6 +1158,7 @@ export class CRMLeadProcessor {
     const callData: CallData = {
       id: call.id,
       userId: call.userId,
+      companyId: call.companyId ?? null,
       phoneNumber: call.fromNumber || call.toNumber || '',
       fromNumber: call.fromNumber,
       toNumber: call.toNumber,
@@ -1203,6 +1207,7 @@ export class CRMLeadProcessor {
     const callData: CallData = {
       id: call.id,
       userId: call.userId,
+      companyId: call.companyId ?? null,
       phoneNumber: call.direction === 'inbound' ? (call.fromNumber || '') : (call.toNumber || ''),
       fromNumber: call.fromNumber,
       toNumber: call.toNumber,
@@ -1348,6 +1353,7 @@ Return ONLY the JSON object. No explanation, no markdown formatting.`;
       const callData: CallData = {
         id: call.id,
         userId: call.user_id,
+        companyId: call.company_id ?? null,
         phoneNumber: call.direction === 'inbound' ? (call.from_number || '') : (call.to_number || ''),
         fromNumber: call.from_number,
         toNumber: call.to_number,

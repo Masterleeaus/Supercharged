@@ -1,0 +1,7 @@
+{
+  "status": "CLEAN_ADDITIVE",
+  "notes": [
+    "No compat bundle edits.",
+    "Builder 3 Retriever-native Pass04 recorded only as external unmerged candidate; no files copied into canonical runtime namespace."
+  ]
+}

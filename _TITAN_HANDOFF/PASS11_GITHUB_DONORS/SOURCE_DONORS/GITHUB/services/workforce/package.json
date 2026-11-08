@@ -1,0 +1,15 @@
+{
+  "name": "@titan-zero/workforce",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "tsx --tsconfig ../../apps/web/tsconfig.json --test src/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "start": "tsx --tsconfig ../../apps/web/tsconfig.json src/server.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.7.0"
+  }
+}

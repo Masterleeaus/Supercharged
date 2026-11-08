@@ -14,7 +14,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
-import { Users, BookOpen, Mic, Link as LinkIcon, Phone, Settings, ChevronsUpDown, Plus, BarChart3, Home, Target, LogOut, Coins, Shield, CreditCard, TrendingUp, UserCheck, Workflow, Webhook, ClipboardList, Calendar, Layout, FileText, Wrench, Globe, Bot, ContactRound, MessageSquare } from "lucide-react";
+import { Users, BookOpen, Mic, Link as LinkIcon, Phone, Settings, ChevronsUpDown, Plus, BarChart3, Home, Target, LogOut, Coins, Shield, CreditCard, TrendingUp, UserCheck, Workflow, Webhook, ClipboardList, ClipboardCheck, Calendar, Layout, FileText, Wrench, Globe, Bot, ContactRound, MessageSquare } from "lucide-react";
 import { usePluginStatus } from "@/hooks/use-plugin-status";
 import {
   Sidebar,
@@ -77,6 +77,7 @@ export function AppSidebar() {
     { title: t('nav.knowledgeBase'), url: "/app/knowledge-base", icon: BookOpen, iconColor: "text-violet-500" },
     { title: t('nav.flowBuilder'), url: "/app/flows", icon: Workflow, iconColor: "text-indigo-500" },
     { title: t('nav.tools', 'Tools'), url: "/app/tools", icon: Wrench, iconColor: "text-slate-500" },
+    { title: t('nav.chatbotBuilder', 'Chatbot Builder'), url: "/app/chatbot-builder", icon: Layout, iconColor: "text-teal-500" },
   ];
 
   const telephonyItems = [
@@ -319,6 +320,19 @@ export function AppSidebar() {
                     <Link href="/admin" onClick={handleNavClick}>
                       <Shield className="h-4 w-4" />
                       <span>{t('nav.adminDashboard')}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={location === "/app/approvals"}
+                    tooltip={t('nav.approvals', 'Approvals')}
+                    data-testid="link-approvals"
+                  >
+                    <Link href="/app/approvals" onClick={handleNavClick}>
+                      <ClipboardCheck className="h-4 w-4 text-amber-600" />
+                      <span>{t('nav.approvals', 'Approvals')}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

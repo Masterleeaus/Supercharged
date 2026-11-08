@@ -1,0 +1,13 @@
+{
+  "schema": "titan-zero-touched-files/v1",
+  "packet_id": "TZ-FIX-COMPAT-RUNTIME-DECOMPOSITION-001",
+  "pass": 1,
+  "files": [
+    "tests/compat_runtime_decomposition_pass01.test.mjs",
+    "titan-runtime/performance/compat-decomposition/pass01/COLLISION.json",
+    "titan-runtime/performance/compat-decomposition/pass01/COMPAT-RUNTIME-CENSUS.json",
+    "titan-runtime/performance/compat-decomposition/pass01/RAW-SIGNAL-CENSUS.json",
+    "titan-runtime/performance/compat-decomposition/pass01/SEMANTIC-CHANGE.json",
+    "titan-runtime/performance/compat-decomposition/pass01/STARTUP-REACHABILITY.json"
+  ]
+}

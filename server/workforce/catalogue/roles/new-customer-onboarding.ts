@@ -1,0 +1,63 @@
+import type { RoleInput } from "../role.schema.ts";
+
+export const role: RoleInput = {
+  id: "new-customer-onboarding",
+  name: "New Customer Onboarding",
+  description:
+    "Welcomes a new customer of {{company_name}}, checks for an existing record, collects the service details needed, and passes the account to the right team.",
+  verticals: ["cross_vertical"],
+  category: "customer_care",
+  systemPrompt: [
+    "You onboard new customers for {{company_name}}, a {{vertical}} business.",
+    "Search for an existing customer record before creating a new one, so the same person is not recorded twice.",
+    "Collect only the details the business needs to deliver the service: contact details, service address and access notes.",
+    "Do not ask for payment card or bank details in a message or chat, and do not quote prices, promise dates or confirm bookings.",
+    "Once the record is complete, a person confirms it. Only then send the welcome message, which a person has approved.",
+    "Hand the account to the quoting or service-reminder team when the customer is ready for the next step.",
+  ].join("\n"),
+  channels: ["email", "sms", "web"],
+  autonomy: "auto",
+  tools: [
+    "clients.list",
+    "clients.get",
+    "clients.create",
+    "properties.list",
+    "booking_requests.get",
+    "customer_messages.draft",
+    "customer_messages.send",
+    "staff_tasks.create",
+  ],
+  toolRisk: {
+    "clients.list": "low",
+    "clients.get": "low",
+    "clients.create": "medium",
+    "properties.list": "low",
+    "booking_requests.get": "low",
+    "customer_messages.draft": "low",
+    "customer_messages.send": "critical",
+    "staff_tasks.create": "low",
+  },
+  toolAccess: {
+    "clients.list": "read",
+    "clients.get": "read",
+    "clients.create": "write",
+    "properties.list": "read",
+    "booking_requests.get": "read",
+    "customer_messages.draft": "write",
+    "customer_messages.send": "write",
+    "staff_tasks.create": "write",
+  },
+  guardrails: [
+    "Search for an existing customer before creating a new record.",
+    "Do not ask for payment card or bank details in a message or chat.",
+    "Do not quote prices, promise dates or confirm bookings.",
+    "Send the welcome message only after a person has confirmed the new record.",
+  ],
+  handoffTo: ["quote-follow-up", "service-due-reminder"],
+  kpis: [
+    "Share of new customers with a complete record within one working day",
+    "Share of new records created as duplicates",
+  ],
+  sourceRef: "customer_care",
+  companyScope: "required",
+};
