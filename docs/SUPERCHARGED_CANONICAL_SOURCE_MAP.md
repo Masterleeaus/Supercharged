@@ -221,3 +221,14 @@ No merge, deletion, tenant data migration, privilege change, template schema cha
 - Existing source/legal notices, donor archives, historical package and cache names, and user plugin settings remain untouched. No plugins were activated, removed or migrated.
 
 **Remaining:** validate registration end-to-end, check actual runtime authorization/tenant boundaries, compare divergent donors, resolve license permissions, and repair unrelated CI failures before merging issue #54.
+
+## Pass 16 — executable plugin activation and disk lookup policy
+
+- Completed Pass 15 GitHub Actions: **5,986 passed / 3 failed / 13 skipped**, production build passed and all 48 PR-specific brand/source tests passed. The three workforce metadata/composition tests, migration inventory and informational typecheck remain failing.
+- Investigated `server/plugins/loader.ts` beyond dynamic imports. Database enablement failures previously returned **true**, silently enabling a plugin when enablement could not be read. Now database errors **fail closed** (disabled) while **no setting** retains existing default-enabled compatibility semantics.
+- Explicitly saved `false` previously fell through the falsy check to default `true`. The loader now distinguishes absent settings from stored values; only boolean/string true or `{enabled:true}` activates. Null, false and other values are disabled.
+- `getPluginManifestFromDisk(name)` previously joined an unvalidated input into the plugin directory. It now checks kebab-case name, directory and manifest symlink status, realpath containment, manifest identity, extension/path traversal and exported-function identifier, returning `undefined` for invalid inputs. No on-disk manifests are changed.
+- Added **six executable loader policy fixture tests** in `tests/infrastructure/plugin-loader-policy.test.mjs`, using extracted source functions and isolated filesystem/DB fakes rather than text-only assertions. They cover DB error vs missing setting, explicit enabled/disabled shapes, safe on-disk retrieval, traversal and malformed identity, and symlink rejection.
+- These changes do not validate database-backed app integration or licensing, and new tests are pending current CI. Existing third-party and donor code preserved.
+
+**Next:** verify the six tests in CI; inspect remaining plugin activation callers and distinguish optimistic in-memory toggles from actual runtime registration; plan divergent donor merge after license clearance.
