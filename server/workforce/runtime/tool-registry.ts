@@ -109,6 +109,8 @@ export interface ToolDefinition {
   risk: RiskTier;
   /** 'read' or 'write'. Absent means 'write'. A suggest agent may run only read tools. */
   access?: ToolAccess;
+  /** Per-tool timeout in milliseconds (positive integer) for each handler attempt. Absent: the registry-wide timeout. */
+  timeoutMs?: number;
   /**
    * Action category, passed to evaluatePolicy. Absent means 'other'. Allowed values:
    *  - 'money':         moves money (payments, refunds, transfers, payouts). Always needs owner approval.
@@ -671,7 +673,7 @@ export function createToolRegistry(options: ToolRegistryOptions): ToolRegistry {
       const executor = new ToolExecutor({
         manifest: { [toolId]: { handler, input_schema: {} } },
         allowedTools: [toolId],
-        timeoutMs,
+        timeoutMs: definition.timeoutMs ?? timeoutMs,
       });
       result = await executor.execute(toolId, params, { companyId });
       if (result.ok) break;
@@ -857,6 +859,9 @@ export function createToolRegistry(options: ToolRegistryOptions): ToolRegistry {
       }
       if (!isRiskTier(definition.risk)) throw new AiRuntimeError('config_invalid', `tool ${definition.id} needs a risk tier (${RISK_TIERS.join(', ')})`);
       if (typeof definition.handler !== 'function') throw new AiRuntimeError('config_invalid', `tool ${definition.id} needs a handler`);
+      if (definition.timeoutMs !== undefined && (!Number.isInteger(definition.timeoutMs) || definition.timeoutMs < 1)) {
+        throw new AiRuntimeError('config_invalid', `tool ${definition.id} has an invalid timeoutMs (positive integer)`);
+      }
       if (!isValidSchema(definition.schema)) throw new AiRuntimeError('config_invalid', `tool ${definition.id} has an invalid schema`);
       if (definition.category !== undefined && !TOOL_CATEGORIES.includes(definition.category)) {
         throw new AiRuntimeError('config_invalid', `tool ${definition.id} has an unknown category (${TOOL_CATEGORIES.join(', ')})`);

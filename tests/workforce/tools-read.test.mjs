@@ -10,6 +10,7 @@ import {
   registerReadTools,
   MAX_READ_ROWS,
 } from '../../server/workforce/tools/read-handlers.ts';
+import { GROUP_02_TOOL_IDS } from '../../server/workforce/tools/handlers/group-02.ts';
 import { createToolRegistry } from '../../server/workforce/runtime/index.ts';
 
 const CO_A = 'company-a';
@@ -231,15 +232,21 @@ test('input validation rejects unknown keys and bad values, naming fields only',
 test('registerReadTools registers each bound tool as a read tool with the registry', () => {
   const registered = [];
   registerReadTools({ register: (def) => registered.push(def) }, seededStore());
+  // Handler group 02 (writes and drafts included) is registered alongside; it declares its own access per tool.
+  const readBound = registered.filter((d) => !GROUP_02_TOOL_IDS.includes(d.id));
   assert.deepEqual(
-    registered.map((d) => d.id).sort(),
+    readBound.map((d) => d.id).sort(),
     ['booking_requests.get', 'booking_requests.list', 'invoices.get', 'invoices.list', 'payments.list'],
   );
-  for (const def of registered) {
+  for (const def of readBound) {
     assert.equal(def.access, 'read');
     assert.equal(def.risk, 'low');
     assert.equal(typeof def.handler, 'function');
   }
+  assert.deepEqual(
+    registered.filter((d) => GROUP_02_TOOL_IDS.includes(d.id)).map((d) => d.id).sort(),
+    [...GROUP_02_TOOL_IDS].sort(),
+  );
 });
 
 test('read tools run through the tool registry and refuse companyId in params', async () => {
@@ -265,9 +272,12 @@ test('read tools run through the tool registry and refuse companyId in params', 
   assert.equal(refused.reason, 'tenant_override');
 });
 
-test('definitions expose the same ids as the specs', () => {
+test('definitions expose the same ids as the specs, plus the handler group 02 ids', () => {
   const store = seededStore();
-  const defIds = createReadToolDefinitions(store).map((d) => d.id).sort();
+  const defIds = createReadToolDefinitions(store)
+    .map((d) => d.id)
+    .filter((id) => !GROUP_02_TOOL_IDS.includes(id))
+    .sort();
   const specIds = createReadToolSpecs(store).map((s) => s.id).sort();
   assert.deepEqual(defIds, specIds);
 });
