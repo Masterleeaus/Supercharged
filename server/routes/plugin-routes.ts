@@ -221,8 +221,10 @@ publicPluginRouter.get('/health', async (_req, res) => {
         }
       }
 
-      let status: 'ok' | 'error' | 'disabled' = 'ok';
-      if (!plugin.enabled) {
+      let status: 'ok' | 'error' | 'disabled' | 'pending_restart' = 'ok';
+      if (plugin.enabled !== plugin.registered) {
+        status = 'pending_restart';
+      } else if (!plugin.enabled) {
         status = 'disabled';
       } else if (plugin.error || missingTables.length > 0) {
         status = 'error';
