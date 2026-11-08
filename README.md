@@ -1,7 +1,7 @@
 # AgentLabs - AI-Powered Bulk Calling Platform
 
-**Version:** 5.4.1  
-**Last Updated:** May 2026  
+**Version:** 5.4.5  
+**Last Updated:** not verified in this repo (5.4.1 was dated May 2026)  
 **License:** Regular/Extended License (CodeCanyon)
 
 ---
@@ -260,7 +260,7 @@ The interface automatically adjusts for right-to-left (RTL) languages.
 ### 1. Upload Files
 ```bash
 # Upload all files to your server or hosting platform
-unzip AgentLabs-Production-v5.4.1.zip
+unzip AgentLabs-Production-v5.4.5.zip
 cd AgentLabs
 ```
 
@@ -697,10 +697,10 @@ This product is licensed under the CodeCanyon/Envato Regular or Extended License
 
 ## Version Information
 
-- **Current Version**: 5.4.1
+- **Current Version**: 5.4.5
 - **Node.js**: 18+ required, 20+ recommended
 - **PostgreSQL**: 14+ required
-- **Last Updated**: May 2026
+- **Last Updated**: not verified in this repo (5.4.1 was dated May 2026)
 
 Check version via API: `GET /api/system/version`
 

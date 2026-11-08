@@ -1,7 +1,7 @@
 # AgentLabs Installation Guide
 
-**Version:** 1.0.0  
-**Last Updated:** December 2025
+**Version:** 5.4.5  
+**Last Updated:** not verified in this repo (this guide was last dated December 2025)
 
 This guide provides comprehensive step-by-step instructions for installing and updating AgentLabs. Written for non-technical users with clear instructions.
 
@@ -205,12 +205,7 @@ Wait 2-5 minutes for completion.
 
 **Note about deprecation warnings:** You may see some deprecation warnings during installation. These are normal and don't affect functionality.
 
-To verify security status:
-```bash
-npm audit
-```
-
-**Expected output:** `found 0 vulnerabilities`
+**Security audit:** do not expect a clean result. `docs/NPM_AUDIT_SUMMARY.md` records 49 findings (47 in production dependencies) from a run on 2026-11-03. The current lockfile has not been re-audited in this repo, so the current count is not verified here.
 
 ### Step 6: Set Up Database Tables
 
@@ -219,6 +214,10 @@ npm run db:push
 ```
 
 You should see messages about tables being created.
+
+This is the documented path for a fresh install (the header of `scripts/run-safe-migration.mjs` says the same). `npm run db:push` runs `drizzle-kit push --force`, so back up any database that already holds data before you run it.
+
+**Do not use `npm run db:migrate` yet.** It runs `scripts/run-safe-migration.mjs`, whose hard-coded file list names files that do not exist (`008_...`, `009_...`) and leaves out `0011` and `0013`. See `docs/MIGRATION_RECONCILIATION.md` and `docs/DEPLOY_PACK.md`. Whether this is fixed in your copy is not verified in this repo.
 
 ### Step 7: Build the Application
 
@@ -513,6 +512,8 @@ Email is required for user verification, password resets, and notifications.
 ## Updating to a New Version
 
 When a new version is released, follow these steps.
+
+Upgrades use `npm run db:push` for now (see Step 6). Back up the database first.
 
 ---
 
