@@ -182,3 +182,9 @@ test('campaign actions refuse malformed actor sessions before service invocation
  }
  assert.equal(calls.length,0);
 });
+
+test('campaigns do not grant a company identity through a forged header',async()=>{
+ const {stack,calls}=build();
+ const result=await stack.dispatch('POST','/campaigns',{host:COMMS_HOST,body:{name:'Campaign',companyId:'11111111-1111-4111-8111-111111111111'}});
+ assert.equal(result.status,401);assert.equal(calls.length,0);
+});

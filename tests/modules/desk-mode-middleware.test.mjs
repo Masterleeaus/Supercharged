@@ -120,3 +120,10 @@ test('oversized or malformed DNS label never selects a workspace',()=>{
   assert.equal(res.statusCode,404);assert.equal(nextCalled,false);
  }
 });
+
+test('a new HTTP router must not accept comms access from a workforce mode marker',()=>{
+ const guard=requireModule('inbox');
+ const res=fakeRes();let advanced=false;
+ guard({deskMode:'workforce'},res,()=>{advanced=true;});
+ assert.equal(advanced,false);assert.equal(res.statusCode,404);
+});

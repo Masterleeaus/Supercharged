@@ -10,3 +10,4 @@ export { createDrizzleMarketingStore } from './drizzle-adapter.ts';
 export type { MarketingStore, CampaignRefs, ChatbotRefs } from './ports.ts';
 export * from './types.ts';
 export { createMarketingRouter, type MarketingRouterDeps } from './marketing-router.ts';
+export { createMarketingRouterForProduction, type MarketingProductionRouterDeps } from './production-router.ts';

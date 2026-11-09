@@ -10,3 +10,4 @@ export { createDrizzleInboxStore } from './drizzle-adapter.ts';
 export type { InboxStore, ApprovalPort, ApprovalGateRequest, ApprovalGateResult, ApprovalRecord, ApprovalState, ThreadFilter } from './ports.ts';
 export * from './types.ts';
 export { createInboxRouter, type InboxRouterDeps } from './inbox-router.ts';
+export { createInboxRouterForProduction, type InboxProductionRouterDeps } from './production-router.ts';

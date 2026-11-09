@@ -15,3 +15,7 @@ No live third-party provider or two-tenant database integration was exercised in
 ## Follow-up from Pass 4 CI
 
 The first Pass 4 test run exposed 21 failures caused by a pre-existing test fixture using pseudo-tenant ID `c1`. The test fixture is repaired on the Pass 4 branch, preserving strict UUID validation. The full test suite must pass on the newer commit before these changes can be merged.
+
+## Pass 6 production mounting gate
+
+Inbox and Marketing now have real Express router factories and an optional route registration point. Both are **disabled by default**. To enable them, supply persistent, migration-compatible storage and verified authentication, then pass the HTTP cross-company isolation tests against that storage. Enabling a module without its required service intentionally fails startup rather than silently falling back to in-memory data.

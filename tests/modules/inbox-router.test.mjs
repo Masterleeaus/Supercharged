@@ -194,3 +194,9 @@ test('inbox rejects a session actor without a stable identity before listing thr
  }
  assert.equal(calls.length,0);
 });
+
+test('a comms session with a missing actor cannot read inbox threads',async()=>{
+ const {stack,calls}=build();
+ const result=await stack.dispatch('GET','/threads',{host:COMMS_HOST,session:{...HUMAN_SESSION,actor:undefined}});
+ assert.equal(result.status,401);assert.equal(calls.length,0);
+});
