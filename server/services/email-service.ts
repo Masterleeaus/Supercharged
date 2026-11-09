@@ -36,7 +36,7 @@ export function smtpTlsOptions(): { rejectUnauthorized: boolean } {
   return { rejectUnauthorized: !allowSelfSigned };
 }
 
-const DEFAULT_COMPANY_NAME = '';
+const DEFAULT_COMPANY_NAME = 'Supercharged';
 const DEFAULT_TAGLINE = 'AI-Powered Calling Platform';
 
 interface BrandingSettings {
