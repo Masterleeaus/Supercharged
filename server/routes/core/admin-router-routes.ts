@@ -76,7 +76,7 @@ export function registerAdminRouterRoutes(app: Express): void {
       res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
       res.setHeader('Content-Length', pdfBuffer.length);
       res.send(pdfBuffer);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Error downloading refund note:", error);
       res.status(500).json({ message: "Failed to download refund note", error: safeErrorMessage(error, "Failed to download refund note") });
     }

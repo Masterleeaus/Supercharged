@@ -58,7 +58,7 @@ export function registerUserLimitsRoutes(app: Express): void {
           source: limits.sources.maxPhoneNumbers
         }
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Get user limits error:", error);
       res.status(500).json({ error: "Failed to get user limits" });
     }
