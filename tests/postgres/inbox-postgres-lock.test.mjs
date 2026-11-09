@@ -17,3 +17,11 @@ test('PostgreSQL: lock rolls back all nested writes on error',{skip:!enabled},as
   assert.equal(await f.store.findContactParticipant(A,'email',p.address),null);
  }finally{await f.close();}
 });
+
+test('PostgreSQL: nested inbound lock refuses cross-tenant reads',{skip:!enabled},async()=>{
+ const f=fixture();try{
+  await assert.rejects(f.store.lockInboundKey(A,'email','cross-tenant-'+id('key'),async()=>{
+   await f.store.listMessages('22222222-2222-4222-8222-222222222222','some-thread');
+  }),/another company/);
+ }finally{await f.close();}
+});

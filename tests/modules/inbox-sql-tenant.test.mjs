@@ -20,3 +20,10 @@ test('missing company fails before pool acquisition',()=>{
  assert.throws(()=>s.listThreads('bad',{}),/companyId/);
  assert.deepEqual(h.seen,[]);
 });
+
+test('a company change installs a distinct scoped database setting',async()=>{
+ const h=db(),s=createSqlInboxStore(h.pool);
+ await s.findThread(A,'first');await s.findThread(B,'other');await s.findThread(A,'again');
+ assert.deepEqual(h.seen.filter(q=>q.sql.includes('set_config')).map(q=>q.values[1]),[A,B,A]);
+ assert.equal(h.releases,3);
+});

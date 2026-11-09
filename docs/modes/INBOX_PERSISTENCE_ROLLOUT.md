@@ -9,3 +9,7 @@ The advisory lock must hold the same pinned transaction for inbound participant 
 ## Pass 15 integration gate
 
 The `inbox-postgres` GitHub Actions job runs the original `0010a_inbox.sql` followed by a separately reviewed tenant-RLS candidate on a disposable PostgreSQL 16 instance. It verifies actual table behavior, including cross-tenant blocking, composite-FK guarantees and advisory-lock rollback. No automatic migration or feature flag is altered by this job.
+
+## Pass 16: activation gates
+
+Pass 15's disposable PostgreSQL suite passed. Pass 16 adds a read-only live-schema readiness verifier plus an explicit SQL Inbox service constructor. The constructor requires approval and atomic transaction ports, but neither enables provider transport nor changes `COMMS_INBOX_ENABLED`. Before enabling routes, configure approval transactions per authenticated company and verify actual deployment role membership and audit events.

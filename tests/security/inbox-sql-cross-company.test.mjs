@@ -18,3 +18,11 @@ test('tenant thread list filter is parameterised without leaking company context
  assert.equal(q.args[0],A);assert.equal(q.args[2],"a' OR true --");
  assert.ok(!q.sql.includes("OR true --"));
 });
+
+test('runtime schema verifier requires all four tenant-owned Inbox tables',async()=>{
+ const {verifyInboxSchema,INBOX_TABLES}=await import('../../server/modules/inbox/schema-readiness.ts');
+ const inspected=[];const probe={async query(sql,values){if(Array.isArray(values?.[0]))inspected.push(...values[0]);return{rows:[]};}};
+ const result=await verifyInboxSchema(probe);
+ assert.equal(result.ready,false);assert.ok(INBOX_TABLES.every(t=>result.issues.includes(t+' missing')));
+ assert.ok(INBOX_TABLES.every(t=>inspected.includes(t)));
+});

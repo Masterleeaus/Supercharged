@@ -53,3 +53,7 @@ The existing numbered `0010a_inbox.sql` schema is now supported by the opt-in `c
 ## Pass 15: real PostgreSQL RLS verification
 
 A separate review-only candidate at `migrations/candidates/0018_inbox_tenant_rls.sql` enables and forces RLS on the four Inbox tables already created by `0010a_inbox.sql`. A dedicated disposable PostgreSQL CI job uses the actual SQL store to exercise tenant access, link FKs, external-ID uniqueness, inbound locks and rollback. Neither the original migration manifest nor Inbox activation is changed.
+
+## Pass 16: fail-closed database readiness
+
+The opt-in `createVerifiedInboxService` now validates the actual PostgreSQL catalog before constructing a persistent service, including restricted desk_app permissions and all four tables' ENABLE/FORCE RLS policies. A durable approval port and atomic transaction runner are mandatory. No automatic Inbox activation; request-specific approval transaction composition remains necessary before mounting multi-tenant routes.

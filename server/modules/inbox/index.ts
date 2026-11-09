@@ -17,3 +17,8 @@ export { createSqlInboxStore } from './sql-store.ts';
 export { runInboundLocked, lockedInboxClient } from './sql-lock.ts';
 
 // Inbox PostgreSQL candidate RLS is verified in an isolated CI job; production remains disabled.
+
+export {verifyInboxSchema,requireInboxSchema,INBOX_TABLES} from './schema-readiness.ts';
+export type {InboxReadiness,InboxSchemaProbe} from './schema-readiness.ts';
+export {createVerifiedInboxService} from './production-service.ts';
+export type {VerifiedInboxDependencies} from './production-service.ts';

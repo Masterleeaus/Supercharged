@@ -466,3 +466,8 @@ test('PostgreSQL InboxStore factory is exported without activating the legacy pl
  assert.equal(typeof createSqlInboxStore,'function');
  assert.throws(()=>createSqlInboxStore(null),/PostgreSQL pool/);
 });
+
+test('verified Inbox constructor refuses missing RLS and approvals rather than silently mounting',async()=>{
+ const {createVerifiedInboxService}=await import('../../server/modules/inbox/production-service.ts');
+ await assert.rejects(createVerifiedInboxService({pool:{connect:async()=>({})}}),/approval port/);
+});

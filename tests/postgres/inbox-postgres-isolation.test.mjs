@@ -17,3 +17,11 @@ test('PostgreSQL: all Inbox CRUD reads and writes are company isolated',{skip:!e
   assert.equal((await f.store.findMessage(B,m.id)).status,'received');
  }finally{await f.close();}
 });
+
+test('PostgreSQL: changing tenants between pooled requests cannot expose earlier rows',{skip:!enabled},async()=>{
+ const f=fixture();try{
+  const t=thread(A,id('pooled'));await f.store.insertThread(t);
+  const first=await f.store.findThread(A,t.id),other=await f.store.findThread(B,t.id),again=await f.store.findThread(A,t.id);
+  assert.equal(first.id,t.id);assert.equal(other,null);assert.equal(again.id,t.id);
+ }finally{await f.close();}
+});
