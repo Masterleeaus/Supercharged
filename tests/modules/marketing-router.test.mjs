@@ -148,3 +148,12 @@ test('an invalid authenticated company cannot read marketing pages', async () =>
   assert.equal(result.status,401);
   assert.equal(calls.length,0);
 });
+
+test('marketing refuses malformed or absent actors before a content write',async()=>{
+ const {stack,calls}=build();
+ for(const actor of [null,{kind:'human',id:'  '},{kind:'system',id:'u'}]){
+  const r=await stack.dispatch('POST','/content',{host:COMMS_HOST,session:{...HUMAN_SESSION,actor},body:{kind:'article',title:'x',body:'y'}});
+  assert.equal(r.status,401);
+ }
+ assert.equal(calls.length,0);
+});

@@ -17,3 +17,10 @@ test('prototype keys and arbitrary exceptions never leak their message',()=>{
   assert.deepEqual(res.body,{error:'internal_error'});
  }
 });
+
+test('inherited Object prototype error names never select an HTTP status',()=>{
+ for(const code of ['valueOf','propertyIsEnumerable']){
+  const res=response();sendServiceError(res,Object.assign(new Error('private'),{code}));
+  assert.equal(res.statusCode,500);assert.deepEqual(res.body,{error:'internal_error'});
+ }
+});

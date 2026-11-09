@@ -22,3 +22,11 @@ test('a missing identity never invokes an effectful service',async()=>{
   }
   assert.equal(writes,0);
 });
+
+test('a valid second company scope is permitted but is never replaced by request inputs',async()=>{
+ const COMPANY_B='22222222-2222-4222-8222-222222222222';
+ const res=response();
+ await commsRoute(()=>({companyId:COMPANY_B,actor:{kind:'human',id:'u9'}}),async(scope)=>({company:scope.companyId}))({params:{companyId:COMPANY_A},query:{companyId:COMPANY_A}},res,noop);
+ assert.equal(res.statusCode,200);
+ assert.equal(res.body.company,COMPANY_B);
+});

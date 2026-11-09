@@ -20,3 +20,13 @@ test('no forged forwarded host opens communications modules on workforce',()=>{
   let allowed=false;requireModule('marketing')(request,result,()=>{allowed=true;});
   assert.equal(allowed,false);assert.equal(result.statusCode,404);
 });
+
+test('invalid Host cannot execute a module guard even if the request contains stale mode data',()=>{
+ const request={headers:{host:'evil.example'},deskMode:'comms',deskHost:'syncedat.work'};
+ const response=res();let passed=false;
+ deskModeMiddleware(config)(request,response,()=>{passed=true;});
+ assert.equal(passed,false);assert.equal(response.statusCode,404);
+ assert.equal(request.deskMode,undefined);
+ let authorized=false;requireModule('campaigns')(request,response,()=>{authorized=true;});
+ assert.equal(authorized,false);
+});

@@ -12,3 +12,7 @@ test('host spoofing by prefix, suffix or user information is refused',()=>{
   }
   assert.equal(normaliseHost(undefined),null);
 });
+
+test('DNS label syntax and length are rejected before an allowlist lookup',()=>{
+ for(const h of ['-syncedat.work','syncedat-.work','a'.repeat(64)+'.work']) assert.equal(normaliseHost(h),null);
+});

@@ -173,3 +173,12 @@ test('an invalid authenticated company cannot resolve audience or create contact
   assert.equal(second.status,401);
   assert.equal(calls.length,0);
 });
+
+test('campaign actions refuse malformed actor sessions before service invocation',async()=>{
+ const {stack,calls}=build();
+ for(const actor of [null,{kind:'human',id:'  '},{kind:'system',id:'u'}]){
+  const r=await stack.dispatch('POST','/campaigns/c1/activation',{host:COMMS_HOST,session:{...HUMAN_SESSION,actor}});
+  assert.equal(r.status,401);
+ }
+ assert.equal(calls.length,0);
+});

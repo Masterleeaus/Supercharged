@@ -185,3 +185,12 @@ test('an invalid session tenant cannot list inbox threads', async () => {
   assert.equal(result.status,401);
   assert.equal(calls.length,0);
 });
+
+test('inbox rejects a session actor without a stable identity before listing threads',async()=>{
+ const {stack,calls}=build();
+ for(const actor of [null,{kind:'human',id:''},{kind:'unknown',id:'user-1'}]){
+  const r=await stack.dispatch('GET','/threads',{host:COMMS_HOST,session:{...HUMAN_SESSION,actor}});
+  assert.equal(r.status,401);
+ }
+ assert.equal(calls.length,0);
+});

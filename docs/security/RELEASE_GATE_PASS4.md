@@ -11,3 +11,7 @@ The following must pass before considering #52 complete:
 7. Full TypeScript backlog remains separately tracked and is not resolved by these changes.
 
 No live third-party provider or two-tenant database integration was exercised in this pass. Keep #52 open.
+
+## Follow-up from Pass 4 CI
+
+The first Pass 4 test run exposed 21 failures caused by a pre-existing test fixture using pseudo-tenant ID `c1`. The test fixture is repaired on the Pass 4 branch, preserving strict UUID validation. The full test suite must pass on the newer commit before these changes can be merged.
