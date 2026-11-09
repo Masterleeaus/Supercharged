@@ -65,6 +65,7 @@ const MIGRATIONS = [
   resolve(rootDir, 'migrations', '0010b_approvals.sql'),
   resolve(rootDir, 'migrations', '0013_approvals_revoked_status.sql'),
   resolve(rootDir, 'migrations', '0010c_chatbot.sql'),
+  resolve(rootDir, 'migrations', '0015_chatbot_reminder_pipeline.sql'),
 ];
 
 /**
