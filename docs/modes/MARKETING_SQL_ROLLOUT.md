@@ -16,3 +16,7 @@ A candidate that includes both table definitions and restricted-role RLS is in `
 ## PostgreSQL integration gate
 
 The dedicated `marketing-postgres` workflow uses an ephemeral PostgreSQL service to exercise direct RLS policies and actual SQL store writes. Even a green result is not production deployment: the candidate remains excluded from `scripts/run-safe-migration.mjs`, pending review and target-environment verification.
+
+## Pass 11: deployment readiness gate
+
+Even with passing PostgreSQL CI, the production database must be inspected before a SQL-backed Marketing service is constructed. Call `createVerifiedMarketingService` with the tenant pool, a PostgreSQL catalog probe, and real campaign/chatbot reference ports. Its read-only readiness check verifies FORCE RLS, role restrictions, table privileges and company-bound policies. An absent schema or unavailable reference port aborts construction. The production flag remains disabled until the verified instance is integrated with auth and route registration.

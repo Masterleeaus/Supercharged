@@ -55,3 +55,7 @@ The reviewed migration candidate is at `migrations/candidates/0017_marketing_ten
 ## Pass 10: PostgreSQL integration harness
 
 A disposable PostgreSQL CI job exercises real tenant isolation, restricted role access, slug uniqueness and conditional lifecycle transitions. It does not alter the production migration list or enable Marketing on live servers.
+
+## Pass 11: verified production composition
+
+`createVerifiedMarketingService` is an opt-in async composition root. It requires a tenant Postgres pool, a separate schema inspection probe, real company-scoped campaign reference checks, and chatbot reference checks. It checks both Marketing tables for enforced and forced RLS and verifies the restricted database role before creating the SQL-backed service. It does not modify the production feature flag or run any migrations.

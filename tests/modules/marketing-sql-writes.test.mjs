@@ -38,3 +38,11 @@ test('page archiving uses a conditional status update',async()=>{
  const r=recorder();await createSqlMarketingStore({pool:r.pool}).updatePage(A,'page1',{status:'archived',updatedAt:now});
  assert.match(r.seen.find(x=>x.sql.startsWith('UPDATE landing_pages')).sql,/status <> 'archived'/);
 });
+
+test('content publishing cannot bypass approved status in its SQL UPDATE',async()=>{
+ const r=recorder(),store=createSqlMarketingStore({pool:r.pool});
+ await store.updateContent(A,'c',{status:'published',publishedAt:now,updatedAt:now});
+ const q=r.seen.find(x=>x.sql.startsWith('UPDATE content_items'));
+ assert.match(q.sql,/status = 'approved'/);
+ assert.deepEqual(q.values.slice(0,2),[A,'c']);
+});

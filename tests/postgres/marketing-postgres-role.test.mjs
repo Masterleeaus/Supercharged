@@ -11,3 +11,14 @@ test('PostgreSQL: application role cannot bypass RLS and tables enforce it', {sk
   assert.ok(tables.every(r=>r.relrowsecurity===true&&r.relforcerowsecurity===true));
  } finally {await f.close();}
 });
+
+test('PostgreSQL: both tenant policies have read and write company predicates', {skip:!enabled},async()=>{
+ const f=createFixture();try{
+  const rows=(await f.pool.query(`SELECT tablename, policyname, roles, qual, with_check FROM pg_policies WHERE tablename IN ('landing_pages','content_items')`)).rows;
+  for(const name of ['landing_pages','content_items']){
+   const p=rows.find(x=>x.tablename===name&&x.policyname===name+'_tenant_boundary');
+   assert.ok(p);assert.ok(p.roles.includes('desk_app'));
+   assert.match(p.qual,/app.company_id/);assert.match(p.with_check,/app.company_id/);
+  }
+ }finally{await f.close();}
+});

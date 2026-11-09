@@ -239,3 +239,11 @@ test('failed concurrent approve never returns stale content as a success',async(
  await assert.rejects(ctx.service.approveContent(CO_A,HUMAN,item.id),e=>e instanceof MarketingError&&e.code==='conflict');
  ctx.store.updateContent=original;
 });
+
+test('production service requires explicit database readiness before use',async()=>{
+ const {createVerifiedMarketingService}=await import('../../server/modules/marketing/production-service.ts');
+ const pool={connect:async()=>{throw new Error('must not connect while schema is unverified');}};
+ const campaign={campaignExists:async()=>true},chatbot={chatbotExists:async()=>true};
+ const schemaProbe={query:async()=>({rows:[]})};
+ await assert.rejects(createVerifiedMarketingService({pool,campaigns:campaign,chatbots:chatbot,schemaProbe}),/database security not ready/);
+});

@@ -41,3 +41,10 @@ test('tenant-bound UPDATE never interpolates adversarial record identifiers',asy
  assert.equal(q.values[0],A);assert.equal(q.values[1],"id' OR company_id <> '");
  assert.ok(!q.sql.includes("OR company_id <>"));
 });
+
+test('a new tenant request always sets company context for its own transaction',async()=>{
+ const h=harness(),s=createSqlMarketingStore({pool:h.pool});
+ await s.findPage(A,'p');await s.findPage(B,'p');await s.findPage(A,'p');
+ assert.deepEqual(h.queries.filter(q=>q.sql.includes('set_config')).map(q=>q.values[1]),[A,B,A]);
+ assert.equal(h.queries.filter(q=>q.sql==='COMMIT').length,3);
+});

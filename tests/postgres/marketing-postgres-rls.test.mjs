@@ -35,3 +35,15 @@ test('PostgreSQL: RLS WITH CHECK refuses wrong-tenant inserts', {skip:!enabled},
   } finally {client.release();}
  } finally {await f.close();}
 });
+
+test('PostgreSQL: no transaction-local company setting means zero readable Marketing rows',{skip:!enabled},async()=>{
+ const f=createFixture();try{
+  const client=await f.pool.connect();try{
+   await client.query('BEGIN');await client.query('SET LOCAL ROLE "desk_app"');
+   const pages=(await client.query('SELECT id FROM landing_pages')).rows;
+   const content=(await client.query('SELECT id FROM content_items')).rows;
+   assert.deepEqual(pages,[]);assert.deepEqual(content,[]);
+   await client.query('ROLLBACK');
+  }finally{client.release();}
+ }finally{await f.close();}
+});
