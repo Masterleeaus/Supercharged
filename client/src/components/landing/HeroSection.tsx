@@ -329,10 +329,10 @@ export function HeroSection() {
             <DialogHeader className="p-4 pb-2 text-left">
               <DialogTitle className="text-lg font-bold text-white flex items-center gap-2">
                 <Play className="h-5 w-5 text-emerald-400 fill-emerald-400" />
-                AgentLabs Live Demonstration
+                Supercharged Live Demonstration
               </DialogTitle>
               <DialogDescription className="text-xs text-slate-400">
-                Watch how AgentLabs powers AI voice agents, outbound calls, and real-time voice workflows.
+                Watch how Supercharged powers AI voice agents, outbound calls, and real-time voice workflows.
               </DialogDescription>
             </DialogHeader>
             <div className="relative aspect-video w-full rounded-xl overflow-hidden bg-black border border-slate-800">
@@ -342,7 +342,7 @@ export function HeroSection() {
                   className="w-full h-full border-0"
                   allow="autoplay; encrypted-media; picture-in-picture"
                   allowFullScreen
-                  title="AgentLabs Demo Video"
+                  title="Supercharged Demo Video"
                 />
               )}
             </div>

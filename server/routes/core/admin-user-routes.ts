@@ -36,7 +36,7 @@ export function registerAdminUserRoutes(app: Express): void {
       // Free users can only see free tier models
       const freeModels = allModels.filter(model => model.tier === 'free');
       res.json(freeModels);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Get available LLM models error:", error);
       res.status(500).json({ error: "Failed to get available LLM models" });
     }
@@ -68,7 +68,7 @@ export function registerAdminUserRoutes(app: Express): void {
       });
 
       res.json({ success: true, newCredits });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Update user credits error:", error);
       res.status(500).json({ error: "Failed to update user credits" });
     }
@@ -118,7 +118,7 @@ export function registerAdminUserRoutes(app: Express): void {
           phoneNumbers: Number(phoneCount[0]?.count || 0)
         }
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Get user limits error:", error);
       res.status(500).json({ error: "Failed to get user limits" });
     }
@@ -136,7 +136,7 @@ export function registerAdminUserRoutes(app: Express): void {
 
       // Coerce and validate limit values: accept null, undefined (no change), or valid integers
       // Empty strings and "null" strings are coerced to null for convenience
-      const coerceAndValidate = (value: any, name: string): number | null | undefined => {
+      const coerceAndValidate = (value: unknown, name: string): number | null | undefined => {
         // undefined means don't change existing value
         if (value === undefined) return undefined;
         // null, empty string, or "null" string means inherit from plan
@@ -185,7 +185,7 @@ export function registerAdminUserRoutes(app: Express): void {
       // Return updated limits
       const newLimits = await storage.getUserEffectiveLimits(req.params.id);
       res.json({ success: true, effectiveLimits: newLimits });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Update user limits error:", error);
       res.status(500).json({ error: safeErrorMessage(error, "Failed to update user limits") });
     }
@@ -216,7 +216,7 @@ export function registerAdminUserRoutes(app: Express): void {
       // Return updated limits
       const newLimits = await storage.getUserEffectiveLimits(req.params.id);
       res.json({ success: true, effectiveLimits: newLimits, message: "User limits reset to plan defaults" });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Reset user limits error:", error);
       res.status(500).json({ error: "Failed to reset user limits" });
     }

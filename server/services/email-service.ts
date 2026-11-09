@@ -36,7 +36,7 @@ export function smtpTlsOptions(): { rejectUnauthorized: boolean } {
   return { rejectUnauthorized: !allowSelfSigned };
 }
 
-const DEFAULT_COMPANY_NAME = '';
+const DEFAULT_COMPANY_NAME = 'Supercharged';
 const DEFAULT_TAGLINE = 'AI-Powered Calling Platform';
 
 interface BrandingSettings {
@@ -1146,11 +1146,11 @@ export class EmailService {
 
       await testTransporter.verify();
       return { success: true };
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('SMTP connection test failed', error, SOURCE);
       return { 
         success: false, 
-        error: error.message || 'Connection test failed' 
+        error: (error instanceof Error && error.message) || 'Connection test failed' 
       };
     }
   }
@@ -1296,7 +1296,7 @@ export class EmailService {
       
       const retryableCodes = new Set(['ETIMEDOUT', 'ECONNRESET', 'ECONNREFUSED', 'ESOCKET', 'EAI_AGAIN']);
       const maxRetries = 2;
-      let lastError: any = null;
+      let lastError: unknown = null;
 
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
@@ -1309,21 +1309,22 @@ export class EmailService {
           logger.info(`Email sent successfully to: [redacted]`, { messageId: info.messageId, attempts: attempt + 1 }, SOURCE);
           logger.info(`✅ [Email] Sent successfully to: [redacted], MessageId: ${info.messageId}${attempt > 0 ? ` (after ${attempt} retries)` : ''}`);
           return { success: true, messageId: info.messageId };
-        } catch (error: any) {
+        } catch (error: unknown) {
           lastError = error;
-          if (!retryableCodes.has(error?.code) || attempt === maxRetries) {
+          const errorCode = typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'string' ? error.code : undefined;
+          if (!errorCode || !retryableCodes.has(errorCode) || attempt === maxRetries) {
             break;
           }
-          logger.error(`⚠️ [Email] Transient error sending to [redacted]: ${error.code || error.message}`);
+          logger.error(`⚠️ [Email] Transient error sending to [redacted]: ${errorCode || (error instanceof Error ? error.message : '')}`);
         }
       }
 
-      const errorMsg = lastError?.message || 'Unknown error';
+      const errorMsg = (lastError instanceof Error && lastError.message) || 'Unknown error';
       logger.error(`Failed to send email to: [redacted]`, lastError, SOURCE);
       logger.error(`❌ [Email] Failed to send to: [redacted] - Error: ${errorMsg}`);
       return { success: false, error: errorMsg };
-    } catch (error: any) {
-      const errorMsg = error?.message || 'Unknown error';
+    } catch (error: unknown) {
+      const errorMsg = (error instanceof Error && error.message) || 'Unknown error';
       logger.error(`Failed to send email to: [redacted]`, error, SOURCE);
       logger.error(`❌ [Email] Failed to send to: [redacted] - Error: ${errorMsg}`);
       return { success: false, error: errorMsg };
@@ -1377,8 +1378,8 @@ export class EmailService {
       }
       
       return result;
-    } catch (error: any) {
-      const errorMsg = error?.message || 'Unknown error';
+    } catch (error: unknown) {
+      const errorMsg = (error instanceof Error && error.message) || 'Unknown error';
       logger.error(`Failed to send welcome email for user: ${userId}`, error, SOURCE);
       logger.error(`❌ [Email] Exception sending welcome email: ${errorMsg}`);
       return { success: false, error: errorMsg };

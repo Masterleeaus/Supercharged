@@ -36,7 +36,7 @@ export function registerContactsToolsRoutes(app: Express): void {
         // Return plain array for backward compatibility
         res.json(allContacts);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Get all contacts error:", error);
       res.status(500).json({ error: "Failed to get contacts" });
     }
@@ -46,7 +46,7 @@ export function registerContactsToolsRoutes(app: Express): void {
     try {
       const contacts = await storage.getUserContactsDeduplicated(req.userId!);
       res.json(contacts);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Get deduplicated contacts error:", error);
       res.status(500).json({ error: "Failed to get deduplicated contacts" });
     }
@@ -67,7 +67,7 @@ export function registerContactsToolsRoutes(app: Express): void {
 
       await storage.deleteContact(req.params.id);
       res.json({ success: true });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Delete contact error:", error);
       res.status(500).json({ error: "Failed to delete contact" });
     }
@@ -78,7 +78,7 @@ export function registerContactsToolsRoutes(app: Express): void {
     try {
       const tools = await storage.getUserTools(req.userId!);
       res.json(tools);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Get tools error:", error);
       res.status(500).json({ error: "Failed to get tools" });
     }

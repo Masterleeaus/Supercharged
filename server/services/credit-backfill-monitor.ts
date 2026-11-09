@@ -361,9 +361,9 @@ export async function scanForUnbilledCalls(
         totalUnbilled += summary.unbilled;
         totalCredits += summary.estimatedCredits;
         for (const r of rows) allUsers.add(r.userId);
-      } catch (err: any) {
+      } catch (err: unknown) {
         logger.error(
-          `[CreditBackfillMonitor] Scan failed for engine ${engine}: ${err?.message || err}`,
+          `[CreditBackfillMonitor] Scan failed for engine ${engine}: ${(err instanceof Error && err.message) || err}`,
           err,
           "CreditBackfillMonitor",
         );
@@ -391,7 +391,7 @@ export async function scanForUnbilledCalls(
       },
       engines: engineResults,
     };
-  } catch (err: any) {
+  } catch (err: unknown) {
     const finishedAt = new Date();
     return {
       startedAt: startedAt.toISOString(),
@@ -399,7 +399,7 @@ export async function scanForUnbilledCalls(
       durationMs: finishedAt.getTime() - startedAt.getTime(),
       totals: { unbilled: 0, estimatedCredits: 0, uniqueUsers: 0 },
       engines: engineResults,
-      error: err?.message || String(err),
+      error: (err instanceof Error && err.message) || String(err),
     };
   }
 }
@@ -435,9 +435,9 @@ export async function executeBackfill(
         sinceDays: opts.sinceDays,
         limit: opts.limit,
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error(
-        `[CreditBackfillMonitor] Backfill scan failed for ${engine}: ${err?.message || err}`,
+        `[CreditBackfillMonitor] Backfill scan failed for ${engine}: ${(err instanceof Error && err.message) || err}`,
         err,
         "CreditBackfillMonitor",
       );
@@ -484,10 +484,10 @@ export async function executeBackfill(
         } else if (!result.success) {
           stat.errors += 1;
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         stat.errors += 1;
         logger.error(
-          `[CreditBackfillMonitor] Backfill exception for ${engine} call ${call.id}: ${err?.message || err}`,
+          `[CreditBackfillMonitor] Backfill exception for ${engine} call ${call.id}: ${(err instanceof Error && err.message) || err}`,
           err,
           "CreditBackfillMonitor",
         );
@@ -593,17 +593,17 @@ async function runScheduledScan(): Promise<void> {
           `Daily credit backfill scan found ${unbilled} completed call(s) (${estimatedCredits} credits, ${uniqueUsers} user(s)) without matching credit transactions ${windowText}. Per engine — ${perEngine}.${truncatedNote} Review the Billing → Credit Backfill admin panel to investigate or trigger a backfill.`,
           "warning",
         );
-      } catch (err: any) {
+      } catch (err: unknown) {
         logger.error(
-          `[CreditBackfillMonitor] Failed to send admin notification: ${err?.message || err}`,
+          `[CreditBackfillMonitor] Failed to send admin notification: ${(err instanceof Error && err.message) || err}`,
           err,
           "CreditBackfillMonitor",
         );
       }
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     logger.error(
-      `[CreditBackfillMonitor] Scheduled scan failed: ${err?.message || err}`,
+      `[CreditBackfillMonitor] Scheduled scan failed: ${(err instanceof Error && err.message) || err}`,
       err,
       "CreditBackfillMonitor",
     );
