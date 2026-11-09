@@ -212,3 +212,17 @@ test('drizzle placeholder: every method throws until the migration is promoted',
   await assert.rejects(store.findPage(CO_A, 'x'), /DRAFT_marketing\.sql/);
   await assert.rejects(store.listContent(CO_A, {}), /DRAFT_marketing\.sql/);
 });
+
+test('simultaneous same-tenant slug inserts surface a stable conflict when PostgreSQL enforces the unique key',async()=>{
+ const duplicate=Object.assign(new Error('duplicate key'),{code:'23505',constraint:'landing_pages_company_slug_uidx'});
+ const store={findPageBySlug:async()=>null,insertPage:async()=>{throw duplicate;}};
+ const refs={campaignExists:async()=>true,chatbotExists:async()=>true};
+ const service=createMarketingService({store,campaigns:refs,chatbots:refs});
+ await assert.rejects(service.createPage(CO_A,HUMAN,{slug:'race-safe',title:'Offer'}),e=>e instanceof MarketingError&&e.code==='conflict');
+});
+test('non-slug database unique constraints are not mistakenly labeled a slug conflict',async()=>{
+ const duplicate=Object.assign(new Error('other constraint'),{code:'23505',constraint:'content_items_pkey'});
+ const store={findPageBySlug:async()=>null,insertPage:async()=>{throw duplicate;}};
+ const refs={campaignExists:async()=>true,chatbotExists:async()=>true};
+ await assert.rejects(createMarketingService({store,campaigns:refs,chatbots:refs}).createPage(CO_A,HUMAN,{slug:'not-duplicate',title:'Offer'}),e=>e===duplicate);
+});

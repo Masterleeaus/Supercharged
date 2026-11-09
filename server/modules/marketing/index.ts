@@ -7,6 +7,7 @@ export { createMarketingService, MarketingError, assertSections } from './market
 export type { MarketingService, MarketingServiceDeps, MarketingErrorCode, PageInput, PagePatchInput, ContentInput } from './marketing-service.ts';
 export { InMemoryMarketingStore, InMemoryRefs } from './memory-adapter.ts';
 export { createDrizzleMarketingStore } from './drizzle-adapter.ts';
+export { createSqlMarketingStore, type MarketingSqlOptions } from './sql-store.ts';
 export type { MarketingStore, CampaignRefs, ChatbotRefs } from './ports.ts';
 export * from './types.ts';
 export { createMarketingRouter, type MarketingRouterDeps } from './marketing-router.ts';
