@@ -220,6 +220,21 @@ test('writes bind the context company first and use the journal executor when on
   assert.match(journalDb.calls[0].text, /^\s*INSERT INTO estimates/i);
 });
 
+test('a write with no action-journal executor is refused, and the options executor is never used for it', async () => {
+  const optionsDb = fakeDb(SEED);
+  const defs = defsById({ db: optionsDb });
+  const writeIds = [...new Set(createGroup01ToolDefinitions().filter((d) => d.access === 'write').map((d) => d.id))];
+  assert.ok(writeIds.length > 0, 'group 01 has write tools');
+  for (const id of writeIds) {
+    await assert.rejects(
+      defs[id].handler({}, ctx(CO_A)),
+      /journal executor/,
+      `${id} did not refuse without a journal executor`,
+    );
+  }
+  assert.equal(optionsDb.calls.length, 0, 'a write fell back to options.db');
+});
+
 test('every write that reaches the database binds the context company first', async () => {
   const cases = [
     ['estimates.create', { clientId: V1, subtotalCents: 1000 }],

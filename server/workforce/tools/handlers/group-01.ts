@@ -4,9 +4,9 @@
  * service.
  *
  * Data access. Handlers use a SqlExecutor (runtime/pg-store.ts), the port the other workforce stores use, with
- * parameterised SQL. Reads use `options.db`. Writes use `context.db` when the registry sets it (the action-journal
- * transaction, so the write commits with its journal row) and fall back to `options.db`. With no executor, a call
- * throws Group01UnavailableError before any SQL runs. No executor is wired by the composition root yet.
+ * parameterised SQL. Reads use `options.db`. Writes use only `context.db`, the action-journal transaction, so the write
+ * commits with its journal row. A write with no journal executor is refused before any SQL runs. A read with no
+ * `options.db` throws Group01UnavailableError before any SQL runs.
  *
  * Company scope. companyId comes only from the registry context (requireCompanyId). It is never read from input, and
  * every input object is strict, so a companyId key is rejected. Every statement filters on company_id = $1, and every
@@ -87,7 +87,7 @@ export class Group01UnavailableError extends Error {
 }
 
 export interface Group01Options {
-  /** Executor for reads, and for writes outside a journal transaction. Absent: those calls throw before any SQL. */
+  /** Executor for reads only. Writes use the journal executor from the context. Absent: reads throw before any SQL. */
   db?: SqlExecutor;
 }
 
@@ -680,8 +680,12 @@ export function createGroup01ToolDefinitions(options: Group01Options = {}): Tool
     timeoutMs: spec.access === 'read' ? GROUP01_READ_TIMEOUT_MS : GROUP01_WRITE_TIMEOUT_MS,
     handler: async (params: Record<string, unknown>, context: ToolHandlerContext) => {
       const companyId = requireCompanyId(context.companyId);
+      // Writes use only the action-journal executor, so they commit with their journal row. No fallback to options.db.
+      if (spec.access !== 'read' && context.db === undefined) {
+        throw new Error('write needs the action journal executor; nothing was written');
+      }
       const args = parseInput(spec.input, params);
-      const db = spec.access === 'read' ? options.db : (context.db ?? options.db);
+      const db = spec.access === 'read' ? options.db : context.db;
       return spec.run(args, companyId, db);
     },
   }));
