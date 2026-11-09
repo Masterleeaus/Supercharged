@@ -53,7 +53,7 @@ const writeTool = (extra = {}) => ({ id: 'notes.write', risk: 'low', access: 'wr
 test('a repeated write with the same run, call index and params runs the handler once', async () => {
   const store = createIdempotencyStore();
   const { registry, calls, audited } = setup({ store, tools: [writeTool()] });
-  const call = { companyId: CO, toolId: 'notes.write', params: { text: 'hi' }, actor: agent(), runId: 'run-1', callIndex: 0 };
+  const call = { companyId: CO, toolId: 'notes.write', params: { text: 'hi' }, identityVerified: true, actor: agent(), runId: 'run-1', callIndex: 0 };
 
   const first = await registry.invoke(call);
   assert.equal(first.outcome, 'executed');
@@ -71,7 +71,7 @@ test('a repeated write with the same run, call index and params runs the handler
 test('a different call index in the same run runs the handler again', async () => {
   const store = createIdempotencyStore();
   const { registry, calls } = setup({ store, tools: [writeTool()] });
-  const base = { companyId: CO, toolId: 'notes.write', params: { text: 'hi' }, actor: agent(), runId: 'run-1' };
+  const base = { companyId: CO, toolId: 'notes.write', params: { text: 'hi' }, identityVerified: true, actor: agent(), runId: 'run-1' };
 
   assert.equal((await registry.invoke({ ...base, callIndex: 0 })).outcome, 'executed');
   const next = await registry.invoke({ ...base, callIndex: 1 });
@@ -82,7 +82,7 @@ test('a different call index in the same run runs the handler again', async () =
 
 test('a write without an idempotency store is unchanged: a repeat runs the handler again', async () => {
   const { registry, calls } = setup({ store: undefined, tools: [writeTool()], withStore: false });
-  const call = { companyId: CO, toolId: 'notes.write', params: { text: 'hi' }, actor: agent(), runId: 'run-1', callIndex: 0 };
+  const call = { companyId: CO, toolId: 'notes.write', params: { text: 'hi' }, identityVerified: true, actor: agent(), runId: 'run-1', callIndex: 0 };
 
   const first = await registry.invoke(call);
   const second = await registry.invoke(call);
@@ -95,7 +95,7 @@ test('a write without an idempotency store is unchanged: a repeat runs the handl
 test('a write with a store but no runId or callIndex is refused as idempotency_error and does not run', async () => {
   const store = createIdempotencyStore();
   const { registry, calls } = setup({ store, tools: [writeTool()] });
-  const result = await registry.invoke({ companyId: CO, toolId: 'notes.write', params: { text: 'hi' }, actor: agent() });
+  const result = await registry.invoke({ companyId: CO, toolId: 'notes.write', params: { text: 'hi' }, identityVerified: true, actor: agent() });
   assert.equal(result.outcome, 'refused');
   assert.equal(result.reason, 'idempotency_error');
   assert.equal(calls['notes.write'], 0);
@@ -104,7 +104,7 @@ test('a write with a store but no runId or callIndex is refused as idempotency_e
 test('a read tool is not idempotency-checked, so a repeat runs again', async () => {
   const store = createIdempotencyStore();
   const { registry, calls } = setup({ store, tools: [{ id: 'invoices.list', risk: 'low', access: 'read', schema: {} }] });
-  const call = { companyId: CO, toolId: 'invoices.list', params: {}, actor: agent(), runId: 'run-1', callIndex: 0 };
+  const call = { companyId: CO, toolId: 'invoices.list', params: {}, identityVerified: true, actor: agent(), runId: 'run-1', callIndex: 0 };
   await registry.invoke(call);
   await registry.invoke(call);
   assert.equal(calls['invoices.list'], 2);
@@ -125,7 +125,7 @@ test('a stale input is refused before the handler runs, with the stale reasons',
     companyId: CO,
     toolId: 'notes.write',
     params: { text: 'hi' },
-    actor: agent(),
+    identityVerified: true, actor: agent(),
     runId: 'run-1',
     callIndex: 0,
   });
@@ -147,7 +147,7 @@ test('a fresh input runs the handler', async () => {
       }),
     ],
   });
-  const result = await registry.invoke({ companyId: CO, toolId: 'notes.write', params: { text: 'hi' }, actor: agent() });
+  const result = await registry.invoke({ companyId: CO, toolId: 'notes.write', params: { text: 'hi' }, identityVerified: true, actor: agent() });
   assert.equal(result.outcome, 'executed');
   assert.equal(calls['notes.write'], 1);
 });
@@ -164,7 +164,7 @@ test('a freshness function that throws fails closed and does not run the handler
       }),
     ],
   });
-  const result = await registry.invoke({ companyId: CO, toolId: 'notes.write', params: { text: 'hi' }, actor: agent() });
+  const result = await registry.invoke({ companyId: CO, toolId: 'notes.write', params: { text: 'hi' }, identityVerified: true, actor: agent() });
   assert.equal(result.outcome, 'refused');
   assert.equal(result.reason, 'freshness_error');
   assert.equal(calls['notes.write'], 0);
@@ -176,7 +176,7 @@ test('a definition without freshnessOf is unchanged, even if it declares require
     withStore: false,
     tools: [writeTool({ requiresFresh: ['pricing'] })],
   });
-  const result = await registry.invoke({ companyId: CO, toolId: 'notes.write', params: { text: 'hi' }, actor: agent() });
+  const result = await registry.invoke({ companyId: CO, toolId: 'notes.write', params: { text: 'hi' }, identityVerified: true, actor: agent() });
   assert.equal(result.outcome, 'executed');
   assert.equal(calls['notes.write'], 1);
 });

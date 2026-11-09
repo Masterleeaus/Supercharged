@@ -93,7 +93,7 @@ async function runScenario(s) {
       },
     });
   }
-  const result = await registry.invoke({ companyId: s.companyId, toolId: s.toolId, params: s.params, actor: s.actor, runId: 'run-1' });
+  const result = await registry.invoke({ companyId: s.companyId, toolId: s.toolId, params: s.params, identityVerified: true, actor: s.actor, runId: 'run-1' });
   const events = [...(await store.listAudit(CO)), ...store.unscopedAudit()];
   return { s, result, events };
 }

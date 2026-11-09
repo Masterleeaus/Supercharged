@@ -328,7 +328,7 @@ test('the registry accepts every group 00 definition and runs a company-scoped r
   for (const id of EXPECTED_IDS) assert.equal(registry.has(id), true, `${id} not registered`);
 
   const actor = { kind: 'agent', agentId: 'agent-1', roleId: 'cleaning-customer-care', autonomy: 'auto' };
-  const ok = await registry.invoke({ companyId: CO_A, toolId: 'clients.list', params: {}, actor });
+  const ok = await registry.invoke({ companyId: CO_A, toolId: 'clients.list', params: {}, identityVerified: true, actor });
   assert.equal(ok.outcome, 'executed');
   assert.ok(!JSON.stringify(ok.output).includes('other-b-row'), 'registry returned another company row');
   assert.equal(db.calls[0].values[0], CO_A);

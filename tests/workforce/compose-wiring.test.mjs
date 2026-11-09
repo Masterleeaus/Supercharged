@@ -117,7 +117,7 @@ test('compose passes controls into the engine: a paused agent tool call is refus
   assert.equal(runtime.controls, controls);
 
   const runId = await startRun(runtime);
-  const result = await runtime.engine.callTool(CO, runId, { toolId: 'booking_requests.list', params: {}, actor: WRITER });
+  const result = await runtime.engine.callTool(CO, runId, { toolId: 'booking_requests.list', params: {}, identityVerified: true, actor: WRITER });
   assert.equal(result.ok, false);
   assert.equal(result.reason, 'agent_paused');
   assert.equal(reads.counts.listBookings, 0, 'the read handler does not run while the agent is paused');
@@ -127,7 +127,7 @@ test('compose without controls runs no control check', async () => {
   const runtime = composeWorkforceRuntime(fakeDeps());
   assert.equal(runtime.controls, null);
   const runId = await startRun(runtime);
-  const result = await runtime.engine.callTool(CO, runId, { toolId: 'booking_requests.list', params: {}, actor: WRITER });
+  const result = await runtime.engine.callTool(CO, runId, { toolId: 'booking_requests.list', params: {}, identityVerified: true, actor: WRITER });
   assert.notEqual(result.reason, 'agent_paused');
 });
 
@@ -143,9 +143,9 @@ test('compose passes budgets into the engine: the second tool call over the limi
   const runId = await startRun(runtime);
   const human = { kind: 'human', userId: 'owner-1' };
 
-  const first = await runtime.engine.callTool(CO, runId, { toolId: 'booking_requests.list', params: {}, actor: human });
+  const first = await runtime.engine.callTool(CO, runId, { toolId: 'booking_requests.list', params: {}, identityVerified: true, actor: human });
   assert.equal(first.ok, true);
-  const second = await runtime.engine.callTool(CO, runId, { toolId: 'booking_requests.list', params: {}, actor: human });
+  const second = await runtime.engine.callTool(CO, runId, { toolId: 'booking_requests.list', params: {}, identityVerified: true, actor: human });
   assert.equal(second.ok, false);
   assert.equal(second.reason, 'tool_call_limit');
 });
@@ -156,12 +156,12 @@ test('compose passes company policy into the tool registry: a denied tool is ref
   const open = composeWorkforceRuntime(fakeDeps());
 
   const deniedRun = await startRun(denied);
-  const refused = await denied.engine.callTool(CO, deniedRun, { toolId: 'booking_requests.list', params: {}, actor: human });
+  const refused = await denied.engine.callTool(CO, deniedRun, { toolId: 'booking_requests.list', params: {}, identityVerified: true, actor: human });
   assert.equal(refused.tool?.outcome, 'refused');
   assert.equal(refused.tool?.reason, 'authority_denied');
 
   const openRun = await startRun(open);
-  const allowed = await open.engine.callTool(CO, openRun, { toolId: 'booking_requests.list', params: {}, actor: human });
+  const allowed = await open.engine.callTool(CO, openRun, { toolId: 'booking_requests.list', params: {}, identityVerified: true, actor: human });
   assert.notEqual(allowed.tool?.outcome, 'refused');
 });
 

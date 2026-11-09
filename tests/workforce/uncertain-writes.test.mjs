@@ -58,7 +58,7 @@ function setup(tools, extra = {}) {
   return registry;
 }
 
-const call = (toolId) => ({ companyId: CO, toolId, params: { note: 'x' }, actor: agent, runId: 'run-1', callIndex: 0 });
+const call = (toolId) => ({ companyId: CO, identityVerified: true, toolId, params: { note: 'x' }, actor: agent, runId: 'run-1', callIndex: 0 });
 
 test('an unkeyed timed-out write is recorded as uncertain, is not transient, and is not retried', async () => {
   const write = slowTool('notes.write', 'write');

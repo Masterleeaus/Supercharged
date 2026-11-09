@@ -344,7 +344,7 @@ test('through the registry, a draft is staged and its handler never runs', async
   const db = fakeDb();
   // A draft still needs the approval the policy asks for; once a human approves it, it is staged, not executed.
   const { registry } = registryWith(db, 'approved');
-  const out = await registry.invoke({ companyId: CO_A, toolId: 'purchase_orders.draft', params: { supplierName: 'Acme' }, actor: agent });
+  const out = await registry.invoke({ companyId: CO_A, toolId: 'purchase_orders.draft', params: { supplierName: 'Acme' }, identityVerified: true, actor: agent });
   assert.equal(out.outcome, 'staged');
   assert.equal(db.calls.length, 0);
 });
@@ -352,7 +352,7 @@ test('through the registry, a draft is staged and its handler never runs', async
 test('through the registry, a customer contact waits for owner approval and does not execute', async () => {
   const db = fakeDb();
   const { registry, gate } = registryWith(db, 'pending');
-  const out = await registry.invoke({ companyId: CO_A, toolId: 'referral_requests.create', params: { clientId: U1 }, actor: agent });
+  const out = await registry.invoke({ companyId: CO_A, toolId: 'referral_requests.create', params: { clientId: U1 }, identityVerified: true, actor: agent });
   assert.equal(out.outcome, 'awaiting_approval');
   assert.equal(gate.calls, 1);
 });
@@ -364,7 +364,7 @@ test('through the registry, an escalation waits for owner approval under auto', 
     companyId: CO_A,
     toolId: 'safety.escalate_to_human',
     params: { title: 'Gas smell', description: 'Smell at meter' },
-    actor: agent,
+    identityVerified: true, actor: agent,
   });
   assert.equal(out.outcome, 'awaiting_approval');
   assert.equal(gate.calls, 1);

@@ -66,11 +66,12 @@ const result = await engine.callTool('co-42', runId, {
   toolId: 'publish_page',
   params: { slug: 'home' },
   actor,
+  identityVerified: true, // set only after the caller has authenticated the actor; otherwise the call is refused
 });
 
 if (result.tool?.outcome === 'awaiting_approval') {
   // a human approves in the dashboard, then the same actor resumes with the same params
-  await engine.resumeAfterApproval('co-42', runId, { toolId: 'publish_page', params: { slug: 'home' }, actor });
+  await engine.resumeAfterApproval('co-42', runId, { toolId: 'publish_page', params: { slug: 'home' }, actor, identityVerified: true });
 }
 
 await engine.handoff('co-42', runId, { actor, toRole: 'reviewer' });  // only the current owner may hand off

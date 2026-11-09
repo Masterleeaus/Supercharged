@@ -191,6 +191,8 @@ export interface RunToolCall {
   toolId: string;
   params?: Record<string, unknown>;
   actor: unknown;
+  /** True only when the caller has authenticated the actor. Passed to the registry, which refuses anything else. */
+  identityVerified: boolean;
 }
 
 /**
@@ -443,7 +445,7 @@ export function createRunEngine(options: RunEngineOptions): RunEngine {
   async function attempt(
     companyId: CompanyId,
     start: RunRecord,
-    call: { toolId: string; params: Record<string, unknown>; actor: ResolvedActor },
+    call: { toolId: string; params: Record<string, unknown>; actor: ResolvedActor; identityVerified: boolean },
     approvalId: string | null,
   ): Promise<RunToolResult> {
     let current = start;
@@ -516,6 +518,7 @@ export function createRunEngine(options: RunEngineOptions): RunEngine {
         toolId: call.toolId,
         params: call.params,
         actor: call.actor,
+        identityVerified: call.identityVerified,
         runId: current.id,
         correlationId: current.id,
         approvalId,
@@ -712,7 +715,7 @@ export function createRunEngine(options: RunEngineOptions): RunEngine {
         }
       }
 
-      return attempt(loaded.companyId, run, { toolId: call.toolId, params: call.params ?? {}, actor: actor.actor }, null);
+      return attempt(loaded.companyId, run, { toolId: call.toolId, params: call.params ?? {}, actor: actor.actor, identityVerified: call.identityVerified }, null);
     },
 
     async resumeAfterApproval(companyId, runId, call) {
@@ -741,7 +744,7 @@ export function createRunEngine(options: RunEngineOptions): RunEngine {
         return { ok: false, reason: 'approval_call_mismatch', run, tool: null };
       }
 
-      return attempt(loaded.companyId, run, { toolId: call.toolId, params, actor: actor.actor }, pending.approvalId);
+      return attempt(loaded.companyId, run, { toolId: call.toolId, params, actor: actor.actor, identityVerified: call.identityVerified }, pending.approvalId);
     },
 
     async handoff(companyId, runId, input) {

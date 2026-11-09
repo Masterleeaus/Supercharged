@@ -357,12 +357,12 @@ test('the registry runs a group 04 read for the caller company and refuses a com
   for (const def of createGroup04ToolDefinitions({ db: fakeDb() })) registry.register(def);
   const actor = { kind: 'agent', agentId: 'agent-1', roleId: 'pool-service-scheduler', autonomy: 'auto' };
 
-  const ok = await registry.invoke({ companyId: CO_A, toolId: 'users.list', params: {}, actor });
+  const ok = await registry.invoke({ companyId: CO_A, toolId: 'users.list', params: {}, identityVerified: true, actor });
   assert.equal(ok.outcome, 'executed');
   assert.ok(ok.output.rows.length > 0);
   assert.ok(!JSON.stringify(ok.output).includes(CO_B));
 
-  const refused = await registry.invoke({ companyId: CO_A, toolId: 'users.list', params: { companyId: CO_B }, actor });
+  const refused = await registry.invoke({ companyId: CO_A, toolId: 'users.list', params: { companyId: CO_B }, identityVerified: true, actor });
   assert.equal(refused.outcome, 'refused');
   assert.equal(refused.reason, 'tenant_override');
 });

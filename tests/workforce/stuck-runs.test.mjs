@@ -113,7 +113,7 @@ test('a recovered run is not silently resumed: no handler runs and callTool refu
   });
   await recoverPass(store, CO);
 
-  const attempt = await engine.callTool(CO, runId, { toolId: 'send_note', params: {}, actor: COORD });
+  const attempt = await engine.callTool(CO, runId, { toolId: 'send_note', params: {}, identityVerified: true, actor: COORD });
   assert.equal(attempt.ok, false, 'a recovered run accepted a tool call as if it were still running');
   assert.equal(executions, 0, 'a tool handler ran during or after recovery');
 });

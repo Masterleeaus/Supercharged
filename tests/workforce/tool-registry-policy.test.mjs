@@ -77,7 +77,7 @@ test('a money-category tool at auto with no approval requires approval and does 
   const { registry, gate, calls } = setup({
     tools: [{ id: 'payments.refund', risk: 'low', access: 'write', category: 'money', schema: {} }],
   });
-  const result = await registry.invoke({ companyId: CO, toolId: 'payments.refund', params: {}, actor: agent('auto') });
+  const result = await registry.invoke({ companyId: CO, toolId: 'payments.refund', params: {}, identityVerified: true, actor: agent('auto') });
   assert.equal(result.outcome, 'awaiting_approval');
   assert.equal(gate.gateCalls, 1);
   assert.equal(calls['payments.refund'], 0);
@@ -87,14 +87,14 @@ test('a money-category tool at auto runs once a verified owner approval covers t
   const { registry, gate, calls } = setup({
     tools: [{ id: 'payments.refund', risk: 'low', access: 'write', category: 'money', schema: {} }],
   });
-  const first = await registry.invoke({ companyId: CO, toolId: 'payments.refund', params: {}, actor: agent('auto') });
+  const first = await registry.invoke({ companyId: CO, toolId: 'payments.refund', params: {}, identityVerified: true, actor: agent('auto') });
   assert.equal(first.outcome, 'awaiting_approval');
   gate.decide(first.approvalId, 'approved');
   const second = await registry.invoke({
     companyId: CO,
     toolId: 'payments.refund',
     params: {},
-    actor: agent('auto'),
+    identityVerified: true, actor: agent('auto'),
     approvalId: first.approvalId,
   });
   assert.equal(second.outcome, 'executed');
@@ -105,7 +105,7 @@ test('a suggest read tool at low risk is allowed and runs', async () => {
   const { registry, calls } = setup({
     tools: [{ id: 'invoices.list', risk: 'low', access: 'read', schema: {} }],
   });
-  const result = await registry.invoke({ companyId: CO, toolId: 'invoices.list', params: {}, actor: agent('suggest') });
+  const result = await registry.invoke({ companyId: CO, toolId: 'invoices.list', params: {}, identityVerified: true, actor: agent('suggest') });
   assert.equal(result.outcome, 'executed');
   assert.equal(calls['invoices.list'], 1);
 });
@@ -114,7 +114,7 @@ test('a suggest write tool is denied by the ladder and does not run', async () =
   const { registry, gate, calls } = setup({
     tools: [{ id: 'notes.write', risk: 'low', access: 'write', schema: {} }],
   });
-  const result = await registry.invoke({ companyId: CO, toolId: 'notes.write', params: {}, actor: agent('suggest') });
+  const result = await registry.invoke({ companyId: CO, toolId: 'notes.write', params: {}, identityVerified: true, actor: agent('suggest') });
   assert.equal(result.outcome, 'refused');
   assert.equal(result.reason, 'authority_denied');
   assert.equal(result.message, 'suggest agents cannot write or send');
@@ -127,7 +127,7 @@ test('a ladder deny cannot become allow with a company rule or an approval', asy
     companyPolicy: { requireApprovalFor: ['notes.write'], deniedTools: [] },
     tools: [{ id: 'notes.write', risk: 'low', access: 'write', schema: {} }],
   });
-  const result = await registry.invoke({ companyId: CO, toolId: 'notes.write', params: {}, actor: agent('suggest') });
+  const result = await registry.invoke({ companyId: CO, toolId: 'notes.write', params: {}, identityVerified: true, actor: agent('suggest') });
   assert.equal(result.outcome, 'refused');
   assert.equal(result.reason, 'authority_denied');
 
@@ -145,7 +145,7 @@ test('a ladder deny cannot become allow with a company rule or an approval', asy
     companyId: CO,
     toolId: 'notes.write',
     params: {},
-    actor: agent('suggest'),
+    identityVerified: true, actor: agent('suggest'),
     approvalId: 'ap-x',
   });
   assert.equal(withApproval.outcome, 'refused');
@@ -157,7 +157,7 @@ test('a company deniedTools entry refuses an action the ladder would allow', asy
     companyPolicy: { deniedTools: ['invoices.list'] },
     tools: [{ id: 'invoices.list', risk: 'low', access: 'read', schema: {} }],
   });
-  const result = await registry.invoke({ companyId: CO, toolId: 'invoices.list', params: {}, actor: agent('auto') });
+  const result = await registry.invoke({ companyId: CO, toolId: 'invoices.list', params: {}, identityVerified: true, actor: agent('auto') });
   assert.equal(result.outcome, 'refused');
   assert.equal(result.reason, 'authority_denied');
   assert.equal(calls['invoices.list'], 0);
@@ -168,7 +168,7 @@ test('a company requireApprovalFor entry sends an allowed action to the gate', a
     companyPolicy: { requireApprovalFor: ['invoices.list'] },
     tools: [{ id: 'invoices.list', risk: 'low', access: 'read', schema: {} }],
   });
-  const result = await registry.invoke({ companyId: CO, toolId: 'invoices.list', params: {}, actor: agent('auto') });
+  const result = await registry.invoke({ companyId: CO, toolId: 'invoices.list', params: {}, identityVerified: true, actor: agent('auto') });
   assert.equal(result.outcome, 'awaiting_approval');
   assert.equal(gate.gateCalls, 1);
   assert.equal(calls['invoices.list'], 0);
@@ -178,7 +178,7 @@ test('an absent category is treated as other and does not add a category gate', 
   const { registry, calls } = setup({
     tools: [{ id: 'notes.summarise', risk: 'low', access: 'write', schema: {} }],
   });
-  const result = await registry.invoke({ companyId: CO, toolId: 'notes.summarise', params: {}, actor: agent('auto') });
+  const result = await registry.invoke({ companyId: CO, toolId: 'notes.summarise', params: {}, identityVerified: true, actor: agent('auto') });
   assert.equal(result.outcome, 'executed');
   assert.equal(calls['notes.summarise'], 1);
 });
@@ -193,4 +193,29 @@ test('a tool with an unknown category is refused at registration', () => {
     () => registry.register({ id: 'bad.tool', risk: 'low', access: 'read', category: 'payments', schema: {}, handler: () => ({}) }),
     /unknown category/,
   );
+});
+
+test('a caller whose identity is not verified is refused, whatever the autonomy, and the handler does not run', async () => {
+  const { registry, gate, calls, audited } = setup({
+    tools: [{ id: 'invoices.list', risk: 'low', access: 'read', schema: {} }],
+  });
+  const missing = await registry.invoke({ companyId: CO, toolId: 'invoices.list', params: {}, actor: agent('auto') });
+  const falsy = await registry.invoke({ companyId: CO, toolId: 'invoices.list', params: {}, identityVerified: false, actor: agent('auto') });
+  const notBoolean = await registry.invoke({ companyId: CO, toolId: 'invoices.list', params: {}, identityVerified: 'yes', actor: agent('auto') });
+  for (const result of [missing, falsy, notBoolean]) {
+    assert.equal(result.outcome, 'refused');
+    assert.equal(result.reason, 'actor_unverified');
+  }
+  assert.equal(calls['invoices.list'], 0);
+  assert.equal(gate.gateCalls, 0);
+  assert.ok(audited.some((event) => JSON.stringify(event).includes('actor_unverified')), 'refusal was not audited');
+});
+
+test('a human caller that is not verified is refused for a write too', async () => {
+  const { registry, calls } = setup({
+    tools: [{ id: 'notes.write', risk: 'low', access: 'write', schema: {} }],
+  });
+  const result = await registry.invoke({ companyId: CO, toolId: 'notes.write', params: {}, actor: { kind: 'human', userId: 'user-1' } });
+  assert.equal(result.reason, 'actor_unverified');
+  assert.equal(calls['notes.write'], 0);
 });

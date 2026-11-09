@@ -136,7 +136,7 @@ test('a critical tool is refused without approval and does not run', async () =>
     companyId: CO,
     toolId: 'delete_records',
     params: { id: 'r1' },
-    actor: agent('booker', 'suggest'),
+    identityVerified: true, actor: agent('booker', 'suggest'),
   });
   assert.equal(denied.outcome, 'refused');
   assert.equal(denied.reason, 'authority_denied');
@@ -145,7 +145,7 @@ test('a critical tool is refused without approval and does not run', async () =>
     companyId: CO,
     toolId: 'delete_records',
     params: { id: 'r1' },
-    actor: agent('booker', 'auto'),
+    identityVerified: true, actor: agent('booker', 'auto'),
   });
   assert.equal(waiting.outcome, 'awaiting_approval');
   assert.equal(calls, 0);
@@ -165,15 +165,15 @@ test('an approved decision runs the tool once and a second use of the same appro
     },
   });
   const actor = agent('booker', 'auto');
-  const first = await registry.invoke({ companyId: CO, toolId: 'publish_page', params: { slug: 'home' }, actor });
+  const first = await registry.invoke({ companyId: CO, toolId: 'publish_page', params: { slug: 'home' }, identityVerified: true, actor });
   assert.equal(first.outcome, 'awaiting_approval');
 
   gate.decide(first.approvalId, 'approved');
-  const run = await registry.invoke({ companyId: CO, toolId: 'publish_page', params: { slug: 'home' }, actor, approvalId: first.approvalId });
+  const run = await registry.invoke({ companyId: CO, toolId: 'publish_page', params: { slug: 'home' }, identityVerified: true, actor, approvalId: first.approvalId });
   assert.equal(run.outcome, 'executed');
   assert.equal(calls, 1);
 
-  const again = await registry.invoke({ companyId: CO, toolId: 'publish_page', params: { slug: 'home' }, actor, approvalId: first.approvalId });
+  const again = await registry.invoke({ companyId: CO, toolId: 'publish_page', params: { slug: 'home' }, identityVerified: true, actor, approvalId: first.approvalId });
   assert.equal(again.outcome, 'refused');
   assert.equal(again.reason, 'approval_consumed');
   assert.equal(calls, 1);
@@ -184,9 +184,9 @@ test('a policy auto-approval is not a human approval and does not run the tool',
   let calls = 0;
   registry.register({ id: 'publish_page', risk: 'high', schema: {}, handler: () => (calls += 1) });
   const actor = agent('booker', 'auto');
-  const first = await registry.invoke({ companyId: CO, toolId: 'publish_page', params: {}, actor });
+  const first = await registry.invoke({ companyId: CO, toolId: 'publish_page', params: {}, identityVerified: true, actor });
   gate.decide(first.approvalId, 'approved', 'policy:auto_approve');
-  const result = await registry.invoke({ companyId: CO, toolId: 'publish_page', params: {}, actor, approvalId: first.approvalId });
+  const result = await registry.invoke({ companyId: CO, toolId: 'publish_page', params: {}, identityVerified: true, actor, approvalId: first.approvalId });
   assert.equal(result.outcome, 'refused');
   assert.equal(result.reason, 'approval_not_human');
   assert.equal(calls, 0);
@@ -199,12 +199,12 @@ test('an approval for one tool or one set of params cannot be used for another',
   registry.register({ id: 'publish_page', risk: 'high', schema: { slug: { type: 'string' } }, handler });
   registry.register({ id: 'archive_page', risk: 'high', schema: { slug: { type: 'string' } }, handler });
   const actor = agent('booker', 'auto');
-  const first = await registry.invoke({ companyId: CO, toolId: 'publish_page', params: { slug: 'home' }, actor });
+  const first = await registry.invoke({ companyId: CO, toolId: 'publish_page', params: { slug: 'home' }, identityVerified: true, actor });
   gate.decide(first.approvalId, 'approved');
 
-  const otherTool = await registry.invoke({ companyId: CO, toolId: 'archive_page', params: { slug: 'home' }, actor, approvalId: first.approvalId });
+  const otherTool = await registry.invoke({ companyId: CO, toolId: 'archive_page', params: { slug: 'home' }, identityVerified: true, actor, approvalId: first.approvalId });
   assert.equal(otherTool.reason, 'approval_mismatch');
-  const otherParams = await registry.invoke({ companyId: CO, toolId: 'publish_page', params: { slug: 'about' }, actor, approvalId: first.approvalId });
+  const otherParams = await registry.invoke({ companyId: CO, toolId: 'publish_page', params: { slug: 'about' }, identityVerified: true, actor, approvalId: first.approvalId });
   assert.equal(otherParams.reason, 'approval_mismatch');
   assert.equal(calls, 0);
 });
@@ -215,18 +215,18 @@ test('a tool call without companyId is refused and the handler does not run', as
   registry.register({ id: 'read_note', risk: 'low', schema: {}, handler: () => (calls += 1) });
   const actor = agent('writer', 'auto');
 
-  const missing = await registry.invoke({ toolId: 'read_note', params: {}, actor });
+  const missing = await registry.invoke({ toolId: 'read_note', params: {}, identityVerified: true, actor });
   assert.equal(missing.outcome, 'refused');
   assert.equal(missing.reason, 'company_id_required');
 
-  const bad = await registry.invoke({ companyId: '../other', toolId: 'read_note', params: {}, actor });
+  const bad = await registry.invoke({ companyId: '../other', toolId: 'read_note', params: {}, identityVerified: true, actor });
   assert.equal(bad.reason, 'company_id_invalid');
   assert.equal(calls, 0);
 });
 
 test('an unknown tool fails closed', async () => {
   const { registry } = setup();
-  const result = await registry.invoke({ companyId: CO, toolId: 'drop_database', params: {}, actor: agent('writer', 'auto') });
+  const result = await registry.invoke({ companyId: CO, toolId: 'drop_database', params: {}, identityVerified: true, actor: agent('writer', 'auto') });
   assert.equal(result.outcome, 'refused');
   assert.equal(result.reason, 'tool_unknown');
 });
@@ -237,11 +237,11 @@ test('input that names a tenant, has unknown fields, or misses a required field 
   registry.register({ id: 'read_note', risk: 'low', schema: { note_id: { type: 'string', required: true } }, handler: () => (calls += 1) });
   const actor = agent('writer', 'auto');
 
-  const tenant = await registry.invoke({ companyId: CO, toolId: 'read_note', params: { note_id: 'n', company_id: 'other' }, actor });
+  const tenant = await registry.invoke({ companyId: CO, toolId: 'read_note', params: { note_id: 'n', company_id: 'other' }, identityVerified: true, actor });
   assert.equal(tenant.reason, 'tenant_override');
-  const extra = await registry.invoke({ companyId: CO, toolId: 'read_note', params: { note_id: 'n', admin: true }, actor });
+  const extra = await registry.invoke({ companyId: CO, toolId: 'read_note', params: { note_id: 'n', admin: true }, identityVerified: true, actor });
   assert.equal(extra.reason, 'input_invalid');
-  const missing = await registry.invoke({ companyId: CO, toolId: 'read_note', params: {}, actor });
+  const missing = await registry.invoke({ companyId: CO, toolId: 'read_note', params: {}, identityVerified: true, actor });
   assert.equal(missing.reason, 'input_invalid');
   assert.equal(calls, 0);
 });
@@ -254,7 +254,7 @@ test('a role can raise a tool risk but never lower it', async () => {
     companyId: CO,
     toolId: 'publish_page',
     params: {},
-    actor: agent('writer', 'auto', { toolRisk: { publish_page: 'critical' } }),
+    identityVerified: true, actor: agent('writer', 'auto', { toolRisk: { publish_page: 'critical' } }),
   });
   assert.equal(raised.outcome, 'awaiting_approval', 'the raised critical tier is never auto-run');
   assert.equal(raised.tier, 'critical');
@@ -263,7 +263,7 @@ test('a role can raise a tool risk but never lower it', async () => {
     companyId: CO,
     toolId: 'publish_page',
     params: {},
-    actor: agent('writer', 'auto', { toolRisk: { publish_page: 'low' } }),
+    identityVerified: true, actor: agent('writer', 'auto', { toolRisk: { publish_page: 'low' } }),
   });
   assert.equal(lowered.outcome, 'awaiting_approval');
   assert.equal(lowered.tier, 'high');
@@ -278,7 +278,7 @@ test('output is redacted and capped', async () => {
     schema: {},
     handler: () => ({ api_token: 'secret-value', body: 'x'.repeat(500) }),
   });
-  const result = await registry.invoke({ companyId: CO, toolId: 'read_note', params: {}, actor: agent('writer', 'auto') });
+  const result = await registry.invoke({ companyId: CO, toolId: 'read_note', params: {}, identityVerified: true, actor: agent('writer', 'auto') });
   assert.equal(result.outcome, 'executed');
   assert.equal(result.truncated, true);
   assert.equal(result.output.truncated, true);
@@ -288,7 +288,7 @@ test('output is redacted and capped', async () => {
 test('a handler that throws a non-transient error fails without a transient flag', async () => {
   const { registry } = setup();
   registry.register({ id: 'read_note', risk: 'low', schema: {}, handler: () => { throw new Error('bad input upstream'); } });
-  const result = await registry.invoke({ companyId: CO, toolId: 'read_note', params: {}, actor: agent('writer', 'auto') });
+  const result = await registry.invoke({ companyId: CO, toolId: 'read_note', params: {}, identityVerified: true, actor: agent('writer', 'auto') });
   assert.equal(result.outcome, 'failed');
   assert.equal(result.transient, false);
 });
@@ -299,9 +299,9 @@ test('audit records every decision, including refusals and approval waits', asyn
   registry.register({ id: 'delete_records', risk: 'critical', schema: {}, handler: () => ({}) });
   const writer = agent('writer', 'auto');
 
-  await registry.invoke({ companyId: CO, toolId: 'read_note', params: {}, actor: writer });
-  await registry.invoke({ companyId: CO, toolId: 'delete_records', params: {}, actor: writer });
-  await registry.invoke({ toolId: 'read_note', params: {}, actor: writer });
+  await registry.invoke({ companyId: CO, toolId: 'read_note', params: {}, identityVerified: true, actor: writer });
+  await registry.invoke({ companyId: CO, toolId: 'delete_records', params: {}, identityVerified: true, actor: writer });
+  await registry.invoke({ toolId: 'read_note', params: {}, identityVerified: true, actor: writer });
 
   const events = (await store.listAudit(CO)).filter((e) => e.kind === 'tool.decision' || e.kind === 'tool.execution');
   const outcomes = events.map((e) => e.data.outcome);
@@ -322,7 +322,7 @@ test('an audit failure before execution refuses the call and nothing runs', asyn
     audit: { record: () => { throw new Error('sink down'); } },
   });
   registry.register({ id: 'read_note', risk: 'low', schema: {}, handler: () => (calls += 1) });
-  const result = await registry.invoke({ companyId: CO, toolId: 'read_note', params: {}, actor: agent('writer', 'auto') });
+  const result = await registry.invoke({ companyId: CO, toolId: 'read_note', params: {}, identityVerified: true, actor: agent('writer', 'auto') });
   assert.equal(result.reason, 'audit_unavailable');
   assert.equal(calls, 0);
 });
@@ -343,7 +343,7 @@ test('a hung handler times out and is reported as a transient failure', async ()
     schema: {},
     handler: () => new Promise(() => {}),
   });
-  const result = await registry.invoke({ companyId: CO, toolId: 'slow_tool', params: {}, actor: agent('writer', 'auto') });
+  const result = await registry.invoke({ companyId: CO, toolId: 'slow_tool', params: {}, identityVerified: true, actor: agent('writer', 'auto') });
   assert.equal(result.outcome, 'failed');
   assert.equal(result.reason, 'tool_timed_out');
   assert.equal(result.transient, true);
@@ -468,9 +468,9 @@ test('budget exhaustion on tool calls stops the run', async () => {
   const run = await startedRun(engine, { budget: { maxTokens: 1000, maxToolCalls: 2 } });
   const actor = { kind: 'agent', agentId: 'writer-1', roleId: 'writer' };
 
-  assert.equal((await engine.callTool(CO, run.id, { toolId: 'read_note', actor })).ok, true);
-  assert.equal((await engine.callTool(CO, run.id, { toolId: 'read_note', actor })).ok, true);
-  const third = await engine.callTool(CO, run.id, { toolId: 'read_note', actor });
+  assert.equal((await engine.callTool(CO, run.id, { toolId: 'read_note', identityVerified: true, actor })).ok, true);
+  assert.equal((await engine.callTool(CO, run.id, { toolId: 'read_note', identityVerified: true, actor })).ok, true);
+  const third = await engine.callTool(CO, run.id, { toolId: 'read_note', identityVerified: true, actor });
   assert.equal(third.ok, false);
   assert.equal(third.reason, 'budget_exhausted');
   assert.equal(calls, 2);
@@ -499,7 +499,7 @@ test('a terminal run cannot change state', async () => {
   assert.equal((await engine.fail(CO, run.id, 'late')).reason, 'run_terminal');
   assert.equal((await engine.cancel(CO, run.id)).reason, 'run_terminal');
   assert.equal((await engine.startRun(CO, run.id)).reason, 'run_terminal');
-  const tool = await engine.callTool(CO, run.id, { toolId: 'read_note', actor: { kind: 'agent', agentId: 'w', roleId: 'writer' } });
+  const tool = await engine.callTool(CO, run.id, { toolId: 'read_note', identityVerified: true, actor: { kind: 'agent', agentId: 'w', roleId: 'writer' } });
   assert.equal(tool.reason, 'run_terminal');
 
   const after = await store.getRun(CO, run.id);
@@ -533,13 +533,13 @@ test('a transient failure is retried with backoff, but a refusal or an approval 
   const run = await startedRun(engine, { budget: { maxTokens: 10, maxToolCalls: 10 } });
   const actor = { kind: 'agent', agentId: 'writer-1', roleId: 'writer' };
 
-  const ok = await engine.callTool(CO, run.id, { toolId: 'flaky_tool', actor });
+  const ok = await engine.callTool(CO, run.id, { toolId: 'flaky_tool', identityVerified: true, actor });
   assert.equal(ok.tool.outcome, 'executed');
   assert.equal(attempts, 3);
   assert.deepEqual(sleeps, [backoffDelay(run.retry, 1), backoffDelay(run.retry, 2)]);
   assert.deepEqual(sleeps, [200, 400]);
 
-  const denied = await engine.callTool(CO, run.id, { toolId: 'delete_records', actor });
+  const denied = await engine.callTool(CO, run.id, { toolId: 'delete_records', identityVerified: true, actor });
   assert.equal(denied.tool.outcome, 'awaiting_approval');
   assert.equal(sleeps.length, 2, 'an approval wait adds no retry sleep');
 });
@@ -561,13 +561,13 @@ test('retries stop at the policy limit and a non-transient failure is not retrie
   const run = await startedRun(engine, { retry: { maxAttempts: 2, baseDelayMs: 10, maxDelayMs: 10 } });
   const actor = { kind: 'agent', agentId: 'writer-1', roleId: 'writer' };
 
-  const exhausted = await engine.callTool(CO, run.id, { toolId: 'always_503', actor });
+  const exhausted = await engine.callTool(CO, run.id, { toolId: 'always_503', identityVerified: true, actor });
   assert.equal(exhausted.tool.outcome, 'failed');
   assert.equal(attempts, 2);
   assert.deepEqual(sleeps, [10]);
 
   attempts = 0;
-  const plain = await engine.callTool(CO, run.id, { toolId: 'bad_input', actor });
+  const plain = await engine.callTool(CO, run.id, { toolId: 'bad_input', identityVerified: true, actor });
   assert.equal(plain.tool.outcome, 'failed');
   assert.equal(attempts, 1);
 });
@@ -579,26 +579,26 @@ test('a call that needs approval moves the run to awaiting_approval, and resumes
   const run = await startedRun(engine);
   const booker = { kind: 'agent', agentId: 'booker-1', roleId: 'booker' };
 
-  const waiting = await engine.callTool(CO, run.id, { toolId: 'publish_page', params: { slug: 'home' }, actor: booker });
+  const waiting = await engine.callTool(CO, run.id, { toolId: 'publish_page', params: { slug: 'home' }, identityVerified: true, actor: booker });
   assert.equal(waiting.tool.outcome, 'awaiting_approval');
   assert.equal((await store.getRun(CO, run.id)).status, 'awaiting_approval');
   assert.equal(calls, 0);
 
-  const wrongParams = await engine.resumeAfterApproval(CO, run.id, { toolId: 'publish_page', params: { slug: 'other' }, actor: booker });
+  const wrongParams = await engine.resumeAfterApproval(CO, run.id, { toolId: 'publish_page', params: { slug: 'other' }, identityVerified: true, actor: booker });
   assert.equal(wrongParams.reason, 'approval_call_mismatch');
-  const wrongActor = await engine.resumeAfterApproval(CO, run.id, { toolId: 'publish_page', params: { slug: 'home' }, actor: { kind: 'agent', agentId: 'other', roleId: 'booker' } });
+  const wrongActor = await engine.resumeAfterApproval(CO, run.id, { toolId: 'publish_page', params: { slug: 'home' }, identityVerified: true, actor: { kind: 'agent', agentId: 'other', roleId: 'booker' } });
   assert.equal(wrongActor.reason, 'actor_mismatch');
 
   const approvalId = waiting.run.pendingApproval.approvalId;
   gate.decide(approvalId, 'approved', 'dashboard:owner');
-  const resumed = await engine.resumeAfterApproval(CO, run.id, { toolId: 'publish_page', params: { slug: 'home' }, actor: booker });
+  const resumed = await engine.resumeAfterApproval(CO, run.id, { toolId: 'publish_page', params: { slug: 'home' }, identityVerified: true, actor: booker });
   assert.equal(resumed.ok, true);
   assert.equal(resumed.tool.outcome, 'executed');
   assert.equal(resumed.run.status, 'running');
   assert.equal(resumed.run.pendingApproval, null);
   assert.equal(calls, 1);
 
-  const twice = await engine.resumeAfterApproval(CO, run.id, { toolId: 'publish_page', params: { slug: 'home' }, actor: booker });
+  const twice = await engine.resumeAfterApproval(CO, run.id, { toolId: 'publish_page', params: { slug: 'home' }, identityVerified: true, actor: booker });
   assert.equal(twice.reason, 'run_not_awaiting_approval');
 });
 
@@ -608,9 +608,9 @@ test('a rejected approval fails the run and the handler does not run', async () 
   registry.register({ id: 'publish_page', risk: 'high', schema: {}, handler: () => (calls += 1) });
   const run = await startedRun(engine);
   const booker = { kind: 'agent', agentId: 'booker-1', roleId: 'booker' };
-  const waiting = await engine.callTool(CO, run.id, { toolId: 'publish_page', params: {}, actor: booker });
+  const waiting = await engine.callTool(CO, run.id, { toolId: 'publish_page', params: {}, identityVerified: true, actor: booker });
   gate.decide(waiting.run.pendingApproval.approvalId, 'rejected');
-  const resumed = await engine.resumeAfterApproval(CO, run.id, { toolId: 'publish_page', params: {}, actor: booker });
+  const resumed = await engine.resumeAfterApproval(CO, run.id, { toolId: 'publish_page', params: {}, identityVerified: true, actor: booker });
   assert.equal(resumed.run.status, 'failed');
   assert.equal(resumed.tool.reason, 'approval_rejected');
   assert.equal(calls, 0);
@@ -641,7 +641,7 @@ test('one company cannot read another company run, and audit is scoped to the ru
   const run = await startedRun(engine);
   assert.equal(await engine.getRun('company-2', run.id), null);
   assert.equal(await store.getRun('company-2', run.id), null);
-  await engine.callTool(CO, run.id, { toolId: 'read_note', actor: { kind: 'agent', agentId: 'w', roleId: 'writer' } });
+  await engine.callTool(CO, run.id, { toolId: 'read_note', identityVerified: true, actor: { kind: 'agent', agentId: 'w', roleId: 'writer' } });
   const events = await store.listAudit(CO, run.id);
   assert.ok(events.some((e) => e.kind === 'run.status'));
   assert.ok(events.some((e) => e.kind === 'tool.decision'));

@@ -85,7 +85,7 @@ const agent = (autonomy, extra = {}) => ({ kind: 'agent', agentId: 'agent-1', ro
 
 test('R1: a tool declared read runs under Suggest, so the read class is usable', async () => {
   const { registry, calls } = setup([{ id: 'invoices.list', risk: 'low', access: 'read' }]);
-  const result = await registry.invoke({ companyId: CO, toolId: 'invoices.list', params: {}, actor: agent('suggest') });
+  const result = await registry.invoke({ companyId: CO, toolId: 'invoices.list', params: {}, identityVerified: true, actor: agent('suggest') });
   assert.equal(result.outcome, 'executed');
   assert.equal(calls['invoices.list'], 1);
 });
@@ -104,7 +104,7 @@ test('R3: a write-named tool whose role claims toolAccess read is refused under 
   // only tests/workforce/capability-classes.test.mjs does.
   const { registry, calls } = setup([{ id: 'clients.create', risk: 'low' }]);
   const actor = agent('suggest', { toolAccess: { 'clients.create': 'read' } });
-  const result = await registry.invoke({ companyId: CO, toolId: 'clients.create', params: {}, actor });
+  const result = await registry.invoke({ companyId: CO, toolId: 'clients.create', params: {}, identityVerified: true, actor });
   assert.notEqual(result.outcome, 'executed', 'a suggest agent executed a write-named tool because its role said read');
   assert.equal(calls['clients.create'], 0);
 });
@@ -114,7 +114,7 @@ test('R4: a tool declared read cannot override a role that declares it write (st
   // as read runs under Suggest even when the role says write. Judgment: the stricter declaration should win.
   const { registry, calls } = setup([{ id: 'notes.write', risk: 'low', access: 'read' }]);
   const actor = agent('suggest', { toolAccess: { 'notes.write': 'write' } });
-  const result = await registry.invoke({ companyId: CO, toolId: 'notes.write', params: {}, actor });
+  const result = await registry.invoke({ companyId: CO, toolId: 'notes.write', params: {}, identityVerified: true, actor });
   assert.notEqual(result.outcome, 'executed', 'a tool declared read ran although its role declared write');
   assert.equal(calls['notes.write'], 0);
 });
@@ -127,14 +127,14 @@ test('D1: a draft tool is staged, not executed, under Auto at low risk', async (
   // Expected to FAIL. There is no draft class. customer_messages.draft is classed write (tool-access.ts:34), so it
   // runs straight through to the handler and returns 'executed' (tool-registry.ts:828). Nothing marks it staged.
   const { registry, calls } = setup([{ id: 'customer_messages.draft', risk: 'low' }]);
-  const result = await registry.invoke({ companyId: CO, toolId: 'customer_messages.draft', params: {}, actor: agent('auto') });
+  const result = await registry.invoke({ companyId: CO, toolId: 'customer_messages.draft', params: {}, identityVerified: true, actor: agent('auto') });
   assert.notEqual(result.outcome, 'executed', 'a draft tool ran straight through to its handler instead of staging');
   assert.equal(calls['customer_messages.draft'], 0);
 });
 
 test('D2: a draft tool under Predictive with no staging function is refused and does not run', async () => {
   const { registry, calls } = setup([{ id: 'messages.draft_customer', risk: 'low' }]);
-  const result = await registry.invoke({ companyId: CO, toolId: 'messages.draft_customer', params: {}, actor: agent('predictive') });
+  const result = await registry.invoke({ companyId: CO, toolId: 'messages.draft_customer', params: {}, identityVerified: true, actor: agent('predictive') });
   assert.equal(result.outcome, 'refused');
   assert.equal(result.reason, 'direct_write_refused');
   assert.equal(calls['messages.draft_customer'], 0);
@@ -142,7 +142,7 @@ test('D2: a draft tool under Predictive with no staging function is refused and 
 
 test('D3: a customer send cannot run under Auto without a verified approval', async () => {
   const { registry, gate, calls } = setup([{ id: 'customer_messages.send', risk: 'low' }]);
-  const result = await registry.invoke({ companyId: CO, toolId: 'customer_messages.send', params: {}, actor: agent('auto') });
+  const result = await registry.invoke({ companyId: CO, toolId: 'customer_messages.send', params: {}, identityVerified: true, actor: agent('auto') });
   assert.equal(result.outcome, 'awaiting_approval');
   assert.equal(gate.gateCalls, 1);
   assert.equal(calls['customer_messages.send'], 0);
@@ -150,7 +150,7 @@ test('D3: a customer send cannot run under Auto without a verified approval', as
 
 test('D4: a purchase-order draft (money out) cannot run under Auto without a verified approval', async () => {
   const { registry, gate, calls } = setup([{ id: 'purchase_orders.draft', risk: 'low' }]);
-  const result = await registry.invoke({ companyId: CO, toolId: 'purchase_orders.draft', params: {}, actor: agent('auto') });
+  const result = await registry.invoke({ companyId: CO, toolId: 'purchase_orders.draft', params: {}, identityVerified: true, actor: agent('auto') });
   assert.equal(result.outcome, 'awaiting_approval');
   assert.equal(gate.gateCalls, 1);
   assert.equal(calls['purchase_orders.draft'], 0);
@@ -158,7 +158,7 @@ test('D4: a purchase-order draft (money out) cannot run under Auto without a ver
 
 test('D5: a money-category tool cannot run under Auto without a verified approval, whatever its name', async () => {
   const { registry, calls } = setup([{ id: 'ledger.adjust', risk: 'low', category: 'money' }]);
-  const result = await registry.invoke({ companyId: CO, toolId: 'ledger.adjust', params: {}, actor: agent('auto') });
+  const result = await registry.invoke({ companyId: CO, toolId: 'ledger.adjust', params: {}, identityVerified: true, actor: agent('auto') });
   assert.equal(result.outcome, 'awaiting_approval');
   assert.equal(calls['ledger.adjust'], 0);
 });
@@ -169,7 +169,7 @@ test('D5: a money-category tool cannot run under Auto without a verified approva
 
 test('E1: a write tool is refused under Suggest and its handler does not run', async () => {
   const { registry, calls } = setup([{ id: 'clients.create', risk: 'low', access: 'write' }]);
-  const result = await registry.invoke({ companyId: CO, toolId: 'clients.create', params: {}, actor: agent('suggest') });
+  const result = await registry.invoke({ companyId: CO, toolId: 'clients.create', params: {}, identityVerified: true, actor: agent('suggest') });
   assert.equal(result.outcome, 'refused');
   assert.equal(result.reason, 'authority_denied');
   assert.equal(calls['clients.create'], 0);
@@ -177,7 +177,7 @@ test('E1: a write tool is refused under Suggest and its handler does not run', a
 
 test('E2: a write tool is refused under Assist and its handler does not run', async () => {
   const { registry, calls } = setup([{ id: 'clients.create', risk: 'low', access: 'write' }]);
-  const result = await registry.invoke({ companyId: CO, toolId: 'clients.create', params: {}, actor: agent('assist') });
+  const result = await registry.invoke({ companyId: CO, toolId: 'clients.create', params: {}, identityVerified: true, actor: agent('assist') });
   assert.equal(result.outcome, 'refused');
   assert.equal(result.reason, 'authority_denied');
   assert.equal(calls['clients.create'], 0);
@@ -186,7 +186,7 @@ test('E2: a write tool is refused under Assist and its handler does not run', as
 test('E3: a money write is refused under Assist and under Suggest', async () => {
   const { registry, calls } = setup([{ id: 'ledger.adjust', risk: 'low', access: 'write', category: 'money' }]);
   for (const autonomy of ['assist', 'suggest']) {
-    const result = await registry.invoke({ companyId: CO, toolId: 'ledger.adjust', params: {}, actor: agent(autonomy) });
+    const result = await registry.invoke({ companyId: CO, toolId: 'ledger.adjust', params: {}, identityVerified: true, actor: agent(autonomy) });
     assert.equal(result.outcome, 'refused', `${autonomy} should refuse a money write`);
   }
   assert.equal(calls['ledger.adjust'], 0);
@@ -194,7 +194,7 @@ test('E3: a money write is refused under Assist and under Suggest', async () => 
 
 test('E4: a read tool is refused under Assist, because Assist runs no tools', async () => {
   const { registry, calls } = setup([{ id: 'invoices.list', risk: 'low', access: 'read' }]);
-  const result = await registry.invoke({ companyId: CO, toolId: 'invoices.list', params: {}, actor: agent('assist') });
+  const result = await registry.invoke({ companyId: CO, toolId: 'invoices.list', params: {}, identityVerified: true, actor: agent('assist') });
   assert.equal(result.outcome, 'refused');
   assert.equal(calls['invoices.list'], 0);
 });
@@ -205,7 +205,7 @@ test('E4: a read tool is refused under Assist, because Assist runs no tools', as
 
 test('U1: a tool with no access and no role toolAccess is treated as write and refused under Suggest', async () => {
   const { registry, calls } = setup([{ id: 'customers.note', risk: 'low' }]);
-  const result = await registry.invoke({ companyId: CO, toolId: 'customers.note', params: {}, actor: agent('suggest') });
+  const result = await registry.invoke({ companyId: CO, toolId: 'customers.note', params: {}, identityVerified: true, actor: agent('suggest') });
   assert.equal(result.outcome, 'refused');
   assert.equal(result.reason, 'authority_denied');
   assert.equal(calls['customers.note'], 0);
@@ -214,7 +214,7 @@ test('U1: a tool with no access and no role toolAccess is treated as write and r
 test('U2: an access value that is neither read nor write is refused at every tier (fail closed)', async () => {
   const { registry, calls } = setup([{ id: 'ops.run', risk: 'low', access: 'execute' }]);
   for (const autonomy of ['suggest', 'auto', 'predictive']) {
-    const result = await registry.invoke({ companyId: CO, toolId: 'ops.run', params: {}, actor: agent(autonomy) });
+    const result = await registry.invoke({ companyId: CO, toolId: 'ops.run', params: {}, identityVerified: true, actor: agent(autonomy) });
     assert.equal(result.outcome, 'refused', `${autonomy} should refuse an unknown access class`);
   }
   assert.equal(calls['ops.run'], 0);

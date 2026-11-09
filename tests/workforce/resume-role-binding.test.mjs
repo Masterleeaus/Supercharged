@@ -114,7 +114,7 @@ async function pausedOnApproval(env) {
   assert.equal(created.ok, true, `createRun failed: ${created.reason}`);
   const started = await env.engine.startRun(CO, created.run.id);
   assert.equal(started.ok, true);
-  const call = await env.engine.callTool(CO, started.run.id, { toolId: TOOL, params: PARAMS, actor: WRITER });
+  const call = await env.engine.callTool(CO, started.run.id, { toolId: TOOL, params: PARAMS, identityVerified: true, actor: WRITER });
   assert.equal(call.ok, true);
   assert.equal(call.tool.outcome, 'awaiting_approval', `expected a pause, got ${call.tool.outcome}`);
   assert.equal(call.run.status, 'awaiting_approval');
@@ -127,7 +127,7 @@ test('1. control: the same agent under the same role resumes the paused run', as
   const { runId, approvalId } = await pausedOnApproval(env);
   env.service.decide(approvalId, 'approved', 'dashboard:owner-1');
 
-  const resumed = await env.engine.resumeAfterApproval(CO, runId, { toolId: TOOL, params: { ...PARAMS }, actor: WRITER });
+  const resumed = await env.engine.resumeAfterApproval(CO, runId, { toolId: TOOL, params: { ...PARAMS }, identityVerified: true, actor: WRITER });
   assert.equal(resumed.ok, true, `resume refused: ${resumed.reason}`);
   assert.equal(resumed.tool.outcome, 'executed');
   assert.deepEqual(env.executed, [PARAMS]);
@@ -141,7 +141,7 @@ test('2. the same agent id under a different roleId is refused as a different ac
   const reRoled = await env.engine.resumeAfterApproval(CO, runId, {
     toolId: TOOL,
     params: { ...PARAMS },
-    actor: SAME_AGENT_OTHER_ROLE,
+    identityVerified: true, actor: SAME_AGENT_OTHER_ROLE,
   });
   assert.equal(reRoled.ok, false, 'a resume under another role must not succeed');
   assert.equal(reRoled.reason, 'actor_mismatch');

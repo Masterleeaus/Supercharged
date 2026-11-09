@@ -230,6 +230,7 @@ export type RefusalReason =
   | 'company_id_required'
   | 'company_id_invalid'
   | 'actor_invalid'
+  | 'actor_unverified'
   | 'tool_unknown'
   | 'input_invalid'
   | 'tenant_override'
@@ -254,6 +255,11 @@ export interface ToolInvocation {
   toolId: unknown;
   params: unknown;
   actor: unknown;
+  /**
+   * True only when the caller has authenticated the actor. The registry refuses any call where this is not exactly
+   * true, and it is the verified flag the policy evaluator reads.
+   */
+  identityVerified: boolean;
   runId?: string | null;
   /** Position of this call within the run. Required for idempotent tools when an idempotency store is passed. */
   callIndex?: number | null;
@@ -917,6 +923,7 @@ export function createToolRegistry(options: ToolRegistryOptions): ToolRegistry {
       }
 
       if (actor === null) return refuse(companyId, base, 'actor_invalid', 'Actor must be an agent with agentId and roleId, or a human with userId.');
+      if (invocation.identityVerified !== true) return refuse(companyId, base, 'actor_unverified', 'The actor identity is not verified. Nothing ran.');
 
       if (!definition || toolId === null) return refuse(companyId, base, 'tool_unknown', 'Tool is not registered.');
 
@@ -946,7 +953,7 @@ export function createToolRegistry(options: ToolRegistryOptions): ToolRegistry {
         access: definition.access ?? 'write',
         risk: tier,
         action: toolId,
-        actor: { kind: actor.kind, verified: true },
+        actor: { kind: actor.kind, verified: invocation.identityVerified === true },
         category: definition.category === undefined || definition.category === 'other' ? 'none' : (definition.category as ActionCategory),
         companyPolicy: options.companyPolicy,
       };

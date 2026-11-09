@@ -56,6 +56,7 @@ const writeCall = (toolId, actor = autoAgent, extra = {}) => ({
   companyId: CO,
   toolId,
   params: { note: 'x' },
+  identityVerified: true,
   actor,
   runId: 'run-1',
   callIndex: 0,

@@ -117,7 +117,7 @@ async function pausedOnApproval(env, { company = CO, actor = WRITER, params = PA
   assert.equal(created.ok, true, `createRun failed: ${created.reason}`);
   const started = await env.engine.startRun(company, created.run.id);
   assert.equal(started.ok, true);
-  const call = await env.engine.callTool(company, started.run.id, { toolId: TOOL, params, actor });
+  const call = await env.engine.callTool(company, started.run.id, { toolId: TOOL, params, identityVerified: true, actor });
   assert.equal(call.ok, true);
   assert.equal(call.tool.outcome, 'awaiting_approval', `expected a pause, got ${call.tool.outcome}`);
   assert.equal(call.run.status, 'awaiting_approval');
@@ -134,7 +134,7 @@ test('1. an approved call with unchanged action, params, actor and company resum
   const { runId, approvalId } = await pausedOnApproval(env);
   approve(env, approvalId);
 
-  const resumed = await env.engine.resumeAfterApproval(CO, runId, { toolId: TOOL, params: { ...PARAMS }, actor: WRITER });
+  const resumed = await env.engine.resumeAfterApproval(CO, runId, { toolId: TOOL, params: { ...PARAMS }, identityVerified: true, actor: WRITER });
   assert.equal(resumed.ok, true, `resume refused: ${resumed.reason}`);
   assert.equal(resumed.tool.outcome, 'executed');
   assert.equal(resumed.run.status, 'running');
@@ -148,14 +148,14 @@ test('2. changed parameters after approval are refused by the params hash check 
   const { runId, approvalId } = await pausedOnApproval(env);
   approve(env, approvalId);
 
-  const changed = await env.engine.resumeAfterApproval(CO, runId, { toolId: TOOL, params: { amount: 4000, payee: 'acme' }, actor: WRITER });
+  const changed = await env.engine.resumeAfterApproval(CO, runId, { toolId: TOOL, params: { amount: 4000, payee: 'acme' }, identityVerified: true, actor: WRITER });
   assert.equal(changed.ok, false);
   assert.equal(changed.reason, 'approval_call_mismatch');
   assert.equal(changed.run.status, 'awaiting_approval', 'the run stays paused');
   assert.equal(env.runs(), 0);
   assert.equal(env.service.rows.get(approvalId).executedAt, null, 'a mismatched resume does not consume the approval');
 
-  const original = await env.engine.resumeAfterApproval(CO, runId, { toolId: TOOL, params: { ...PARAMS }, actor: WRITER });
+  const original = await env.engine.resumeAfterApproval(CO, runId, { toolId: TOOL, params: { ...PARAMS }, identityVerified: true, actor: WRITER });
   assert.equal(original.ok, true, 'the original params still resume');
   assert.equal(env.runs(), 1);
 });
@@ -165,7 +165,7 @@ test('3a. a different agent than the requester is refused and does not run', asy
   const { runId, approvalId } = await pausedOnApproval(env);
   approve(env, approvalId);
 
-  const other = await env.engine.resumeAfterApproval(CO, runId, { toolId: TOOL, params: { ...PARAMS }, actor: WRITER_TWIN });
+  const other = await env.engine.resumeAfterApproval(CO, runId, { toolId: TOOL, params: { ...PARAMS }, identityVerified: true, actor: WRITER_TWIN });
   assert.equal(other.ok, false);
   assert.equal(other.reason, 'actor_mismatch');
   assert.equal(env.runs(), 0);
@@ -180,7 +180,7 @@ test('3b. a human whose userId equals the requesting agentId is a different acto
   const impostor = await env.engine.resumeAfterApproval(CO, runId, {
     toolId: TOOL,
     params: { ...PARAMS },
-    actor: { kind: 'human', userId: WRITER.agentId },
+    identityVerified: true, actor: { kind: 'human', userId: WRITER.agentId },
   });
   assert.equal(impostor.ok, false, 'an actor of a different kind must not resume the run');
   assert.equal(impostor.reason, 'actor_mismatch');
@@ -192,13 +192,13 @@ test('4. a call from a different company is refused and the approval is not clai
   const { runId, approvalId } = await pausedOnApproval(env);
   approve(env, approvalId);
 
-  const foreign = await env.engine.resumeAfterApproval(OTHER_CO, runId, { toolId: TOOL, params: { ...PARAMS }, actor: WRITER });
+  const foreign = await env.engine.resumeAfterApproval(OTHER_CO, runId, { toolId: TOOL, params: { ...PARAMS }, identityVerified: true, actor: WRITER });
   assert.equal(foreign.ok, false);
   assert.equal(foreign.reason, 'run_not_found', 'the run is not visible to another company');
   assert.equal(env.runs(), 0);
   assert.equal(env.service.rows.get(approvalId).executedAt, null);
 
-  const direct = await env.engine.resumeAfterApproval(CO, runId, { toolId: TOOL, params: { ...PARAMS }, actor: WRITER });
+  const direct = await env.engine.resumeAfterApproval(CO, runId, { toolId: TOOL, params: { ...PARAMS }, identityVerified: true, actor: WRITER });
   assert.equal(direct.ok, true, 'the owning company can still resume');
   assert.equal(env.runs(), 1);
 });
@@ -207,7 +207,7 @@ test('5. an approval cannot be used twice: a second resume is refused and the ha
   const env = setup();
   const { runId, approvalId } = await pausedOnApproval(env);
   approve(env, approvalId);
-  const call = { toolId: TOOL, params: { ...PARAMS }, actor: WRITER };
+  const call = { toolId: TOOL, params: { ...PARAMS }, identityVerified: true, actor: WRITER };
 
   const first = await env.engine.resumeAfterApproval(CO, runId, call);
   assert.equal(first.ok, true);
@@ -226,7 +226,7 @@ test('5. an approval cannot be used twice: a second resume is refused and the ha
     toolId: TOOL,
     params: { ...PARAMS },
     // The run engine supplies autonomy from the team snapshot. A direct registry call must supply it too.
-    actor: { ...WRITER, autonomy: 'auto' },
+    identityVerified: true, actor: { ...WRITER, autonomy: 'auto' },
     approvalId,
   });
   assert.equal(replay.outcome, 'refused');

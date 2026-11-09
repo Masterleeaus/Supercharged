@@ -100,9 +100,9 @@ for (const [label, wrap] of BACKENDS) {
     const runId = await startedRun(engine);
     const actor = WRITER;
 
-    assert.equal((await engine.callTool(CO, runId, { toolId: 'send_note', actor })).ok, true);
-    assert.equal((await engine.callTool(CO, runId, { toolId: 'send_note', actor })).ok, true);
-    const third = await engine.callTool(CO, runId, { toolId: 'send_note', actor });
+    assert.equal((await engine.callTool(CO, runId, { toolId: 'send_note', identityVerified: true, actor })).ok, true);
+    assert.equal((await engine.callTool(CO, runId, { toolId: 'send_note', identityVerified: true, actor })).ok, true);
+    const third = await engine.callTool(CO, runId, { toolId: 'send_note', identityVerified: true, actor });
 
     assert.equal(third.ok, false);
     assert.equal(third.reason, 'tool_call_limit');
@@ -145,7 +145,7 @@ for (const [label, wrap] of BACKENDS) {
     const first = await startedRun(engine);
     const second = await startedRun(engine);
 
-    assert.equal((await engine.callTool(CO, first, { toolId: 'send_note', actor: WRITER })).ok, true);
+    assert.equal((await engine.callTool(CO, first, { toolId: 'send_note', identityVerified: true, actor: WRITER })).ok, true);
     const turn = await engine.beginModelTurn(CO, second);
     assert.equal(turn.ok, false);
     assert.equal(turn.reason, 'run_quota');
@@ -181,8 +181,8 @@ test('without a ledger, the run caps still stop the run before a call', async ()
   registry.register({ id: 'send_note', risk: 'low', schema: {}, handler: async () => ({ ok: true }) });
   const engine = createRunEngine({ registry, store, now: () => NOW, sleep: async () => {} });
   const runId = await startedRun(engine, { maxTokens: 1000, maxToolCalls: 1 });
-  assert.equal((await engine.callTool(CO, runId, { toolId: 'send_note', actor: WRITER })).ok, true);
-  assert.equal((await engine.callTool(CO, runId, { toolId: 'send_note', actor: WRITER })).reason, 'budget_exhausted');
+  assert.equal((await engine.callTool(CO, runId, { toolId: 'send_note', identityVerified: true, actor: WRITER })).ok, true);
+  assert.equal((await engine.callTool(CO, runId, { toolId: 'send_note', identityVerified: true, actor: WRITER })).reason, 'budget_exhausted');
 });
 
 test('a negative or fractional spend is refused as invalid_amount, and nothing is recorded', async () => {
@@ -213,7 +213,7 @@ test('a cancel that lands after the budget step but before the call stops the ca
   const { engine, ledger, executions } = makeEngine({ store });
   const runId = await startedRun(engine);
 
-  await assert.rejects(engine.callTool(CO, runId, { toolId: 'send_note', actor: WRITER }), RunVersionConflictError);
+  await assert.rejects(engine.callTool(CO, runId, { toolId: 'send_note', identityVerified: true, actor: WRITER }), RunVersionConflictError);
   assert.equal(executions(), 0, 'the tool is not invoked after the stop');
   const stored = await inner.getRun(CO, runId);
   assert.equal(stored.status, 'cancelled');
@@ -234,7 +234,7 @@ test('a cancel that lands while the tool runs is kept, and the executed call is 
   });
   runId = await startedRun(engine);
 
-  const result = await engine.callTool(CO, runId, { toolId: 'send_note', actor: WRITER });
+  const result = await engine.callTool(CO, runId, { toolId: 'send_note', identityVerified: true, actor: WRITER });
   assert.equal(result.ok, true, 'the call ran, so it is reported as run');
   assert.equal(result.tool.outcome, 'executed');
   assert.equal(result.run.status, 'cancelled', 'the run as the store holds it');
@@ -264,9 +264,9 @@ test('the in-memory and async backends refuse the same way for the same sequence
     const { engine } = makeEngine({ wrap });
     const runId = await startedRun(engine, { maxTokens: 1000, maxToolCalls: 10 });
     const seq = [];
-    seq.push((await engine.callTool(CO, runId, { toolId: 'send_note', actor: WRITER })).ok);
-    seq.push((await engine.callTool(CO, runId, { toolId: 'send_note', actor: WRITER })).ok);
-    seq.push((await engine.callTool(CO, runId, { toolId: 'send_note', actor: WRITER })).reason);
+    seq.push((await engine.callTool(CO, runId, { toolId: 'send_note', identityVerified: true, actor: WRITER })).ok);
+    seq.push((await engine.callTool(CO, runId, { toolId: 'send_note', identityVerified: true, actor: WRITER })).ok);
+    seq.push((await engine.callTool(CO, runId, { toolId: 'send_note', identityVerified: true, actor: WRITER })).reason);
     outcomes.push(seq);
   }
   assert.deepEqual(outcomes[1], outcomes[0]);

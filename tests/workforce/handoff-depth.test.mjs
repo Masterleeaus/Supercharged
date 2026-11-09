@@ -142,7 +142,7 @@ test('after a handoff the receiving agent cannot call a tool that belongs to the
   assert.equal(next.ok, true);
 
   // draft_note is in the writer's tools only. The reviewer now owns the work and must not use it.
-  const outside = await engine.callTool(CO, runId, { toolId: 'draft_note', params: {}, actor: REVIEWER });
+  const outside = await engine.callTool(CO, runId, { toolId: 'draft_note', params: {}, identityVerified: true, actor: REVIEWER });
   assert.equal(outside.ok, false, 'a tool outside the reviewer role must be refused');
   assert.equal(calls.draft_note, 0, 'the handler for the out-of-role tool does not run');
 });
@@ -153,7 +153,7 @@ test('control: the receiving agent can call a tool in its own role', async () =>
   await engine.handoff(CO, runId, { actor: COORD, toRole: 'writer' });
   await engine.handoff(CO, runId, { actor: WRITER, toRole: 'reviewer' });
 
-  const own = await engine.callTool(CO, runId, { toolId: 'review_note', params: {}, actor: REVIEWER });
+  const own = await engine.callTool(CO, runId, { toolId: 'review_note', params: {}, identityVerified: true, actor: REVIEWER });
   assert.equal(own.ok, true);
   assert.equal(calls.review_note, 1);
 });

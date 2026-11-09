@@ -76,12 +76,12 @@ const agent = { kind: 'agent', agentId: 'agent-1', roleId: 'role-1', autonomy: '
 
 /** Requests an approval, grants it by setting `status`, then invokes the tool with that approval. */
 async function invokeAfterStatus(ctx, status, decidedBy) {
-  const first = await ctx.registry.invoke({ companyId: CO, toolId: TOOL, params: {}, actor: agent });
+  const first = await ctx.registry.invoke({ companyId: CO, toolId: TOOL, params: {}, identityVerified: true, actor: agent });
   assert.equal(first.outcome, 'awaiting_approval');
   ctx.gate.set(first.approvalId, 'approved');
   // The approval is granted, then its status changes to the one under test.
   ctx.gate.set(first.approvalId, status, decidedBy);
-  return ctx.registry.invoke({ companyId: CO, toolId: TOOL, params: {}, actor: agent, approvalId: first.approvalId });
+  return ctx.registry.invoke({ companyId: CO, toolId: TOOL, params: {}, identityVerified: true, actor: agent, approvalId: first.approvalId });
 }
 
 test('an approval revoked after being granted is refused with approval_revoked and does not run', async () => {

@@ -95,7 +95,7 @@ test('a paused agent tool call is refused and the handler does not run', async (
   const runId = await startedRun(env.engine);
 
   env.setControlState(pauseAgent(env.getControlState(), CO, 'writer-1', HUMAN).state);
-  const refused = await env.engine.callTool(CO, runId, { toolId: 'read_note', params: {}, actor: WRITER });
+  const refused = await env.engine.callTool(CO, runId, { toolId: 'read_note', params: {}, identityVerified: true, actor: WRITER });
   assert.equal(refused.ok, false);
   assert.equal(refused.reason, 'agent_paused');
   assert.equal(refused.tool, null);
@@ -103,7 +103,7 @@ test('a paused agent tool call is refused and the handler does not run', async (
   assert.equal(refused.run.status, 'running', 'a pause refuses the call without ending the run');
 
   env.setControlState(resumeAgent(env.getControlState(), CO, 'writer-1', HUMAN).state);
-  const allowed = await env.engine.callTool(CO, runId, { toolId: 'read_note', params: {}, actor: WRITER });
+  const allowed = await env.engine.callTool(CO, runId, { toolId: 'read_note', params: {}, identityVerified: true, actor: WRITER });
   assert.equal(allowed.ok, true);
   assert.equal(env.executed(), 1);
 });
@@ -112,7 +112,7 @@ test('a human actor is not blocked by an agent pause', async () => {
   const env = setup();
   const runId = await startedRun(env.engine);
   env.setControlState(pauseAgent(env.getControlState(), CO, 'writer-1', HUMAN).state);
-  const result = await env.engine.callTool(CO, runId, { toolId: 'read_note', params: {}, actor: { kind: 'human', userId: 'owner-1' } });
+  const result = await env.engine.callTool(CO, runId, { toolId: 'read_note', params: {}, identityVerified: true, actor: { kind: 'human', userId: 'owner-1' } });
   assert.equal(result.ok, true);
   assert.equal(env.executed(), 1);
 });
@@ -122,21 +122,21 @@ test('a stopped run ends and its next tool call does not run', async () => {
   const runId = await startedRun(env.engine);
   env.setControlState(stopRun(env.getControlState(), CO, runId, HUMAN).state);
 
-  const result = await env.engine.callTool(CO, runId, { toolId: 'read_note', params: {}, actor: COORD });
+  const result = await env.engine.callTool(CO, runId, { toolId: 'read_note', params: {}, identityVerified: true, actor: COORD });
   assert.equal(result.ok, false);
   assert.equal(result.reason, 'run_stopped');
   assert.equal(result.run.status, 'cancelled');
   assert.equal(result.run.reason, 'run_stopped');
   assert.equal(env.executed(), 0);
 
-  const after = await env.engine.callTool(CO, runId, { toolId: 'read_note', params: {}, actor: COORD });
+  const after = await env.engine.callTool(CO, runId, { toolId: 'read_note', params: {}, identityVerified: true, actor: COORD });
   assert.equal(after.reason, 'run_terminal', 'a cancelled run takes no more calls');
 });
 
 test('without controls the engine behaves as before', async () => {
   const env = setup({ withControls: false });
   const runId = await startedRun(env.engine);
-  const result = await env.engine.callTool(CO, runId, { toolId: 'read_note', params: {}, actor: WRITER });
+  const result = await env.engine.callTool(CO, runId, { toolId: 'read_note', params: {}, identityVerified: true, actor: WRITER });
   assert.equal(result.ok, true);
   assert.equal(env.executed(), 1);
 });
@@ -155,10 +155,10 @@ test('a budget refusal ends the run with tool_call_limit', async () => {
   const env = setup({ budgets: createBudgetLedger(LEDGER_LIMITS) });
   const runId = await startedRun(env.engine);
 
-  const first = await env.engine.callTool(CO, runId, { toolId: 'read_note', params: {}, actor: COORD });
+  const first = await env.engine.callTool(CO, runId, { toolId: 'read_note', params: {}, identityVerified: true, actor: COORD });
   assert.equal(first.ok, true);
 
-  const second = await env.engine.callTool(CO, runId, { toolId: 'read_note', params: {}, actor: COORD });
+  const second = await env.engine.callTool(CO, runId, { toolId: 'read_note', params: {}, identityVerified: true, actor: COORD });
   assert.equal(second.ok, false);
   assert.equal(second.reason, 'tool_call_limit');
   assert.equal(second.run.status, 'budget_exhausted');
@@ -172,12 +172,12 @@ test('a call refused before execution gives its reservation back', async () => {
 
   // An unknown tool is refused by the registry before it runs. The ledger allows one call, so the second
   // call succeeds only if the first reservation was released.
-  const refused = await env.engine.callTool(CO, runId, { toolId: 'no_such_tool', params: {}, actor: COORD });
+  const refused = await env.engine.callTool(CO, runId, { toolId: 'no_such_tool', params: {}, identityVerified: true, actor: COORD });
   assert.equal(refused.ok, true);
   assert.equal(refused.tool.outcome, 'refused');
   assert.equal(refused.run.status, 'running');
 
-  const ran = await env.engine.callTool(CO, runId, { toolId: 'read_note', params: {}, actor: COORD });
+  const ran = await env.engine.callTool(CO, runId, { toolId: 'read_note', params: {}, identityVerified: true, actor: COORD });
   assert.equal(ran.ok, true);
   assert.equal(ran.tool.outcome, 'executed');
   assert.equal(env.executed(), 1);
@@ -187,7 +187,7 @@ test('without a budget ledger no budget is enforced', async () => {
   const env = setup();
   const runId = await startedRun(env.engine, makeTeam(), { budget: { maxTokens: 100, maxToolCalls: 10 } });
   for (let i = 0; i < 3; i += 1) {
-    const result = await env.engine.callTool(CO, runId, { toolId: 'read_note', params: {}, actor: COORD });
+    const result = await env.engine.callTool(CO, runId, { toolId: 'read_note', params: {}, identityVerified: true, actor: COORD });
     assert.equal(result.ok, true);
   }
   assert.equal(env.executed(), 3);

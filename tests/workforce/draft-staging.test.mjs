@@ -41,7 +41,7 @@ const agent = (autonomy, extra = {}) => ({ kind: 'agent', agentId: 'agent-1', ro
 
 test('a low-risk draft under Auto returns staged, runs no handler, and is audited as staged', async () => {
   const { registry, audited, handlerCalls } = setup({ id: 'customer_messages.draft', risk: 'low' });
-  const result = await registry.invoke({ companyId: CO, toolId: 'customer_messages.draft', params: {}, actor: agent('auto') });
+  const result = await registry.invoke({ companyId: CO, toolId: 'customer_messages.draft', params: {}, identityVerified: true, actor: agent('auto') });
   assert.equal(result.outcome, 'staged');
   assert.equal(result.toolId, 'customer_messages.draft');
   assert.equal(handlerCalls(), 0);
@@ -51,7 +51,7 @@ test('a low-risk draft under Auto returns staged, runs no handler, and is audite
 
 test('a draft declared read still stages and does not execute', async () => {
   const { registry, handlerCalls } = setup({ id: 'notes.draft', risk: 'low', access: 'read' });
-  const result = await registry.invoke({ companyId: CO, toolId: 'notes.draft', params: {}, actor: agent('auto') });
+  const result = await registry.invoke({ companyId: CO, toolId: 'notes.draft', params: {}, identityVerified: true, actor: agent('auto') });
   assert.equal(result.outcome, 'staged');
   assert.equal(handlerCalls(), 0);
 });
@@ -62,7 +62,7 @@ test('a role that declares a read-declared tool write makes it refused under Sug
     companyId: CO,
     toolId: 'notes.write',
     params: {},
-    actor: agent('suggest', { toolAccess: { 'notes.write': 'write' } }),
+    identityVerified: true, actor: agent('suggest', { toolAccess: { 'notes.write': 'write' } }),
   });
   assert.equal(result.outcome, 'refused');
   assert.equal(handlerCalls(), 0);

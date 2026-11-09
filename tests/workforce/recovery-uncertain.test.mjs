@@ -78,7 +78,7 @@ async function interruptMidCall(store, runId) {
     entered();
     return new Promise(() => {});
   });
-  void engine.callTool(CO, runId, { toolId: 'send_note', params: {}, actor: WRITER }).catch(() => {});
+  void engine.callTool(CO, runId, { toolId: 'send_note', params: {}, identityVerified: true, actor: WRITER }).catch(() => {});
   await enteredHandler;
   return { executions: () => executions };
 }
@@ -108,7 +108,7 @@ test('a fresh engine does not re-execute an interrupted tool call blindly', asyn
     restartedExecutions += 1;
     return { ok: true };
   });
-  const retry = await restarted.callTool(CO, runId, { toolId: 'send_note', params: {}, actor: WRITER });
+  const retry = await restarted.callTool(CO, runId, { toolId: 'send_note', params: {}, identityVerified: true, actor: WRITER });
 
   assert.equal(restartedExecutions, 0, 'the restarted engine must not run the same call again without a decision');
   assert.equal(retry.ok, false, 'the uncertain call is refused until a human or reconciliation resolves it');

@@ -284,11 +284,11 @@ test('read tools run through the tool registry and refuse companyId in params', 
   registerReadTools(registry, seededStore());
   const actor = { kind: 'agent', agentId: 'agent-1', roleId: 'cleaning-invoice-query-desk', autonomy: 'auto' };
 
-  const ok = await registry.invoke({ companyId: CO_A, toolId: 'invoices.list', params: {}, actor });
+  const ok = await registry.invoke({ companyId: CO_A, toolId: 'invoices.list', params: {}, identityVerified: true, actor });
   assert.equal(ok.outcome, 'executed');
   assert.deepEqual(ok.output.rows.map((r) => r.id), [`${CO_A}-i1`]);
 
-  const refused = await registry.invoke({ companyId: CO_A, toolId: 'invoices.list', params: { companyId: CO_B }, actor });
+  const refused = await registry.invoke({ companyId: CO_A, toolId: 'invoices.list', params: { companyId: CO_B }, identityVerified: true, actor });
   assert.equal(refused.outcome, 'refused');
   assert.equal(refused.reason, 'tenant_override');
 });
