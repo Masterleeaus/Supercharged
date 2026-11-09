@@ -1,8 +1,8 @@
 /** Resolve an already-provisioned local user through a tenant-fixed
  * database lookup and independent current Central entitlement check.
  */
-import {isVerifiedDeskCentralSelection,type VerifiedDeskCentralSelection} from './selection-contract';
-import {isCompanyId} from '../database/tenant-context';
+import {isVerifiedDeskCentralSelection,type VerifiedDeskCentralSelection} from './selection-contract.ts';
+import {isCompanyId} from '../database/tenant-context.ts';
 const SUBJECT=/^[^\s\x00-\x1f\x7f]{1,256}$/u;
 export type DeskAccount={userId:string;companyId:string;role:string;revision:number};
 type LinkRow={user_id:string;company_id:string;role:string;revision:number|string;is_active:boolean};
