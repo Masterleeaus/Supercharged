@@ -17,11 +17,13 @@ const { createReadToolSpecs } = await import('../../server/workforce/tools/read-
 const { createGroup00ToolDefinitions, GROUP00_NOT_IMPLEMENTED_IDS } = await import(
   '../../server/workforce/tools/handlers/group-00.ts'
 );
+const { GROUP01_TOOL_IDS } = await import('../../server/workforce/tools/handlers/group-01.ts');
 
 // Recorded on 2026-11-04: 100 distinct declared IDs across 125 role files, 5 bound to a handler, 95 unmapped.
-// 2026-11-08: group 00 (tools/handlers/group-00.ts) binds 13 more IDs. The other 5 in that group return not_implemented
-// and are not counted as mapped. 95 - 13 = 82.
-const UNMAPPED_COUNT_RECORDED = 82;
+// 2026-11-08: group 00 binds 13 real IDs (the other 5 are not_implemented and do not count) and group 01 binds 18.
+// 95 - 13 - 18 = 64 unmapped, so 36 declared IDs are bound (5 read + 13 group 00 + 18 group 01).
+const UNMAPPED_COUNT_RECORDED = 64;
+
 
 const ROLES_DIR = fileURLToPath(new URL('../../server/workforce/catalogue/roles', import.meta.url));
 
@@ -35,7 +37,11 @@ const stubStore = new Proxy({}, { get: () => async () => [] });
 const group00Bound = createGroup00ToolDefinitions()
   .map((def) => def.id)
   .filter((id) => !GROUP00_NOT_IMPLEMENTED_IDS.has(id));
-const bound = new Set([...createReadToolSpecs(stubStore).map((spec) => spec.id), ...group00Bound]);
+const bound = new Set([
+  ...createReadToolSpecs(stubStore).map((spec) => spec.id),
+  ...group00Bound,
+  ...GROUP01_TOOL_IDS,
+]);
 
 const unmapped = [...declared].filter((toolId) => !bound.has(toolId)).sort();
 
