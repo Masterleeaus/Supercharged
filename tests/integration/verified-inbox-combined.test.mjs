@@ -13,7 +13,7 @@ test('Inbox flag TRUE uppercase does not activate Inbox',async()=>{
 });
 test('a bad Marketing schema stops both routes before mounting',async()=>{
  const calls=[],pool={connect:async()=>{throw Error('no request')}};
- await assert.rejects(registerVerifiedCommsRoutes({use:(...a)=>calls.push(a)},{...guards,pool,schemaProbe:fixture(),approvalService:canonical,
+ await assert.rejects(registerVerifiedCommsRoutes({use:(...a)=>calls.push(a)},{...guards,pool,schemaProbe:{query:async(sql,values)=>Array.isArray(values?.[0])&&values[0].includes('landing_pages')?{rows:[]}:fixture().query(sql,values)},approvalService:canonical,
  env:{COMMS_INBOX_ENABLED:'true',COMMS_MARKETING_ENABLED:'true'},chatbots:{findChatbot:async()=>null}}),/database security not ready/);
  assert.deepEqual(calls,[]);
 });
