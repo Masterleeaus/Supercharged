@@ -1,5 +1,5 @@
 /**
- * Staff inbox page. Route: /app/chatbot-inbox (see DECISIONS.md, the route is added by the owner).
+ * Omnichannel staff inbox page. Route: /app/chatbot-inbox (see DECISIONS.md, the route is added by the owner).
  * Three columns: the list with filters, the thread with the composer and actions, and the contact panel.
  * The list and thread poll every few seconds until the realtime transport is chosen (see DECISIONS.md).
  */
@@ -56,7 +56,7 @@ export default function ChatbotInboxPage() {
   if (list.isError && isInboxPending(list.error)) {
     return (
       <div className="mx-auto max-w-2xl p-6">
-        <h1 className="mb-4 text-xl font-semibold">Chat inbox</h1>
+        <h1 className="mb-4 text-xl font-semibold">Omnichannel Inbox</h1>
         <Alert>
           <AlertTitle>Staff inbox is not switched on yet</AlertTitle>
           <AlertDescription>
@@ -72,7 +72,7 @@ export default function ChatbotInboxPage() {
     <div className="grid h-[calc(100vh-4rem)] min-h-[480px] grid-cols-1 overflow-hidden md:grid-cols-[300px_1fr] lg:grid-cols-[300px_1fr_280px]">
       <section aria-label="Conversation list" className="min-h-0 border-b md:border-b-0 md:border-e">
         <div className="border-b p-3">
-          <h1 className="text-lg font-semibold">Chat inbox</h1>
+          <h1 className="text-lg font-semibold">Omnichannel Inbox</h1>
         </div>
         {list.isError && (
           <div className="p-3">
