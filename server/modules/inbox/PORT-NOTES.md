@@ -49,3 +49,7 @@ New module for Desk comms mode. Not mounted. No migration run.
 ## Pass 14: durable PostgreSQL InboxStore
 
 The existing numbered `0010a_inbox.sql` schema is now supported by the opt-in `createSqlInboxStore(pool)` implementation. All 15 store methods use scoped SQL and parameterized predicates; advisory-locked inbound ingestion reuses its pinned tenant client. The earlier Drizzle placeholder remains unchanged for compatibility and the default production mount stays disabled. Tenant RLS and approval infrastructure must be validated before activation.
+
+## Pass 15: real PostgreSQL RLS verification
+
+A separate review-only candidate at `migrations/candidates/0018_inbox_tenant_rls.sql` enables and forces RLS on the four Inbox tables already created by `0010a_inbox.sql`. A dedicated disposable PostgreSQL CI job uses the actual SQL store to exercise tenant access, link FKs, external-ID uniqueness, inbound locks and rollback. Neither the original migration manifest nor Inbox activation is changed.
