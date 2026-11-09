@@ -25,7 +25,7 @@ export function registerAdminCampaignRoutes(app: Express): void {
       }).from(users).where(eq(users.id, campaign.userId)).limit(1);
 
       res.json({ ...campaign, owner: owner || null });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Admin get campaign error:", error);
       res.status(500).json({ error: "Failed to get campaign" });
     }
@@ -41,7 +41,7 @@ export function registerAdminCampaignRoutes(app: Express): void {
       const contactList = await storage.getCampaignContacts(campaign.id);
 
       res.json(contactList);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Admin get campaign contacts error:", error);
       res.status(500).json({ error: "Failed to get campaign contacts" });
     }
@@ -56,7 +56,7 @@ export function registerAdminCampaignRoutes(app: Express): void {
 
       const callList = await storage.getCampaignCalls(campaign.id);
       res.json(callList);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Admin get campaign calls error:", error);
       res.status(500).json({ error: "Failed to get campaign calls" });
     }
@@ -76,7 +76,7 @@ export function registerAdminCampaignRoutes(app: Express): void {
 
       const stats = BatchCallingService.getBatchStats(batchJob);
       res.json({ batchJob, stats });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Admin get campaign batch error:", error);
       res.json({ batchJob: null, stats: null });
     }
@@ -212,7 +212,7 @@ export function registerAdminCampaignRoutes(app: Express): void {
           ? `${migrated} calls migrated, ${failed} calls have no resolvable owner (missing campaign/connection reference)`
           : `Successfully migrated all ${migrated} calls`
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Migration error:", error);
       res.status(500).json({ error: "Failed to migrate call user IDs" });
     }
