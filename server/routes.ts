@@ -63,6 +63,7 @@ import { registerPromptTemplateRoutes } from "./routes/core/prompt-template-rout
 import { registerAdminCommsRoutes } from "./routes/core/admin-comms-routes";
 import { registerWorkforceCommsRoutes } from "./routes/core/workforce-comms-routes";
 import { registerAdminCampaignRoutes } from "./routes/core/admin-campaign-routes";
+import { logger } from "./utils/logger";
 
 const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
@@ -124,7 +125,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   if (isTeamManagementInstalled()) {
     await initTeamAdapter();
     app.use('/api', getTeamContextMiddleware());
-    console.log('✅ Team Management plugin detected - team context middleware enabled');
+    logger.info('✅ Team Management plugin detected - team context middleware enabled');
   }
 
   // Routes: agent, campaign, phone, analytics and related, see server/routes/core/platform-routes.ts

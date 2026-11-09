@@ -225,7 +225,7 @@ Sitemap: {{site_url}}/sitemap.xml`,
   {
     key: "seo_canonical_url",
     value: "",
-    description: "Canonical URL base (e.g., https://agentlabs.io)",
+    description: "Canonical URL base (e.g., https://your-domain.example)",
   },
   {
     key: "seo_default_language",
@@ -248,7 +248,7 @@ Sitemap: {{site_url}}/sitemap.xml`,
   // ============================================
   {
     key: "seo_home_title",
-    value: "AI-Powered Calling Platform | Automate Your Outreach",
+    value: "Supercharged | Automate Your Outreach",
     description: "Homepage specific title",
   },
   {

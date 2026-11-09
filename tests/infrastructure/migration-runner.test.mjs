@@ -8,10 +8,23 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const ROOT = new URL('../../', import.meta.url);
 const runnerSource = readFileSync(new URL('scripts/run-safe-migration.mjs', ROOT), 'utf8');
+const RUNNER_PATH = fileURLToPath(new URL('scripts/run-safe-migration.mjs', ROOT));
+
+// Runs the runner with no database. DATABASE_URL points at a closed port so any connection attempt shows up as ECONNREFUSED.
+function runRunner(runnerPath, args = [], env = {}) {
+  // (env keys set here override process.env; DATABASE_URL is removed unless given)
+  const childEnv = { ...process.env, ...env };
+  if (!('DATABASE_URL' in env)) delete childEnv.DATABASE_URL;
+  return spawnSync(process.execPath, [runnerPath, ...args], { env: childEnv, encoding: 'utf8', timeout: 20000 });
+}
 
 // Parse the MIGRATIONS array entries: { file: '...', required: true|false }
 const entries = [...runnerSource.matchAll(/\{ file: '([^']+)', required: (true|false) \}/g)].map((m) => ({
@@ -71,4 +84,53 @@ test('every committed numbered migration is registered, or is a known exclusion'
   const registered = new Set(entries.map((e) => e.file));
   const unexplained = committed.filter((f) => !registered.has(f) && !NOT_RUN_BY_RUNNER.has(f) && !f.startsWith('DRAFT_'));
   assert.deepEqual(unexplained, [], `committed migrations not registered: ${unexplained.join(', ')}`);
+});
+
+test('journal lists the base schema and then exactly the runner entries, in the same order', () => {
+  const journal = JSON.parse(readFileSync(new URL('migrations/meta/_journal.json', ROOT), 'utf8'));
+  const tags = journal.entries.map((e) => e.tag);
+  assert.deepEqual(
+    tags,
+    ['0000_damp_spectrum', ...entries.map((e) => e.file.replace(/\.sql$/, ''))],
+    'journal tags match 0000 plus the runner entries in order',
+  );
+  assert.deepEqual(
+    journal.entries.map((e) => e.idx),
+    tags.map((_, i) => i),
+    'journal idx values are 0..n-1',
+  );
+  for (const tag of tags) {
+    assert.ok(existsSync(new URL(`migrations/${tag}.sql`, ROOT)), `journal tag ${tag} has a file`);
+  }
+});
+
+test('dry run prints the exact ordered set of runner entries and makes no database connection', () => {
+  const result = runRunner(RUNNER_PATH, ['--dry-run']);
+  assert.equal(result.status, 0, `dry run exits 0, stderr: ${result.stderr}`);
+  assert.doesNotMatch(result.stdout + result.stderr, /ECONNREFUSED|Applying:/);
+  const printed = [...result.stdout.matchAll(/^\s*\d+\. (\S+?)(?: \(optional\))?$/gm)].map((m) => m[1]);
+  assert.deepEqual(printed, entries.map((e) => e.file), 'printed order equals the MIGRATIONS array order');
+});
+
+test('missing required file exits 1 before any database work, so later migrations are not applied', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'migration-runner-'));
+  try {
+    mkdirSync(join(dir, 'scripts'));
+    mkdirSync(join(dir, 'migrations'));
+    const copy = join(dir, 'scripts', 'run-safe-migration.mjs');
+    copyFileSync(RUNNER_PATH, copy);
+    // Every required entry exists except one in the middle, so earlier files would apply if the runner got that far.
+    const missing = '0004_add_missing_tables.sql';
+    for (const e of entries.filter((x) => x.required && x.file !== missing)) {
+      writeFileSync(join(dir, 'migrations', e.file), '-- empty placeholder\n');
+    }
+    const result = runRunner(copy, [], { DATABASE_URL: 'postgres://u:p@127.0.0.1:1/none' });
+    const output = result.stdout + result.stderr;
+    assert.equal(result.status, 1, `exits 1, output: ${output}`);
+    assert.match(result.stderr, /Required migration files are missing\. Nothing was applied\./);
+    assert.match(result.stderr, new RegExp(missing.replace(/\./g, '\\.')));
+    assert.doesNotMatch(output, /Applying:|__MIGRATION_RESULT__|ECONNREFUSED/, 'no migration was applied and no connection was tried');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
