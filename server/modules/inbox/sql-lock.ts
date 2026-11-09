@@ -3,6 +3,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { assertCompanyId,withTenant,type TenantPool,type TenantQueryClient } from '../../infrastructure/database/tenant-context.ts';
 import { inboundAdvisoryKey } from './drizzle-adapter.ts';
 import type { Channel } from './types.ts';
+// Separate from the legacy placeholder lock context: the SQL store reads this context.
 const current=new AsyncLocalStorage<TenantQueryClient>();
 export function lockedInboxClient():TenantQueryClient|undefined{return current.getStore();}
 export async function runInboundLocked<T>(pool:TenantPool,companyId:string,channel:Channel,address:string,fn:()=>Promise<T>):Promise<T> {

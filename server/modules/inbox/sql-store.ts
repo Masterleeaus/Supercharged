@@ -5,7 +5,8 @@
  * Production activation still requires reviewed RLS for all five Inbox tables.
  */
 import { assertCompanyId,withTenant,type TenantPool,type TenantQueryClient } from '../../infrastructure/database/tenant-context.ts';
-import { inboundAdvisoryKey, currentInboundLockClient, sqlInboxWriteTx } from './drizzle-adapter.ts';
+import { sqlInboxWriteTx } from './drizzle-adapter.ts';
+import { lockedInboxClient, runInboundLocked } from './sql-lock.ts';
 import type { InboxStore, ThreadFilter, ThreadPatch, MessagePatch } from './ports.ts';
 import type { Participant, Thread, ThreadParticipant, Message, Channel } from './types.ts';
 import { PARTICIPANT_COLUMNS,THREAD_COLUMNS,MESSAGE_COLUMNS,fromParticipant,fromThread,fromLink,fromMessage } from './sql-rows.ts';
@@ -13,7 +14,7 @@ export function createSqlInboxStore(pool:TenantPool):InboxStore {
  if(!pool||typeof pool.connect!=='function')throw new Error('inbox: PostgreSQL pool required');
  const scoped=<T>(companyId:string,fn:(client:TenantQueryClient)=>Promise<T>):Promise<T>=>{
   const co=assertCompanyId(companyId);
-  const locked=currentInboundLockClient();
+  const locked=lockedInboxClient();
   // A lock transaction can only be reused for its own tenant. Check the
   // transaction-local setting instead of trusting the ambient JS context.
   if(locked)return locked.query("SELECT current_setting('app.company_id',true) AS tenant").then(x=>{
@@ -26,7 +27,6 @@ export function createSqlInboxStore(pool:TenantPool):InboxStore {
  return {
   async lockInboundKey<T>(companyId:string,channel:Channel,address:string,fn:()=>Promise<T>):Promise<T>{
    const co=assertCompanyId(companyId);
-   const {runInboundLocked}=await import('./sql-lock.ts');
    return runInboundLocked(pool,co,channel,address,fn);
   },
   insertParticipant(p:Participant){return scoped(p.companyId,async db=>{await db.query(
