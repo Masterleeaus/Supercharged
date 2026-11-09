@@ -40,12 +40,16 @@ test('every REQUIRED runner entry exists as a file in migrations/', () => {
   assert.deepEqual(missing, [], `required migration files missing: ${missing.join(', ')}`);
 });
 
-test('008 and 009 are the only OPTIONAL entries, and both are marked optional', () => {
-  const optional = entries.filter((e) => !e.required).map((e) => e.file);
-  assert.deepEqual(optional, [
+test('008 and 009 are REQUIRED runner entries and their files are present', () => {
+  for (const file of [
     '008_add_ve_session_id_and_voice_engine_tables.sql',
     '009_fix_ve_session_id_and_all_missing_columns.sql',
-  ]);
+  ]) {
+    const entry = entries.find((e) => e.file === file);
+    assert.ok(entry, `${file} is registered in the runner`);
+    assert.equal(entry.required, true, `${file} is REQUIRED`);
+    assert.ok(existsSync(new URL('migrations/' + file, ROOT)), `${file} exists in migrations/`);
+  }
 });
 
 test('runner prints a loud warning that names the optional entries', () => {
