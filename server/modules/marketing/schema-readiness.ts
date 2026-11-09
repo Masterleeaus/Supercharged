@@ -47,7 +47,12 @@ export async function verifyMarketingSchema(probe: MarketingSchemaProbe): Promis
   for (const table of TABLES) {
     const policy = policies.rows.find(r => r.tablename === table && r.policyname === table + '_tenant_boundary');
     if (!policy) { issues.push(table + ' tenant policy missing'); continue; }
-    if (!Array.isArray(policy.roles) || !policy.roles.includes('desk_app') ||
+    // PostgreSQL's name[] column may be returned as a Postgres array literal
+    // (e.g. '{desk_app}') by pg, rather than a JavaScript array.
+    const roles = Array.isArray(policy.roles) ? policy.roles :
+      typeof policy.roles === 'string' && /^\{[a-z_, ]+\}$/.test(policy.roles)
+        ? policy.roles.slice(1, -1).split(',').map(name => name.trim()) : [];
+    if (!roles.includes('desk_app') ||
         !String(policy.qual ?? '').includes('app.company_id') ||
         !String(policy.with_check ?? '').includes('app.company_id')) {
       issues.push(table + ' tenant policy does not constrain both reads and writes');

@@ -13,3 +13,14 @@ test('missing role fails closed',async()=>{const r=await verifyMarketingSchema(p
 test('a bypass-RLS role fails even if tables are forced',async()=>{const r=await verifyMarketingSchema(probe({roles:[{rolname:'desk_app',rolsuper:false,rolbypassrls:true}]}));assert.ok(r.issues.some(x=>x.includes('bypass')));});
 test('a superuser role fails',async()=>{const r=await verifyMarketingSchema(probe({roles:[{rolname:'desk_app',rolsuper:true,rolbypassrls:false}]}));assert.ok(r.issues.some(x=>x.includes('superuser')));});
 test('missing tables are reported',async()=>{const r=await verifyMarketingSchema(probe({tables:[]}));assert.ok(r.issues.some(x=>x.includes('landing_pages missing')));});
+
+test('PostgreSQL name[] literal returned by pg identifies the restricted role',async()=>{
+ const original=probe();const query=original.query.bind(original);
+ const schema={async query(sql){const result=await query(sql);if(sql.includes('FROM pg_policies'))return{rows:result.rows.map(p=>({...p,roles:'{desk_app}'}))};return result;}};
+ assert.deepEqual(await verifyMarketingSchema(schema),{ready:true,issues:[]});
+});
+test('PostgreSQL role literals do not accept lookalike roles',async()=>{
+ const original=probe();const query=original.query.bind(original);
+ const schema={async query(sql){const result=await query(sql);if(sql.includes('FROM pg_policies'))return{rows:result.rows.map(p=>({...p,roles:'{desk_app_admin}'}))};return result;}};
+ const result=await verifyMarketingSchema(schema);assert.equal(result.ready,false);
+});
