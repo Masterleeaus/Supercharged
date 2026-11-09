@@ -1,5 +1,7 @@
 # Migration reconciliation: journal, SQL files, and runner
 
+> **Status update (2026-11-09):** This review describes the earlier state. `scripts/run-safe-migration.mjs` now lists 17 required files. Those include `008_add_ve_session_id_and_voice_engine_tables.sql` and `009_fix_ve_session_id_and_all_missing_columns.sql`, which exist in `migrations/`, and `0011_inbox_channels_and_providers.sql` and `0013_approvals_revoked_status.sql`, which are listed. The optional list is empty. Statements below that 008, 009, 0011 or 0013 are missing or unlisted are out of date. The fresh-install and upgrade commands are in INSTALLATION.md, Step 6. The journal facts were not re-checked for this update.
+
 Scope: read-only review of `migrations/meta/_journal.json`, the SQL files in `migrations/`, and `scripts/run-safe-migration.mjs`. No migration was run, no database was contacted, and no journal, migration or checklist file was edited. `docs/pending/foundation/B2/REPAIR_PLAN.md` was read and not applied.
 
 ## 1. Inventory

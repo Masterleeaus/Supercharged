@@ -2,6 +2,8 @@
 
 Status: PROPOSAL. Nothing in migrations/, scripts/ or the live journal has been changed. Nothing has been run against any database.
 
+Update (2026-11-09): the runner now lists 008 and 009, and both files exist in `migrations/`. It also lists 0011 and 0013. So decision D-B2-4 below is settled in code, and the "file does not exist" rows are out of date. Decision D-B2-3 (`add_missing_columns.sql`) is still open: the file is unnumbered and the runner does not name it. The live journal was not checked for this update.
+
 ## What is on disk (verified by listing merged4/migrations)
 
 | File | In journal | In runner (scripts/run-safe-migration.mjs) |

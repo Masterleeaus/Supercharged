@@ -215,9 +215,44 @@ npm run db:push
 
 You should see messages about tables being created.
 
-This is the documented path for a fresh install (the header of `scripts/run-safe-migration.mjs` says the same). `npm run db:push` runs `drizzle-kit push --force`, so back up any database that already holds data before you run it.
+Then run the migration runner:
 
-**Do not use `npm run db:migrate` yet.** It runs `scripts/run-safe-migration.mjs`, whose hard-coded file list names files that do not exist (`008_...`, `009_...`) and leaves out `0011` and `0013`. See `docs/MIGRATION_RECONCILIATION.md` and `docs/DEPLOY_PACK.md`. Whether this is fixed in your copy is not verified in this repo.
+```bash
+npm run db:migrate
+```
+
+A fresh install runs both commands, in this order:
+
+1. `npm run db:push` creates the base schema from `shared/schema.ts`. It runs `scripts/db-push-non-interactive.mjs`, which runs `drizzle-kit push --force`. Back up any database that already holds data before you run it.
+2. `npm run db:migrate` runs `scripts/run-safe-migration.mjs`. This applies the additive SQL files in `migrations/` on top of the base schema. Each file runs in its own transaction and is rolled back if it fails.
+
+`db:push` does not create the voice-engine (`ve_*`) tables. Those come from `migrations/008_add_ve_session_id_and_voice_engine_tables.sql`, so skip step 2 and the voice-engine tables are missing.
+
+The runner's required list has 17 files, and every one must exist. If one is missing, the run stops before any database work. The optional list is empty. In run order:
+
+- `0001_add_missing_columns.sql`
+- `0002_add_google_sheets_credentials.sql`
+- `0003_campaign_contact_retry.sql`
+- `0004_add_missing_tables.sql`
+- `0005_add_missing_agent_messaging_columns.sql`
+- `0006_add_default_campaign_type.sql`
+- `0007_add_external_fonoster_phone_id.sql`
+- `008_add_ve_session_id_and_voice_engine_tables.sql`
+- `009_fix_ve_session_id_and_all_missing_columns.sql`
+- `0010_add_yookassa_columns.sql`
+- `0010a_inbox.sql`
+- `0011_inbox_channels_and_providers.sql`
+- `0010b_approvals.sql`
+- `0013_approvals_revoked_status.sql`
+- `0010c_chatbot.sql`
+- `0014_workforce_tool_tables.sql`
+- `0015_company_quiet_hours.sql`
+
+`0000_damp_spectrum.sql` is not in the runner list. It is the base schema, and `db:push` covers it on a fresh install.
+
+**Production:** `npm run db:push` refuses to run when `NODE_ENV=production`, unless `ALLOW_DB_PUSH_ON_PRODUCTION=1` is set. On production, use `npm run db:migrate`. It applies only the files in `migrations/`. It does not apply schema changes that exist only in `shared/schema.ts`. Whether any such change exists is not verified in this repo.
+
+Back up the database before either command. Which of these files a given live database has already applied is not verified in this repo.
 
 ### Step 7: Build the Application
 
@@ -513,7 +548,7 @@ Email is required for user verification, password resets, and notifications.
 
 When a new version is released, follow these steps.
 
-Upgrades use `npm run db:push` for now (see Step 6). Back up the database first.
+Upgrades run `npm run db:push` and then `npm run db:migrate`, as in Step 6. On production, `db:push` refuses to run, so run `npm run db:migrate` only (see the Production note in Step 6). Back up the database first.
 
 ---
 
@@ -572,6 +607,7 @@ cd /var/www/agentlabs
 ```bash
 npm install
 npm run db:push
+npm run db:migrate
 npm run build
 ```
 
@@ -665,9 +701,10 @@ Wait for all dependencies to install (2-5 minutes).
 
 ```bash
 npm run db:push
+npm run db:migrate
 ```
 
-This adds new tables/columns. Your existing data is preserved. If a new payment gateway was added, this creates its required tables.
+`db:push` adds new tables/columns from `shared/schema.ts`. `db:migrate` applies the additive files in `migrations/`, including the voice-engine tables. Your existing data is preserved. If a new payment gateway was added, this creates its required tables. On production, run `npm run db:migrate` only, because `db:push` refuses to run there.
 
 #### Step 7: Rebuild Application
 
@@ -961,8 +998,9 @@ node --version  # Must be 18.x or higher
 
 **Error: "relation does not exist"**
 ```bash
-# Database tables not created - run migration
+# Database tables not created - run both migration commands
 npm run db:push
+npm run db:migrate
 ```
 
 **Error: "connection refused" or "ECONNREFUSED"**
@@ -1152,7 +1190,8 @@ pm2 logs agentlabs --lines 100
 npm run dev          # Start development
 npm run start        # Start production
 npm run build        # Build application
-npm run db:push      # Update database
+npm run db:push      # Update database (base schema)
+npm run db:migrate   # Apply migrations/ files (additive)
 
 pm2 start npm --name "agentlabs" -- run start  # Start with PM2
 pm2 stop agentlabs   # Stop

@@ -1,5 +1,7 @@
 # Desk tenancy inventory
 
+Update (2026-11-09): the migration-runner statements in this file about 008 and 009 not existing, and about 0011 and 0013 being unlisted, are out of date. The runner now lists 17 required files, and all of them exist. Other statements here are unchanged.
+
 Status: classification for review. Schema columns (`shared/schema.ts`) and the draft `migrations/DRAFT_companies_foundation.sql` add nullable `company_id` and `companies`; nothing is applied and no route is changed.
 Source: `shared/schema.ts`, 130 `pgTable` declarations (rows 1-83 as before, the three chatbot tables at rows 84-86, the five workforce tables at rows 87-91, and the 39 workforce tool tables at rows 92-130, created by `migrations/0014_workforce_tool_tables.sql`). The check is
 `tests/infrastructure/tenancy-inventory.test.mjs`. Migration steps are in

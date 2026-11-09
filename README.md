@@ -278,7 +278,10 @@ nano .env  # Edit with your values
 ### 4. Initialize Database
 ```bash
 npm run db:push
+npm run db:migrate
 ```
+
+`db:push` creates the base schema. `db:migrate` applies the additive files in `migrations/`, including the voice-engine (`ve_*`) tables. On production, `db:push` refuses to run, so use `npm run db:migrate` there. See INSTALLATION.md, Step 6.
 
 ### 5. Start Application
 ```bash
@@ -605,7 +608,7 @@ All webhook endpoints verify authenticity before processing:
 - Verify user credentials
 
 **Error: relation does not exist**
-- Run `npm run db:push` before starting
+- Run `npm run db:push` and then `npm run db:migrate` before starting
 
 ### Email Issues
 
@@ -646,7 +649,7 @@ All webhook endpoints verify authenticity before processing:
 - Change PORT in environment variables
 
 **Error: 502 Bad Gateway**
-- Run `npm run db:push` first
+- Run `npm run db:push` and then `npm run db:migrate` first
 - Check application logs
 - Verify all environment variables
 

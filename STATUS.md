@@ -58,7 +58,7 @@ Several `server/routes.ts` line numbers in this file are stale. For example, `re
 [gated] Promotion check: none of the 24 files in migrations/DRAFT_*.sql has a byte-identical copy among the numbered migrations, so none is promoted. The list below is what each draft is for. Every line says "not promoted". Path note (2026-11-08): the 25 DRAFT_*.sql files are in migrations/archive/. None is at the top level of migrations/.
 
 - [gated] DRAFT_action_ledger.sql: action ledger table (public.action_ledger). Not promoted. Consumers UNVERIFIED.
-- [gated] DRAFT_approvals.sql: approval_rules and approvals tables. Not promoted. Migration 0013 depends on it.
+- [gated] DRAFT_approvals.sql: approval_rules and approvals tables. Not promoted. Migration 0013 depends on the approvals table, which 0010b_approvals.sql now creates.
 - [gated] DRAFT_approvals_one_pending.sql: one pending approval per source. Not promoted. Has a guard.
 - [gated] DRAFT_approvals_resubmit_guard.sql: resubmit unique index. Not promoted.
 - [gated] DRAFT_audit_chain.sql: no CREATE statement found by grep. Not promoted. Contents UNVERIFIED.
@@ -83,10 +83,10 @@ Several `server/routes.ts` line numbers in this file are stale. For example, `re
 - [gated] DRAFT_workforce_tier_migration.sql: workforce tier migration. Not promoted.
 
 Numbered migrations and runner facts:
-- [untested] The numbered files present are 0000 to 0007, 0010, 0011 and 0013, plus 0001_add_missing_columns.sql and an unnumbered add_missing_columns.sql.
+- [verified in code, 2026-11-09] The numbered files present are 0000 to 0007, 008, 009, 0010, 0010a, 0010b, 0010c, 0011, 0013, 0014 and 0015, plus an unnumbered add_missing_columns.sql, which the runner does not name. No 0012 file exists. The DRAFT_ files are in migrations/archive/.
 - [untested] migrations/meta/_journal.json lists only 0000 to 0006. Its 0006 tag (0006_cultured_purifiers) does not match the file name 0006_add_default_campaign_type.sql.
-- [untested] The safe runner, scripts/run-safe-migration.mjs at lines 53 to 62, names 0001 to 0007, 008, 009 and 0010. Files 008 and 009 do not exist in migrations/. The runner does not name 0011 or 0013. Which set a live database runs is UNVERIFIED.
-- [untested] Migration 0013 stops with an error if the approvals table is missing, so DRAFT_approvals.sql must be applied before it.
+- [verified in code, 2026-11-09] The safe runner, scripts/run-safe-migration.mjs, has a MIGRATIONS array from line 58. It lists 17 files, all marked required: 0001 to 0007, 008, 009, 0010, 0010a, 0011, 0010b, 0013, 0010c, 0014 and 0015. Every listed file exists in migrations/. The optional list is empty. Which set a live database has applied is UNVERIFIED.
+- [verified in code, 2026-11-09] Migration 0013 needs the approvals table. 0010b_approvals.sql creates approvals and approval_rules, and the runner applies it before 0013. DRAFT_approvals.sql is not needed for this. Whether a live database has the table is UNVERIFIED.
 
 ## Open decisions
 
@@ -101,9 +101,9 @@ Each item below is in TODO_CHECKLIST.md unless marked NEW. The checklist is at /
 - Inbox: build the service per request, bound to the company (section "Inbox").
 - Field SMS routing: parked until the owner uploads the webhook route file (section "Field SMS routing").
 - SMS binding: review agents/A5/binding-draft.sql, then make it a migration (section "SMS binding").
-- Owner actions before deploy: set STRIPE_WEBHOOK_SECRET, YooKassa shop credentials, WEBHOOK_TOKEN and a new STRIPE_SECRET_KEY; confirm ElevenLabs signs SIP webhooks; set the proxy to pass the real client IP (TRUST_PROXY is read in server/index.ts:82); seed workforce.previews.create; decide the held patches SEC-06 and play-audio HMAC; approve the billing and timezone rules; decide the journal gaps 0008, 0009 and 0012 and the foundation drafts (section "Before any deploy").
+- Owner actions before deploy: set STRIPE_WEBHOOK_SECRET, YooKassa shop credentials, WEBHOOK_TOKEN and a new STRIPE_SECRET_KEY; confirm ElevenLabs signs SIP webhooks; set the proxy to pass the real client IP (TRUST_PROXY is read in server/index.ts:82); seed workforce.previews.create; decide the held patches SEC-06 and play-audio HMAC; approve the billing and timezone rules; decide the journal gaps (the journal lists only 0000 to 0006, so 0007 and 0010 onward are not journaled; no 0012 file exists) and the foundation drafts (section "Before any deploy").
 - Root configs: the checklist says to restore drizzle.config.ts, tsconfig.json and vite.config.ts. tsconfig.json and vite.config.ts are present at the bundle root. drizzle.config.ts is missing. The checklist item needs narrowing. NEW.
-- Migration runner list: the runner names 008 and 009 with no matching files, and omits 0011 and 0013. Decide the correct list before any run. NEW, and it extends the journal gap item above.
+- Migration runner list: resolved in code. The runner lists 17 required files, and all of them exist (see "Numbered migrations and runner facts"). Not verified: which set a live database has applied, and whether the journal gap above matters for a run.
 - Corrections needed in other files, not made here: DELIVERABLE.md says Stripe returns 503 with no secret, but stripe-routes.ts returns 403 (the 503 at line 575 is for a full replay guard). DELIVERABLE.md says the workforce preview gate needs seeding, but the string workforce.previews.create does not appear anywhere in server/ (see Not verified). NEW.
 - Upgrades: define one canonical tenant ID and an alias table for Field and Desk (section "Upgrades"). Sign off on the rollback plan (agents/A10/rollback-plan.md).
 

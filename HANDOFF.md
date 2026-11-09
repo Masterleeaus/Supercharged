@@ -21,7 +21,7 @@ Secret: CHATBOT_SECRET_KEY (base64, 32 bytes). Required when bookings tokens are
 - The core /api/chatbot route is unchanged and always on.
 
 ## Migrations: production runner
-scripts/run-safe-migration.mjs lists 0010a_inbox, 0010b_approvals, 0010c_chatbot, 0011_inbox_channels_and_providers and 0013_approvals_revoked_status in the order 0010, 0010a, 0011, 0010b, 0013, 0010c (owner decision O-08). The DRAFT_ originals in migrations/ are marked superseded and are not run.
+scripts/run-safe-migration.mjs lists 17 required files, all of which exist in migrations/: 0001 to 0007, 008 and 009 (voice engine), 0010, 0010a, 0011, 0010b, 0013, 0010c, 0014 and 0015. The 0010 group runs in the order 0010, 0010a, 0011, 0010b, 0013, 0010c (owner decision O-08). The optional list is empty. Fresh installs and upgrades run `npm run db:push` and then `npm run db:migrate` (see INSTALLATION.md, Step 6). The DRAFT_ originals in migrations/ are marked superseded and are not run.
 The chatbot draft files under server/modules/chatbot/db/migrations-draft/ are not promoted and are not run by the runner. 0400_lifecycle.sql is superseded and creates nothing.
 Bookings token CHECK (chatbot_booking_settings_token_chk) was relaxed on 2026-11-09 so the versioned sealed-string form saves. Legacy three-column rows remain valid.
 
