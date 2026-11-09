@@ -2,8 +2,8 @@
  * The deployed DB must grant EXECUTE on the SQL function only to a
  * restricted application role. Run withTenant when checking other data.
  */
-import type{TenantPool} from '../database/tenant-context';
-import {withTenant,isCompanyId} from '../database/tenant-context';
+import type{TenantPool} from '../database/tenant-context.ts';
+import {withTenant,isCompanyId} from '../database/tenant-context.ts';
 const SUBJECT=/^[^\s\x00-\x1f\x7f]{1,256}$/u;
 export function createDeskCentralLinkQuery(pool:TenantPool){
  if(typeof pool?.connect!=='function')throw TypeError('trusted tenant pool required');
