@@ -17,7 +17,7 @@ import { createInboxRouter } from '../../server/modules/inbox/inbox-router.ts';
 import { createMarketingRouter } from '../../server/modules/marketing/marketing-router.ts';
 
 const STAFF = ['admin', 'manager'];
-const COMPANY = 'c1';
+const COMPANY = '11111111-1111-4111-8111-111111111111';
 
 // Staff-only routes. Each must have a role guard for STAFF ahead of its service call.
 const GUARDED = [

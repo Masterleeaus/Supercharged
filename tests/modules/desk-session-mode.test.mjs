@@ -81,3 +81,9 @@ test('untrusted hosts never produce source host', () => {
   assert.equal(sessionDeskMode('unknown.example', config).source, 'default');
   assert.equal(sessionDeskMode('syncedat.work', config).source, 'host');
 });
+
+test('invalid ports never establish a verified session mode', () => {
+  for (const host of ['syncedat.work:0','syncedat.work:65536']) {
+    assert.deepEqual(sessionDeskMode(host,config),{mode:'workforce',source:'default'});
+  }
+});

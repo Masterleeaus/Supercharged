@@ -30,6 +30,9 @@ function hostOf(req: ModeRequest): string | undefined {
 
 export function deskModeMiddleware(config: DeskModeConfig) {
   return function resolveMode(req: ModeRequest, res: ModeResponse, next: NextFn): void {
+    // Clear any earlier mode if middleware is invoked again on the same request.
+    delete req.deskMode;
+    delete req.deskHost;
     const result = resolveDeskMode(hostOf(req), config);
     if (!result.ok) {
       res.status(404).json({ error: 'not_found' });

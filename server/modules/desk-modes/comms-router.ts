@@ -11,6 +11,7 @@
 //     HTTP status. Anything else is a 500 with no detail.
 
 import type { DeskMode } from './mode-resolver.ts';
+import { isCompanyId } from '../../infrastructure/database/tenant-context.ts';
 
 export interface HttpRequest {
   method: string;
@@ -108,7 +109,8 @@ export function queryString(req: HttpRequest, key: string): string | undefined {
 
 export function sendServiceError(res: HttpResponse, err: unknown): void {
   if (err instanceof Error && typeof (err as { code?: unknown }).code === 'string') {
-    const status = DOMAIN_STATUS[(err as { code: string }).code];
+    const code = (err as { code: string }).code;
+    const status = Object.prototype.hasOwnProperty.call(DOMAIN_STATUS, code) ? DOMAIN_STATUS[code] : undefined;
     if (status !== undefined) {
       res.status(status).json({ error: err.message });
       return;
@@ -127,8 +129,16 @@ export function commsRoute(
   status = 200,
 ): HttpHandler {
   return async (req, res) => {
-    const s = scope(req);
-    if (!s || typeof s.companyId !== 'string' || s.companyId === '' || !s.actor) {
+    let s: RouteScope | null;
+    try {
+      s = scope(req);
+    } catch {
+      res.status(401).json({ error: 'unauthenticated' });
+      return;
+    }
+    if (!s || !isCompanyId(s.companyId) || !s.actor ||
+      (s.actor.kind !== 'human' && s.actor.kind !== 'agent') ||
+      typeof s.actor.id !== 'string' || s.actor.id.trim() === '') {
       res.status(401).json({ error: 'unauthenticated' });
       return;
     }

@@ -129,3 +129,33 @@ test('commsRoute passes the scope to the handler and maps a thrown domain error'
   await failing({ body: {}, params: {}, query: {} }, res2, noop);
   assert.equal(res2.statusCode, 404);
 });
+
+test('commsRoute refuses malformed company identifiers, invalid actors and empty actor ids', async () => {
+  for (const bad of [
+    { companyId: 'not-a-company', actor: { kind: 'human', id: 'u' } },
+    { companyId: '11111111-1111-4111-8111-111111111111', actor: { kind: 'robot', id: 'u' } },
+    { companyId: '11111111-1111-4111-8111-111111111111', actor: { kind: 'human', id: '  ' } },
+  ]) {
+    let ran = false;
+    const res = fakeRes();
+    await commsRoute(() => bad, async () => { ran = true; })({body:{},params:{},query:{}},res,noop);
+    assert.equal(res.statusCode,401);
+    assert.equal(ran,false);
+  }
+});
+test('commsRoute catches a failing scope resolver without invoking business logic', async () => {
+  let called = false;
+  const res = fakeRes();
+  await commsRoute(() => { throw new Error('internal session details'); }, async () => { called = true; })({body:{},params:{},query:{}},res,noop);
+  assert.equal(res.statusCode,401);
+  assert.deepEqual(res.body,{error:'unauthenticated'});
+  assert.equal(called,false);
+});
+test('domain codes inherited from Object.prototype cannot become HTTP statuses', () => {
+  for (const code of ['constructor','toString','__proto__']) {
+    const res = fakeRes();
+    sendServiceError(res,Object.assign(new Error('private stack trace'),{code}));
+    assert.equal(res.statusCode,500);
+    assert.deepEqual(res.body,{error:'internal_error'});
+  }
+});

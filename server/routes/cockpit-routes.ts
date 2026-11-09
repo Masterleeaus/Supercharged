@@ -8,8 +8,8 @@
  * Feature routes run a mode guard first (deskModeMiddleware + requireModule): the activity feed needs the
  * workforce-runtime module, the campaign responses feed needs the campaigns module. A request from the other
  * host, or an unknown host, gets 404 before any auth or service call. Then the chain runs: authenticate,
- * requireCompanyScope, then setScopedCompany. DESK_MODE_PATH has auth only and no mode guard, so the client
- * can read its mode on any host.
+ * requireCompanyScope, then setScopedCompany. DESK_MODE_PATH is host-guarded as well and requires
+ * an authenticated company; unknown hosts get 404, not a fallback mode.
  * Company scope comes only from the verified session (req.user.companyId, through getCompanyScope),
  * copied to res.locals.companyId. Request bodies, queries, params and headers are never read for tenancy.
  *
@@ -128,10 +128,10 @@ export function createCockpitRouter(deps: CockpitDeps, guards: CockpitGuards): R
     }
   });
 
-  // Session mode for the client. Host header only; unknown hosts get the workforce default.
-  // Not mode-guarded: the client needs this answer on every host to choose its screens.
+  // Authenticated session mode for a verified host only; never cache across sessions.
   router.get(DESK_MODE_PATH, modeFromHost, ...chain, (req: Request, res: Response) => {
     const result = sessionDeskMode(req.headers.host, modeConfig);
+    res.setHeader('Cache-Control', 'private, no-store');
     res.json(result);
   });
 
