@@ -22,6 +22,6 @@ test('PostgreSQL: nested inbound lock refuses cross-tenant reads',{skip:!enabled
  const f=fixture();try{
   await assert.rejects(f.store.lockInboundKey(A,'email','cross-tenant-'+id('key'),async()=>{
    await f.store.listMessages('22222222-2222-4222-8222-222222222222','some-thread');
-  }),/different company/);
+  }),/another company/);
  }finally{await f.close();}
 });
