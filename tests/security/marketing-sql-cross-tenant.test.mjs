@@ -34,3 +34,10 @@ test('every Marketing record read includes a bound company predicate',async()=>{
   assert.match(q.sql,/company_id = \$1/);assert.ok(q.values[0]===A||q.values[0]===B);
  }
 });
+
+test('the canonical chatbot reference adapter does not accept a tenant from the record ID',async()=>{
+ const {chatbotReferences}=await import('../../server/modules/marketing/reference-adapters.ts');
+ const calls=[],refs=chatbotReferences({findChatbot:async(co,id)=>{calls.push([co,id]);return null;}});
+ await refs.chatbotExists(A,B);
+ assert.deepEqual(calls,[[A,B]]);
+});

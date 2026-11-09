@@ -23,3 +23,9 @@ test('a partially populated service fails before registering any route',()=>{
  assert.throws(()=>registerOptionalCommsRoutes({use:(...x)=>calls.push(x)},{...guards,inbox:{listThreads:async()=>[]},env:{COMMS_INBOX_ENABLED:'true'}}),/missing operations/);
  assert.deepEqual(calls,[]);
 });
+
+test('the existing synchronous router remains disabled by default as a compatibility entry point',()=>{
+ const calls=[];
+ const status=registerOptionalCommsRoutes({use:(...args)=>calls.push(args)},{...guards,env:{COMMS_MARKETING_ENABLED:'false'}});
+ assert.deepEqual(status.mounted,[]);assert.deepEqual(calls,[]);
+});

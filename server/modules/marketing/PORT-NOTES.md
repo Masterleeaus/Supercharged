@@ -63,3 +63,7 @@ A disposable PostgreSQL CI job exercises real tenant isolation, restricted role 
 ## Pass 12: policy combination hardening
 
 The `policy-inspection.ts` helper validates the complete PostgreSQL policy expression and the exact desk_app role. The readiness gate now rejects permissive PUBLIC/desk_app overrides, allows only additional restrictive policies and explicitly fails closed on missing RLS metadata. CI exercises both simulated policy attacks and actual PostgreSQL pg_policies output.
+
+## Pass 13 — real route composition
+
+Production `registerWorkforceCommsRoutes` now awaits `registerVerifiedCommsRoutes`, which constructs the Marketing SQL-backed service only with the explicit flag. On that path, database RLS/schema is checked before any Marketing HTTP handler mounts. It reuses `createDrizzleChatbotStorage` for company-scoped chatbot references. Campaign references are intentionally unavailable until the separate Campaigns draft is promoted: the existing voice-call campaigns table cannot be reused safely. No environment flags are changed.

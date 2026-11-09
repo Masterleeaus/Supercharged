@@ -17,6 +17,8 @@ export async function createVerifiedMarketingService(deps: MarketingProductionSe
   if (!deps || !deps.pool || typeof deps.pool.connect !== 'function') throw new Error('marketing: production PostgreSQL pool required');
   if (!deps.campaigns || typeof deps.campaigns.campaignExists !== 'function') throw new Error('marketing: campaign reference adapter required');
   if (!deps.chatbots || typeof deps.chatbots.chatbotExists !== 'function') throw new Error('marketing: chatbot reference adapter required');
+  // Schema verification must finish before constructing any request-reachable service.
+  // This deliberately does not apply migrations or silently fall back to in-memory storage.
   await requireMarketingSchema(deps.schemaProbe);
   return createMarketingService({
     store: createSqlMarketingStore({pool:deps.pool}),

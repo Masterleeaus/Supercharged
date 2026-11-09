@@ -253,3 +253,9 @@ test('schema readiness gate rejects an incomplete or unsafe RLS policy',async()=
  const fake={query:async sql=>sql.includes('FROM pg_roles')?{rows:[]}:{rows:[]}};
  await assert.rejects(requireMarketingSchema(fake),/database security not ready/);
 });
+
+test('the production campaign reference fallback denies linking legacy voice campaigns',async()=>{
+ const {unavailableCampaignReferences}=await import('../../server/modules/marketing/reference-adapters.ts');
+ const refs=unavailableCampaignReferences();
+ assert.equal(await refs.campaignExists(CO_A,'legacy-voice-campaign'),false);
+});
