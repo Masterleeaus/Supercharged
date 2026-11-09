@@ -11,3 +11,10 @@ test('a SQL error triggers rollback and never COMMIT',async()=>{
 test('creation refuses missing tenant-capable pool',()=>{
  for(const pool of [null,undefined,{}]) assert.throws(()=>createSqlMarketingStore({pool}),/PostgreSQL pool/);
 });
+
+test('a failed conditional update rolls back with no COMMIT',async()=>{
+ const seen=[];let released=0;
+ const pool={async connect(){return{async query(sql){seen.push(sql);if(sql.startsWith('UPDATE landing_pages'))throw new Error('write conflict');return {rows:[]};},release(){released++;}};}};
+ await assert.rejects(createSqlMarketingStore({pool}).updatePage(A,'p',{title:'rename',updatedAt:new Date()}),/write conflict/);
+ assert.ok(seen.includes('ROLLBACK'));assert.equal(seen.includes('COMMIT'),false);assert.equal(released,1);
+});

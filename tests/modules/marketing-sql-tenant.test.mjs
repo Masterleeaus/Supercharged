@@ -26,3 +26,10 @@ test('every tenant transaction installs a company-local setting',async()=>{
  assert.deepEqual(config.values,['app.company_id',B]);
  assert.ok(h.queries.some(x=>x.sql.startsWith('SET LOCAL ROLE')));
 });
+
+test('invalid company IDs do not enter the connection pool for any write',()=>{
+ const h=harness(),s=createSqlMarketingStore({pool:h.pool});
+ assert.throws(()=>s.updatePage('not-a-uuid','id',{title:'x',updatedAt:new Date()}),/companyId/);
+ assert.throws(()=>s.updateContent('not-a-uuid','id',{body:'x',updatedAt:new Date()}),/companyId/);
+ assert.equal(h.releases,0);assert.deepEqual(h.queries,[]);
+});

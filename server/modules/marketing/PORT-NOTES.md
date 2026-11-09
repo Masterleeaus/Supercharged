@@ -47,3 +47,7 @@ New module for Desk comms mode. Not mounted. No migration run.
 `sql-store.ts`, `sql-row.ts` and `sql-patch.ts` now implement the existing nine-method MarketingStore contract with tenant-scoped PostgreSQL queries and fixed update-field allowlists. The implementation is exported as `createSqlMarketingStore({ pool })`; the prior fail-closed `createDrizzleMarketingStore()` is preserved for backward compatibility. The SQL store requires the archived DRAFT schema to be reviewed and promoted before it can run against a live database. No migration was applied. Unique page-slug races now map the PostgreSQL `landing_pages_company_slug_uidx` constraint to the existing domain conflict code.
 
 Tests cover SQL shapes and tenant transaction behavior with recording pool fakes. Real RLS and concurrent DB tests remain required before enabling Marketing.
+
+## Pass 9: draft RLS candidate and lifecycle conditions
+
+The reviewed migration candidate is at `migrations/candidates/0017_marketing_tenant_rls.sql`, NOT in the production migration runner. It retains Marketing tables while adding forced tenant policies for `desk_app`. `scripts/check-marketing-migration.mjs` performs a non-invasive static preflight. SQL updates now condition on the prior publication status so stale concurrent writes cannot silently succeed. `MarketingService` surfaces a conflict if the store returns no changed record.

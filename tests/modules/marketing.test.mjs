@@ -226,3 +226,16 @@ test('non-slug database unique constraints are not mistakenly labeled a slug con
  const refs={campaignExists:async()=>true,chatbotExists:async()=>true};
  await assert.rejects(createMarketingService({store,campaigns:refs,chatbots:refs}).createPage(CO_A,HUMAN,{slug:'not-duplicate',title:'Offer'}),e=>e===duplicate);
 });
+
+test('failed concurrent publish never returns stale page as a success',async()=>{
+ const ctx=build();const p=await ctx.service.createPage(CO_A,HUMAN,page());
+ const original=ctx.store.updatePage.bind(ctx.store);ctx.store.updatePage=async()=>null;
+ await assert.rejects(ctx.service.publishPage(CO_A,HUMAN,p.id),e=>e instanceof MarketingError&&e.code==='conflict');
+ ctx.store.updatePage=original;
+});
+test('failed concurrent approve never returns stale content as a success',async()=>{
+ const ctx=build();const item=await ctx.service.createContent(CO_A,HUMAN,{kind:'blog_post',title:'Story',body:'Body'});
+ const original=ctx.store.updateContent.bind(ctx.store);ctx.store.updateContent=async()=>null;
+ await assert.rejects(ctx.service.approveContent(CO_A,HUMAN,item.id),e=>e instanceof MarketingError&&e.code==='conflict');
+ ctx.store.updateContent=original;
+});

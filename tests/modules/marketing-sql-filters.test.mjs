@@ -21,3 +21,10 @@ test('empty filters still constrain company and use deterministic ordering',asyn
  const q=r.seen.find(x=>x.sql.includes('FROM landing_pages'));
  assert.match(q.sql,/ORDER BY updated_at DESC, id ASC/);assert.deepEqual(q.values,[A]);
 });
+
+test('filter values resembling SQL do not alter the query structure',async()=>{
+ const r=recorder(),value="draft' OR company_id <> '";
+ await createSqlMarketingStore({pool:r.pool}).listContent(A,{status:value,campaignId:value});
+ const q=r.seen.find(x=>x.sql.includes('FROM content_items'));
+ assert.ok(!q.sql.includes(value));assert.deepEqual(q.values,[A,value,value]);
+});
