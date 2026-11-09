@@ -1571,7 +1571,24 @@ export const insertWebhookSchema = createInsertSchema(webhooks).omit({
   createdAt: true,
   updatedAt: true,
 });
-export const createWebhookSchema = insertWebhookSchema.omit({ userId: true });
+// Explicit create schema for the flow-automation webhook route. The drizzle-zod
+// output types jsonb columns as the wide Json type, so the route could not insert
+// its parsed data without a cast. These shapes match the insert type directly.
+// Behaviour change: campaignIds must be an array of strings or null, and headers,
+// authCredentials and events must have the types the column declares.
+export const createWebhookSchema = z.object({
+  name: z.string().max(255),
+  description: z.string().nullish(),
+  url: z.string(),
+  method: z.string().max(10).optional(),
+  headers: z.record(z.string(), z.string()).nullish(),
+  secret: z.string().max(64),
+  authType: z.string().max(50).nullish(),
+  authCredentials: z.record(z.string(), z.string()).nullish(),
+  events: z.array(z.string()),
+  campaignIds: z.array(z.string()).nullish(),
+  isActive: z.boolean().optional(),
+});
 export type InsertWebhook = z.infer<typeof insertWebhookSchema>;
 export type CreateWebhook = z.infer<typeof createWebhookSchema>;
 export type Webhook = typeof webhooks.$inferSelect;

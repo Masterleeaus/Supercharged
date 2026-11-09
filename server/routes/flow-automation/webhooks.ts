@@ -41,7 +41,10 @@ export function registerWebhookRoutes(router: Router): void {
       }
 
       const userId = req.userId!;
-      const validatedData = createWebhookSchema.parse(req.body);
+      const parsed = createWebhookSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid webhook", details: parsed.error.issues });
+      }
 
       let companyId: string;
       try {
@@ -50,16 +53,21 @@ export function registerWebhookRoutes(router: Router): void {
         return res.status(403).json({ error: "Company scope required" });
       }
 
+      // Required columns are read by name, so the insert type checks without a cast.
+      const { name, url, secret, events, ...rest } = parsed.data;
       const webhookId = nanoid();
-      // TODO: Drizzle type inference - Zod validated data doesn't perfectly match insert type
       const [newWebhook] = await db
         .insert(webhooks)
         .values({
           id: webhookId,
           userId,
-          ...validatedData,
+          name,
+          url,
+          secret,
+          events,
+          ...rest,
           companyId,
-        } as typeof webhooks.$inferInsert)
+        })
         .returning();
 
       res.json(newWebhook);
