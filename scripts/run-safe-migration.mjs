@@ -6,6 +6,7 @@
  *   - 0002_add_google_sheets_credentials.sql — CREATE TABLE IF NOT EXISTS for Google Sheets OAuth
  *
  * Usage:  node scripts/run-safe-migration.mjs
+ *         node scripts/run-safe-migration.mjs --dry-run   (prints the ordered list; no DB needed)
  *
  * Requirements:
  *   - DATABASE_URL environment variable must be set (or a .env file in the
@@ -39,15 +40,15 @@ if (existsSync(envPath)) {
   }
 }
 
+// --dry-run: check the files and print the ordered list. No DATABASE_URL and no connection needed.
+const dryRun = process.argv.includes('--dry-run');
+
 const dbUrl = process.env.DATABASE_URL;
-if (!dbUrl) {
+if (!dbUrl && !dryRun) {
   console.error('❌ DATABASE_URL environment variable is not set.');
   console.error('   Set it in your environment or in a .env file at the project root.');
   process.exit(1);
 }
-
-const { default: pg } = await import('pg');
-const { Pool } = pg;
 
 // Each entry names a file in migrations/ and whether it is required.
 //   required: true  - a missing file exits 1 before any database work.
@@ -97,6 +98,14 @@ if (missingRequired.length > 0) {
     console.error(`   - ${m.file}`);
   }
   process.exit(1);
+}
+
+if (dryRun) {
+  console.log(`Dry run. ${MIGRATIONS.length} entries in apply order. Nothing was applied.`);
+  MIGRATIONS.forEach((m, i) => {
+    console.log(`${String(i + 1).padStart(2, ' ')}. ${m.file}${m.required ? '' : ' (optional)'}`);
+  });
+  process.exit(0);
 }
 
 /**
@@ -156,6 +165,8 @@ function countStatements(sql) {
 }
 
 async function runMigrations() {
+  const { default: pg } = await import('pg');
+  const { Pool } = pg;
   const pool = new Pool({ connectionString: dbUrl });
 
   console.log('🔄 Running safe database migration...\n');
