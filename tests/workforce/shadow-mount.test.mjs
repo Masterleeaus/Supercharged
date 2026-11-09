@@ -17,7 +17,7 @@ import {
 } from '../../server/workforce/runtime/shadow-routes.ts';
 import { requireCompanyScope } from '../../server/middleware/company-scope.ts';
 
-const ROUTES = new URL('../../server/routes.ts', import.meta.url);
+const ROUTES = new URL('../../server/routes/core/workforce-comms-routes.ts', import.meta.url);
 const CO_A = '11111111-1111-4111-8111-111111111111';
 const CO_B = '22222222-2222-4222-8222-222222222222';
 const MANAGER_A = { id: 'u-manager-a', role: 'manager', companyId: CO_A };

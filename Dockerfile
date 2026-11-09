@@ -3,8 +3,10 @@ FROM node:22 AS build
 
 WORKDIR /app
 
-# Copy only package files first (this layer caches independently)
+# Copy only package files first (this layer caches independently).
+# packages/ is needed here too: package.json depends on "file:packages/diploy-core".
 COPY package*.json ./
+COPY packages ./packages
 
 # Install all dependencies, including devDependencies, for the build
 RUN npm ci
@@ -26,6 +28,7 @@ ENV NODE_ENV=production
 ENV PORT=5000
 
 COPY package*.json ./
+COPY packages ./packages
 RUN npm ci --omit=dev && npm cache clean --force
 
 COPY --from=build /app/dist ./dist

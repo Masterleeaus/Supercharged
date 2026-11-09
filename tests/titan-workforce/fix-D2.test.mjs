@@ -111,6 +111,6 @@ test('gate must be an explicit array or function; a bare adminAuth option is not
 });
 
 test('routes.ts gives the bridge a named permission gate',()=>{
-  const routes=readFileSync(resolve(repo,'server/routes.ts'),'utf8');
+  const routes=readFileSync(resolve(repo,'server/routes/core/plugin-management-routes.ts'),'utf8');
   assert.match(routes,/workforceAdminMiddleware:\s*\[\s*checkAdminOrTeamMember[\s\S]{0,200}requireAdminPermission\('workforce',\s*'previews',\s*'create'\)/);
 });
