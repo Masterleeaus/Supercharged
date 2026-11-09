@@ -51,10 +51,8 @@ jobs:
   migration-inventory:
     name: Migration inventory
     runs-on: ubuntu-latest
-    # Informational until issue #34 is resolved: scripts/run-safe-migration.mjs lists
-    # 008 and 009 files that are not in migrations/, so this job is red on main.
-    # Remove continue-on-error once those entries are fixed.
-    continue-on-error: true
+    # Inventory is parsed from the authoritative MIGRATIONS array, not an
+    # obsolete resolve(rootDir, 'migrations', literal) pattern.
     # scripts/run-safe-migration.mjs has no --dry-run flag, so this job checks
     # that every migration file the script lists exists under migrations/.
     steps:
@@ -67,7 +65,7 @@ jobs:
           node -e "
           const fs = require('fs');
           const src = fs.readFileSync('scripts/run-safe-migration.mjs', 'utf8');
-          const re = /resolve\(rootDir,\s*'migrations',\s*'([^']+)'\)/g;
+          const re = /\{\s*file:\s*'([^']+)'\s*,\s*required:\s*(?:true|false)\s*\}/g;
           const names = [];
           let m;
           while ((m = re.exec(src))) names.push(m[1]);
