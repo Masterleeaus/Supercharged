@@ -33,3 +33,7 @@ An additional review-only outbox candidate supports unique queued message enroll
 ## Pass 21: signed delivery callback evidence
 
 A review-only `0020_inbox_delivery_receipts.sql` candidate records immutable provider acknowledgments for previously sent, tenant-owned outbox rows. Callback signatures use a generic internal HMAC over timestamp and raw request body. Integration ID resolution selects the company and signing secret; user-supplied tenant selectors are ignored. The optional Express router remains unmounted and requires an explicit provider guard. Disposable PostgreSQL checks verify event deduplication and foreign-tenant denial. Provider-native signature translators, actual signing credentials, and delivery reconciliation operations remain prerequisites to production activation.
+
+## Pass 22: delivery confirmation projection
+
+Adds a review-only tenant-RLS delivery-state table linked by composite company/outbox keys. The signed receipt insert and conditional state projection happen in the same PostgreSQL transaction. Duplicate and late events cannot demote confirmed delivery; the separate query service reads delivery by scoped message ID. The candidate strengthens outbox provider acknowledgment uniqueness and receipt foreign-key tenant isolation. This does not automatically deploy migrations or activate outbound providers.

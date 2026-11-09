@@ -77,3 +77,7 @@ A review-only `0019_inbox_outbox.sql` candidate adds a tenant-RLS protected outb
 ## Pass 21: signed receipt callback boundary
 
 A generic gateway HMAC verifier authenticates exact raw bytes with timestamp expiry and constant-time comparison. Trusted integration IDs resolve company/provider/secret on the server. Receipt persistence accepts only provider IDs already acknowledged by the tenant's outbox and records each (company,provider,eventId) once. A receipt router factory is provided but not mounted; callback format is for a controlled gateway and MUST NOT be treated as the native signature protocol of arbitrary third-party providers. No provider credentials, live sending, production migration or webhook registration is enabled.
+
+## Pass 22: delivery state and reconciliation
+
+`createSqlDeliveryStateReader` provides company-restricted confirmation reads from a new, review-only projection. `createSqlDeliveryReceipts` now transactionally updates that projection for every newly persisted signed event. Once delivered, a late failed event cannot downgrade the state. Provider acknowledgment IDs must be unique per tenant and receipt/outbox relationships are enforced by composite tenant foreign keys. Provider configuration, real native signatures and production migrations are still not enabled.

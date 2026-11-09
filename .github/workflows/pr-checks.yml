@@ -109,6 +109,8 @@ jobs:
         run: node scripts/check-inbox-rls.mjs
       - name: Validate review-only durable Inbox outbox candidate
         run: node scripts/check-inbox-outbox.mjs
+      - name: Validate delivery-state projection and foreign keys
+        run: node scripts/check-inbox-delivery-state.mjs
       - name: Build disposable Inbox schema with restricted RLS
         run: node scripts/inbox-postgres-prepare.mjs
       - name: Verify Inbox signed receipt contract, outbox and PostgreSQL isolation

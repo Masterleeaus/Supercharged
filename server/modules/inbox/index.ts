@@ -40,3 +40,8 @@ export {parseDeliveryReceipt} from './delivery-receipt.ts';
 export {createSqlDeliveryReceipts} from './sql-delivery-receipts.ts';
 export {createReceiptService} from './receipt-service.ts';
 export {createReceiptRouter} from './receipt-router.ts';
+
+export {createSqlDeliveryStateReader} from './sql-delivery-state.ts';
+export {mapDeliveryState,validateDeliveryOutcome} from './delivery-state.ts';
+export type {DeliveryState,DeliveryOutcome} from './delivery-state.ts';
+export type {DeliveryStateReader} from './sql-delivery-state.ts';

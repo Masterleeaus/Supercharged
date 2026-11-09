@@ -15,10 +15,13 @@ CREATE TABLE IF NOT EXISTS public.inbox_outbox (
  created_at timestamptz NOT NULL DEFAULT now(),
  updated_at timestamptz NOT NULL DEFAULT now(),
  CONSTRAINT inbox_outbox_company_message_uniq UNIQUE(company_id,message_id),
+ CONSTRAINT inbox_outbox_company_id_uniq UNIQUE(company_id,id),
  CONSTRAINT inbox_outbox_message_fk FOREIGN KEY(company_id,message_id)
    REFERENCES public.inbox_messages(company_id,id),
  CONSTRAINT inbox_outbox_lease_pair CHECK ((status='leased') = (lease_token IS NOT NULL AND leased_until IS NOT NULL))
 );
+-- One provider acknowledgment ID must not ambiguously identify multiple messages within a company.
+CREATE UNIQUE INDEX IF NOT EXISTS inbox_outbox_company_provider_uidx ON public.inbox_outbox(company_id,provider_id) WHERE provider_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS inbox_outbox_due_idx ON public.inbox_outbox(company_id,next_attempt_at,created_at)
  WHERE status IN ('queued','retry','leased');
 ALTER TABLE public.inbox_outbox ENABLE ROW LEVEL SECURITY;

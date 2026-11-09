@@ -25,7 +25,20 @@ export function createSqlDeliveryReceipts(pool:TenantPool):ReceiptRepository{
        company_id,outbox_id,provider,event_id,provider_id,outcome,payload_sha256,provider_event_at)
       SELECT $1,m.id,$2,$3,$4,$5,$6,$7::timestamptz FROM matched m
       ON CONFLICT(company_id,provider,event_id) DO NOTHING
-      RETURNING id
+      RETURNING company_id,outbox_id,outcome,event_id,provider_event_at
+     ), projected AS (
+      INSERT INTO public.inbox_delivery_state(company_id,outbox_id,outcome,event_id,provider_event_at)
+       SELECT company_id,outbox_id,outcome,event_id,provider_event_at FROM inserted WHERE true
+       ON CONFLICT(company_id,outbox_id) DO UPDATE
+        SET outcome=EXCLUDED.outcome,event_id=EXCLUDED.event_id,
+            provider_event_at=EXCLUDED.provider_event_at,updated_at=now()
+       -- A confirmed delivery cannot be downgraded by a delayed failure callback.
+       -- Stale failures cannot overwrite a newer failure event.
+       WHERE inbox_delivery_state.outcome<>'delivered'
+         AND (EXCLUDED.outcome='delivered' OR
+           COALESCE(EXCLUDED.provider_event_at,'epoch'::timestamptz)>=
+           COALESCE(inbox_delivery_state.provider_event_at,'epoch'::timestamptz))
+       RETURNING outbox_id
      )
      SELECT (SELECT count(*)::integer FROM matched) AS matching,
             (SELECT count(*)::integer FROM inserted) AS inserted`,

@@ -13,8 +13,8 @@ CREATE TABLE IF NOT EXISTS public.inbox_delivery_receipts (
  provider_event_at timestamptz,
  received_at timestamptz NOT NULL DEFAULT now(),
  CONSTRAINT inbox_receipts_event_unique UNIQUE (company_id,provider,event_id),
- CONSTRAINT inbox_receipts_outbox_company_fk FOREIGN KEY (outbox_id)
-   REFERENCES public.inbox_outbox(id),
+ CONSTRAINT inbox_receipts_outbox_company_fk FOREIGN KEY (company_id,outbox_id)
+   REFERENCES public.inbox_outbox(company_id,id),
  CONSTRAINT inbox_receipts_outcome_nonempty CHECK (length(provider)>0 AND length(event_id)>0 AND length(provider_id)>0)
 );
 CREATE INDEX IF NOT EXISTS inbox_receipts_outbox_idx ON public.inbox_delivery_receipts(company_id,outbox_id,received_at);
