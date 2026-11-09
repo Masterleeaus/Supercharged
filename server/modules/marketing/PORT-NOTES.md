@@ -41,3 +41,9 @@ New module for Desk comms mode. Not mounted. No migration run.
 - No renderer, no public route, no hosting.
 - Unique slug check is read-then-insert. The Drizzle version relies on the `(company_id, slug)` unique constraint.
 - Campaign references are not checked for status. A page can link to a cancelled campaign.
+
+## Pass 8: real SQL store, still not auto-mounted
+
+`sql-store.ts`, `sql-row.ts` and `sql-patch.ts` now implement the existing nine-method MarketingStore contract with tenant-scoped PostgreSQL queries and fixed update-field allowlists. The implementation is exported as `createSqlMarketingStore({ pool })`; the prior fail-closed `createDrizzleMarketingStore()` is preserved for backward compatibility. The SQL store requires the archived DRAFT schema to be reviewed and promoted before it can run against a live database. No migration was applied. Unique page-slug races now map the PostgreSQL `landing_pages_company_slug_uidx` constraint to the existing domain conflict code.
+
+Tests cover SQL shapes and tenant transaction behavior with recording pool fakes. Real RLS and concurrent DB tests remain required before enabling Marketing.

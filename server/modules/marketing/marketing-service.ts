@@ -217,7 +217,16 @@ export function createMarketingService(deps: MarketingServiceDeps): MarketingSer
         createdAt: at,
         updatedAt: at,
       };
-      await store.insertPage(page);
+      try {
+        await store.insertPage(page);
+      } catch (error: unknown) {
+        // The database unique key closes the race between findPageBySlug and insertPage.
+        if (error instanceof Error && (error as { code?: unknown }).code === '23505' &&
+            (error as { constraint?: unknown }).constraint === 'landing_pages_company_slug_uidx') {
+          throw new MarketingError('A page with this slug already exists', 'conflict');
+        }
+        throw error;
+      }
       return page;
     },
 

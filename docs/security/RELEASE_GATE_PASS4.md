@@ -19,3 +19,7 @@ The first Pass 4 test run exposed 21 failures caused by a pre-existing test fixt
 ## Pass 6 production mounting gate
 
 Inbox and Marketing now have real Express router factories and an optional route registration point. Both are **disabled by default**. To enable them, supply persistent, migration-compatible storage and verified authentication, then pass the HTTP cross-company isolation tests against that storage. Enabling a module without its required service intentionally fails startup rather than silently falling back to in-memory data.
+
+## Pass 8 Marketing SQL readiness gate
+
+A real, opt-in, tenant-scoped SQL MarketingStore implementation exists, but the archived Marketing tables have **not** been promoted or created by this pass. Do not enable production Marketing until numbered migrations, restricted DB role privileges, row-level isolation, concurrency tests and external reference port wiring have been validated against PostgreSQL. The existing production flag stays disabled.
