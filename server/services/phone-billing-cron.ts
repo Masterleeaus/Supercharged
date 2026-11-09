@@ -83,7 +83,7 @@ export async function processPhoneNumberBilling() {
 
     logger.info('📞 [Phone Billing] Monthly billing check complete');
   } catch (error: any) {
-    console.error('📞 [Phone Billing] Error processing monthly billing:', error);
+    logger.error('📞 [Phone Billing] Error processing monthly billing:', error);
   }
 }
 
@@ -97,7 +97,7 @@ async function processPhoneNumberRenewal(phoneNumber: any) {
     // Get user to check credits
     const user = await storage.getUser(phoneNumber.userId);
     if (!user) {
-      console.error(`📞 [Phone Billing] User not found for phone number ${phoneNumber.id}`);
+      logger.error(`📞 [Phone Billing] User not found for phone number [redacted]`);
       return;
     }
 
@@ -114,7 +114,7 @@ async function processPhoneNumberRenewal(phoneNumber: any) {
       await disablePhoneNumber(phoneNumber, user, monthlyCredits);
     }
   } catch (error: any) {
-    console.error(`📞 [Phone Billing] Error processing renewal for ${phoneNumber.phoneNumber}:`, error);
+    logger.error(`📞 [Phone Billing] Error processing renewal for [redacted]:`, error);
   }
 }
 
@@ -179,11 +179,11 @@ async function renewPhoneNumber(phoneNumber: any, user: any, monthlyCredits: num
         await emailService.sendLowCreditsAlert(user.id, updatedUser.credits || 0);
         logger.info(`✅ [Phone Billing] Low credits email sent to user ${user.id}`);
       } catch (emailError: any) {
-        console.error(`❌ [Phone Billing] Failed to send low credits email:`, emailError);
+        logger.error(`❌ [Phone Billing] Failed to send low credits email:`);
       }
     }
   } catch (error: any) {
-    console.error(`❌ [Phone Billing] Failed to renew ${phoneNumber.phoneNumber}:`, error);
+    logger.error(`❌ [Phone Billing] Failed to renew [redacted]:`, error);
     
     // Create failed rental record
     try {
@@ -194,7 +194,7 @@ async function renewPhoneNumber(phoneNumber: any, user: any, monthlyCredits: num
         status: 'failed',
       });
     } catch (rentalError) {
-      console.error(`❌ [Phone Billing] Failed to create failed rental record:`, rentalError);
+      logger.error(`❌ [Phone Billing] Failed to create failed rental record:`, rentalError);
     }
   }
 }
@@ -243,7 +243,7 @@ async function disablePhoneNumber(phoneNumber: any, user: any, monthlyCredits: n
       );
       logger.info(`✅ [Phone Billing] Released [redacted] from Twilio`);
     } catch (twilioError: any) {
-      console.error(`⚠️  [Phone Billing] Failed to release ${phoneNumber.phoneNumber} from Twilio:`, twilioError);
+      logger.error(`⚠️  [Phone Billing] Failed to release [redacted] from Twilio:`, twilioError);
       // Enqueue durable retry so the release is not lost on transient errors.
       try {
         await db.insert(phoneReleaseRetryQueue).values({
@@ -257,7 +257,7 @@ async function disablePhoneNumber(phoneNumber: any, user: any, monthlyCredits: n
         });
         logger.info(`📥 [Phone Billing] Queued release retry for [redacted]`);
       } catch (queueError: any) {
-        console.error(`❌ [Phone Billing] Failed to queue release retry:`, queueError);
+        logger.error(`❌ [Phone Billing] Failed to queue release retry:`, queueError);
       }
     }
 
@@ -270,7 +270,7 @@ async function disablePhoneNumber(phoneNumber: any, user: any, monthlyCredits: n
       `Insufficient credits (${user.credits || 0} available, ${monthlyCredits} required)`
     );
   } catch (error: any) {
-    console.error(`❌ [Phone Billing] Failed to disable ${phoneNumber.phoneNumber}:`, error);
+    logger.error(`❌ [Phone Billing] Failed to disable [redacted]:`, error);
   }
 }
 

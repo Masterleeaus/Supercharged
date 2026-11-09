@@ -6,6 +6,7 @@ import { db } from '../../db';
 import { eq } from 'drizzle-orm';
 import { openaiCredentials } from '@shared/schema';
 import { ElevenLabsPoolService } from '../../services/elevenlabs-pool';
+import { logger } from '../../utils/logger.ts';
 
 async function safeParseResponse(response: globalThis.Response): Promise<{ data: any; isJson: boolean; rawText?: string }> {
   const text = await response.text();
@@ -87,7 +88,7 @@ export function registerConnectionsRoutes(router: Router) {
             }
           }
         } catch (poolError: any) {
-          console.error('Pool key test failed, trying env var:', poolError);
+          logger.error('Pool key test failed, trying env var:', poolError);
         }
       }
       

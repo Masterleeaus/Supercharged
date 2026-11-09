@@ -216,7 +216,7 @@ export async function handleAskKnowledgeToolCall(
       }))
     };
   } catch (error: any) {
-    console.error("[RAG Tool] Error:", error.message);
+    logger.error("[RAG Tool] Error:", error.message);
     return {
       response: "I encountered an error searching the knowledge base. Please try again.",
       sources: []
@@ -262,7 +262,7 @@ export async function setupRAGToolForAgent(
   // Get credential for this agent
   const credential = await ElevenLabsPoolService.getCredentialForAgent(agentId);
   if (!credential) {
-    console.warn(`📚 [RAG Tool] No credential found for agent ${agentId}`);
+    logger.warn(`📚 [RAG Tool] No credential found for agent ${agentId}`);
     return;
   }
 
@@ -273,7 +273,7 @@ export async function setupRAGToolForAgent(
   try {
     agent = await elevenLabsService.getAgent(elevenLabsAgentId);
   } catch (err: any) {
-    console.warn(`📚 [RAG Tool] Failed to fetch agent details: ${err.message}`);
+    logger.warn(`📚 [RAG Tool] Failed to fetch agent details: ${err.message}`);
   }
 
   // Fix tool name in the system prompt if needed
@@ -299,7 +299,7 @@ export async function setupRAGToolForAgent(
           });
           logger.info(`✅ [RAG Tool] Corrected system prompt saved to ElevenLabs`);
         } catch (patchErr: any) {
-          console.warn(`❌ [RAG Tool] Failed to update prompt with corrected tool name: ${patchErr.message}`);
+          logger.warn(`❌ [RAG Tool] Failed to update prompt with corrected tool name: ${patchErr.message}`);
         }
       }
     }
@@ -329,7 +329,7 @@ export async function setupRAGToolForAgent(
       });
       logger.info(`✅ [RAG Tool] Appointment tool attached via tool_ids`);
     } catch (appointmentError: any) {
-      console.warn(`❌ [RAG Tool] Failed to attach appointment tool via tool_ids: ${appointmentError.message}`);
+      logger.warn(`❌ [RAG Tool] Failed to attach appointment tool via tool_ids: ${appointmentError.message}`);
     }
   }
 
@@ -343,7 +343,7 @@ export async function setupRAGToolForAgent(
     try {
       await elevenLabsService.linkToolsToAgent(elevenLabsAgentId, webhookTools, systemTools);
     } catch (error: any) {
-      console.warn(`📚 [RAG Tool] Failed to update tools: ${error.message}`);
+      logger.warn(`📚 [RAG Tool] Failed to update tools: ${error.message}`);
     }
     return;
   }
@@ -363,7 +363,7 @@ export async function setupRAGToolForAgent(
       await elevenLabsService.getOrCreateWorkspaceTool(toolConfig);
       logger.info(`📚 [RAG Tool] Workspace tool created/verified for dashboard visibility`);
     } catch (wsError: any) {
-      console.warn(`📚 [RAG Tool] Workspace tool creation skipped: ${wsError.message}`);
+      logger.warn(`📚 [RAG Tool] Workspace tool creation skipped: ${wsError.message}`);
       // Continue - the inline config will still work
     }
 
@@ -374,7 +374,7 @@ export async function setupRAGToolForAgent(
 
     logger.info(`✅ [RAG Tool] Tool added to agent successfully`);
   } catch (error: any) {
-    console.error(`❌ [RAG Tool] Failed to setup RAG tool: ${error.message}`);
+    logger.error(`❌ [RAG Tool] Failed to setup RAG tool: ${error.message}`);
     // Don't throw - let agent creation/update continue
   }
 }

@@ -129,7 +129,7 @@ export class KycService {
           fs.unlinkSync(fullPath);
         }
       } catch (error) {
-        console.warn('[KYC] Failed to delete old document file:', error);
+        logger.warn('[KYC] Failed to delete old document file:', error);
       }
 
       // Update existing record
@@ -285,7 +285,7 @@ export class KycService {
       });
       await emailService.sendKycApproved(userId);
     } catch (error) {
-      console.error('[KYC] Failed to send approval notifications:', error);
+      logger.error('[KYC] Failed to send approval notifications:', error);
     }
 
     return this.getUserKycStatus(userId);
@@ -329,7 +329,7 @@ export class KycService {
       });
       await emailService.sendKycRejected(userId, reason || 'No reason provided');
     } catch (error) {
-      console.error('[KYC] Failed to send rejection notifications:', error);
+      logger.error('[KYC] Failed to send rejection notifications:', error);
     }
 
     return this.getUserKycStatus(userId);
@@ -392,7 +392,7 @@ export class KycService {
         fs.unlinkSync(fullPath);
       }
     } catch (error) {
-      console.warn('[KYC] Failed to delete document file:', error);
+      logger.warn('[KYC] Failed to delete document file:', error);
     }
 
     // Delete record

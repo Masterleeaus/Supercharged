@@ -27,6 +27,7 @@
 
 import isSafeRegex from 'safe-regex2';
 import type { ApprovalRequest, Policy, PolicyRule, PolicyDecision, MatcherValue } from './types';
+import { logger } from '../../utils/logger.ts';
 
 /**
  * Context used to scope which policies apply to a request.
@@ -113,7 +114,7 @@ function matchValue(value: unknown, matcher: MatcherValue): boolean {
       if (typeof value !== 'string') return false;
       try {
         if (!isSafeRegex(matcher.$regex)) {
-          console.warn(`[PolicyEngine] Unsafe regex pattern rejected at evaluation: ${matcher.$regex}`);
+          logger.warn(`[PolicyEngine] Unsafe regex pattern rejected at evaluation: ${matcher.$regex}`);
           return false; // Unsafe regex — treat as non-match
         }
         const regex = new RegExp(matcher.$regex);

@@ -17,6 +17,7 @@
 
 import { db } from "./db";
 import { emailTemplates } from "@shared/schema";
+import { logger } from './utils/logger.ts';
 
 function getBaseEmailStyles(): string {
   return `
@@ -749,7 +750,7 @@ If you need to reschedule or cancel your appointment, please contact us.
 
 async function seedEmailTemplates() {
   try {
-    console.log("🌱 Starting Email Templates seed...");
+    logger.info("🌱 Starting Email Templates seed...");
     
     const existing = await db.select().from(emailTemplates);
     const existingTypes = existing.map(t => t.templateType);
@@ -759,20 +760,20 @@ async function seedEmailTemplates() {
     );
     
     if (templatesToInsert.length === 0) {
-      console.log(`⚠️  All ${EMAIL_TEMPLATES_SEED_DATA.length} email templates already exist. Skipping.`);
+      logger.info(`⚠️  All [redacted] email templates already exist. Skipping.`);
       return;
     }
 
-    console.log(`📧 Inserting ${templatesToInsert.length} email templates...`);
+    logger.info(`📧 Inserting ${templatesToInsert.length} email templates...`);
     await db.insert(emailTemplates).values(templatesToInsert);
     
-    console.log("✅ Successfully seeded Email Templates!");
+    logger.info("✅ Successfully seeded Email Templates!");
     templatesToInsert.forEach(template => {
-      console.log(`   - ${template.name} (${template.templateType}): ${template.variables.length} variables`);
+      logger.info(`   - ${template.name} (${template.templateType}): ${template.variables.length} variables`);
     });
     
   } catch (error) {
-    console.error("❌ Error seeding Email Templates:", error);
+    logger.error("❌ Error seeding Email Templates:", error);
     throw error;
   }
 }

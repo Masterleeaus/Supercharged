@@ -161,7 +161,7 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (error: any) {
-    console.error("[Twilio-OpenAI] Error fetching incoming connections:", error);
+    logger.error("[Twilio-OpenAI] Error fetching incoming connections:", error);
     res.status(500).json({ message: "Failed to fetch incoming connections" });
   }
 });
@@ -260,7 +260,7 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response) => {
       await twilioService.updatePhoneNumber(phoneNumber[0].twilioSid!, { voiceUrl: webhookUrl });
       logger.info(`[Twilio-OpenAI] Updated webhook to ${webhookUrl}`);
     } catch (webhookError: any) {
-      console.error("[Twilio-OpenAI] Failed to update webhook:", webhookError);
+      logger.error("[Twilio-OpenAI] Failed to update webhook:", webhookError);
     }
 
     res.status(201).json({
@@ -268,7 +268,7 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response) => {
       connection: newConnection,
     });
   } catch (error: any) {
-    console.error("[Twilio-OpenAI] Error creating incoming connection:", error);
+    logger.error("[Twilio-OpenAI] Error creating incoming connection:", error);
     if (error.name === "ZodError") {
       return res.status(400).json({ message: "Validation error", errors: error.issues });
     }
@@ -313,11 +313,11 @@ router.post("/:id/resync-webhook", authenticateToken, async (req: AuthRequest, r
       logger.info(`[Twilio-OpenAI] Resynced webhook to ${webhookUrl}`);
       res.json({ message: "Webhook URL updated successfully", webhookUrl });
     } catch (webhookError: any) {
-      console.error("[Twilio-OpenAI] Failed to resync webhook:", webhookError);
+      logger.error("[Twilio-OpenAI] Failed to resync webhook:", webhookError);
       res.status(500).json({ message: "Failed to update webhook URL", error: webhookError.message });
     }
   } catch (error: any) {
-    console.error("[Twilio-OpenAI] Error resyncing webhook:", error);
+    logger.error("[Twilio-OpenAI] Error resyncing webhook:", error);
     res.status(500).json({ message: "Failed to resync webhook" });
   }
 });
@@ -353,7 +353,7 @@ router.delete("/:id", authenticateToken, async (req: AuthRequest, res: Response)
 
     res.json({ message: "Incoming connection deleted" });
   } catch (error: any) {
-    console.error("[Twilio-OpenAI] Error deleting incoming connection:", error);
+    logger.error("[Twilio-OpenAI] Error deleting incoming connection:", error);
     res.status(500).json({ message: "Failed to delete incoming connection" });
   }
 });

@@ -12,6 +12,7 @@
  */
 
 import Redis from 'ioredis';
+import { logger } from '../../utils/logger.ts';
 
 let redisConnection: Redis | null = null;
 let healthCheckInterval: NodeJS.Timeout | null = null;
@@ -31,7 +32,7 @@ export function getRedisConnection(): Redis {
       retryStrategy: (times: number) => {
         consecutiveFailures++;
         if (times > 20) {
-          console.error('[BullMQ] Redis connection failed after 20 retries, will continue trying...');
+          logger.error('[BullMQ] Redis connection failed after 20 retries, will continue trying...');
           return 30000;
         }
         return Math.min(times * 200, 10000);
@@ -43,25 +44,25 @@ export function getRedisConnection(): Redis {
     });
 
     redisConnection.on('connect', () => {
-      console.log('[BullMQ] Redis connected');
+      logger.info('[BullMQ] Redis connected');
       consecutiveFailures = 0;
     });
 
     redisConnection.on('ready', () => {
-      console.log('[BullMQ] Redis ready');
+      logger.info('[BullMQ] Redis ready');
       consecutiveFailures = 0;
     });
 
     redisConnection.on('error', (err) => {
-      console.error('[BullMQ] Redis error:', err.message);
+      logger.error('[BullMQ] Redis error:', err.message);
     });
 
     redisConnection.on('close', () => {
-      console.log('[BullMQ] Redis connection closed');
+      logger.info('[BullMQ] Redis connection closed');
     });
 
     redisConnection.on('reconnecting', () => {
-      console.log('[BullMQ] Redis reconnecting...');
+      logger.info('[BullMQ] Redis reconnecting...');
     });
 
     startHealthMonitor();
@@ -86,10 +87,10 @@ function startHealthMonitor(): void {
       consecutiveFailures = 0;
     } catch (error: any) {
       consecutiveFailures++;
-      console.warn(`[BullMQ] Health check failed (${consecutiveFailures}/${MAX_CONSECUTIVE_FAILURES}): ${error.message}`);
+      logger.warn(`[BullMQ] Health check failed (${consecutiveFailures}/${MAX_CONSECUTIVE_FAILURES}): ${error.message}`);
       
       if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
-        console.error('[BullMQ] Redis health check failed multiple times, connection may be degraded');
+        logger.error('[BullMQ] Redis health check failed multiple times, connection may be degraded');
       }
     }
   }, HEALTH_CHECK_INTERVAL_MS);
@@ -105,11 +106,11 @@ export async function closeRedisConnection(): Promise<void> {
     try {
       await redisConnection.quit();
     } catch (error: any) {
-      console.warn('[BullMQ] Error during Redis disconnect:', error.message);
+      logger.warn('[BullMQ] Error during Redis disconnect:', error.message);
       redisConnection.disconnect();
     }
     redisConnection = null;
-    console.log('[BullMQ] Redis connection closed gracefully');
+    logger.info('[BullMQ] Redis connection closed gracefully');
   }
 }
 

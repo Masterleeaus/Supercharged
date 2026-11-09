@@ -18,7 +18,7 @@ async function getStripeClient(): Promise<Stripe | null> {
     
     return new Stripe(secretKey, { apiVersion: '2025-10-29.clover' });
   } catch (error) {
-    console.error('Error initializing Stripe client:', error);
+    logger.error('Error initializing Stripe client:', error);
     return null;
   }
 }
@@ -28,7 +28,7 @@ async function getDefaultCurrency(): Promise<string> {
     const currencyConfig = await getStripeCurrency();
     return currencyConfig.currency;
   } catch (error) {
-    console.error('Error getting default currency:', error);
+    logger.error('Error getting default currency:', error);
     return 'USD';
   }
 }
@@ -39,7 +39,7 @@ export function registerCreditPackagesRoutes(router: Router) {
       const packages = await storage.getAllCreditPackages();
       res.json(packages);
     } catch (error) {
-      console.error('Error fetching credit packages:', error);
+      logger.error('Error fetching credit packages:', error);
       res.status(500).json({ error: 'Failed to fetch credit packages' });
     }
   });
@@ -105,13 +105,13 @@ export function registerCreditPackagesRoutes(router: Router) {
           
           logger.info(`✅ [Stripe] Created product ${stripeProduct.id} and price ${stripePrice.id} for credit package ${newPackage.id}`);
         } catch (stripeError: any) {
-          console.error('❌ [Stripe] Error syncing credit package to Stripe:', stripeError.message);
+          logger.error('❌ [Stripe] Error syncing credit package to Stripe:', stripeError.message);
         }
       }
       
       res.json(newPackage);
     } catch (error) {
-      console.error('Error creating credit package:', error);
+      logger.error('Error creating credit package:', error);
       res.status(500).json({ error: 'Failed to create credit package' });
     }
   });
@@ -190,7 +190,7 @@ export function registerCreditPackagesRoutes(router: Router) {
               try {
                 await stripe.prices.update(existingPackage.stripePriceId, { active: false });
               } catch (archiveErr: any) {
-                console.warn(`⚠️ [Stripe] Could not archive old price: ${archiveErr.message}`);
+                logger.warn(`⚠️ [Stripe] Could not archive old price: ${archiveErr.message}`);
               }
             }
             
@@ -207,7 +207,7 @@ export function registerCreditPackagesRoutes(router: Router) {
             updateData.stripePriceId = stripePrice.id;
           }
         } catch (stripeError: any) {
-          console.error('❌ [Stripe] Error syncing credit package update to Stripe:', stripeError.message);
+          logger.error('❌ [Stripe] Error syncing credit package update to Stripe:', stripeError.message);
         }
       }
       
@@ -216,7 +216,7 @@ export function registerCreditPackagesRoutes(router: Router) {
       const updatedPackage = await storage.getCreditPackage(packageId);
       res.json({ success: true, package: updatedPackage });
     } catch (error: any) {
-      console.error('Error updating credit package:', error);
+      logger.error('Error updating credit package:', error);
       res.status(500).json({ error: 'Failed to update credit package' });
     }
   });

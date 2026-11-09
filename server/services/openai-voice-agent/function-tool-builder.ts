@@ -496,7 +496,7 @@ export class FunctionToolBuilder {
     
     // Validate that formId is present — missing formId means submissions will silently fail at runtime
     if (!config.formId) {
-      console.error(`[FunctionToolBuilder] CRITICAL: Form node ${node.id} is missing config.formId. ` +
+      logger.error(`[FunctionToolBuilder] CRITICAL: Form node ${node.id} is missing config.formId. ` +
         `The compiled tool "${toolName}" will fail when the agent tries to submit form data. ` +
         `Check that the form node's formId is set correctly in the flow configuration.`);
     }

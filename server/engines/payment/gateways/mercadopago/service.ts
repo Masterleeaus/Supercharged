@@ -67,7 +67,7 @@ export async function testMercadoPagoConnection(): Promise<{ success: boolean; e
     await preference.search({ options: { limit: 1 } });
     return { success: true };
   } catch (error: any) {
-    console.error('❌ [MercadoPago] Connection test failed:', error.message);
+    logger.error('❌ [MercadoPago] Connection test failed:', error.message);
     return { success: false, error: error.message };
   }
 }
@@ -348,12 +348,12 @@ export async function verifyMercadoPagoWebhookSignature(
 ): Promise<boolean> {
   const webhookSecret = await getSetting(GLOBAL_SETTINGS_KEYS.MERCADOPAGO_WEBHOOK_SECRET);
   if (!webhookSecret) {
-    console.warn('⚠️ [MercadoPago] Webhook secret not configured - rejecting');
+    logger.warn('⚠️ [MercadoPago] Webhook secret not configured - rejecting');
     return false;
   }
   
   if (!xSignature || !xRequestId) {
-    console.warn('⚠️ [MercadoPago] Missing webhook signature headers');
+    logger.warn('⚠️ [MercadoPago] Missing webhook signature headers');
     return false;
   }
   
@@ -378,11 +378,11 @@ export async function verifyMercadoPagoWebhookSignature(
     if (verified) {
       logger.info('✅ [MercadoPago] Webhook signature verified');
     } else {
-      console.warn('⚠️ [MercadoPago] Webhook signature verification failed');
+      logger.warn('⚠️ [MercadoPago] Webhook signature verification failed');
     }
     return verified;
   } catch (error) {
-    console.error('❌ [MercadoPago] Webhook signature verification failed:', error);
+    logger.error('❌ [MercadoPago] Webhook signature verification failed:', error);
     return false;
   }
 }
@@ -465,7 +465,7 @@ export async function initiateRefund(
 
     return { success: true, refundId };
   } catch (error: any) {
-    console.error('❌ [MercadoPago] Refund failed:', error);
+    logger.error('❌ [MercadoPago] Refund failed:', error);
     return { success: false, error: error.message };
   }
 }

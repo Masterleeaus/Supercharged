@@ -334,7 +334,7 @@ export interface ElevenLabsWorkspaceTool {
 }
 
 if (!ELEVENLABS_API_KEY) {
-  console.warn("⚠️  WARNING: ELEVENLABS_API_KEY not set. ElevenLabs features will not work.");
+  logger.warn("⚠️  WARNING: ELEVENLABS_API_KEY not set. ElevenLabs features will not work.");
 }
 
 export interface TransferRule {
@@ -526,7 +526,7 @@ export class ElevenLabsService {
         const agentId = agentIdMatch ? agentIdMatch[1] : null;
 
         if (isDocNotFound && isAgentRequest && agentId && options.body && retryDepth < 3) {
-          console.warn(`⚠️ [ElevenLabs Service] Stale tool/document ID detected in agent request:`, errorText);
+          logger.warn(`⚠️ [ElevenLabs Service] Stale tool/document ID detected in agent request:`, errorText);
           const idMatches = errorText.match(/(tool|kb)_[a-zA-Z0-9_-]+/g) || [];
           const brokenIds = new Set(idMatches);
 
@@ -591,7 +591,7 @@ export class ElevenLabsService {
               clearTimeout(timeoutId);
               return this.request<T>(endpoint, newOptions, useV2, timeoutMs, retryDepth + 1);
             } catch (err: any) {
-              console.error(`   ❌ Stale ID recovery failed:`, err.message);
+              logger.error(`   ❌ Stale ID recovery failed:`, err.message);
             }
           }
         }
@@ -1797,7 +1797,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       const isDocNotFound = errorText.includes('not found') || errorText.includes('Document with id') || errorText.includes('documents_not_found');
 
       if (isDocNotFound) {
-        console.warn(`⚠️ [PATCH] Stale tool or document ID detected in ElevenLabs payload:`, errorText);
+        logger.warn(`⚠️ [PATCH] Stale tool or document ID detected in ElevenLabs payload:`, errorText);
 
         // Attempt to extract the broken IDs from the error message
         // Example: "Documents with ids {'tool_xyz'} not found."
@@ -1857,7 +1857,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
           logger.info(`✅ Flow Agent workflow updated successfully (after robust recovery)`);
           return retryResult;
         } catch (retryError: any) {
-          console.error(`❌ Workflow update failed again after recovery attempt:`, retryError.message);
+          logger.error(`❌ Workflow update failed again after recovery attempt:`, retryError.message);
           throw retryError;
         }
       }
@@ -2028,11 +2028,11 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
         if (hasCurrentYear) {
           logger.info(`✅ [ElevenLabs] Workspace tool verified - description includes ${yearStr}`);
         } else {
-          console.warn(`⚠️ [ElevenLabs] Workspace tool description may be stale - current year ${yearStr} not found`);
+          logger.warn(`⚠️ [ElevenLabs] Workspace tool description may be stale - current year ${yearStr} not found`);
         }
       }
     } catch (verifyError: any) {
-      console.warn(`⚠️ [ElevenLabs] Post-refresh validation failed: ${verifyError.message}`);
+      logger.warn(`⚠️ [ElevenLabs] Post-refresh validation failed: ${verifyError.message}`);
     }
 
     logger.info(`✅ [ElevenLabs] Appointment tool refreshed with current date context`);
@@ -2074,7 +2074,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       });
       logger.info(`📅 [ElevenLabs] Refreshed agent prompt with current date context: ${currentDateStr}`);
     } catch (err: any) {
-      console.warn(`⚠️ [ElevenLabs] Failed to refresh agent prompt with current date: ${err.message}`);
+      logger.warn(`⚠️ [ElevenLabs] Failed to refresh agent prompt with current date: ${err.message}`);
     }
   }
 
@@ -2431,7 +2431,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
           logger.info(`✅ Agent tool_ids already up to date`);
         }
       } catch (toolUpdateError: any) {
-        console.error(`❌ Failed to update agent appointment tool association:`, toolUpdateError.message);
+        logger.error(`❌ Failed to update agent appointment tool association:`, toolUpdateError.message);
       }
     }
 
@@ -2475,7 +2475,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       logger.info(`   Found ${response.tools?.length || 0} workspace tool(s)`);
       return response.tools || [];
     } catch (error: any) {
-      console.error(`❌ Failed to list workspace tools:`, error.message);
+      logger.error(`❌ Failed to list workspace tools:`, error.message);
       return [];
     }
   }
@@ -2591,7 +2591,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
         try {
           await this.updateWorkspaceTool(tool.id, toolConfig);
         } catch (updateErr: any) {
-          console.warn(`⚠️ Failed to update workspace tool ${tool.id} (non-fatal):`, updateErr.message);
+          logger.warn(`⚠️ Failed to update workspace tool ${tool.id} (non-fatal):`, updateErr.message);
         }
       }
     };
@@ -2831,7 +2831,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       const agentData = await this.getAgent(agentId);
       existingTools = (agentData as any)?.conversation_config?.agent?.prompt?.tools || [];
     } catch (err: any) {
-      console.warn(`   Could not fetch existing tools: ${err.message}`);
+      logger.warn(`   Could not fetch existing tools: ${err.message}`);
     }
 
     const retained = existingTools.filter((t: any) => t.name && !t.name.startsWith(prefix));
@@ -2924,7 +2924,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
             break;
           }
         } catch (pageError: any) {
-          console.error(`⚠️ Failed to fetch voices page ${pageCount + 1}:`, pageError.message);
+          logger.error(`⚠️ Failed to fetch voices page ${pageCount + 1}:`, pageError.message);
           break; // Stop pagination on error
         }
       } while (nextPageToken !== null);
@@ -2945,7 +2945,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
 
       return { voices: uniqueVoices };
     } catch (error: any) {
-      console.error('❌ Error fetching voices from v2 API:', error);
+      logger.error('❌ Error fetching voices from v2 API:', error);
       throw error;
     }
   }
@@ -3054,7 +3054,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`❌ Voice preview generation failed: ${response.status} - ${errorText}`);
+        logger.error(`❌ Voice preview generation failed: ${response.status} - ${errorText}`);
         throw new ExternalServiceError(
           'ElevenLabs',
           `Failed to generate voice preview: ${response.status} - ${errorText}`,
@@ -3113,7 +3113,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
 
       return response;
     } catch (error: any) {
-      console.error('❌ Error fetching subscription info:', error.message);
+      logger.error('❌ Error fetching subscription info:', error.message);
       throw error;
     }
   }
@@ -3184,7 +3184,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
         hasMore: response.has_more || false,
       };
     } catch (error: any) {
-      console.error('❌ Error fetching shared voices:', error);
+      logger.error('❌ Error fetching shared voices:', error);
       throw error;
     }
   }
@@ -3236,7 +3236,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       const staleToolIds = currentToolIds.filter(id => id.startsWith('tool_') && !validToolIds.has(id));
 
       if (staleToolIds.length > 0) {
-        console.warn(`⚠️ [ElevenLabs Service] Proactively detected ${staleToolIds.length} stale tool ID(s) on agent ${agentId} before WebSession:`, staleToolIds);
+        logger.warn(`⚠️ [ElevenLabs Service] Proactively detected ${staleToolIds.length} stale tool ID(s) on agent ${agentId} before WebSession:`, staleToolIds);
 
         const cleanToolIds = currentToolIds.filter(id => !staleToolIds.includes(id));
         const cleanTools = currentTools.filter(t => !t.id || !staleToolIds.includes(t.id));
@@ -3260,7 +3260,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
         logger.info(`   ✅ Agent ${agentId} stale tools successfully purged.`);
       }
     } catch (err: any) {
-      console.error(`⚠️ [ElevenLabs Service] Proactive stale tool check failed for agent ${agentId}:`, err.message);
+      logger.error(`⚠️ [ElevenLabs Service] Proactive stale tool check failed for agent ${agentId}:`, err.message);
     }
 
     // Build query parameters
@@ -3280,7 +3280,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       logger.info(`✅ Got signed URL for agent ${agentId} (expires in 15 minutes)`);
       return result;
     } catch (error: any) {
-      console.error(`❌ Failed to get signed URL for agent ${agentId}:`, error);
+      logger.error(`❌ Failed to get signed URL for agent ${agentId}:`, error);
       throw error;
     }
   }
@@ -3973,7 +3973,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`❌ ElevenLabs audio fetch failed: ${response.status} - ${errorText}`);
+        logger.error(`❌ ElevenLabs audio fetch failed: ${response.status} - ${errorText}`);
         return {
           audioBuffer: null,
           contentType: 'audio/mpeg',
@@ -3992,14 +3992,14 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       };
     } catch (error: any) {
       if (error.name === 'AbortError') {
-        console.error(`❌ ElevenLabs audio fetch timeout after 60s`);
+        logger.error(`❌ ElevenLabs audio fetch timeout after 60s`);
         return {
           audioBuffer: null,
           contentType: 'audio/mpeg',
           error: 'Audio fetch timeout after 60s',
         };
       }
-      console.error(`❌ ElevenLabs audio fetch error:`, error.message);
+      logger.error(`❌ ElevenLabs audio fetch error:`, error.message);
       return {
         audioBuffer: null,
         contentType: 'audio/mpeg',

@@ -8,6 +8,7 @@ import { nanoid } from "nanoid";
 import { flowTemplates } from "../../services/flow-templates";
 import { storage } from "../../storage";
 import { companyForRead } from "./shared";
+import { logger } from '../../utils/logger.ts';
 
 export function registerFlowTemplateRoutes(router: Router): void {
   router.get("/flow-templates", async (req: AuthRequest, res: Response) => {
@@ -23,7 +24,7 @@ export function registerFlowTemplateRoutes(router: Router): void {
 
       res.json(templates);
     } catch (error: any) {
-      console.error("Error fetching templates:", error);
+      logger.error("Error fetching templates:", error);
       res.status(500).json({ error: "Failed to fetch templates" });
     }
   });
@@ -84,7 +85,7 @@ export function registerFlowTemplateRoutes(router: Router): void {
 
       res.json(newFlow);
     } catch (error: any) {
-      console.error("Error cloning template:", error);
+      logger.error("Error cloning template:", error);
       res.status(500).json({ error: "Failed to clone template" });
     }
   });
@@ -150,7 +151,7 @@ export function registerFlowTemplateRoutes(router: Router): void {
 
       res.json(clonedFlow);
     } catch (error: any) {
-      console.error("Error cloning flow:", error);
+      logger.error("Error cloning flow:", error);
       res.status(500).json({ error: "Failed to clone flow" });
     }
   });

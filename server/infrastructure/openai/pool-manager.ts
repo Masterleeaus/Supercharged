@@ -20,6 +20,7 @@ import { db } from "../../db";
 import { globalSettings } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import type WebSocket from "ws";
+import { logger } from '../../utils/logger.ts';
 
 interface OpenAIConnection {
   ws: WebSocket;
@@ -66,15 +67,15 @@ export class OpenAIPoolManager {
   }
 
   private log(message: string): void {
-    console.log(`[OpenAI Pool] ${message}`);
+    logger.info(`[OpenAI Pool] ${message}`);
   }
 
   private warn(message: string): void {
-    console.warn(`[OpenAI Pool] ${message}`);
+    logger.warn(`[OpenAI Pool] ${message}`);
   }
 
   private error(message: string, err?: Error): void {
-    console.error(`[OpenAI Pool] ${message}`, err || "");
+    logger.error(`[OpenAI Pool] ${message}`, err || "");
   }
 
   async loadSettings(): Promise<void> {

@@ -25,7 +25,7 @@ const JWT_SECRET = process.env.JWT_SECRET || (() => {
   if (process.env.NODE_ENV === "production") {
     throw new Error("JWT_SECRET environment variable must be set in production");
   }
-  console.warn("⚠️  WARNING: Using insecure default JWT_SECRET in development. Set JWT_SECRET environment variable for production!");
+  logger.warn("⚠️  WARNING: Using insecure default JWT_SECRET in development. Set JWT_SECRET environment variable for production!");
   return "insecure-dev-secret-CHANGE-ME";
 })();
 

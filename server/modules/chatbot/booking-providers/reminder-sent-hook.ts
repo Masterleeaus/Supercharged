@@ -10,6 +10,7 @@
  * null, the event is skipped with a warning.
  */
 import type { ReminderSentEvent } from "./reminders.ts";
+import { logger } from '../../../utils/logger.ts';
 
 export const REMINDER_SENT_EVENT = "appointment.reminder_sent";
 
@@ -30,8 +31,8 @@ export interface ReminderSentHookDeps {
 }
 
 export function createReminderSentHook(deps: ReminderSentHookDeps): (event: ReminderSentEvent) => Promise<void> {
-  const warn = deps.warn ?? ((message: string) => console.warn(message));
-  const error = deps.error ?? ((message: string) => console.error(message));
+  const warn = deps.warn ?? ((message: string) => logger.warn(message));
+  const error = deps.error ?? ((message: string) => logger.error(message));
 
   return async (event) => {
     try {

@@ -5,6 +5,7 @@ import { db } from "../../db";
 import { agents, calls } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { handleTwilioStreamWebSocket } from "../../routes/webhook-routes";
+import { logger } from "../../utils/logger";
 
 export function registerTwilioStreamUpgrade(app: Express, deps: { httpServer: Server }): void {
   const { httpServer } = deps;
@@ -13,18 +14,18 @@ export function registerTwilioStreamUpgrade(app: Express, deps: { httpServer: Se
   httpServer.on('upgrade', (request, socket, head) => {
     const pathname = request.url?.split('?')[0] || '';
 
-    console.log(`🔌 [Upgrade] Request for: ${request.url}`);
-    console.log(`   Pathname: ${pathname}`);
+    logger.info(`🔌 [Upgrade] Request for: ${request.url}`);
+    logger.info(`   Pathname: ${pathname}`);
 
     // Only handle Twilio stream WebSocket upgrades
     if (pathname === '/api/webhooks/twilio/stream') {
-      console.log(`✅ [Upgrade] Handling Twilio stream WebSocket`);
+      logger.info(`✅ [Upgrade] Handling Twilio stream WebSocket`);
 
       const wss = new WebSocketServer({ noServer: true });
 
       wss.handleUpgrade(request, socket, head, async (ws: any) => {
-        console.log(`✅ [WebSocket] Upgrade successful for Twilio stream`);
-        console.log(`   Waiting for Twilio 'start' event to determine routing...`);
+        logger.info(`✅ [WebSocket] Upgrade successful for Twilio stream`);
+        logger.info(`   Waiting for Twilio 'start' event to determine routing...`);
 
         let handlerRouted = false;
         let startTimeout: NodeJS.Timeout | null = null;
@@ -40,7 +41,7 @@ export function registerTwilioStreamUpgrade(app: Express, deps: { httpServer: Se
 
             // Ignore 'connected' and other non-start events
             if (data.event !== 'start') {
-              console.log(`📨 [WebSocket] Received '${data.event}' event, buffering...`);
+              logger.info(`📨 [WebSocket] Received '${data.event}' event, buffering...`);
               return;
             }
 
@@ -50,19 +51,19 @@ export function registerTwilioStreamUpgrade(app: Express, deps: { httpServer: Se
               startTimeout = null;
             }
 
-            console.log(`📨 [WebSocket] Received Twilio 'start' event, routing to handler`);
+            logger.info(`📨 [WebSocket] Received Twilio 'start' event, routing to handler`);
 
             // Extract custom parameters sent from TwiML <Parameter> tags
             const customParams = data.start?.customParameters || {};
             const callId = customParams.callId;
             const agentId = customParams.agentId;
 
-            console.log(`   Extracted routing params:`);
-            console.log(`   - callId: ${callId}`);
-            console.log(`   - agentId: ${agentId}`);
+            logger.info(`   Extracted routing params:`);
+            logger.info(`   - callId: ${callId}`);
+            logger.info(`   - agentId: ${agentId}`);
 
             if (!agentId || !callId) {
-              console.error(`❌ [WebSocket] Missing required routing parameters (agentId or callId)`);
+              logger.error(`❌ [WebSocket] Missing required routing parameters (agentId or callId)`);
               ws.close(1008, 'Missing required parameters');
               return;
             }
@@ -81,7 +82,7 @@ export function registerTwilioStreamUpgrade(app: Express, deps: { httpServer: Se
               const agent = agentRecords[0];
 
               if (!agent) {
-                console.error(`❌ [WebSocket] Agent not found for ID: ${agentId}`);
+                logger.error(`❌ [WebSocket] Agent not found for ID: ${agentId}`);
                 ws.close(1008, 'Agent not found');
                 return;
               }
@@ -95,12 +96,12 @@ export function registerTwilioStreamUpgrade(app: Express, deps: { httpServer: Se
                 .limit(1);
 
               if (!existingCall) {
-                console.error(`❌ [WebSocket] Security: Call not found for ID: ${callId}`);
+                logger.error(`❌ [WebSocket] Security: Call not found for ID: ${callId}`);
                 ws.close(1008, 'Call not found');
                 return;
               }
 
-              console.log(`✅ [WebSocket] Found agent: ${agent.id} (type: ${agent.type})`);
+              logger.info(`✅ [WebSocket] Found agent: ${agent.id} (type: ${agent.type})`);
 
               // Remove temp message handler before routing
               ws.removeListener('message', tempMessageHandler);
@@ -129,16 +130,16 @@ export function registerTwilioStreamUpgrade(app: Express, deps: { httpServer: Se
               // Route all agents to ElevenLabs handler
               // Both Natural and Flow Agents now execute through ElevenLabs
               // Flow Agents have their workflows synced to ElevenLabs
-              console.log(`🔀 [WebSocket] Routing to ElevenLabs handler (agent type: ${agent.type})`);
+              logger.info(`🔀 [WebSocket] Routing to ElevenLabs handler (agent type: ${agent.type})`);
               if (agent.type === 'flow') {
-                console.log(`   Flow context: flowId=${flowId}, executionId=${executionId}`);
+                logger.info(`   Flow context: flowId=${flowId}, executionId=${executionId}`);
               }
               handleTwilioStreamWebSocket(ws, mockReq);
 
               // Delay replay slightly to allow handlers to attach listeners
               // Then replay all buffered messages as raw Buffers
               setTimeout(() => {
-                console.log(`📨 [WebSocket] Replaying ${bufferedMessages.length} buffered messages`);
+                logger.info(`📨 [WebSocket] Replaying ${bufferedMessages.length} buffered messages`);
                 for (const bufferedMsg of bufferedMessages) {
                   ws.emit('message', bufferedMsg);
                 }
@@ -147,11 +148,11 @@ export function registerTwilioStreamUpgrade(app: Express, deps: { httpServer: Se
               }, 100); // 100ms delay
 
             } catch (error) {
-              console.error('❌ [WebSocket] Error during routing:', error);
+              logger.error('❌ [WebSocket] Error during routing:', error);
               ws.close(1011, 'Internal server error during routing');
             }
           } catch (error) {
-            console.error('❌ [WebSocket] Error parsing message:', error);
+            logger.error('❌ [WebSocket] Error parsing message:', error);
             // Don't close on parse errors, just log and continue
           }
         };
@@ -162,7 +163,7 @@ export function registerTwilioStreamUpgrade(app: Express, deps: { httpServer: Se
         // Set timeout for start event
         startTimeout = setTimeout(() => {
           if (!handlerRouted) {
-            console.error('❌ [WebSocket] Timeout waiting for Twilio start event');
+            logger.error('❌ [WebSocket] Timeout waiting for Twilio start event');
             ws.removeListener('message', tempMessageHandler);
             ws.close(1008, 'Start event timeout');
           }
@@ -179,7 +180,7 @@ export function registerTwilioStreamUpgrade(app: Express, deps: { httpServer: Se
     } else {
       // For all other upgrade requests (like Vite HMR), do nothing
       // Let them pass through to other handlers
-      console.log(`📡 [Upgrade] Passing through: ${pathname}`);
+      logger.info(`📡 [Upgrade] Passing through: ${pathname}`);
     }
   });
 }

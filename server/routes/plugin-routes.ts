@@ -26,6 +26,7 @@ import { db } from '../db';
 import { sql, eq } from 'drizzle-orm';
 import { requireAdminPermission, AdminRequest } from '../middleware/admin-auth';
 import { globalSettings } from '../../shared/schema';
+import { logger } from '../utils/logger.ts';
 
 /** Read the configured app name from the database. Falls back to 'Platform' if unset. */
 async function getAppName(): Promise<string> {
@@ -126,7 +127,7 @@ userPluginRouter.get('/capabilities', async (req, res) => {
           }
         }
       } catch (err) {
-        console.warn('[Plugin Capabilities] Could not get user plan capabilities:', err);
+        logger.warn('[Plugin Capabilities] Could not get user plan capabilities:', err);
       }
     }
     
@@ -148,7 +149,7 @@ userPluginRouter.get('/capabilities', async (req, res) => {
       }
     });
   } catch (error: any) {
-    console.error('[Plugin Capabilities] Error getting capabilities:', error);
+    logger.error('[Plugin Capabilities] Error getting capabilities:', error);
     res.json({
       success: true,
       data: {
@@ -216,7 +217,7 @@ publicPluginRouter.get('/health', async (_req, res) => {
           }
           tablesStatus = missingTables.length === 0 ? 'ok' : 'missing';
         } catch (err: any) {
-          console.error(`[Plugin Health] Error checking tables for ${plugin.name}:`, err);
+          logger.error(`[Plugin Health] Error checking tables for ${plugin.name}:`, err);
           tablesStatus = 'unchecked';
         }
       }
@@ -261,7 +262,7 @@ publicPluginRouter.get('/health', async (_req, res) => {
       },
     });
   } catch (error: any) {
-    console.error('[Plugin Health] Error checking plugin health:', error);
+    logger.error('[Plugin Health] Error checking plugin health:', error);
     res.status(500).json({
       success: false,
       healthy: false,
@@ -295,7 +296,7 @@ publicPluginRouter.get('/:name/docs', async (req, res) => {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.send(html);
   } catch (error: any) {
-    console.error('[Plugin Docs] Error serving documentation:', error);
+    logger.error('[Plugin Docs] Error serving documentation:', error);
     res.status(500).json({ error: 'Failed to serve plugin documentation' });
   }
 });
@@ -408,7 +409,7 @@ publicPluginRouter.get('/:name/bundle', async (req, res) => {
     res.send(bundleContent);
     
   } catch (error: any) {
-    console.error('[Plugin Routes] Error serving bundle:', error);
+    logger.error('[Plugin Routes] Error serving bundle:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to serve plugin bundle',
@@ -434,7 +435,7 @@ router.get('/', async (req, res) => {
       }
     });
   } catch (error: any) {
-    console.error('[Plugin Routes] Error listing plugins:', error);
+    logger.error('[Plugin Routes] Error listing plugins:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to list plugins',
@@ -474,7 +475,7 @@ router.get('/:name', async (req, res) => {
       }
     });
   } catch (error: any) {
-    console.error('[Plugin Routes] Error getting plugin:', error);
+    logger.error('[Plugin Routes] Error getting plugin:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to get plugin details',
@@ -516,7 +517,7 @@ router.put('/:name/enable', requireAdminPermission('settings', 'plugins', 'updat
 
     scheduleServerRestart(`Plugin '${manifest.displayName}' enabled`);
   } catch (error: any) {
-    console.error('[Plugin Routes] Error enabling plugin:', error);
+    logger.error('[Plugin Routes] Error enabling plugin:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to enable plugin',
@@ -558,7 +559,7 @@ router.put('/:name/disable', requireAdminPermission('settings', 'plugins', 'upda
 
     scheduleServerRestart(`Plugin '${manifest.displayName}' disabled`);
   } catch (error: any) {
-    console.error('[Plugin Routes] Error disabling plugin:', error);
+    logger.error('[Plugin Routes] Error disabling plugin:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to disable plugin',
@@ -589,7 +590,7 @@ router.get('/discover/available', async (req, res) => {
       }
     });
   } catch (error: any) {
-    console.error('[Plugin Routes] Error discovering plugins:', error);
+    logger.error('[Plugin Routes] Error discovering plugins:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to discover plugins',

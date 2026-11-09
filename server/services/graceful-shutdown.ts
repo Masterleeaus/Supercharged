@@ -107,7 +107,7 @@ export async function gracefulShutdown(signal: string, exitCode: number = 0): Pr
     process.exit(exitCode);
 
   } catch (error: any) {
-    console.error(`❌ [Shutdown] Error during graceful shutdown:`, error);
+    logger.error(`❌ [Shutdown] Error during graceful shutdown:`, error);
     process.exit(1);
   }
 }
@@ -118,16 +118,16 @@ export async function gracefulShutdown(signal: string, exitCode: number = 0): Pr
 export function setupGlobalHandlers(): void {
   // Handle uncaught exceptions
   process.on('uncaughtException', (error: Error) => {
-    console.error('💥 [FATAL] Uncaught Exception:', error.message);
-    console.error(error.stack);
+    logger.error('💥 [FATAL] Uncaught Exception:', error.message);
+    logger.error(error.stack ?? error.message);
     gracefulShutdown('uncaughtException', 1);
   });
 
   // Handle unhandled promise rejections
   process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
-    console.error('💥 [FATAL] Unhandled Promise Rejection:', reason);
+    logger.error('💥 [FATAL] Unhandled Promise Rejection:', reason);
     if (reason instanceof Error) {
-      console.error(reason.stack);
+      logger.error(reason.stack ?? reason.message);
     }
     gracefulShutdown('unhandledRejection', 1);
   });

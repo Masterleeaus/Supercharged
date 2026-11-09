@@ -2,6 +2,7 @@ import type { Express, RequestHandler } from "express";
 import { type Server } from "http";
 import { authenticateToken, authenticateAnyToken } from "../../middleware/auth";
 import { checkAdminOrTeamMember, requireAdminPermission } from "../../middleware/admin-auth";
+import { logger } from "../../utils/logger";
 
 export async function registerPluginManagementRoutes(app: Express, deps: { httpServer: Server }): Promise<void> {
   const { httpServer } = deps;
@@ -20,7 +21,7 @@ export async function registerPluginManagementRoutes(app: Express, deps: { httpS
   // Uses authenticateAnyToken to accept both user JWTs and admin team session tokens
   app.use('/api/plugins', authenticateAnyToken, pluginRoutes.userPluginRouter);
 
-  console.log('✅ Plugin Management routes initialized');
+  logger.info('✅ Plugin Management routes initialized');
 
   // Auto-load any additional plugins from /plugins directory
   // This allows installing new plugins by just copying the folder and restarting
@@ -39,9 +40,9 @@ export async function registerPluginManagementRoutes(app: Express, deps: { httpS
       ...workforceLoaderOptions(),
     });
     if (loadedPlugins.filter(p => p.registered).length > 0) {
-      console.log(`✅ Auto-loaded ${loadedPlugins.filter(p => p.registered).length} plugin(s) from /plugins directory`);
+      logger.info(`✅ Auto-loaded ${loadedPlugins.filter(p => p.registered).length} plugin(s) from /plugins directory`);
     }
   } catch (error) {
-    console.warn('[Plugin Loader] Failed to auto-load plugins:', error);
+    logger.warn('[Plugin Loader] Failed to auto-load plugins:', error);
   }
 }

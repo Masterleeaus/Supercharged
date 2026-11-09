@@ -101,7 +101,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
         res.json(allCampaigns);
       }
     } catch (error: any) {
-      console.error("Get campaigns error:", error);
+      logger.error("Get campaigns error:", error);
       res.status(500).json({ error: "Failed to get campaigns" });
     }
   });
@@ -112,7 +112,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
       const deletedCampaigns = await storage.getUserDeletedCampaigns(req.userId!);
       res.json(deletedCampaigns);
     } catch (error: any) {
-      console.error("Get deleted campaigns error:", error);
+      logger.error("Get deleted campaigns error:", error);
       res.status(500).json({ error: "Failed to get deleted campaigns" });
     }
   });
@@ -139,7 +139,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
       const restoredCampaign = await storage.getCampaign(req.params.id);
       res.json(restoredCampaign);
     } catch (error: any) {
-      console.error("Restore campaign error:", error);
+      logger.error("Restore campaign error:", error);
       res.status(500).json({ error: "Failed to restore campaign" });
     }
   });
@@ -348,7 +348,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
 
       res.json(campaign);
     } catch (error: any) {
-      console.error("Create campaign error:", error);
+      logger.error("Create campaign error:", error);
       res.status(500).json({ error: "Failed to create campaign" });
     }
   });
@@ -363,7 +363,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
 
       res.json(campaign);
     } catch (error: any) {
-      console.error("Get campaign error:", error);
+      logger.error("Get campaign error:", error);
       res.status(500).json({ error: "Failed to get campaign" });
     }
   });
@@ -434,7 +434,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
       res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
       res.send(csv);
     } catch (error: any) {
-      console.error("Export campaign error:", error);
+      logger.error("Export campaign error:", error);
       res.status(500).json({ error: "Failed to export campaign" });
     }
   });
@@ -540,7 +540,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
       const updated = await storage.getCampaign(req.params.id);
       res.json(updated);
     } catch (error: any) {
-      console.error("Update campaign error:", error);
+      logger.error("Update campaign error:", error);
       res.status(500).json({ error: "Failed to update campaign" });
     }
   });
@@ -556,7 +556,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
       await storage.deleteCampaign(req.params.id);
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Delete campaign error:", error);
+      logger.error("Delete campaign error:", error);
       res.status(500).json({ error: "Failed to delete campaign" });
     }
   });
@@ -572,7 +572,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
       const contactsList = await storage.getCampaignContacts(req.params.campaignId);
       res.json(contactsList);
     } catch (error: any) {
-      console.error("Get contacts error:", error);
+      logger.error("Get contacts error:", error);
       res.status(500).json({ error: "Failed to get contacts" });
     }
   });
@@ -636,7 +636,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
           maxContacts: error.maxContacts
         });
       }
-      console.error("Upload contacts error:", error);
+      logger.error("Upload contacts error:", error);
       res.status(500).json({ error: "Failed to upload contacts" });
     }
   });
@@ -652,7 +652,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
       const callsList = await storage.getCampaignCalls(req.params.campaignId);
       res.json(callsList);
     } catch (error: any) {
-      console.error("Get campaign calls error:", error);
+      logger.error("Get campaign calls error:", error);
       res.status(500).json({ error: "Failed to get campaign calls" });
     }
   });
@@ -675,7 +675,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
       const stats = BatchCallingService.getBatchStats(batchJob);
       res.json({ batchJob, stats });
     } catch (error: any) {
-      console.error("Get batch job error:", error);
+      logger.error("Get batch job error:", error);
       res.status(500).json({ error: "Failed to get batch job status", details: error?.message || String(error) });
     }
   });
@@ -716,7 +716,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
 
       res.json({ success: true, result });
     } catch (error: any) {
-      console.error("Cancel batch job error:", error);
+      logger.error("Cancel batch job error:", error);
       res.status(500).json({ error: "Failed to cancel batch job" });
     }
   });
@@ -766,7 +766,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
 
       res.json({ success: true, result });
     } catch (error: any) {
-      console.error("Retry batch job error:", error);
+      logger.error("Retry batch job error:", error);
       res.status(500).json({ error: "Failed to retry batch job" });
     }
   });
@@ -794,7 +794,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
         canStart: validation.valid,
       });
     } catch (error: any) {
-      console.error("Campaign validation error:", error);
+      logger.error("Campaign validation error:", error);
       res.status(500).json({ error: "Failed to validate campaign" });
     }
   });
@@ -954,7 +954,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
         totalCallsScheduled: result.batchJob.total_calls_scheduled,
         batchJobId: result.batchJob.id,
       }, id).catch(err => {
-        console.error('❌ [Webhook] Error triggering campaign.started event:', err);
+        logger.error('❌ [Webhook] Error triggering campaign.started event:', err);
       });
       
       res.json({ 
@@ -967,7 +967,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
         availableCredits: user.credits
       });
     } catch (error: any) {
-      console.error("Campaign execution error:", error);
+      logger.error("Campaign execution error:", error);
       res.status(500).json({ error: "Failed to execute campaign" });
     }
   });
@@ -998,7 +998,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
         batchJob
       });
     } catch (error: any) {
-      console.error("Campaign cancel error:", error);
+      logger.error("Campaign cancel error:", error);
       res.status(500).json({ error: "Failed to cancel campaign" });
     }
   });
@@ -1029,7 +1029,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
         batchJob
       });
     } catch (error: any) {
-      console.error("Campaign retry error:", error);
+      logger.error("Campaign retry error:", error);
       res.status(500).json({ error: "Failed to retry campaign" });
     }
   });
@@ -1056,7 +1056,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
       
       res.json({ message: "Campaign stopped", campaignId: id });
     } catch (error: any) {
-      console.error("Campaign stop error:", error);
+      logger.error("Campaign stop error:", error);
       res.status(500).json({ error: "Failed to stop campaign" });
     }
   });
@@ -1104,13 +1104,13 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
           pausedAt: new Date().toISOString(),
           reason: 'manual',
         }, id).catch(err => {
-          console.error('❌ [Webhook] Error triggering campaign.paused event:', err);
+          logger.error('❌ [Webhook] Error triggering campaign.paused event:', err);
         });
         
         res.json({ message: "Campaign paused", campaignId: id });
       }
     } catch (error: any) {
-      console.error("Campaign pause error:", error);
+      logger.error("Campaign pause error:", error);
       res.status(500).json({ error: "Failed to pause campaign" });
     }
   });
@@ -1212,7 +1212,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
           isResume: true,
           contactsToCall: result.contactsToCall,
         }, id).catch(err => {
-          console.error('❌ [Webhook] Error triggering campaign.started (resumed) event:', err);
+          logger.error('❌ [Webhook] Error triggering campaign.started (resumed) event:', err);
         });
         
         res.json({ 
@@ -1224,14 +1224,14 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
       }
     } catch (error: any) {
       if (error.message === 'Phone number is not active') {
-        console.warn("Campaign resume blocked: phone number is not active");
+        logger.warn("Campaign resume blocked: phone number is not active");
         return res.status(400).json({
           error: "Phone number is not active",
           message: "The phone number assigned to this campaign is no longer active. This usually happens when there are insufficient credits to renew the monthly rental, causing the number to be released. Please purchase a new phone number and reassign it to this campaign.",
           resolution: "purchase_phone_number"
         });
       }
-      console.error("Campaign resume error:", error);
+      logger.error("Campaign resume error:", error);
       res.status(500).json({ error: "Failed to resume campaign" });
     }
   });
@@ -1277,7 +1277,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
       // System pool numbers (null userId) are allowed for free-tier users
       const isSystemPoolNumber = campaignPhone.isSystemPool === true && campaignPhone.userId === null;
       if (!isSystemPoolNumber && campaignPhone.userId !== campaign.userId) {
-        console.warn(`⚠️ [Campaign Test] Phone ${campaignPhone.id} does not belong to campaign owner`);
+        logger.warn(`⚠️ [Campaign Test] Phone [redacted] does not belong to campaign owner`);
         return res.status(403).json({
           error: "Phone number access denied",
           message: "This phone number is not associated with your account."
@@ -1330,7 +1330,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
             }
             // Validate refreshed phone has expected credential after sync
             if (!campaignPhone.elevenLabsCredentialId || !campaignPhone.elevenLabsPhoneNumberId) {
-              console.error(`❌ [Campaign Test] Phone sync returned success but DB state invalid`);
+              logger.error(`❌ [Campaign Test] Phone sync returned success but DB state invalid`);
               return res.status(500).json({
                 error: "Phone sync inconsistent",
                 message: "Phone sync reported success but database state is invalid. Please try again."
@@ -1344,7 +1344,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
             });
           }
         } catch (syncError: any) {
-          console.error(`❌ [Campaign Test] Phone sync failed:`, syncError);
+          logger.error(`❌ [Campaign Test] Phone sync failed:`, syncError);
           return res.status(400).json({ 
             error: "Phone sync failed",
             message: syncError.message || "Failed to sync phone number with ElevenLabs. Please try again."
@@ -1447,10 +1447,10 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
               twilioSid: callResult.call_sid,
             }
           }, campaign.id).catch(err => {
-            console.error(`Failed to trigger call.started webhook: ${err.message}`);
+            logger.error(`Failed to trigger call.started webhook: ${err.message}`);
           });
         } catch (webhookError: any) {
-          console.error(`Failed to trigger call.started webhook: ${webhookError.message}`);
+          logger.error(`Failed to trigger call.started webhook: ${webhookError.message}`);
         }
 
         res.json({ 
@@ -1462,7 +1462,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
         });
 
       } catch (callError: any) {
-        console.error(`❌ [Test Call] ElevenLabs call initiation failed:`, callError);
+        logger.error(`❌ [Test Call] ElevenLabs call initiation failed:`, callError);
         
         await db
           .update(calls)
@@ -1477,7 +1477,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
       }
 
     } catch (error: any) {
-      console.error("Test call error:", error);
+      logger.error("Test call error:", error);
       res.status(500).json({ 
         error: "Failed to initiate test call"
       });

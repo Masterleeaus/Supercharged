@@ -54,7 +54,7 @@ router.get('/config', async (_req: Request, res: Response) => {
       supportedCurrencies: currencies,
     });
   } catch (error: any) {
-    console.error('Error fetching PayPal config:', error);
+    logger.error('Error fetching PayPal config:', error);
     res.status(500).json({ error: 'Failed to fetch PayPal configuration' });
   }
 });
@@ -119,7 +119,7 @@ router.post('/create-order', authenticateToken, async (req: AuthRequest, res: Re
       currencySymbol: currencyConfig.symbol,
     });
   } catch (error: any) {
-    console.error('Create PayPal order error:', error);
+    logger.error('Create PayPal order error:', error);
     res.status(500).json({ error: 'Failed to create PayPal order' });
   }
 });
@@ -200,10 +200,10 @@ router.post('/capture-order', authenticateToken, async (req: AuthRequest, res: R
             await emailService.sendPurchaseConfirmation(creditTransaction.id);
             logger.info(`✅ [PayPal] Credits purchase confirmation email sent for transaction ${creditTransaction.id}`);
           } catch (emailError: any) {
-            console.error(`❌ [PayPal] Failed to send credits purchase confirmation email:`, emailError);
+            logger.error(`❌ [PayPal] Failed to send credits purchase confirmation email:`);
           }
         } catch (txError: any) {
-          console.error('Failed to log payment transaction:', txError);
+          logger.error('Failed to log payment transaction:', txError);
         }
 
         res.json({ success: true, credits: metadata.credits });
@@ -218,7 +218,7 @@ router.post('/capture-order', authenticateToken, async (req: AuthRequest, res: R
       res.json({ success: true });
     }
   } catch (error: any) {
-    console.error('Capture PayPal order error:', error);
+    logger.error('Capture PayPal order error:', error);
     res.status(500).json({ error: 'Failed to capture PayPal order' });
   }
 });
@@ -283,7 +283,7 @@ router.post('/create-subscription', authenticateToken, async (req: AuthRequest, 
       billingPeriod,
     });
   } catch (error: any) {
-    console.error('Create PayPal subscription error:', error);
+    logger.error('Create PayPal subscription error:', error);
     res.status(500).json({ error: 'Failed to create PayPal subscription' });
   }
 });
@@ -325,7 +325,7 @@ router.post('/confirm-subscription', authenticateToken, async (req: AuthRequest,
       try {
         await cancelPayPalSubscription(existingSubscription.paypalSubscriptionId, 'Upgraded to new plan');
       } catch (e) {
-        console.warn('Failed to cancel old PayPal subscription:', e);
+        logger.warn('Failed to cancel old PayPal subscription:', e);
       }
     }
 
@@ -386,15 +386,15 @@ router.post('/confirm-subscription', authenticateToken, async (req: AuthRequest,
         await emailService.sendPurchaseConfirmation(newTransaction.id);
         logger.info(`✅ [PayPal] Purchase confirmation email sent for transaction ${newTransaction.id}`);
       } catch (emailError: any) {
-        console.error(`❌ [PayPal] Failed to send purchase confirmation email:`, emailError);
+        logger.error(`❌ [PayPal] Failed to send purchase confirmation email:`);
       }
     } catch (txError: any) {
-      console.error('Failed to log payment transaction:', txError);
+      logger.error('Failed to log payment transaction:', txError);
     }
 
     res.json({ success: true, planName: plan.displayName });
   } catch (error: any) {
-    console.error('Confirm PayPal subscription error:', error);
+    logger.error('Confirm PayPal subscription error:', error);
     res.status(500).json({ error: 'Failed to confirm PayPal subscription' });
   }
 });
@@ -438,7 +438,7 @@ router.post('/cancel-subscription', authenticateToken, async (req: AuthRequest, 
       currentPeriodEnd: subscription.currentPeriodEnd,
     });
   } catch (error: any) {
-    console.error('Cancel PayPal subscription error:', error);
+    logger.error('Cancel PayPal subscription error:', error);
     res.status(500).json({ error: 'Failed to cancel PayPal subscription' });
   }
 });
@@ -449,7 +449,7 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
     
     const isValid = await verifyPayPalWebhookSignature(rawBody, req.headers);
     if (!isValid) {
-      console.warn('⚠️ [PayPal] Invalid webhook signature - rejecting');
+      logger.warn('⚠️ [PayPal] Invalid webhook signature - rejecting');
       return res.status(401).json({ error: 'Invalid webhook signature' });
     }
 
@@ -520,10 +520,10 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
                     await emailService.sendPurchaseConfirmation(webhookTransaction.id);
                     logger.info(`✅ [PayPal] Subscription confirmation email sent for transaction ${webhookTransaction.id}`);
                   } catch (emailError: any) {
-                    console.error(`❌ [PayPal] Failed to send subscription confirmation email:`, emailError);
+                    logger.error(`❌ [PayPal] Failed to send subscription confirmation email:`);
                   }
                 } catch (txError: any) {
-                  console.error('Failed to log payment transaction:', txError);
+                  logger.error('Failed to log payment transaction:', txError);
                 }
               }
             }
@@ -568,7 +568,7 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
                 await emailService.sendPaymentFailed(subscription.userId, failedAmount, 'Subscription payment failed');
                 logger.info(`✅ [PayPal] Payment failed email sent to user ${subscription.userId}`);
               } catch (emailError: any) {
-                console.error(`❌ [PayPal] Failed to send payment failed email:`, emailError);
+                logger.error(`❌ [PayPal] Failed to send payment failed email:`);
               }
             }
           }
@@ -647,7 +647,7 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
                 logger.info(`✅ [PayPal] External refund processed for user ${userId}. Capture: ${captureId}`);
               }
             } catch (error: any) {
-              console.error('Error processing external refund:', error);
+              logger.error('Error processing external refund:', error);
             }
           }
         }
@@ -727,15 +727,15 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
                   await emailService.sendAccountSuspended(userId, `Chargeback dispute: ${dispute?.reason || 'Unknown reason'}`);
                   logger.info(`✅ [PayPal] Account suspended email sent to user ${userId}`);
                 } catch (emailError: any) {
-                  console.error(`❌ [PayPal] Failed to send account suspended email:`, emailError);
+                  logger.error(`❌ [PayPal] Failed to send account suspended email:`);
                 }
                 
                 logger.warn(`⛔ [PayPal] User ${userId} suspended due to chargeback. Dispute ID: ${disputeId}, Reason: ${dispute?.reason}`);
               } else {
-                console.warn(`⚠️ [PayPal] No transaction found for capture ${captureId}`);
+                logger.warn(`⚠️ [PayPal] No transaction found for capture ${captureId}`);
               }
             } catch (error: any) {
-              console.error('Error processing chargeback:', error);
+              logger.error('Error processing chargeback:', error);
             }
           }
         }
@@ -747,7 +747,7 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
 
     res.status(200).json({ received: true });
   } catch (error: any) {
-    console.error('PayPal webhook error:', error);
+    logger.error('PayPal webhook error:', error);
     
     const webhookEvent = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
     await queueFailedWebhook(

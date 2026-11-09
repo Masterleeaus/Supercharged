@@ -16,7 +16,7 @@ export function registerElevenlabsPoolRoutes(router: Router) {
       const credentials = await ElevenLabsPoolService.getAllWithStats();
       res.json(credentials);
     } catch (error) {
-      console.error('Error fetching ElevenLabs pool:', error);
+      logger.error('Error fetching ElevenLabs pool:', error);
       res.status(500).json({ error: 'Failed to fetch ElevenLabs pool' });
     }
   });
@@ -26,7 +26,7 @@ export function registerElevenlabsPoolRoutes(router: Router) {
       const stats = await ElevenLabsPoolService.getPoolStats();
       res.json(stats);
     } catch (error) {
-      console.error('Error fetching pool stats:', error);
+      logger.error('Error fetching pool stats:', error);
       res.status(500).json({ error: 'Failed to fetch pool stats' });
     }
   });
@@ -57,13 +57,13 @@ export function registerElevenlabsPoolRoutes(router: Router) {
           await VoiceSyncService.syncAllVoices();
           logger.info(`🔊 [Voice Sync] Voice sync complete after credential addition`);
         } catch (syncError: any) {
-          console.warn(`⚠️ [Voice Sync] Post-credential-add sync failed (non-fatal):`, syncError.message || syncError);
+          logger.warn(`⚠️ [Voice Sync] Post-credential-add sync failed (non-fatal):`, syncError.message || syncError);
         }
       });
       
       res.json(credential);
     } catch (error: any) {
-      console.error('Error adding ElevenLabs credential:', error);
+      logger.error('Error adding ElevenLabs credential:', error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ error: 'Invalid input', details: error.issues });
       }
@@ -100,7 +100,7 @@ export function registerElevenlabsPoolRoutes(router: Router) {
       await ElevenLabsPoolService.deactivateCredential(credentialId);
       res.json({ success: true });
     } catch (error) {
-      console.error('Error deactivating credential:', error);
+      logger.error('Error deactivating credential:', error);
       res.status(500).json({ error: 'Failed to deactivate credential' });
     }
   });
@@ -113,7 +113,7 @@ export function registerElevenlabsPoolRoutes(router: Router) {
         .where(eq(elevenLabsCredentials.id, credentialId));
       res.json({ success: true });
     } catch (error) {
-      console.error('Error activating credential:', error);
+      logger.error('Error activating credential:', error);
       res.status(500).json({ error: 'Failed to activate credential' });
     }
   });
@@ -129,7 +129,7 @@ export function registerElevenlabsPoolRoutes(router: Router) {
           await VoiceSyncService.syncAllVoices();
           logger.info(`🔊 [Voice Sync] Voice sync complete after credential removal`);
         } catch (syncError: any) {
-          console.warn(`⚠️ [Voice Sync] Post-credential-remove sync failed (non-fatal):`, syncError.message || syncError);
+          logger.warn(`⚠️ [Voice Sync] Post-credential-remove sync failed (non-fatal):`, syncError.message || syncError);
         }
       });
       
@@ -144,7 +144,7 @@ export function registerElevenlabsPoolRoutes(router: Router) {
         autoReassigned: result.autoReassigned,
       });
     } catch (error: any) {
-      console.error('Error removing credential:', error);
+      logger.error('Error removing credential:', error);
       res.status(500).json({ error: 'Failed to remove credential' });
     }
   });
@@ -154,7 +154,7 @@ export function registerElevenlabsPoolRoutes(router: Router) {
       await ElevenLabsPoolService.performHealthChecks();
       res.json({ success: true, message: 'Health check completed' });
     } catch (error) {
-      console.error('Error running health check:', error);
+      logger.error('Error running health check:', error);
       res.status(500).json({ error: 'Failed to run health check' });
     }
   });
@@ -170,7 +170,7 @@ export function registerElevenlabsPoolRoutes(router: Router) {
         ...result
       });
     } catch (error: any) {
-      console.error('Error syncing agents:', error);
+      logger.error('Error syncing agents:', error);
       res.status(500).json({ error: 'Failed to sync agents' });
     }
   });
@@ -186,7 +186,7 @@ export function registerElevenlabsPoolRoutes(router: Router) {
       
       res.json(usersOnCredential);
     } catch (error) {
-      console.error('Error fetching users on credential:', error);
+      logger.error('Error fetching users on credential:', error);
       res.status(500).json({ error: 'Failed to fetch users' });
     }
   });
@@ -206,7 +206,7 @@ export function registerElevenlabsPoolRoutes(router: Router) {
       
       res.json({ success: true });
     } catch (error) {
-      console.error('Error updating threshold:', error);
+      logger.error('Error updating threshold:', error);
       res.status(500).json({ error: 'Failed to update threshold' });
     }
   });
@@ -235,7 +235,7 @@ export function registerElevenlabsPoolRoutes(router: Router) {
       
       res.json({ success: true, message: 'User migrated successfully' });
     } catch (error: any) {
-      console.error('Error migrating user:', error);
+      logger.error('Error migrating user:', error);
       res.status(500).json({ error: 'Failed to migrate user' });
     }
   });
@@ -244,7 +244,7 @@ export function registerElevenlabsPoolRoutes(router: Router) {
     try {
       res.json([]);
     } catch (error) {
-      console.error('Error fetching retry queue:', error);
+      logger.error('Error fetching retry queue:', error);
       res.status(500).json({ error: 'Failed to fetch retry queue' });
     }
   });
@@ -253,7 +253,7 @@ export function registerElevenlabsPoolRoutes(router: Router) {
     try {
       res.json({ success: true, message: 'Retry queue processed' });
     } catch (error) {
-      console.error('Error processing retry queue:', error);
+      logger.error('Error processing retry queue:', error);
       res.status(500).json({ error: 'Failed to process retry queue' });
     }
   });
@@ -279,7 +279,7 @@ export function registerElevenlabsPoolRoutes(router: Router) {
       
       res.json({ success: true, message: 'Voice synced successfully' });
     } catch (error: any) {
-      console.error('Error syncing voice:', error);
+      logger.error('Error syncing voice:', error);
       res.status(500).json({ error: 'Failed to sync voice' });
     }
   });
@@ -295,7 +295,7 @@ export function registerElevenlabsPoolRoutes(router: Router) {
       
       res.json(voices);
     } catch (error) {
-      console.error('Error fetching credential voices:', error);
+      logger.error('Error fetching credential voices:', error);
       res.status(500).json({ error: 'Failed to fetch voices' });
     }
   });
@@ -311,7 +311,7 @@ export function registerElevenlabsPoolRoutes(router: Router) {
       
       res.json({ voiceId, syncedTo: voices.map(v => v.credentialId) });
     } catch (error) {
-      console.error('Error fetching voice status:', error);
+      logger.error('Error fetching voice status:', error);
       res.status(500).json({ error: 'Failed to fetch voice status' });
     }
   });
@@ -330,7 +330,7 @@ export function registerElevenlabsPoolRoutes(router: Router) {
       
       res.json({ success: true, message: 'Voice sync retry initiated' });
     } catch (error: any) {
-      console.error('Error retrying voice sync:', error);
+      logger.error('Error retrying voice sync:', error);
       res.status(500).json({ error: 'Failed to retry voice sync' });
     }
   });

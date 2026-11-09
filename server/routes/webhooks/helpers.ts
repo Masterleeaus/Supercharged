@@ -22,13 +22,13 @@ export async function sendWebSocketWithRetry(
         ws.send(JSON.stringify(message));
         return true;
       } else {
-        console.warn(`[WebSocket] Attempt ${attempt + 1}/${maxRetries + 1}: Socket not OPEN (state: ${ws.readyState})`);
+        logger.warn(`[WebSocket] Attempt ${attempt + 1}/${maxRetries + 1}: Socket not OPEN (state: ${ws.readyState})`);
         if (attempt < maxRetries) {
           await new Promise(resolve => setTimeout(resolve, 50));
         }
       }
     } catch (error) {
-      console.error(`[WebSocket] Attempt ${attempt + 1}/${maxRetries + 1}: Send failed:`, error);
+      logger.error(`[WebSocket] Attempt ${attempt + 1}/${maxRetries + 1}: Send failed:`, error);
       if (attempt < maxRetries) {
         await new Promise(resolve => setTimeout(resolve, 50));
       }
@@ -169,7 +169,7 @@ export async function formatAndSaveTranscript(
     
     logger.info(`✅ [Transcript Saved] Call ${callId}`);
   } catch (error) {
-    console.error(`❌ [Transcript Save Error] Call ${callId}:`, error);
+    logger.error(`❌ [Transcript Save Error] Call ${callId}:`, error);
   }
 }
 
@@ -242,10 +242,10 @@ export async function scheduleContactRetry(
           .set({ status: normalizedStatus, endedAt: new Date() })
           .where(eq(calls.id, latestCallsRow.id));
       } else {
-        console.warn(`⚠️ [Retry] No calls row found for contact ${contactId} campaign ${campaignId} — calls status not synced`);
+        logger.warn(`⚠️ [Retry] No calls row found for contact ${contactId} campaign ${campaignId} — calls status not synced`);
       }
     } catch (callsSyncErr: any) {
-      console.error(`⚠️ [Retry] Failed to sync calls table for contact ${contactId}: ${callsSyncErr.message}`);
+      logger.error(`⚠️ [Retry] Failed to sync calls table for contact ${contactId}: ${callsSyncErr.message}`);
     }
 
     // Fetch campaign config to decide if this contact should be retried
@@ -284,7 +284,7 @@ export async function scheduleContactRetry(
 
     logger.info(`🔄 [Retry] Contact ${contactId} scheduled for retry at ${nextRetryAt.toISOString()} (attempt ${currentCount} of ${maxAttempts})`);
   } catch (err: any) {
-    console.error(`⚠️ [Retry] scheduleContactRetry failed for contact ${contactId}: ${err.message}`);
+    logger.error(`⚠️ [Retry] scheduleContactRetry failed for contact ${contactId}: ${err.message}`);
   }
 }
 
@@ -319,7 +319,7 @@ export async function updateCampaignStats(callId: string, callStatus: string): P
       // Update contact attempt tracking and schedule retry if eligible
       if (call.contactId && call.campaignId) {
         scheduleContactRetry(call.contactId, call.campaignId, callStatus).catch(err => {
-          console.warn(`⚠️ [Contact Retry] scheduleContactRetry failed: ${err.message}`);
+          logger.warn(`⚠️ [Contact Retry] scheduleContactRetry failed: ${err.message}`);
         });
       }
       
@@ -353,7 +353,7 @@ export async function updateCampaignStats(callId: string, callStatus: string): P
               recordingUrl: call.recordingUrl,
             }
           }, call.campaignId).catch(err => {
-            console.error('❌ [Webhook] Error triggering call.completed event:', err);
+            logger.error('❌ [Webhook] Error triggering call.completed event:', err);
           });
         }
 
@@ -403,13 +403,13 @@ export async function updateCampaignStats(callId: string, callStatus: string): P
               }
             }
           } catch (flowWebhookError: any) {
-            console.error(`❌ [Webhook] Error triggering flow webhook:`, flowWebhookError.message);
+            logger.error(`❌ [Webhook] Error triggering flow webhook:`, flowWebhookError.message);
           }
         }
       }
     }
   } catch (error) {
-    console.error('Error updating campaign stats:', error);
+    logger.error('Error updating campaign stats:', error);
   }
 }
 
@@ -511,7 +511,7 @@ export async function fireWebhook(webhookId: string, callId: string, attempt: nu
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
   } catch (error: any) {
-    console.error(`❌ [Webhook] Delivery failed (attempt ${attempt}/${MAX_WEBHOOK_ATTEMPTS}):`, error.message);
+    logger.error(`❌ [Webhook] Delivery failed (attempt ${attempt}/${MAX_WEBHOOK_ATTEMPTS}):`, error.message);
 
     try {
       const webhook = await storage.getWebhook(webhookId);
@@ -537,7 +537,7 @@ export async function fireWebhook(webhookId: string, callId: string, attempt: nu
         });
       }
     } catch (logError) {
-      console.error('Failed to log webhook delivery:', logError);
+      logger.error('Failed to log webhook delivery:', logError);
     }
 
     if (attempt < MAX_WEBHOOK_ATTEMPTS) {
@@ -562,7 +562,7 @@ export async function deductCallCreditsForElevenLabs(callId: string, duration: n
       if (Number.isFinite(parsed) && parsed >= 0) {
         creditPricePerMinute = parsed;
       } else {
-        console.warn(`⚠️ [Credit Deduction] Invalid credit_price_per_minute setting: ${creditPriceSetting.value}. Using default: 1`);
+        logger.warn(`⚠️ [Credit Deduction] Invalid credit_price_per_minute setting: ${creditPriceSetting.value}. Using default: 1`);
       }
     }
     
@@ -574,7 +574,7 @@ export async function deductCallCreditsForElevenLabs(callId: string, duration: n
     const [call] = await db.select().from(calls).where(eq(calls.id, callId)).limit(1);
     
     if (!call) {
-      console.error(`❌ [Credit Deduction] Call ${callId} not found`);
+      logger.error(`❌ [Credit Deduction] Call ${callId} not found`);
       return { success: false, creditsDeducted: 0, error: 'Call not found' };
     }
     
@@ -627,11 +627,11 @@ export async function deductCallCreditsForElevenLabs(callId: string, duration: n
       }
       return result;
     } else {
-      console.warn(`⚠️ [Credit Deduction] Could not determine user for call ${callId}`);
+      logger.warn(`⚠️ [Credit Deduction] Could not determine user for call ${callId}`);
       return { success: false, creditsDeducted: 0, error: 'Could not determine user for call' };
     }
   } catch (error: any) {
-    console.error('❌ [Credit Deduction Error]:', error);
+    logger.error('❌ [Credit Deduction Error]:', error);
     return { success: false, creditsDeducted: 0, error: error.message || 'Unknown error' };
   }
 }
@@ -654,7 +654,7 @@ export async function deductCallCreditsForSip(
       if (Number.isFinite(parsed) && parsed >= 0) {
         creditPricePerMinute = parsed;
       } else {
-        console.warn(`⚠️ [SIP Credit Deduction] Invalid credit_price_per_minute setting: ${creditPriceSetting.value}. Using default: 1`);
+        logger.warn(`⚠️ [SIP Credit Deduction] Invalid credit_price_per_minute setting: ${creditPriceSetting.value}. Using default: 1`);
       }
     }
     
@@ -666,7 +666,7 @@ export async function deductCallCreditsForSip(
     const [sipCall] = await db.select().from(sipCalls).where(eq(sipCalls.id, sipCallId)).limit(1);
     
     if (!sipCall) {
-      console.error(`❌ [SIP Credit Deduction] SIP Call ${sipCallId} not found`);
+      logger.error(`❌ [SIP Credit Deduction] SIP Call ${sipCallId} not found`);
       return { success: false, creditsDeducted: 0, error: 'SIP Call not found' };
     }
     
@@ -697,11 +697,11 @@ export async function deductCallCreditsForSip(
       
       return result;
     } else {
-      console.warn(`⚠️ [SIP Credit Deduction] Could not determine user for SIP call ${sipCallId}`);
+      logger.warn(`⚠️ [SIP Credit Deduction] Could not determine user for SIP call ${sipCallId}`);
       return { success: false, creditsDeducted: 0, error: 'Could not determine user for SIP call' };
     }
   } catch (error: any) {
-    console.error('❌ [SIP Credit Deduction Error]:', error);
+    logger.error('❌ [SIP Credit Deduction Error]:', error);
     return { success: false, creditsDeducted: 0, error: error.message || 'Unknown error' };
   }
 }
@@ -839,7 +839,7 @@ export async function triggerCallCompletedWebhook(params: {
     await webhookDeliveryService.triggerEvent(params.companyId ?? null, params.userId, eventType, payload, params.campaignId);
     logger.info(`✅ [Webhook] Successfully triggered ${eventType} for call ${params.callId}`);
   } catch (error: any) {
-    console.error(`❌ [Webhook] Error triggering completed call webhook:`, error.message);
+    logger.error(`❌ [Webhook] Error triggering completed call webhook:`, error.message);
   }
 }
 

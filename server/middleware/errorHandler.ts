@@ -89,16 +89,9 @@ export function globalErrorHandler(
   };
 
   if (!isOperationalError(err)) {
-    console.error("[CRITICAL] Non-operational error:", {
-      ...logContext,
-      message: appError.message,
-      stack: appError.stack
-    });
+    logger.error("[CRITICAL] Non-operational error:", { message: appError.message, stack: appError.stack });
   } else if (appError.statusCode >= 500) {
-    console.error("[ERROR] Server error:", {
-      ...logContext,
-      message: appError.message
-    });
+    logger.error("[ERROR] Server error:", { message: appError.message });
   } else if (process.env.NODE_ENV === "development") {
     logger.error("[DEBUG] Client error:", {
       ...logContext,
@@ -195,7 +188,7 @@ export function validateRequest(schemas: {
 export function unhandledRejectionHandler(): RequestHandler {
   return (_req: Request, _res: Response, next: NextFunction): void => {
     process.on("unhandledRejection", (reason: unknown) => {
-      console.error("[CRITICAL] Unhandled Promise Rejection:", reason);
+      logger.error("[CRITICAL] Unhandled Promise Rejection:", reason);
       const error = toAppError(reason, "Unhandled promise rejection");
       next(error);
     });

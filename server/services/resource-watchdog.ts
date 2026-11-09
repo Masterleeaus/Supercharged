@@ -156,7 +156,7 @@ async function loadSettings(): Promise<AutoRestartSettings> {
     
     settingsCacheTime = now;
   } catch (error) {
-    console.error('⚠️ [Watchdog] Failed to load settings:', error);
+    logger.error('⚠️ [Watchdog] Failed to load settings:', error);
     // Keep using cached settings on error
   }
   
@@ -192,14 +192,14 @@ async function checkResources(): Promise<void> {
   if (ramBreach || cpuBreach) {
     consecutiveBreaches++;
     
-    console.warn(`⚠️ [Watchdog] Resource threshold breach #${consecutiveBreaches}/${BREACH_THRESHOLD}`);
-    console.warn(`   RAM: ${ram.usedPercent.toFixed(1)}% (limit: ${settings.ramPercent}%) - ${ram.usedGB.toFixed(2)}GB / ${ram.totalGB.toFixed(2)}GB`);
-    console.warn(`   CPU: ${cpu.percent.toFixed(1)}% (limit: ${settings.cpuPercent}%) [${cpu.method}, ${cpu.cores} cores, load: ${cpu.loadAvg1m}]`);
-    console.warn(`   Process RSS: ${processMemory.usedMB.toFixed(0)}MB (${processMemory.rssPercent.toFixed(1)}% of total)`);
+    logger.warn(`⚠️ [Watchdog] Resource threshold breach #${consecutiveBreaches}/${BREACH_THRESHOLD}`);
+    logger.warn(`   RAM: ${ram.usedPercent.toFixed(1)}% (limit: ${settings.ramPercent}%) - ${ram.usedGB.toFixed(2)}GB / ${ram.totalGB.toFixed(2)}GB`);
+    logger.warn(`   CPU: ${cpu.percent.toFixed(1)}% (limit: ${settings.cpuPercent}%) [${cpu.method}, ${cpu.cores} cores, load: ${cpu.loadAvg1m}]`);
+    logger.warn(`   Process RSS: ${processMemory.usedMB.toFixed(0)}MB (${processMemory.rssPercent.toFixed(1)}% of total)`);
     
     if (consecutiveBreaches >= BREACH_THRESHOLD) {
-      console.error('🚨 [Watchdog] Threshold exceeded - initiating graceful restart');
-      console.error(`   Final stats - RAM: ${ram.usedPercent.toFixed(1)}%, CPU: ${cpu.percent.toFixed(1)}%`);
+      logger.error('🚨 [Watchdog] Threshold exceeded - initiating graceful restart');
+      logger.error(`   Final stats - RAM: ${ram.usedPercent.toFixed(1)}%, CPU: ${cpu.percent.toFixed(1)}%`);
       
       // Stop watchdog before restart
       stopWatchdog();
@@ -232,9 +232,9 @@ export function startWatchdog(): void {
   lastCpuTime = process.hrtime.bigint();
   
   // Run immediately, then on interval
-  checkResources().catch(console.error);
+  checkResources().catch((error) => logger.error("[Resource Watchdog] Check failed", error));
   watchdogInterval = setInterval(() => {
-    checkResources().catch(console.error);
+    checkResources().catch((error) => logger.error("[Resource Watchdog] Check failed", error));
   }, CHECK_INTERVAL);
 }
 

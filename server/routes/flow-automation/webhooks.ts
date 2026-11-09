@@ -8,6 +8,7 @@ import { eq, and, desc } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { webhookDeliveryService } from "../../services/webhook-delivery";
 import { companyForRead, WEBHOOK_EDITABLE_FIELDS, pickEditableFields } from "./shared";
+import { logger } from '../../utils/logger.ts';
 
 export function registerWebhookRoutes(router: Router): void {
   router.get("/webhooks", async (req: AuthRequest, res: Response) => {
@@ -29,7 +30,7 @@ export function registerWebhookRoutes(router: Router): void {
 
       res.json(userWebhooks);
     } catch (error: any) {
-      console.error("Error fetching webhooks:", error);
+      logger.error("Error fetching webhooks:", error);
       res.status(500).json({ error: "Failed to fetch webhooks" });
     }
   });
@@ -64,7 +65,7 @@ export function registerWebhookRoutes(router: Router): void {
 
       res.json(newWebhook);
     } catch (error: any) {
-      console.error("Error creating webhook:", error);
+      logger.error("Error creating webhook:", error);
       res.status(500).json({ error: "Failed to create webhook" });
     }
   });
@@ -98,7 +99,7 @@ export function registerWebhookRoutes(router: Router): void {
 
       res.json(updatedWebhook);
     } catch (error: any) {
-      console.error("Error updating webhook:", error);
+      logger.error("Error updating webhook:", error);
       res.status(500).json({ error: "Failed to update webhook" });
     }
   });
@@ -118,7 +119,7 @@ export function registerWebhookRoutes(router: Router): void {
 
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Error deleting webhook:", error);
+      logger.error("Error deleting webhook:", error);
       res.status(500).json({ error: "Failed to delete webhook" });
     }
   });
@@ -153,7 +154,7 @@ export function registerWebhookRoutes(router: Router): void {
 
       res.json(logs);
     } catch (error: any) {
-      console.error("Error fetching webhook logs:", error);
+      logger.error("Error fetching webhook logs:", error);
       res.status(500).json({ error: "Failed to fetch webhook logs" });
     }
   });
@@ -181,7 +182,7 @@ export function registerWebhookRoutes(router: Router): void {
 
       res.json(result);
     } catch (error: any) {
-      console.error("Error testing webhook:", error);
+      logger.error("Error testing webhook:", error);
       res.status(500).json({ error: "Failed to test webhook" });
     }
   });
@@ -209,7 +210,7 @@ export function registerWebhookRoutes(router: Router): void {
 
       res.json(result);
     } catch (error: any) {
-      console.error("Error retrying webhook:", error);
+      logger.error("Error retrying webhook:", error);
       res.status(500).json({ error: "Failed to retry webhook" });
     }
   });

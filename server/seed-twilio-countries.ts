@@ -10,6 +10,7 @@
 
 import { db } from "./db";
 import { twilioCountries } from "@shared/schema";
+import { logger } from './utils/logger.ts';
 
 export const TWILIO_COUNTRIES_SEED_DATA = [
   // ============================================
@@ -601,25 +602,25 @@ export const TWILIO_COUNTRIES_SEED_DATA = [
 ];
 
 export async function seedTwilioCountries() {
-  console.log("🌍 Seeding Twilio Countries...");
+  logger.info("🌍 Seeding Twilio Countries...");
 
   try {
     // Check if countries already exist
     const existing = await db.select().from(twilioCountries).limit(1);
     
     if (existing.length > 0) {
-      console.log("   ℹ️  Twilio Countries already seeded, skipping...");
+      logger.info("   ℹ️  Twilio Countries already seeded, skipping...");
       return;
     }
 
     // Insert all countries
     await db.insert(twilioCountries).values(TWILIO_COUNTRIES_SEED_DATA);
 
-    console.log(`   ✅ Seeded ${TWILIO_COUNTRIES_SEED_DATA.length} Twilio Countries`);
-    console.log(`   - Popular countries (sortOrder 1-10): ${TWILIO_COUNTRIES_SEED_DATA.filter(c => c.sortOrder <= 10).length}`);
-    console.log(`   - Other countries: ${TWILIO_COUNTRIES_SEED_DATA.filter(c => c.sortOrder > 10).length}`);
+    logger.info(`   ✅ Seeded ${TWILIO_COUNTRIES_SEED_DATA.length} Twilio Countries`);
+    logger.info(`   - Popular countries (sortOrder 1-10): ${TWILIO_COUNTRIES_SEED_DATA.filter(c => c.sortOrder <= 10).length}`);
+    logger.info(`   - Other countries: ${TWILIO_COUNTRIES_SEED_DATA.filter(c => c.sortOrder > 10).length}`);
   } catch (error) {
-    console.error("❌ Error seeding Twilio Countries:", error);
+    logger.error("❌ Error seeding Twilio Countries:", error);
     throw error;
   }
 }
@@ -632,11 +633,11 @@ const isRunningStandalone = process.argv[1]?.includes('seed-twilio-countries') &
 if (isRunningStandalone) {
   seedTwilioCountries()
     .then(() => {
-      console.log("✅ Twilio Countries seeding complete!");
+      logger.info("✅ Twilio Countries seeding complete!");
       process.exit(0);
     })
     .catch((error) => {
-      console.error("❌ Twilio Countries seeding failed:", error);
+      logger.error("❌ Twilio Countries seeding failed:", error);
       process.exit(1);
     });
 }

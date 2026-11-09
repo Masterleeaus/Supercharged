@@ -23,6 +23,7 @@ import { insertPromptTemplateSchema, promptTemplates } from "@shared/schema";
 // Table insert shape for createPromptTemplate; the drizzle-zod insert type resolves to {}.
 type PromptTemplateInsertRow = typeof promptTemplates.$inferInsert & { companyId?: string };
 import { getCompanyScope } from "../middleware/company-scope";
+import { logger } from '../utils/logger.ts';
 
 export function createTemplateRoutes(ctx: RouteContext): Router {
   const router = Router();
@@ -60,7 +61,7 @@ export function createTemplateRoutes(ctx: RouteContext): Router {
       
       res.json(allTemplates);
     } catch (error: any) {
-      console.error("Get prompt templates error:", error);
+      logger.error("Get prompt templates error:", error);
       res.status(500).json({ error: "Failed to get prompt templates" });
     }
   });
@@ -83,7 +84,7 @@ export function createTemplateRoutes(ctx: RouteContext): Router {
       
       res.json(template);
     } catch (error: any) {
-      console.error("Get prompt template error:", error);
+      logger.error("Get prompt template error:", error);
       res.status(500).json({ error: "Failed to get prompt template" });
     }
   });
@@ -148,7 +149,7 @@ export function createTemplateRoutes(ctx: RouteContext): Router {
 
       res.json(template);
     } catch (error: any) {
-      console.error("Create prompt template error:", error);
+      logger.error("Create prompt template error:", error);
       res.status(500).json({ error: "Failed to create prompt template" });
     }
   });
@@ -204,7 +205,7 @@ export function createTemplateRoutes(ctx: RouteContext): Router {
       const updated = await storage.getPromptTemplate(req.params.id);
       res.json(updated);
     } catch (error: any) {
-      console.error("Update prompt template error:", error);
+      logger.error("Update prompt template error:", error);
       res.status(500).json({ error: "Failed to update prompt template" });
     }
   });
@@ -224,7 +225,7 @@ export function createTemplateRoutes(ctx: RouteContext): Router {
       await storage.deletePromptTemplate(req.params.id);
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Delete prompt template error:", error);
+      logger.error("Delete prompt template error:", error);
       res.status(500).json({ error: "Failed to delete prompt template" });
     }
   });
@@ -275,7 +276,7 @@ export function createTemplateRoutes(ctx: RouteContext): Router {
         )
       });
     } catch (error: any) {
-      console.error("Use prompt template error:", error);
+      logger.error("Use prompt template error:", error);
       res.status(500).json({ error: "Failed to use prompt template" });
     }
   });
@@ -314,7 +315,7 @@ export function createTemplateRoutes(ctx: RouteContext): Router {
 
       res.json(template);
     } catch (error: any) {
-      console.error("Create system prompt template error:", error);
+      logger.error("Create system prompt template error:", error);
       res.status(500).json({ error: "Failed to create system prompt template" });
     }
   });

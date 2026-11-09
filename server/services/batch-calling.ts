@@ -137,7 +137,7 @@ export class BatchCallingService {
         // Keep original error text
       }
       
-      console.error(`[BatchCalling] ❌ API Error: ${response.status} - ${errorDetail}`);
+      logger.error(`[BatchCalling] ❌ API Error: ${response.status} - ${errorDetail}`);
       throw new ExternalServiceError(
         'ElevenLabs',
         `ElevenLabs Batch API error: ${response.status} - ${errorDetail}`,
@@ -263,7 +263,7 @@ export class BatchCallingService {
         // Keep original error text
       }
       
-      console.error(`[BatchCalling] ❌ API Error: ${response.status} - ${errorDetail}`);
+      logger.error(`[BatchCalling] ❌ API Error: ${response.status} - ${errorDetail}`);
       throw new ExternalServiceError(
         'ElevenLabs',
         `ElevenLabs Batch API error: ${response.status} - ${errorDetail}`,
@@ -282,7 +282,7 @@ export class BatchCallingService {
     // Validate response has required batch ID
     const batchId = responseData.id || responseData.batch_call_id;
     if (!batchId) {
-      console.error(`[BatchCalling] ❌ API returned no batch ID:`, responseData);
+      logger.error(`[BatchCalling] ❌ API returned no batch ID:`, responseData);
       throw new ExternalServiceError(
         'ElevenLabs',
         'ElevenLabs API returned empty batch ID - batch creation may have failed',
@@ -331,7 +331,7 @@ export class BatchCallingService {
     const rawBatches = response.batch_calls || [];
     const validBatches = rawBatches.filter((b: any) => {
       if (!b.batch_call_id) {
-        console.warn(`[BatchCalling] ⚠️ Skipping batch entry with missing ID`);
+        logger.warn(`[BatchCalling] ⚠️ Skipping batch entry with missing ID`);
         return false;
       }
       return true;
@@ -508,9 +508,9 @@ export class BatchCallingService {
     
     // E.164 validation: should be 7-15 digits (international numbers)
     if (digitsOnly.length < 7) {
-      console.warn(`[BatchCalling] Phone number too short for E.164: ${phone} → ${cleaned}`);
+      logger.warn(`[BatchCalling] Phone number too short for E.164: [redacted] → ${cleaned}`);
     } else if (digitsOnly.length > 15) {
-      console.warn(`[BatchCalling] Phone number too long for E.164: ${phone} → ${cleaned}`);
+      logger.warn(`[BatchCalling] Phone number too long for E.164: [redacted] → ${cleaned}`);
     }
     
     // If already has + prefix, return as-is

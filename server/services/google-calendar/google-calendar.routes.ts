@@ -154,7 +154,7 @@ googleCalendarRouter.post("/exchange", async (req: Request, res: Response) => {
 
     if (!tokenResp.ok) {
       const errText = await tokenResp.text();
-      console.error("[GoogleCalendar OAuth] Token exchange failed:", errText);
+      logger.error("[GoogleCalendar OAuth] Token exchange failed:", errText);
       res.status(502).json({ errorCode: "token_exchange_failed", error: "Failed to exchange authorization code with Google." });
       return;
     }
@@ -211,7 +211,7 @@ googleCalendarRouter.post("/exchange", async (req: Request, res: Response) => {
 
     res.json({ success: true, email: userInfo.email || "Unknown" });
   } catch (err: any) {
-    console.error("[GoogleCalendar OAuth] Exchange error:", err.message);
+    logger.error("[GoogleCalendar OAuth] Exchange error:", err.message);
     res.status(500).json({ errorCode: "server_error", error: "An unexpected error occurred during token exchange." });
   }
 });

@@ -174,7 +174,7 @@ async function linkPendingAppointments(params: {
       }
     }
   } catch (err: any) {
-    console.error(`❌ [Appointment Linker] Error linking pending appointments:`, err.message);
+    logger.error(`❌ [Appointment Linker] Error linking pending appointments:`, err.message);
   }
 }
 
@@ -192,7 +192,7 @@ function isTypeMismatchError(error: any): boolean {
 async function endTwilioCall(twilioCallSid: string | null, reason: string): Promise<void> {
   try {
     if (!twilioCallSid) {
-      console.error(`❌ [Call End Failed] No Twilio CallSid available`);
+      logger.error(`❌ [Call End Failed] No Twilio CallSid available`);
       return;
     }
 
@@ -204,7 +204,7 @@ async function endTwilioCall(twilioCallSid: string | null, reason: string): Prom
 
     logger.info(`✅ [Call Ended Successfully] CallSid: ${twilioCallSid}`);
   } catch (error) {
-    console.error(`❌ [Call End Error]`, error);
+    logger.error(`❌ [Call End Error]`, error);
   }
 }
 
@@ -239,7 +239,7 @@ async function executeCallTransfer(twilioCallSid: string, transferPhoneNumber: s
     logger.info(`✅ [Twilio Transfer] Call transfer initiated successfully`);
     logger.info(`   The caller will now be connected to [redacted]`);
   } catch (error: any) {
-    console.error(`❌ [Twilio Transfer] Failed to transfer call:`, error);
+    logger.error(`❌ [Twilio Transfer] Failed to transfer call:`, error);
     throw new Error(`Twilio transfer failed: ${error.message}`);
   }
 }
@@ -406,7 +406,7 @@ function setupElevenLabsMessageHandlers(
                 }
               }
             } catch (violationError) {
-              console.error(`❌ [Realtime Banned Word] Error checking violations:`, violationError);
+              logger.error(`❌ [Realtime Banned Word] Error checking violations:`, violationError);
             }
 
             // Process user response through flow bridge if in flow mode
@@ -436,10 +436,10 @@ function setupElevenLabsMessageHandlers(
                     if (success) {
                       logger.info(`[Flow Bridge] ✅ Final contextual update sent`);
                     } else {
-                      console.error(`[Flow Bridge] ❌ Failed to send final update after retries - terminating call anyway`);
+                      logger.error(`[Flow Bridge] ❌ Failed to send final update after retries - terminating call anyway`);
                     }
                   } catch (sendError) {
-                    console.error(`[Flow Bridge] ❌ Failed to send final contextual update:`, sendError);
+                    logger.error(`[Flow Bridge] ❌ Failed to send final contextual update:`, sendError);
                   }
 
                   // Don't update call status here - let it be updated when call actually ends
@@ -467,21 +467,21 @@ function setupElevenLabsMessageHandlers(
                         if (success) {
                           logger.info(`[Flow Bridge] ✅ Contextual update sent`);
                         } else {
-                          console.error(`[Flow Bridge] ❌ Failed to send contextual update after retries`);
+                          logger.error(`[Flow Bridge] ❌ Failed to send contextual update after retries`);
                         }
                       } else {
                         logger.warn(`[Flow Bridge] ℹ️ Skipping empty contextual update (likely condition node)`);
                       }
                     } catch (sendError) {
-                      console.error(`[Flow Bridge] ❌ Failed to send contextual update:`, sendError);
+                      logger.error(`[Flow Bridge] ❌ Failed to send contextual update:`, sendError);
                     }
                   } else {
                     logger.info(`[Flow Bridge] ℹ️ No contextual update needed for current node`);
                   }
                 }
               } catch (error) {
-                console.error(`[Flow Bridge] ❌ Error processing user response:`, error);
-                console.error(error);
+                logger.error(`[Flow Bridge] ❌ Error processing user response:`, error);
+                logger.error(error);
                 // Don't fail the entire call - log error and continue without flow
               }
             }
@@ -657,11 +657,11 @@ function setupElevenLabsMessageHandlers(
 
                 logger.info(`📞 [Call Transfer] Updated call metadata for CRM detection`);
               } catch (metadataError: any) {
-                console.error(`📞 [Call Transfer] Failed to update call metadata:`, metadataError.message);
+                logger.error(`📞 [Call Transfer] Failed to update call metadata:`, metadataError.message);
               }
 
             } catch (error: any) {
-              console.error(`❌ [Call Transfer] Failed:`, error);
+              logger.error(`❌ [Call Transfer] Failed:`, error);
 
               // Determine detailed error message for ElevenLabs
               let errorMessage = 'We encountered a technical difficulty while transferring your call';
@@ -695,7 +695,7 @@ function setupElevenLabsMessageHandlers(
           logger.info(`❓ [ElevenLabs] Unhandled message type: ${message.type}`);
       }
     } catch (error) {
-      console.error(`❌ [ElevenLabs] Error parsing message for call ${callId}:`, error);
+      logger.error(`❌ [ElevenLabs] Error parsing message for call ${callId}:`, error);
     }
   });
 }
@@ -785,7 +785,7 @@ async function initializeElevenLabsConnection(
       });
       logger.info(`[Stream] ✅ Agent configuration synced to ElevenLabs using credential: ${credential.name}`);
     } catch (syncError: any) {
-      console.error(`[Stream] ⚠️ Failed to sync agent config (continuing anyway):`, syncError.message);
+      logger.error(`[Stream] ⚠️ Failed to sync agent config (continuing anyway):`, syncError.message);
       // Continue with call even if sync fails - agent will use previous config
     }
   }
@@ -812,7 +812,7 @@ async function initializeElevenLabsConnection(
       await ElevenLabsPoolService.incrementLoad(credential.id);
       logger.info(`[Pool] ✅ Incremented load for credential: ${credential.name}`);
     } catch (loadError) {
-      console.error(`[Pool] ⚠️ Failed to increment load:`, loadError);
+      logger.error(`[Pool] ⚠️ Failed to increment load:`, loadError);
       // Continue with call even if load tracking fails
     }
 
@@ -911,7 +911,7 @@ async function initializeElevenLabsConnection(
               if (success) {
                 logger.info(`[Flow Bridge] ✅ Post-init contextual update sent`);
               } else {
-                console.error(`[Flow Bridge] ❌ Failed to send post-init update after retries`);
+                logger.error(`[Flow Bridge] ❌ Failed to send post-init update after retries`);
               }
             } else {
               // If text is empty and not END node, send a generic instruction
@@ -924,11 +924,11 @@ async function initializeElevenLabsConnection(
               if (success) {
                 logger.info(`[Flow Bridge] ✅ Fallback instruction sent`);
               } else {
-                console.error(`[Flow Bridge] ❌ Failed to send fallback instruction after retries`);
+                logger.error(`[Flow Bridge] ❌ Failed to send fallback instruction after retries`);
               }
             }
           } catch (error) {
-            console.error(`[Flow Bridge] ❌ Failed to send post-init contextual update:`, error);
+            logger.error(`[Flow Bridge] ❌ Failed to send post-init contextual update:`, error);
           }
         }, 100);
       }
@@ -947,7 +947,7 @@ async function initializeElevenLabsConnection(
   );
 
   elevenLabsWs.on('error', (error) => {
-    console.error(`[ElevenLabs] WebSocket error for call ${callId}:`, error);
+    logger.error(`[ElevenLabs] WebSocket error for call ${callId}:`, error);
   });
 
   elevenLabsWs.on('close', async (code, reason) => {
@@ -960,7 +960,7 @@ async function initializeElevenLabsConnection(
       await ElevenLabsPoolService.decrementLoad(credential.id);
       logger.info(`[Pool] ✅ Decremented load for credential: ${credential.name}`);
     } catch (loadError) {
-      console.error(`[Pool] ⚠️ Failed to decrement load:`, loadError);
+      logger.error(`[Pool] ⚠️ Failed to decrement load:`, loadError);
     }
 
     await formatAndSaveTranscript(callId, conversationHistory);
@@ -986,7 +986,7 @@ export async function handleIncomingCallWebhook(req: Request, res: Response) {
     const { To, From, CallSid, CallerId } = req.body;
 
     if (!To || !From || !CallSid) {
-      console.error(`❌ [Incoming Call] Missing required parameters`);
+      logger.error(`❌ [Incoming Call] Missing required parameters`);
       return res.status(400).send('Missing required parameters');
     }
 
@@ -1004,8 +1004,8 @@ export async function handleIncomingCallWebhook(req: Request, res: Response) {
       .limit(1);
 
     if (!phoneNumber || phoneNumber.length === 0) {
-      console.error(`❌ [Incoming Call] REJECTED - Phone number ${To} not found in database`);
-      console.error(`   🚨 [Security Audit] Unauthorized incoming call attempt: From=${From}, To=${To}, CallSid=${CallSid}`);
+      logger.error(`❌ [Incoming Call] REJECTED - Phone number ${To} not found in database`);
+      logger.error(`   🚨 [Security Audit] Unauthorized incoming call attempt: From=${From}, To=${To}, CallSid=${CallSid}`);
       const VoiceResponse = twilio.twiml.VoiceResponse;
       const response = new VoiceResponse();
       // Use reject() to minimize cost - caller hears busy/disconnect, no billing
@@ -1027,8 +1027,8 @@ export async function handleIncomingCallWebhook(req: Request, res: Response) {
       .limit(1);
 
     if (!connection || connection.length === 0) {
-      console.error(`❌ [Incoming Call] REJECTED - Phone number ${To} has no incoming connection configured`);
-      console.error(`   🚨 [Security Audit] Incoming call to unconfigured number: From=${From}, To=${To}, CallSid=${CallSid}`);
+      logger.error(`❌ [Incoming Call] REJECTED - Phone number ${To} has no incoming connection configured`);
+      logger.error(`   🚨 [Security Audit] Incoming call to unconfigured number: From=${From}, To=${To}, CallSid=${CallSid}`);
       const VoiceResponse = twilio.twiml.VoiceResponse;
       const response = new VoiceResponse();
       // Use reject() to minimize cost - caller hears busy/disconnect, no billing
@@ -1049,8 +1049,8 @@ export async function handleIncomingCallWebhook(req: Request, res: Response) {
       .limit(1);
 
     if (!connectionDetails.length || connectionDetails[0].userId !== phone.userId) {
-      console.error(`❌ [Incoming Call] REJECTED - Connection ownership mismatch for ${To}`);
-      console.error(`   🚨 [Security Audit] Ownership mismatch: From=${From}, To=${To}, CallSid=${CallSid}`);
+      logger.error(`❌ [Incoming Call] REJECTED - Connection ownership mismatch for ${To}`);
+      logger.error(`   🚨 [Security Audit] Ownership mismatch: From=${From}, To=${To}, CallSid=${CallSid}`);
       const VoiceResponse = twilio.twiml.VoiceResponse;
       const response = new VoiceResponse();
       // Use reject() to minimize cost
@@ -1067,8 +1067,8 @@ export async function handleIncomingCallWebhook(req: Request, res: Response) {
       .limit(1);
 
     if (!agent || agent.length === 0) {
-      console.error(`❌ [Incoming Call] REJECTED - Agent ${incomingConnection.agentId} not found or wrong type for ${To}`);
-      console.error(`   🚨 [Security Audit] Missing agent: From=${From}, To=${To}, CallSid=${CallSid}`);
+      logger.error(`❌ [Incoming Call] REJECTED - Agent ${incomingConnection.agentId} not found or wrong type for ${To}`);
+      logger.error(`   🚨 [Security Audit] Missing agent: From=${From}, To=${To}, CallSid=${CallSid}`);
       const VoiceResponse = twilio.twiml.VoiceResponse;
       const response = new VoiceResponse();
       // Use reject() to minimize cost
@@ -1096,7 +1096,7 @@ export async function handleIncomingCallWebhook(req: Request, res: Response) {
     res.type('text/xml');
     return res.send(response.toString());
   } catch (error) {
-    console.error('❌ [Incoming Call] Error:', error);
+    logger.error('❌ [Incoming Call] Error:', error);
     const VoiceResponse = twilio.twiml.VoiceResponse;
     const response = new VoiceResponse();
     response.say('An error occurred. Please try again later.');
@@ -1116,7 +1116,7 @@ export async function handleTwilioVoiceWebhook(req: Request, res: Response) {
     const { callId, agentId, contactName, flowId, executionId } = req.query;
 
     if (!callId || !agentId) {
-      console.error(`❌ [Voice Webhook] Missing required parameters - callId: ${callId}, agentId: ${agentId}`);
+      logger.error(`❌ [Voice Webhook] Missing required parameters - callId: ${callId}, agentId: ${agentId}`);
       return res.status(400).send('Missing required parameters');
     }
 
@@ -1160,7 +1160,7 @@ export async function handleTwilioVoiceWebhook(req: Request, res: Response) {
     res.type('text/xml');
     res.send(twimlString);
   } catch (error) {
-    console.error('Voice webhook error:', error);
+    logger.error('Voice webhook error:', error);
     res.status(500).send('Internal server error');
   }
 }
@@ -1199,7 +1199,7 @@ export async function handleTwilioStatusWebhook(req: Request, res: Response) {
         callId = matchedCall.id;
         logger.info(`[Status Webhook] Resolved call by CallSid ${CallSid} -> ${callId}`);
       } else {
-        console.warn(`[Status Webhook] No match found for CallSid ${CallSid} in calls table`);
+        logger.warn(`[Status Webhook] No match found for CallSid ${CallSid} in calls table`);
       }
     }
 
@@ -1252,14 +1252,14 @@ export async function handleTwilioStatusWebhook(req: Request, res: Response) {
             return res.sendStatus(200);
           }
         } catch (sipLookupError: any) {
-          console.warn(`[Status Webhook] SIP calls lookup error (non-fatal): ${sipLookupError.message}`);
+          logger.warn(`[Status Webhook] SIP calls lookup error (non-fatal): ${sipLookupError.message}`);
         }
       }
 
       // For ElevenLabs incoming calls, the call record may not exist yet 
       // (Twilio status webhook arrives before ElevenLabs post-call webhook creates the record).
       // Return 200 to prevent Twilio from retrying - the ElevenLabs webhook will handle call creation.
-      console.warn(`[Status Webhook] Could not resolve call - no callId param and no matching CallSid ${CallSid || 'N/A'}. Returning 200 (call record may be created later by ElevenLabs webhook).`);
+      logger.warn(`[Status Webhook] Could not resolve call - no callId param and no matching CallSid ${CallSid || 'N/A'}. Returning 200 (call record may be created later by ElevenLabs webhook).`);
       return res.sendStatus(200);
     }
 
@@ -1328,7 +1328,7 @@ export async function handleTwilioStatusWebhook(req: Request, res: Response) {
       const creditResult = await deductCallCreditsForElevenLabs(callId as string, parseInt(CallDuration, 10));
 
       if (!creditResult.success && !creditResult.alreadyDeducted) {
-        console.error(`❌ [Status Webhook] Credit deduction failed for call ${callId}: ${creditResult.error}`);
+        logger.error(`❌ [Status Webhook] Credit deduction failed for call ${callId}: ${creditResult.error}`);
 
         // Mark call as failed due to insufficient credits
         await db.update(calls)
@@ -1338,7 +1338,7 @@ export async function handleTwilioStatusWebhook(req: Request, res: Response) {
           })
           .where(eq(calls.id, callId as string));
 
-        console.warn(`⚠️ [Status Webhook] Call ${callId} marked as failed due to credit deduction failure`);
+        logger.warn(`⚠️ [Status Webhook] Call ${callId} marked as failed due to credit deduction failure`);
 
         // CRITICAL: Stop all downstream processing when credits fail
         return res.status(200).json({
@@ -1391,13 +1391,13 @@ export async function handleTwilioStatusWebhook(req: Request, res: Response) {
               logger.info(`⚠️ [Auto Recovery] No recording found in Twilio for call ${callId} (SID: ${callRecord.twilioSid})`);
             }
           } catch (recordingError: any) {
-            console.error(`❌ [Auto Recovery] Failed to fetch recording from Twilio:`, recordingError.message);
+            logger.error(`❌ [Auto Recovery] Failed to fetch recording from Twilio:`);
           }
         } else if (callRecord && !callRecord.twilioSid) {
-          console.warn(`⚠️ [Auto Recovery] Call ${callId} has no Twilio SID - cannot fetch recording`);
+          logger.warn(`⚠️ [Auto Recovery] Call ${callId} has no Twilio SID - cannot fetch recording`);
         }
       } catch (error: any) {
-        console.error(`❌ [Auto Recovery] Error during automatic recording recovery:`, error.message);
+        logger.error(`❌ [Auto Recovery] Error during automatic recording recovery:`, error.message);
       }
     }
 
@@ -1413,7 +1413,7 @@ export async function handleTwilioStatusWebhook(req: Request, res: Response) {
 
     res.sendStatus(200);
   } catch (error) {
-    console.error('Status webhook error:', error);
+    logger.error('Status webhook error:', error);
     res.status(500).send('Internal server error');
   }
 }
@@ -1429,7 +1429,7 @@ export async function handleTwilioRecordingWebhook(req: Request, res: Response) 
     const { RecordingUrl, RecordingDuration, RecordingSid, RecordingStatus } = req.body;
 
     if (!callId) {
-      console.error(`❌ [Recording Webhook] Missing call ID in query params`);
+      logger.error(`❌ [Recording Webhook] Missing call ID in query params`);
       // Still return 200 to prevent Twilio retries
       return res.sendStatus(200);
     }
@@ -1442,7 +1442,7 @@ export async function handleTwilioRecordingWebhook(req: Request, res: Response) 
     }
 
     if (!RecordingUrl) {
-      console.error(`❌ [Recording Webhook] Status is 'completed' but RecordingUrl is missing`);
+      logger.error(`❌ [Recording Webhook] Status is 'completed' but RecordingUrl is missing`);
       // Still return 200 to prevent Twilio retries
       return res.sendStatus(200);
     }
@@ -1465,7 +1465,7 @@ export async function handleTwilioRecordingWebhook(req: Request, res: Response) 
 
     res.sendStatus(200);
   } catch (error) {
-    console.error('❌ [Recording Webhook] Error:', error);
+    logger.error('❌ [Recording Webhook] Error:', error);
     // Always return 200 even on error to prevent Twilio retries
     res.sendStatus(200);
   }
@@ -1530,7 +1530,7 @@ export async function handleTwilioStreamWebSocket(ws: WebSocket, req: Request) {
           logger.info(`   Custom parameters:`, JSON.stringify(customParams, null, 2));
 
           if (!callId || !agentId) {
-            console.error('[Stream] Missing required parameters in start message');
+            logger.error('[Stream] Missing required parameters in start message');
             ws.close(1002, 'Missing parameters');
             return;
           }
@@ -1557,10 +1557,10 @@ export async function handleTwilioStreamWebSocket(ws: WebSocket, req: Request) {
               logger.info(`✅ [Recording] Recording started successfully`);
             } catch (recordingError) {
               // Don't fail the call if recording fails - just log the error
-              console.error(`❌ [Recording] Failed to start recording:`, recordingError);
+              logger.error(`❌ [Recording] Failed to start recording:`);
             }
           } else {
-            console.warn(`⚠️ [Recording] Cannot start recording - no Twilio CallSid available`);
+            logger.warn(`⚠️ [Recording] Cannot start recording - no Twilio CallSid available`);
           }
 
           try {
@@ -1582,7 +1582,7 @@ export async function handleTwilioStreamWebSocket(ws: WebSocket, req: Request) {
                   logger.info(`[Stream] 📞 Resolved caller phone from call record: [redacted]`);
                 }
               } catch (phoneErr) {
-                console.warn(`[Stream] ⚠️ Could not resolve caller phone for dynamic variable:`, phoneErr);
+                logger.warn(`[Stream] ⚠️ Could not resolve caller phone for dynamic variable:`);
               }
             } else {
               logger.info(`[Stream] 📞 Using caller phone from custom params: [redacted]`);
@@ -1609,7 +1609,7 @@ export async function handleTwilioStreamWebSocket(ws: WebSocket, req: Request) {
               null  // Flow bridge no longer used - ElevenLabs handles workflow execution
             );
           } catch (error) {
-            console.error(`[Stream] Error initializing ElevenLabs connection:`, error);
+            logger.error(`[Stream] Error initializing ElevenLabs connection:`, error);
             ws.close();
           }
           break;
@@ -1640,7 +1640,7 @@ export async function handleTwilioStreamWebSocket(ws: WebSocket, req: Request) {
           logger.info(`❓ [Twilio] Received unhandled event: ${data.event}`);
       }
     } catch (error) {
-      console.error(`❌ [Twilio] Error processing message for call ${callId}:`, error);
+      logger.error(`❌ [Twilio] Error processing message for call ${callId}:`, error);
     }
   });
 
@@ -1663,7 +1663,7 @@ export async function handleTwilioStreamWebSocket(ws: WebSocket, req: Request) {
   });
 
   ws.on('error', (error) => {
-    console.error(`[Twilio] WebSocket error for call ${callId}:`, error);
+    logger.error(`[Twilio] WebSocket error for call ${callId}:`, error);
     if (elevenLabsWs) {
       elevenLabsWs.close();
     }
@@ -1699,7 +1699,7 @@ function generateDeprecationTwiML(): string {
  */
 export async function handleFlowVoiceAnswer(req: Request, res: Response) {
   if (!(await enforceWebhookRateLimit(req, res))) return;
-  console.warn(`⚠️ [Flow Answer] DEPRECATED: ${FLOW_DEPRECATED_MESSAGE}`);
+  logger.warn(`⚠️ [Flow Answer] DEPRECATED: ${FLOW_DEPRECATED_MESSAGE}`);
   res.type('text/xml').send(generateDeprecationTwiML());
 }
 
@@ -1708,7 +1708,7 @@ export async function handleFlowVoiceAnswer(req: Request, res: Response) {
  */
 export async function handleFlowNode(req: Request, res: Response) {
   if (!(await enforceWebhookRateLimit(req, res))) return;
-  console.warn(`⚠️ [Flow Node] DEPRECATED: ${FLOW_DEPRECATED_MESSAGE}`);
+  logger.warn(`⚠️ [Flow Node] DEPRECATED: ${FLOW_DEPRECATED_MESSAGE}`);
   res.type('text/xml').send(generateDeprecationTwiML());
 }
 
@@ -1717,7 +1717,7 @@ export async function handleFlowNode(req: Request, res: Response) {
  */
 export async function handleFlowGather(req: Request, res: Response) {
   if (!(await enforceWebhookRateLimit(req, res))) return;
-  console.warn(`⚠️ [Flow Gather] DEPRECATED: ${FLOW_DEPRECATED_MESSAGE}`);
+  logger.warn(`⚠️ [Flow Gather] DEPRECATED: ${FLOW_DEPRECATED_MESSAGE}`);
   res.type('text/xml').send(generateDeprecationTwiML());
 }
 
@@ -1726,7 +1726,7 @@ export async function handleFlowGather(req: Request, res: Response) {
  */
 export async function handleFlowContinue(req: Request, res: Response) {
   if (!(await enforceWebhookRateLimit(req, res))) return;
-  console.warn(`⚠️ [Flow Continue] DEPRECATED: ${FLOW_DEPRECATED_MESSAGE}`);
+  logger.warn(`⚠️ [Flow Continue] DEPRECATED: ${FLOW_DEPRECATED_MESSAGE}`);
   res.type('text/xml').send(generateDeprecationTwiML());
 }
 
@@ -1745,7 +1745,7 @@ export async function handleFlowStatus(req: Request, res: Response) {
     const { CallStatus, CallDuration } = req.body;
 
     if (!executionId) {
-      console.error(`❌ [Flow Status] Missing execution ID`);
+      logger.error(`❌ [Flow Status] Missing execution ID`);
       return res.sendStatus(200);
     }
 
@@ -1756,7 +1756,7 @@ export async function handleFlowStatus(req: Request, res: Response) {
       .where(eq(flowExecutions.id, executionId as string));
 
     if (!execution) {
-      console.error(`❌ [Flow Status] Execution not found: ${executionId}`);
+      logger.error(`❌ [Flow Status] Execution not found: ${executionId}`);
       return res.sendStatus(200);
     }
 
@@ -1789,7 +1789,7 @@ export async function handleFlowStatus(req: Request, res: Response) {
 
     res.sendStatus(200);
   } catch (error) {
-    console.error('❌ [Flow Status] Error:', error);
+    logger.error('❌ [Flow Status] Error:', error);
     res.sendStatus(200);
   }
 }
@@ -1822,7 +1822,7 @@ async function getAllWebhookSecrets(): Promise<string[]> {
       secrets.add(globalSecret);
     }
   } catch (err: any) {
-    console.warn(`   ⚠️ Error fetching credential secrets: ${err.message}`);
+    logger.warn(`   ⚠️ Error fetching credential secrets: ${err.message}`);
     // Try global fallback
     const dbSecretSetting = await storage.getGlobalSetting('elevenlabs_hmac_secret');
     const globalSecret = (dbSecretSetting?.value as string) || process.env.ELEVENLABS_WEBHOOK_SECRET;
@@ -1884,7 +1884,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
     // Fail closed. Unsigned, badly signed, stale, or no-secret-configured webhooks are rejected
     // in every environment. The former SIP-metadata and NODE_ENV=development bypasses are removed.
     if (!verification.verified) {
-      console.warn(`⚠️ [ElevenLabs Webhook] Signature verification failed: ${verification.error}`);
+      logger.warn(`⚠️ [ElevenLabs Webhook] Signature verification failed: ${verification.error}`);
       return res.status(401).json({ error: 'Invalid webhook signature' });
     }
     logger.info(`   ✅ Signature verified`);
@@ -1914,7 +1914,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
     logger.info(`   Event timestamp: ${event_timestamp || 'N/A'}`);
 
     if (!type) {
-      console.warn(`⚠️ [ElevenLabs Webhook] Unknown webhook format - no 'type' field`);
+      logger.warn(`⚠️ [ElevenLabs Webhook] Unknown webhook format - no 'type' field`);
       logger.info(`   Full body keys: ${JSON.stringify(bodyKeys)}`);
       // Don't return 400 - just log and acknowledge to prevent retries
       return res.sendStatus(200);
@@ -1958,7 +1958,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                   logger.info(`   ⚠️ No Twilio recording available (call may not have recording enabled)`);
                 }
               } catch (twilioError: any) {
-                console.warn(`   ⚠️ Twilio recording fetch failed: ${twilioError.message}`);
+                logger.warn(`   ⚠️ Twilio recording fetch failed: ${twilioError.message}`);
               }
             }
 
@@ -1978,7 +1978,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                 .where(eq(calls.id, existingCall.id));
             } catch (audioUpdateErr: any) {
               if (isTypeMismatchError(audioUpdateErr)) {
-                console.warn(`[ElevenLabs Webhook] Type mismatch on audio UPDATE, retrying with raw SQL`);
+                logger.warn(`[ElevenLabs Webhook] Type mismatch on audio UPDATE, retrying with raw SQL`);
                 const metaJson = JSON.stringify(audioUpdateData.metadata);
                 await db.execute(sql`
                   UPDATE calls SET
@@ -2017,7 +2017,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
             }
           }
         } catch (audioError: any) {
-          console.error(`   ❌ Error updating call record:`, audioError.message);
+          logger.error(`   ❌ Error updating call record:`, audioError.message);
         }
       }
 
@@ -2111,7 +2111,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                   endedAt: new Date(),
                 }
               }, callRecord.campaignId).catch(err => {
-                console.error('❌ [Webhook] Error triggering call.failed event:', err);
+                logger.error('❌ [Webhook] Error triggering call.failed event:', err);
               });
             }
 
@@ -2140,7 +2140,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
               }
 
               if (!phoneDbId) {
-                console.warn(`⚠️ [ElevenLabs Webhook] Could not resolve phone number for resync — no campaignId on call record; skipping retry queue`);
+                logger.warn(`⚠️ [ElevenLabs Webhook] Could not resolve phone number for resync — no campaignId on call record; skipping retry queue`);
               }
 
               if (phoneDbId) {
@@ -2155,11 +2155,11 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                         await markCampaignForRetry(campaignId, `Auto-retry after credential resync (original failure: ${failure_reason})`);
                       }
                     } else {
-                      console.error(`❌ [ElevenLabs Webhook] Credential resync failed: ${resyncResult.error}`);
-                      console.warn(`⚠️ [ElevenLabs Webhook] Campaign retry NOT scheduled — credentials may still be stale`);
+                      logger.error(`❌ [ElevenLabs Webhook] Credential resync failed: ${resyncResult.error}`);
+                      logger.warn(`⚠️ [ElevenLabs Webhook] Campaign retry NOT scheduled — credentials may still be stale`);
                     }
                   } catch (resyncErr: any) {
-                    console.error(`❌ [ElevenLabs Webhook] Background resync error: ${resyncErr?.message ?? resyncErr}`);
+                    logger.error(`❌ [ElevenLabs Webhook] Background resync error: ${resyncErr?.message ?? resyncErr}`);
                   }
                 })();
               }
@@ -2201,7 +2201,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
     const customerPhone = data?.user_id || data?.userId || null;
 
     if (!conversation_id) {
-      console.warn(`⚠️ [ElevenLabs Webhook] Missing conversation_id in data`);
+      logger.warn(`⚠️ [ElevenLabs Webhook] Missing conversation_id in data`);
       return res.status(400).json({ error: 'Missing conversation_id' });
     }
 
@@ -2381,7 +2381,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
             }
           } catch (pendingQueryError: any) {
             if (isTypeMismatchError(pendingQueryError)) {
-              console.warn(`[ElevenLabs Webhook] Type mismatch on pending call lookup, retrying with raw SQL and uuid casting`);
+              logger.warn(`[ElevenLabs Webhook] Type mismatch on pending call lookup, retrying with raw SQL and uuid casting`);
               try {
                 const webhookPhoneNoPlus = webhookPhoneNumber.replace(/^\+/, '');
                 const rawResult = await db.execute(sql`
@@ -2401,10 +2401,10 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                   logger.info(`   No batch call found by phone number (raw SQL) for [redacted]`);
                 }
               } catch (rawQueryError: any) {
-                console.error(`   ❌ Raw SQL pending call lookup also failed:`, rawQueryError.message);
+                logger.error(`   ❌ Raw SQL pending call lookup also failed:`, rawQueryError.message);
               }
             } else {
-              console.error(`   ❌ Pending call lookup error:`, pendingQueryError.message);
+              logger.error(`   ❌ Pending call lookup error:`, pendingQueryError.message);
             }
           }
 
@@ -2421,10 +2421,10 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                   await db.execute(sql`UPDATE calls SET elevenlabs_conversation_id = ${conversation_id} WHERE id::text = ${callRecord.id}::text`);
                   logger.info(`   Updated call record with conversation_id (raw SQL): ${conversation_id}`);
                 } catch (rawUpdateErr: any) {
-                  console.warn(`   ⚠️ Failed to set conversation_id (non-fatal):`, rawUpdateErr.message);
+                  logger.warn(`   ⚠️ Failed to set conversation_id (non-fatal):`, rawUpdateErr.message);
                 }
               } else {
-                console.warn(`   ⚠️ Failed to set conversation_id (non-fatal):`, updateConvIdError.message);
+                logger.warn(`   ⚠️ Failed to set conversation_id (non-fatal):`, updateConvIdError.message);
               }
             }
           }
@@ -2496,17 +2496,17 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                   await db.execute(sql`UPDATE calls SET elevenlabs_conversation_id = ${conversation_id} WHERE id::text = ${callRecord.id}::text`);
                   logger.info(`   Updated call record with conversation_id (raw SQL): ${conversation_id}`);
                 } catch (rawUpdateErr: any) {
-                  console.warn(`   ⚠️ Failed to set conversation_id (non-fatal):`, rawUpdateErr.message);
+                  logger.warn(`   ⚠️ Failed to set conversation_id (non-fatal):`, rawUpdateErr.message);
                 }
               } else {
-                console.warn(`   ⚠️ Failed to set conversation_id (non-fatal):`, updateConvIdError.message);
+                logger.warn(`   ⚠️ Failed to set conversation_id (non-fatal):`, updateConvIdError.message);
               }
             }
           } else {
             logger.info(`   No calls found for batch_call_id: ${batchCallId}`);
           }
         } catch (batchQueryError: any) {
-          console.error(`   ❌ Batch call ID lookup error:`, batchQueryError.message);
+          logger.error(`   ❌ Batch call ID lookup error:`, batchQueryError.message);
         }
       }
     }
@@ -2532,7 +2532,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
           logger.info(`🔀 [ElevenLabs Webhook] Flow execution ${flowExecution.id} started (pending -> running)`);
         }
       } catch (flowExecError: any) {
-        console.warn(`⚠️ [ElevenLabs Webhook] Error updating flow execution to running:`, flowExecError.message);
+        logger.warn(`⚠️ [ElevenLabs Webhook] Error updating flow execution to running:`, flowExecError.message);
       }
     }
 
@@ -2629,7 +2629,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                     // Trigger full sync for transcript, summary, recording
                     const { callSyncService } = await import('../services/call-sync');
                     callSyncService.syncCall(matchedBatchCall.id).catch(syncErr => {
-                      console.error(`❌ [ElevenLabs SIP] Background sync failed for batch call ${matchedBatchCall!.id}:`, syncErr.message);
+                      logger.error(`❌ [ElevenLabs SIP] Background sync failed for batch call ${matchedBatchCall!.id}:`, syncErr.message);
                     });
 
                     logger.info(`✅ [ElevenLabs SIP] Linked batch call ${matchedBatchCall.id} to conversation ${conversation_id}, sync triggered`);
@@ -2642,7 +2642,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                   logger.info(`   [ElevenLabs SIP] No unlinked batch campaign calls found — proceeding with SIP call flow`);
                 }
               } catch (batchInterceptErr: any) {
-                console.error(`   [ElevenLabs SIP] Batch intercept error (non-fatal): ${batchInterceptErr.message}`);
+                logger.error(`   [ElevenLabs SIP] Batch intercept error (non-fatal): ${batchInterceptErr.message}`);
                 // Continue with normal SIP flow on error
               }
 
@@ -2691,7 +2691,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                       }
                     }
                   } catch (err) {
-                    console.warn(`   ⚠️ Could not resolve SIP phone for swap correction: ${err}`);
+                    logger.warn(`   ⚠️ Could not resolve SIP phone for swap correction: ${err}`);
                   }
                 }
 
@@ -2755,7 +2755,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                   const creditCheck = await checkUserCreditBalance(existingSipCall.user_id);
 
                   if (!creditCheck.hasCredits) {
-                    console.error(`🚫 [ElevenLabs SIP] User has 0 credits - marking call ${existingSipCall.id} as credit_failed`);
+                    logger.error(`🚫 [ElevenLabs SIP] User has 0 credits - marking call ${existingSipCall.id} as credit_failed`);
                     await db.execute(sql`
                     UPDATE sip_calls SET 
                       status = 'credit_failed',
@@ -2780,7 +2780,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                     logger.info(`✅ [ElevenLabs SIP] Credits deducted: ${creditResult.creditsDeducted}`);
 
                     checkAndDisconnectIfLowCredits(existingSipCall.user_id).catch(err =>
-                      console.error(`[SIP Credit Guard] Error: ${err.message}`)
+                      logger.error(`[SIP Credit Guard] Error: ${err.message}`)
                     );
 
                     import('../engines/crm/lead-processor.service').then(({ CRMLeadProcessor }) => {
@@ -2793,13 +2793,13 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                           }
                         })
                         .catch((err) => {
-                          console.error(`❌ [CRM] Error processing SIP call ${existingSipCall.id} for lead:`, err.message);
+                          logger.error(`❌ [CRM] Error processing SIP call ${existingSipCall.id} for lead:`, err.message);
                         });
                     }).catch((err) => {
-                      console.error(`❌ [CRM] Failed to import lead processor:`, err.message);
+                      logger.error(`❌ [CRM] Failed to import lead processor:`, err.message);
                     });
                   } else {
-                    console.error(`❌ [ElevenLabs SIP] Credit deduction failed: ${creditResult.error}`);
+                    logger.error(`❌ [ElevenLabs SIP] Credit deduction failed: ${creditResult.error}`);
                     await db.execute(sql`
                     UPDATE sip_calls SET 
                       status = 'credit_failed',
@@ -2836,8 +2836,8 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                       userId: existingSipCall.user_id,
                       callerPhone: sipMessagePhone!,
                       callId: existingSipCall.id,
-                    }).catch(err => console.error(`❌ [Post-Call Messaging] SIP update error: ${err.message}`));
-                  }).catch(err => console.error(`❌ [Post-Call Messaging] Import error: ${err.message}`));
+                    }).catch(err => logger.error(`❌ [Post-Call Messaging] SIP update error: ${err.message}`));
+                  }).catch(err => logger.error(`❌ [Post-Call Messaging] Import error: ${err.message}`));
                 }
 
                 // Trigger webhook for completed SIP call
@@ -2860,7 +2860,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                     endedAt: endedAt,
                     agentId: agent_id || existingSipCall.agent_id || null,
                     isSipCall: true,
-                  }).catch(err => console.error(`❌ [Webhook] SIP completed call webhook error:`, err.message));
+                  }).catch(err => logger.error(`❌ [Webhook] SIP completed call webhook error:`, err.message));
                 }
 
                 return res.sendStatus(200);
@@ -2921,7 +2921,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
               }
 
               if (!sipPhoneNumber) {
-                console.warn(`⚠️ [ElevenLabs SIP] Could not find SIP phone number for agent ${agent.id}`);
+                logger.warn(`⚠️ [ElevenLabs SIP] Could not find SIP phone number for agent ${agent.id}`);
 
                 // FALLBACK: For batch campaign calls, call records are in the `calls` table (not sip_calls).
                 // Try to match by conversation_id or metadata.elevenLabsAgentId + phone.
@@ -2976,7 +2976,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                       // Trigger a full sync to get transcript, summary, recording
                       const { callSyncService } = await import('../services/call-sync');
                       callSyncService.syncCall(matchedCall.id).catch(err => {
-                        console.error(`❌ [ElevenLabs SIP] Background sync failed for batch call ${matchedCall!.id}:`, err.message);
+                        logger.error(`❌ [ElevenLabs SIP] Background sync failed for batch call ${matchedCall!.id}:`, err.message);
                       });
 
                       logger.info(`✅ [ElevenLabs SIP] Linked batch call ${matchedCall.id} to conversation ${conversation_id}, sync triggered`);
@@ -2986,7 +2986,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
 
                   logger.info(`   [ElevenLabs SIP] No batch campaign call match found either`);
                 } catch (batchFallbackErr: any) {
-                  console.error(`   [ElevenLabs SIP] Batch call fallback error: ${batchFallbackErr.message}`);
+                  logger.error(`   [ElevenLabs SIP] Batch call fallback error: ${batchFallbackErr.message}`);
                 }
 
                 return res.sendStatus(200);
@@ -3089,7 +3089,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                 const creditCheck = await checkUserCreditBalance(agent.userId);
 
                 if (!creditCheck.hasCredits) {
-                  console.error(`🚫 [ElevenLabs SIP] User has 0 credits - marking call ${sipCallRecord.id} as credit_failed`);
+                  logger.error(`🚫 [ElevenLabs SIP] User has 0 credits - marking call ${sipCallRecord.id} as credit_failed`);
                   await db.execute(sql`
                   UPDATE sip_calls SET 
                     status = 'credit_failed',
@@ -3114,7 +3114,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                   logger.info(`✅ [ElevenLabs SIP] Credits deducted: ${creditResult.creditsDeducted}`);
 
                   checkAndDisconnectIfLowCredits(agent.userId).catch(err =>
-                    console.error(`[SIP Credit Guard] Error: ${err.message}`)
+                    logger.error(`[SIP Credit Guard] Error: ${err.message}`)
                   );
 
                   import('../engines/crm/lead-processor.service').then(({ CRMLeadProcessor }) => {
@@ -3127,13 +3127,13 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                         }
                       })
                       .catch((err) => {
-                        console.error(`❌ [CRM] Error processing SIP call ${sipCallRecord.id} for lead:`, err.message);
+                        logger.error(`❌ [CRM] Error processing SIP call ${sipCallRecord.id} for lead:`, err.message);
                       });
                   }).catch((err) => {
-                    console.error(`❌ [CRM] Failed to import lead processor:`, err.message);
+                    logger.error(`❌ [CRM] Failed to import lead processor:`, err.message);
                   });
                 } else {
-                  console.error(`❌ [ElevenLabs SIP] Credit deduction failed: ${creditResult.error}`);
+                  logger.error(`❌ [ElevenLabs SIP] Credit deduction failed: ${creditResult.error}`);
                   await db.execute(sql`
                   UPDATE sip_calls SET 
                     status = 'credit_failed',
@@ -3170,8 +3170,8 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                     userId: agent.userId,
                     callerPhone: sipMessagePhone!,
                     callId: sipCallRecord.id,
-                  }).catch(err => console.error(`❌ [Post-Call Messaging] SIP create error: ${err.message}`));
-                }).catch(err => console.error(`❌ [Post-Call Messaging] Import error: ${err.message}`));
+                  }).catch(err => logger.error(`❌ [Post-Call Messaging] SIP create error: ${err.message}`));
+                }).catch(err => logger.error(`❌ [Post-Call Messaging] Import error: ${err.message}`));
               }
 
               // Trigger webhook for completed SIP call
@@ -3194,13 +3194,13 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                   endedAt: endedAt,
                   agentId: agent.id,
                   isSipCall: true,
-                }).catch(err => console.error(`❌ [Webhook] SIP completed call webhook error:`, err.message));
+                }).catch(err => logger.error(`❌ [Webhook] SIP completed call webhook error:`, err.message));
               }
 
               return res.sendStatus(200);
             }
           } catch (sipCase0Error: any) {
-            console.error(`❌ [ElevenLabs SIP CASE 0] Error processing SIP call (non-fatal, continuing): ${sipCase0Error.message}`);
+            logger.error(`❌ [ElevenLabs SIP CASE 0] Error processing SIP call (non-fatal, continuing): ${sipCase0Error.message}`);
           }
 
           // CASE 0.5: SIP phone number fallback - check if phone is a SIP number even if agent doesn't have elevenlabs-sip provider
@@ -3316,7 +3316,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                   const userId = matchedSipPhone.trunk_user_id || matchedSipPhone.user_id || agentForSip?.userId;
 
                   if (!userId) {
-                    console.warn(`⚠️ [ElevenLabs SIP Fallback] Could not determine user for SIP call`);
+                    logger.warn(`⚠️ [ElevenLabs SIP Fallback] Could not determine user for SIP call`);
                     return res.sendStatus(200);
                   }
 
@@ -3356,7 +3356,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                       const creditCheck = await checkUserCreditBalance(userId);
 
                       if (!creditCheck.hasCredits) {
-                        console.error(`🚫 [ElevenLabs SIP Fallback] User has 0 credits - marking call ${existingSipCall.id} as credit_failed`);
+                        logger.error(`🚫 [ElevenLabs SIP Fallback] User has 0 credits - marking call ${existingSipCall.id} as credit_failed`);
                         await db.execute(sql`
                       UPDATE sip_calls SET status = 'credit_failed',
                         metadata = COALESCE(metadata, '{}'::jsonb) || ${JSON.stringify({ creditDeductionFailed: true, creditError: 'Insufficient credits', creditBalance: 0 })}::jsonb,
@@ -3377,7 +3377,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                           logger.info(`✅ [ElevenLabs SIP Fallback] Credits deducted: ${creditResult.creditsDeducted}`);
 
                           checkAndDisconnectIfLowCredits(userId).catch(err =>
-                            console.error(`[SIP Credit Guard] Error: ${err.message}`)
+                            logger.error(`[SIP Credit Guard] Error: ${err.message}`)
                           );
 
                           import('../engines/crm/lead-processor.service').then(({ CRMLeadProcessor }) => {
@@ -3388,7 +3388,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                                 }
                               })
                               .catch((err) => {
-                                console.error(`❌ [CRM] Error processing SIP call for lead:`, err.message);
+                                logger.error(`❌ [CRM] Error processing SIP call for lead:`, err.message);
                               });
                           }).catch(() => { });
                         } else {
@@ -3429,8 +3429,8 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                             userId: userId,
                             callerPhone: sipMessagePhone!,
                             callId: existingSipCall.id,
-                          }).catch(err => console.error(`❌ [Post-Call Messaging] SIP update fallback error: ${err.message}`));
-                        }).catch(err => console.error(`❌ [Post-Call Messaging] Import error: ${err.message}`));
+                          }).catch(err => logger.error(`❌ [Post-Call Messaging] SIP update fallback error: ${err.message}`));
+                        }).catch(err => logger.error(`❌ [Post-Call Messaging] Import error: ${err.message}`));
                       }
                     }
 
@@ -3454,7 +3454,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                         endedAt: endedAt,
                         agentId: agent_id || existingSipCall.agent_id || null,
                         isSipCall: true,
-                      }).catch(err => console.error(`❌ [Webhook] SIP completed call webhook error:`, err.message));
+                      }).catch(err => logger.error(`❌ [Webhook] SIP completed call webhook error:`, err.message));
                     }
                   } else {
                     const resolvedFallbackFrom = resolvedFromNumber || 'Unknown';
@@ -3507,7 +3507,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                       const creditCheck = await checkUserCreditBalance(userId);
 
                       if (!creditCheck.hasCredits) {
-                        console.error(`🚫 [ElevenLabs SIP Fallback] User has 0 credits - marking call ${sipCallRecord.id} as credit_failed`);
+                        logger.error(`🚫 [ElevenLabs SIP Fallback] User has 0 credits - marking call ${sipCallRecord.id} as credit_failed`);
                         await db.execute(sql`
                       UPDATE sip_calls SET status = 'credit_failed',
                         metadata = COALESCE(metadata, '{}'::jsonb) || ${JSON.stringify({ creditDeductionFailed: true, creditError: 'Insufficient credits', creditBalance: 0 })}::jsonb,
@@ -3528,7 +3528,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                           logger.info(`✅ [ElevenLabs SIP Fallback] Credits deducted: ${creditResult.creditsDeducted}`);
 
                           checkAndDisconnectIfLowCredits(userId).catch(err =>
-                            console.error(`[SIP Credit Guard] Error: ${err.message}`)
+                            logger.error(`[SIP Credit Guard] Error: ${err.message}`)
                           );
 
                           import('../engines/crm/lead-processor.service').then(({ CRMLeadProcessor }) => {
@@ -3539,7 +3539,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                                 }
                               })
                               .catch((err) => {
-                                console.error(`❌ [CRM] Error processing SIP call for lead:`, err.message);
+                                logger.error(`❌ [CRM] Error processing SIP call for lead:`, err.message);
                               });
                           }).catch(() => { });
                         } else {
@@ -3580,8 +3580,8 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                             userId: userId,
                             callerPhone: sipMessagePhone!,
                             callId: sipCallRecord.id,
-                          }).catch(err => console.error(`❌ [Post-Call Messaging] SIP create fallback error: ${err.message}`));
-                        }).catch(err => console.error(`❌ [Post-Call Messaging] Import error: ${err.message}`));
+                          }).catch(err => logger.error(`❌ [Post-Call Messaging] SIP create fallback error: ${err.message}`));
+                        }).catch(err => logger.error(`❌ [Post-Call Messaging] Import error: ${err.message}`));
                       }
                     }
 
@@ -3605,7 +3605,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                         endedAt: endedAt,
                         agentId: agentForSip?.id || null,
                         isSipCall: true,
-                      }).catch(err => console.error(`❌ [Webhook] SIP completed call webhook error:`, err.message));
+                      }).catch(err => logger.error(`❌ [Webhook] SIP completed call webhook error:`, err.message));
                     }
                   }
 
@@ -3614,7 +3614,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
               } // Close the else block (valid phone digits)
             }
           } catch (sipFallbackError: any) {
-            console.warn(`⚠️ [ElevenLabs SIP Fallback] Error in SIP phone lookup (non-fatal, continuing to CASE 1/2): ${sipFallbackError.message}`);
+            logger.warn(`⚠️ [ElevenLabs SIP Fallback] Error in SIP phone lookup (non-fatal, continuing to CASE 1/2): ${sipFallbackError.message}`);
           }
 
           // CASE 1: Outbound campaign/flow agent - create fallback record
@@ -3640,14 +3640,14 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                 campaignMatch = cm;
               } catch (campaignLookupErr: any) {
                 if (isTypeMismatchError(campaignLookupErr)) {
-                  console.warn(`[ElevenLabs Webhook] Type mismatch on campaign lookup, retrying with raw SQL`);
+                  logger.warn(`[ElevenLabs Webhook] Type mismatch on campaign lookup, retrying with raw SQL`);
                   const cmResult = await db.execute(sql`
                     SELECT * FROM campaigns WHERE agent_id::text = ${agent.id}::text
                     ORDER BY started_at DESC NULLS LAST LIMIT 1
                   `);
                   campaignMatch = cmResult.rows[0] as any;
                 } else {
-                  console.warn(`[ElevenLabs Webhook] Campaign lookup failed:`, campaignLookupErr.message);
+                  logger.warn(`[ElevenLabs Webhook] Campaign lookup failed:`, campaignLookupErr.message);
                 }
               }
 
@@ -3667,7 +3667,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
               // Fail closed: refuse rather than insert a row without company_id.
               const companyId: string | null = agent.companyId ?? null;
               if (!companyId) {
-                console.warn(`[ElevenLabs Webhook] Refusing fallback outbound call insert: agent ${agent.id} has no company_id`);
+                logger.warn(`[ElevenLabs Webhook] Refusing fallback outbound call insert: agent ${agent.id} has no company_id`);
                 return res.sendStatus(403);
               }
 
@@ -3707,7 +3707,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                   .returning();
               } catch (insertError: any) {
                 if (isTypeMismatchError(insertError)) {
-                  console.warn(`[ElevenLabs Webhook] Type mismatch on outbound INSERT, retrying with raw SQL and uuid casting`);
+                  logger.warn(`[ElevenLabs Webhook] Type mismatch on outbound INSERT, retrying with raw SQL and uuid casting`);
                   const metadataJson = JSON.stringify(outboundCallValues.metadata);
                   const rawResult = await db.execute(sql`
                     INSERT INTO calls (
@@ -3761,7 +3761,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                   });
                   logger.info(`🔀 [ElevenLabs Webhook] Created flow execution for fallback call: ${executionId}`);
                 } catch (flowExecError: any) {
-                  console.warn(`⚠️ [ElevenLabs Webhook] Error creating flow execution for fallback:`, flowExecError.message);
+                  logger.warn(`⚠️ [ElevenLabs Webhook] Error creating flow execution for fallback:`, flowExecError.message);
                 }
               }
             }
@@ -3824,12 +3824,12 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
 
                 connection = fallbackConnection;
                 if (connection) {
-                  console.warn(`   ⚠️ Using fallback connection - could not match by phone number`);
+                  logger.warn(`   ⚠️ Using fallback connection - could not match by phone number`);
                 }
               }
             } catch (connLookupError: any) {
               if (isTypeMismatchError(connLookupError)) {
-                console.warn(`[ElevenLabs Webhook] Type mismatch on connection lookup, retrying with raw SQL and uuid casting`);
+                logger.warn(`[ElevenLabs Webhook] Type mismatch on connection lookup, retrying with raw SQL and uuid casting`);
                 try {
                   const connQuery = calledNumber
                     ? sql`SELECT ic.id, ic.phone_number_id AS "phoneNumberId", ic.user_id AS "userId",
@@ -3855,10 +3855,10 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                     };
                   }
                 } catch (rawSqlError: any) {
-                  console.warn(`[ElevenLabs Webhook] Raw SQL connection lookup also failed:`, rawSqlError.message);
+                  logger.warn(`[ElevenLabs Webhook] Raw SQL connection lookup also failed:`, rawSqlError.message);
                 }
               } else {
-                console.warn(`[ElevenLabs Webhook] Connection lookup failed:`, connLookupError.message);
+                logger.warn(`[ElevenLabs Webhook] Connection lookup failed:`, connLookupError.message);
               }
             }
 
@@ -3883,7 +3883,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
             // Priority: connection owner > agent owner (never null)
             const resolvedUserId = connection?.userId || agent.userId;
             if (!resolvedUserId) {
-              console.warn(`   ⚠️ Cannot determine userId - call will have orphaned ownership`);
+              logger.warn(`   ⚠️ Cannot determine userId - call will have orphaned ownership`);
             }
 
             logger.info(`   Creating incoming call record with:`);
@@ -3897,7 +3897,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
             // Fail closed: refuse rather than insert a row without company_id.
             const companyId: string | null = agent.companyId ?? null;
             if (!companyId) {
-              console.warn(`[ElevenLabs Webhook] Refusing incoming call insert: agent ${agent.id} has no company_id`);
+              logger.warn(`[ElevenLabs Webhook] Refusing incoming call insert: agent ${agent.id} has no company_id`);
               return res.sendStatus(403);
             }
 
@@ -3940,7 +3940,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                 .returning();
             } catch (insertError: any) {
               if (isTypeMismatchError(insertError)) {
-                console.warn(`[ElevenLabs Webhook] Type mismatch on incoming INSERT, retrying with raw SQL and uuid casting`);
+                logger.warn(`[ElevenLabs Webhook] Type mismatch on incoming INSERT, retrying with raw SQL and uuid casting`);
                 const metadataJson = JSON.stringify(callValues.metadata);
                 const rawResult = await db.execute(sql`
                   INSERT INTO calls (
@@ -3969,7 +3969,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
           }
         }
       } catch (createError: any) {
-        console.error(`❌ [ElevenLabs Webhook] Error creating incoming call record:`, createError);
+        logger.error(`❌ [ElevenLabs Webhook] Error creating incoming call record:`, createError);
       }
     }
 
@@ -3989,7 +3989,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
           .limit(1);
 
         if (!failedCallAgent) {
-          console.warn(`⚠️ [ElevenLabs Webhook] Cannot create failed call record - agent not found: ${agent_id}`);
+          logger.warn(`⚠️ [ElevenLabs Webhook] Cannot create failed call record - agent not found: ${agent_id}`);
         } else {
           const callDirection = metadata?.phone_call?.direction || 'inbound';
           const callerPhoneNumber = extractedFromNumber || 'Unknown';
@@ -4073,7 +4073,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
           // Fail closed: refuse rather than insert a row without company_id.
           const companyId: string | null = failedCallAgent.companyId ?? null;
           if (!companyId) {
-            console.warn(`[ElevenLabs Webhook] Refusing failed call insert: agent ${failedCallAgent.id} has no company_id`);
+            logger.warn(`[ElevenLabs Webhook] Refusing failed call insert: agent ${failedCallAgent.id} has no company_id`);
             return res.sendStatus(403);
           }
           const failedCallValues = {
@@ -4109,7 +4109,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
               .returning();
           } catch (failedInsertErr: any) {
             if (isTypeMismatchError(failedInsertErr)) {
-              console.warn(`[ElevenLabs Webhook] Type mismatch on failed call INSERT, retrying with raw SQL`);
+              logger.warn(`[ElevenLabs Webhook] Type mismatch on failed call INSERT, retrying with raw SQL`);
               const metaJson = JSON.stringify(failedCallValues.metadata);
               const rawResult = await db.execute(sql`
               INSERT INTO calls (
@@ -4135,21 +4135,21 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
           logger.error(`✅ [ElevenLabs Webhook] Created failed call record: ${callRecord.id}`);
         }
       } catch (failedCallError: any) {
-        console.error(`❌ [ElevenLabs Webhook] Error creating failed call record:`, failedCallError.message);
+        logger.error(`❌ [ElevenLabs Webhook] Error creating failed call record:`, failedCallError.message);
       }
     }
 
     if (!callRecord) {
-      console.warn(`⚠️ [ElevenLabs Webhook] No call record found or created — DIAGNOSTIC SUMMARY:`);
-      console.warn(`   conversation_id: ${conversation_id}`);
-      console.warn(`   agent_id: ${agent_id || 'NOT PROVIDED'}`);
-      console.warn(`   extractedFromNumber: ${extractedFromNumber || 'NONE'}`);
-      console.warn(`   extractedToNumber: ${extractedToNumber || 'NONE'}`);
-      console.warn(`   extractedCallSid: ${extractedCallSid || 'NONE'}`);
-      console.warn(`   batch_call_id: ${metadata?.batch_call?.batch_call_id || 'NONE'}`);
-      console.warn(`   webhook status: ${status || 'NONE'}`);
-      console.warn(`   metadata keys: ${metadata ? Object.keys(metadata).join(', ') : 'NONE'}`);
-      console.warn(`   All lookup paths exhausted: conversation_id match, phone+agent match, batch_call_id match, SIP match, outbound fallback, incoming fallback, failed call fallback`);
+      logger.warn(`⚠️ [ElevenLabs Webhook] No call record found or created — DIAGNOSTIC SUMMARY:`);
+      logger.warn(`   conversation_id: ${conversation_id}`);
+      logger.warn(`   agent_id: ${agent_id || 'NOT PROVIDED'}`);
+      logger.warn(`   extractedFromNumber: [redacted]`);
+      logger.warn(`   extractedToNumber: [redacted]`);
+      logger.warn(`   extractedCallSid: ${extractedCallSid || 'NONE'}`);
+      logger.warn(`   batch_call_id: ${metadata?.batch_call?.batch_call_id || 'NONE'}`);
+      logger.warn(`   webhook status: ${status || 'NONE'}`);
+      logger.warn(`   metadata keys: ${metadata ? Object.keys(metadata).join(', ') : 'NONE'}`);
+      logger.warn(`   All lookup paths exhausted: conversation_id match, phone+agent match, batch_call_id match, SIP match, outbound fallback, incoming fallback, failed call fallback`);
       return res.sendStatus(200);
     }
 
@@ -4256,7 +4256,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
           .where(eq(calls.id, callRecord.id));
       } catch (updateErr: any) {
         if (isTypeMismatchError(updateErr)) {
-          console.warn(`[ElevenLabs Webhook] Type mismatch on call UPDATE, retrying with raw SQL`);
+          logger.warn(`[ElevenLabs Webhook] Type mismatch on call UPDATE, retrying with raw SQL`);
           const metaJson = JSON.stringify(updates.metadata || {});
           await db.execute(sql`
             UPDATE calls SET
@@ -4309,10 +4309,10 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
             if (postCallCampaign?.phoneNumberId) {
               postCallPhoneDbId = postCallCampaign.phoneNumberId;
             } else {
-              console.warn(`⚠️ [ElevenLabs Webhook] Campaign ${postCallCampaignId} has no phoneNumberId — skipping post_call resync`);
+              logger.warn(`⚠️ [ElevenLabs Webhook] Campaign ${postCallCampaignId} has no phoneNumberId — skipping post_call resync`);
             }
           } catch (phoneIdErr: any) {
-            console.warn(`⚠️ [ElevenLabs Webhook] Could not look up phone DB id for post_call resync: ${phoneIdErr.message}`);
+            logger.warn(`⚠️ [ElevenLabs Webhook] Could not look up phone DB id for post_call resync: [redacted]`);
           }
         }
 
@@ -4329,15 +4329,15 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                     `Auto-retry after credential resync (original failure: ${postCallTerminationReason})`);
                 }
               } else {
-                console.error(`❌ [ElevenLabs Webhook] Credential resync failed (post_call path): ${resyncResult.error}`);
-                console.warn(`⚠️ [ElevenLabs Webhook] Campaign retry NOT scheduled — credentials may still be stale`);
+                logger.error(`❌ [ElevenLabs Webhook] Credential resync failed (post_call path): ${resyncResult.error}`);
+                logger.warn(`⚠️ [ElevenLabs Webhook] Campaign retry NOT scheduled — credentials may still be stale`);
               }
             } catch (resyncErr: any) {
-              console.error(`❌ [ElevenLabs Webhook] Resync error (post_call path): ${resyncErr.message}`);
+              logger.error(`❌ [ElevenLabs Webhook] Resync error (post_call path): ${resyncErr.message}`);
             }
           })();
         } else if (!postCallCampaignId) {
-          console.warn(`⚠️ [ElevenLabs Webhook] Could not resolve phone for post_call resync — call record has no campaignId; skipping resync`);
+          logger.warn(`⚠️ [ElevenLabs Webhook] Could not resolve phone for post_call resync — call record has no campaignId; skipping resync`);
         }
       }
 
@@ -4445,7 +4445,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
           }
         }
       } catch (appointmentLinkError: any) {
-        console.error(`⚠️ [ElevenLabs Webhook] Error checking for appointments:`, appointmentLinkError.message);
+        logger.error(`⚠️ [ElevenLabs Webhook] Error checking for appointments:`, appointmentLinkError.message);
         // Don't fail the webhook - this is a non-critical enhancement
       }
 
@@ -4490,7 +4490,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
             logger.info(`🔍 [Violation Detection] Call ${callRecord.id}: ${bannedWordViolations.length} banned word + ${aiViolations.length} AI violations detected`);
           }
         }).catch((err) => {
-          console.error(`❌ [Violation Detection] Error scanning call ${callRecord.id}:`, err.message);
+          logger.error(`❌ [Violation Detection] Error scanning call ${callRecord.id}:`, err.message);
         });
       }
 
@@ -4514,14 +4514,14 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                   }
                 })
                 .catch((err) => {
-                  console.error(`❌ [CRM] Error processing call ${callRecord.id} for lead:`, err.message);
+                  logger.error(`❌ [CRM] Error processing call ${callRecord.id} for lead:`, err.message);
                 });
             }).catch((err) => {
-              console.error(`❌ [CRM] Failed to import lead processor:`, err.message);
+              logger.error(`❌ [CRM] Failed to import lead processor:`, err.message);
             });
 
           } else {
-            console.error(`❌ [ElevenLabs Webhook] Credit deduction failed for call ${callRecord.id}: ${creditResult.error}`);
+            logger.error(`❌ [ElevenLabs Webhook] Credit deduction failed for call ${callRecord.id}: ${creditResult.error}`);
 
             // Mark call as failed due to insufficient credits
             await db.update(calls)
@@ -4531,7 +4531,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
               })
               .where(eq(calls.id, callRecord.id));
 
-            console.warn(`⚠️ [ElevenLabs Webhook] Call ${callRecord.id} marked as failed due to credit deduction failure`);
+            logger.warn(`⚠️ [ElevenLabs Webhook] Call ${callRecord.id} marked as failed due to credit deduction failure`);
 
             // CRITICAL: Stop all downstream processing when credits fail
             return res.status(200).json({
@@ -4541,7 +4541,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
             });
           }
         } catch (creditError: any) {
-          console.error(`❌ [ElevenLabs Webhook] Credit deduction error:`, creditError.message);
+          logger.error(`❌ [ElevenLabs Webhook] Credit deduction error:`, creditError.message);
         }
       } else {
         logger.warn(`⚠️ [ElevenLabs Webhook] Skipping credit deduction - no duration available`);
@@ -4623,7 +4623,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
           logger.info(`✅ [ElevenLabs Webhook] Updated flow execution: ${flowExecution.id} -> ${executionStatus}`);
         }
       } catch (flowExecError: any) {
-        console.error(`⚠️ [ElevenLabs Webhook] Error updating flow execution:`, flowExecError.message);
+        logger.error(`⚠️ [ElevenLabs Webhook] Error updating flow execution:`, flowExecError.message);
       }
 
       // Trigger post-call messaging for ALL completed calls regardless of credit path (fire-and-forget)
@@ -4655,8 +4655,8 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
               userId: callRecord.userId!,
               callerPhone,
               callId: callRecord.id,
-            }).catch(err => console.error(`❌ [Post-Call Messaging] Regular call error: ${err.message}`));
-          }).catch(err => console.error(`❌ [Post-Call Messaging] Import error: ${err.message}`));
+            }).catch(err => logger.error(`❌ [Post-Call Messaging] Regular call error: ${err.message}`));
+          }).catch(err => logger.error(`❌ [Post-Call Messaging] Import error: ${err.message}`));
         }
       }
 
@@ -4693,11 +4693,11 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
           campaignId: callRecord.campaignId || null,
           contactId: callRecord.contactId || null,
           isSipCall: false,
-        }).catch(err => console.error(`❌ [Webhook] Error triggering completed call webhook:`, err.message));
+        }).catch(err => logger.error(`❌ [Webhook] Error triggering completed call webhook:`, err.message));
       }
 
     } catch (syncError: any) {
-      console.error(`❌ [ElevenLabs Webhook] Error syncing call data:`, syncError);
+      logger.error(`❌ [ElevenLabs Webhook] Error syncing call data:`, syncError);
 
       // Still update the call as completed even if sync failed
       await db
@@ -4716,7 +4716,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
     await recordWebhookReceived('elevenlabs');
     res.sendStatus(200);
   } catch (error) {
-    console.error('❌ [ElevenLabs Webhook] Error:', error);
+    logger.error('❌ [ElevenLabs Webhook] Error:', error);
     // Return 200 to prevent webhook retries
     res.sendStatus(200);
   }
@@ -4871,7 +4871,7 @@ export async function fetchElevenLabsConversation(req: Request, res: Response) {
       conversation: conversationDetails,
     });
   } catch (error: any) {
-    console.error('❌ [Fetch Conversation] Error:', error);
+    logger.error('❌ [Fetch Conversation] Error:', error);
     res.status(500).json({ error: 'Failed to fetch conversation' });
   }
 }
@@ -5018,7 +5018,7 @@ export async function getElevenLabsRecording(req: Request, res: Response) {
       }
     }
   } catch (error: any) {
-    console.error('❌ [Get Recording] Error:', error);
+    logger.error('❌ [Get Recording] Error:', error);
     res.status(500).json({ error: 'Failed to get recording' });
   }
 }
@@ -5055,7 +5055,7 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
     // Dynamic imports added 200-500ms latency causing ElevenLabs timeouts
 
     if (!validateAppointmentWebhookToken(urlToken)) {
-      console.warn(`📅 [Appointment Webhook] Invalid authentication token`);
+      logger.warn(`📅 [Appointment Webhook] Invalid authentication token`);
       return res.status(401).json({
         success: false,
         error: "Unauthorized: Invalid authentication token"
@@ -5146,15 +5146,15 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
     // If still no agent found, log detailed error for debugging
     // NOTE: We intentionally do NOT use global/unscoped fallbacks as they could cause cross-tenant issues
     if (agent.length === 0) {
-      console.warn(`📅 [Appointment Webhook] ⚠️ STALE AGENT ID DETECTED`);
-      console.warn(`   ElevenLabs is using agent ID: ${elevenLabsAgentId}`);
-      console.warn(`   This ID does not exist in our database.`);
-      console.warn(`   CallId provided: ${callId || 'none'}`);
-      console.warn(`   To fix: Re-assign the agent to the SIP phone number. This will refresh the webhook URL on ElevenLabs.`);
+      logger.warn(`📅 [Appointment Webhook] ⚠️ STALE AGENT ID DETECTED`);
+      logger.warn(`   ElevenLabs is using agent ID: ${elevenLabsAgentId}`);
+      logger.warn(`   This ID does not exist in our database.`);
+      logger.warn(`   CallId provided: ${callId || 'none'}`);
+      logger.warn(`   To fix: Re-assign the agent to the SIP phone number. This will refresh the webhook URL on ElevenLabs.`);
     }
 
     if (agent.length === 0) {
-      console.warn(`📅 [Appointment Webhook] No agent found with ElevenLabs ID ${elevenLabsAgentId} (including SIP fallback)`);
+      logger.warn(`📅 [Appointment Webhook] No agent found with ElevenLabs ID ${elevenLabsAgentId} (including SIP fallback)`);
       return res.json({
         success: false,
         message: "Could not find the agent to book the appointment."
@@ -5168,7 +5168,7 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
     // Fail closed: refuse rather than insert an appointment without company_id.
     const companyId: string | null = agent[0].companyId ?? null;
     if (!companyId) {
-      console.warn(`📅 [Appointment Webhook] Refusing appointment insert: agent ${dbAgentId} has no company_id`);
+      logger.warn(`📅 [Appointment Webhook] Refusing appointment insert: agent ${dbAgentId} has no company_id`);
       return res.status(403).json({ success: false, message: "Forbidden" });
     }
 
@@ -5249,7 +5249,7 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
     }
 
     if (!finalContactPhone) {
-      console.warn(`📅 [Appointment Webhook] No phone number available - call not matched and AI didn't collect phone`);
+      logger.warn(`📅 [Appointment Webhook] No phone number available - call not matched and AI didn't collect phone`);
       return res.json({
         success: false,
         message: "I couldn't identify your phone number. Could you please provide a contact number for the appointment?"
@@ -5257,7 +5257,7 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
     }
 
     if (!appointmentDate || !appointmentTime) {
-      console.warn(`📅 [Appointment Webhook] Missing date/time`);
+      logger.warn(`📅 [Appointment Webhook] Missing date/time`);
       return res.json({
         success: false,
         message: "I need both the date and time to schedule the appointment."
@@ -5313,7 +5313,7 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
     }
 
     if (!parsedDate) {
-      console.warn(`📅 [Appointment Webhook] Could not parse date: "${appointmentDate}"`);
+      logger.warn(`📅 [Appointment Webhook] Could not parse date: "${appointmentDate}"`);
       return res.json({
         success: false,
         message: `I couldn't understand the date "${appointmentDate}". Please provide a specific date like "tomorrow", "December 5th", or "next Monday".`
@@ -5326,7 +5326,7 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
     const appointmentDay = new Date(parsedDate.getFullYear(), parsedDate.getMonth(), parsedDate.getDate());
 
     if (appointmentDay < today) {
-      console.warn(`📅 [Appointment Webhook] Date is in the past: ${appointmentDate} -> ${parsedDate.toISOString()}`);
+      logger.warn(`📅 [Appointment Webhook] Date is in the past: ${appointmentDate} -> ${parsedDate.toISOString()}`);
       const currentYear = now.getFullYear();
       return res.json({
         success: false,
@@ -5422,9 +5422,9 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
 
       logger.info(`📅 [Appointment Webhook] Time validation passed: ${finalTime} is within ${daySettings.start} - ${daySettings.end}`);
     } catch (parseError: any) {
-      console.error(`📅 [Appointment Webhook] Time parsing error:`, parseError.message);
-      console.error(`📅 [Appointment Webhook] daySettings:`, JSON.stringify(daySettings));
-      console.error(`📅 [Appointment Webhook] finalTime:`, finalTime);
+      logger.error(`📅 [Appointment Webhook] Time parsing error:`, parseError.message);
+      logger.error(`📅 [Appointment Webhook] daySettings:`, JSON.stringify(daySettings));
+      logger.error(`📅 [Appointment Webhook] finalTime:`, finalTime);
       // Reject the booking with a helpful message rather than silently allowing
       return res.json({
         success: false,
@@ -5510,7 +5510,7 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
         }
       }
     } catch (calErr: any) {
-      console.error(`📅 [GoogleCalendar] Auto-sync error for ${appointmentId}:`, calErr.message);
+      logger.error(`📅 [GoogleCalendar] Auto-sync error for ${appointmentId}:`, calErr.message);
     }
 
     // Trigger appointment.booked webhook event
@@ -5538,7 +5538,7 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
       });
       logger.info(`📅 [Appointment Webhook] Triggered appointment.booked webhook event`);
     } catch (webhookError: any) {
-      console.error(`📅 [Appointment Webhook] Failed to trigger webhook:`, webhookError.message);
+      logger.error(`📅 [Appointment Webhook] Failed to trigger webhook:`, webhookError.message);
     }
 
     // Update call metadata for CRM Lead Processor detection
@@ -5581,7 +5581,7 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
           logger.info(`📅 [Appointment Webhook] Updated call metadata for CRM detection`);
         }
       } catch (metadataError: any) {
-        console.error(`📅 [Appointment Webhook] Failed to update call metadata:`, metadataError.message);
+        logger.error(`📅 [Appointment Webhook] Failed to update call metadata:`, metadataError.message);
       }
     }
 
@@ -5600,8 +5600,8 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
 
   } catch (error: any) {
     const responseTime = Date.now() - startTime;
-    console.error(`❌ [Appointment Webhook] Error after ${responseTime}ms:`, error.message);
-    console.error(`   Stack:`, error.stack);
+    logger.error(`❌ [Appointment Webhook] Error after ${responseTime}ms:`, error.message);
+    logger.error(`   Stack:`, error.stack);
     return res.json({
       success: false,
       message: "I encountered an error while booking the appointment. Please try again."
@@ -5629,7 +5629,7 @@ export async function handleFormSubmissionWebhook(req: Request, res: Response) {
     const { formSubmissions, forms, formFields } = await import('../../shared/schema');
 
     if (!validateFormWebhookToken(urlToken)) {
-      console.warn(`📋 [Form Webhook] Invalid authentication token`);
+      logger.warn(`📋 [Form Webhook] Invalid authentication token`);
       return res.status(401).json({
         success: false,
         error: "Unauthorized: Invalid authentication token"
@@ -5649,7 +5649,7 @@ export async function handleFormSubmissionWebhook(req: Request, res: Response) {
       .limit(1);
 
     if (agent.length === 0) {
-      console.warn(`📋 [Form Webhook] No agent found with ElevenLabs ID ${elevenLabsAgentId}`);
+      logger.warn(`📋 [Form Webhook] No agent found with ElevenLabs ID ${elevenLabsAgentId}`);
       return res.json({
         success: false,
         message: "Could not find the agent to submit the form."
@@ -5671,7 +5671,7 @@ export async function handleFormSubmissionWebhook(req: Request, res: Response) {
       .limit(1);
 
     if (!form) {
-      console.warn(`📋 [Form Webhook] Form ${formId} not found for user ${userId}`);
+      logger.warn(`📋 [Form Webhook] Form ${formId} not found for user ${userId}`);
       return res.json({
         success: false,
         message: "Could not find the form to submit."
@@ -5682,7 +5682,7 @@ export async function handleFormSubmissionWebhook(req: Request, res: Response) {
     // Fail closed: refuse rather than insert a submission without company_id.
     const submissionCompanyId: string | null = form.companyId ?? null;
     if (!submissionCompanyId) {
-      console.warn(`📋 [Form Webhook] Refusing submission insert: form ${formId} has no company_id`);
+      logger.warn(`📋 [Form Webhook] Refusing submission insert: form ${formId} has no company_id`);
       return res.status(403).json({ success: false, message: "Forbidden" });
     }
 
@@ -5834,13 +5834,13 @@ export async function handleFormSubmissionWebhook(req: Request, res: Response) {
                 formFlowNode = candidate;
                 logger.info(`📋 [Form Webhook] Matched flow node by nodeId ${incomingNodeId} + formId ${formId}`);
               } else {
-                console.warn(
+                logger.warn(
                   `📋 [Form Webhook] nodeId "${incomingNodeId}" found but formId mismatch ` +
                   `(node has "${candidateCfg.formId}", expected "${formId}") — falling back to formId match`
                 );
               }
             } else {
-              console.warn(`📋 [Form Webhook] nodeId "${incomingNodeId}" not found in flow; falling back to formId match`);
+              logger.warn(`📋 [Form Webhook] nodeId "${incomingNodeId}" not found in flow; falling back to formId match`);
             }
           }
 
@@ -5873,11 +5873,11 @@ export async function handleFormSubmissionWebhook(req: Request, res: Response) {
                     logger.info(`📋 [Form Webhook] Auto-detected sheet tab: "${sheetName}"`);
                   } else {
                     sheetName = 'Sheet1'; // absolute last-resort fallback
-                    console.warn(`📋 [Form Webhook] Could not detect sheet tabs; falling back to "Sheet1"`);
+                    logger.warn(`📋 [Form Webhook] Could not detect sheet tabs; falling back to "Sheet1"`);
                   }
                 } catch (tabErr: any) {
                   sheetName = 'Sheet1';
-                  console.warn(`📋 [Form Webhook] Tab detection failed (${tabErr.message}); falling back to "Sheet1"`);
+                  logger.warn(`📋 [Form Webhook] Tab detection failed (${tabErr.message}); falling back to "Sheet1"`);
                 }
               }
 
@@ -5896,7 +5896,7 @@ export async function handleFormSubmissionWebhook(req: Request, res: Response) {
                   logger.warn(`📋 [Form Webhook] Safety-net: wrote missing header row to Google Sheet "${sheetName}" (${sheetId})`);
                 }
               } catch (headerErr: any) {
-                console.warn(`📋 [Form Webhook] Safety-net header write failed (non-fatal):`, headerErr.message);
+                logger.warn(`📋 [Form Webhook] Safety-net header write failed (non-fatal):`, headerErr.message);
               }
 
               const answerValues = responses.map((r: any) => r.answer ?? '');
@@ -5912,7 +5912,7 @@ export async function handleFormSubmissionWebhook(req: Request, res: Response) {
                 logger.info(`📋 [Form Webhook] Appended row to Google Sheet "${sheetName}" (${sheetId})`);
               } else {
                 const errMsg = `appendRowToSheet returned false for sheet ${sheetId} tab "${sheetName}"`;
-                console.error(`📋 [Form Webhook] Google Sheets append FAILED — form data saved locally but NOT in Google Sheets. ${errMsg}`);
+                logger.error(`📋 [Form Webhook] Google Sheets append FAILED — form data saved locally but NOT in Google Sheets. ${errMsg}`);
                 // Persist a structured warning on the call record so the failure is visible in the UI call log
                 if (validatedCallId) {
                   try {
@@ -5934,18 +5934,18 @@ export async function handleFormSubmissionWebhook(req: Request, res: Response) {
                       }
                     }
                   } catch (warnErr: any) {
-                    console.warn(`📋 [Form Webhook] Could not write googleSheetsWarning to call record:`, warnErr.message);
+                    logger.warn(`📋 [Form Webhook] Could not write googleSheetsWarning to call record:`, warnErr.message);
                   }
                 }
               }
             }
           } else {
-            console.warn(`📋 [Form Webhook] No matching flow node found for formId ${formId} — Google Sheets push skipped`);
+            logger.warn(`📋 [Form Webhook] No matching flow node found for formId ${formId} — Google Sheets push skipped`);
           }
         }
       }
     } catch (sheetError: any) {
-      console.error(`📋 [Form Webhook] Google Sheets push failed (non-fatal):`, sheetError.message);
+      logger.error(`📋 [Form Webhook] Google Sheets push failed (non-fatal):`, sheetError.message);
     }
 
     // Trigger form.submitted webhook event
@@ -5971,7 +5971,7 @@ export async function handleFormSubmissionWebhook(req: Request, res: Response) {
       });
       logger.info(`📋 [Form Webhook] Triggered form.submitted webhook event`);
     } catch (webhookError: any) {
-      console.error(`📋 [Form Webhook] Failed to trigger webhook:`, webhookError.message);
+      logger.error(`📋 [Form Webhook] Failed to trigger webhook:`, webhookError.message);
     }
 
     // Update call metadata for CRM Lead Processor detection
@@ -6014,7 +6014,7 @@ export async function handleFormSubmissionWebhook(req: Request, res: Response) {
           logger.info(`📋 [Form Webhook] Updated call metadata for CRM detection`);
         }
       } catch (metadataError: any) {
-        console.error(`📋 [Form Webhook] Failed to update call metadata:`, metadataError.message);
+        logger.error(`📋 [Form Webhook] Failed to update call metadata:`, metadataError.message);
       }
     }
 
@@ -6025,7 +6025,7 @@ export async function handleFormSubmissionWebhook(req: Request, res: Response) {
     });
 
   } catch (error: any) {
-    console.error(`❌ [Form Webhook] Error:`, error.message);
+    logger.error(`❌ [Form Webhook] Error:`, error.message);
     return res.json({
       success: false,
       message: "I encountered an error while saving your responses. Please try again."
@@ -6063,9 +6063,9 @@ export async function handleRAGToolWebhook(req: Request, res: Response) {
     logger.info(`📚 [RAG Webhook] Token sources - URL: ${urlToken ? 'present' : 'missing'}, Header: ${headerToken ? 'present' : 'missing'}`);
 
     if (!validateRAGWebhookToken(providedToken)) {
-      console.warn(`📚 [RAG Webhook] Invalid or missing authentication token`);
-      console.warn(`   Request path: ${urlToken ? req.path.replace(urlToken, '[redacted]') : req.path}`);
-      console.warn(`   Header token: ${headerToken ? `present (length ${headerToken.length})` : 'missing'}`);
+      logger.warn(`📚 [RAG Webhook] Invalid or missing authentication token`);
+      logger.warn(`   Request path: [redacted]`);
+      logger.warn(`   Header token: [redacted]`);
       return res.status(401).json({
         response: "Unauthorized: Invalid authentication token",
         sources: []
@@ -6081,7 +6081,7 @@ export async function handleRAGToolWebhook(req: Request, res: Response) {
     const query = req.body?.query || req.body?.parameters?.query || '';
 
     if (!query || typeof query !== 'string') {
-      console.warn(`📚 [RAG Webhook] Invalid query received`);
+      logger.warn(`📚 [RAG Webhook] Invalid query received`);
       return res.json({
         response: "I need a search query to look up information in the knowledge base.",
         sources: []
@@ -6125,7 +6125,7 @@ export async function handleRAGToolWebhook(req: Request, res: Response) {
     }
 
     if (!userId) {
-      console.warn(`📚 [RAG Webhook] ElevenLabs agent ${elevenLabsAgentId} not found`);
+      logger.warn(`📚 [RAG Webhook] ElevenLabs agent ${elevenLabsAgentId} not found`);
       return res.json({
         response: "I couldn't find the knowledge base for this agent.",
         sources: []
@@ -6134,7 +6134,7 @@ export async function handleRAGToolWebhook(req: Request, res: Response) {
 
     if (!companyId) {
       // Fail closed: an agent row with no company cannot be scoped, so no search runs.
-      console.warn(`📚 [RAG Webhook] ElevenLabs agent ${elevenLabsAgentId} has no company scope, refusing`);
+      logger.warn(`📚 [RAG Webhook] ElevenLabs agent ${elevenLabsAgentId} has no company scope, refusing`);
       return res.json({
         response: "I couldn't find the knowledge base for this agent.",
         sources: []
@@ -6142,7 +6142,7 @@ export async function handleRAGToolWebhook(req: Request, res: Response) {
     }
 
     if (knowledgeBaseIds.length === 0) {
-      console.warn(`📚 [RAG Webhook] No knowledge bases assigned to agent ${elevenLabsAgentId}`);
+      logger.warn(`📚 [RAG Webhook] No knowledge bases assigned to agent ${elevenLabsAgentId}`);
       return res.json({
         response: "This agent doesn't have a knowledge base configured yet.",
         sources: []
@@ -6166,7 +6166,7 @@ export async function handleRAGToolWebhook(req: Request, res: Response) {
     });
 
   } catch (error: any) {
-    console.error(`❌ [RAG Webhook] Error:`, error.message);
+    logger.error(`❌ [RAG Webhook] Error:`, error.message);
     return res.json({
       response: "I encountered an error while searching the knowledge base. Please try again.",
       sources: []
@@ -6192,7 +6192,7 @@ export async function handlePlayAudioToolWebhook(req: Request, res: Response): P
     const { audioUrl, interruptible, waitForComplete } = req.body;
 
     if (!audioUrl) {
-      console.error('[PlayAudio Webhook] Missing audioUrl');
+      logger.error('[PlayAudio Webhook] Missing audioUrl');
       res.status(400).json({ error: 'Missing audioUrl' });
       return;
     }
@@ -6205,7 +6205,7 @@ export async function handlePlayAudioToolWebhook(req: Request, res: Response): P
       .limit(1);
 
     if (agent.length === 0) {
-      console.warn(`[PlayAudio Webhook] No agent found with ElevenLabs ID ${elevenLabsAgentId}`);
+      logger.warn(`[PlayAudio Webhook] No agent found with ElevenLabs ID ${elevenLabsAgentId}`);
       res.json({
         success: false,
         message: "Could not find the agent to play audio."
@@ -6358,7 +6358,7 @@ export async function handlePlayAudioToolWebhook(req: Request, res: Response): P
     }
 
     if (!callSid) {
-      console.warn(`[PlayAudio Webhook] No active call with Twilio SID found for agent ${dbAgentId}`);
+      logger.warn(`[PlayAudio Webhook] No active call with Twilio SID found for agent ${dbAgentId}`);
       // Don't fail - the audio might have been requested but call ended
       res.json({
         success: false,
@@ -6386,7 +6386,7 @@ export async function handlePlayAudioToolWebhook(req: Request, res: Response): P
     // Use Twilio REST API to play audio on the call
     const twilioClient = await getTwilioClient();
     if (!twilioClient) {
-      console.error('[PlayAudio Webhook] Twilio client not available');
+      logger.error('[PlayAudio Webhook] Twilio client not available');
       res.status(500).json({ error: 'Twilio client not configured' });
       return;
     }
@@ -6409,14 +6409,14 @@ export async function handlePlayAudioToolWebhook(req: Request, res: Response): P
         callSid
       });
     } catch (twilioError: any) {
-      console.error('[PlayAudio Webhook] Twilio API error:', twilioError.message);
+      logger.error('[PlayAudio Webhook] Twilio API error:', twilioError.message);
       res.status(500).json({
         error: 'Failed to play audio',
         details: 'An error occurred while initiating audio playback'
       });
     }
   } catch (error: any) {
-    console.error('[PlayAudio Webhook] Error:', error);
+    logger.error('[PlayAudio Webhook] Error:', error);
     res.status(500).json({ error: 'Internal error' });
   }
 }

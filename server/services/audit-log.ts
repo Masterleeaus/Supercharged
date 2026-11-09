@@ -165,7 +165,7 @@ function scheduleFlush(delayMs: number): void {
 function recordOverflow(): void {
   overflowRejectedCount += 1;
   if (overflowRejectedCount === 1 || overflowRejectedCount % 100 === 0) {
-    console.error(
+    logger.error(
       `[Audit] ERROR: audit queue full (${AUDIT_QUEUE_MAX_EVENTS} events buffered, database writes failing). ` +
       `Rejected ${overflowRejectedCount} newest audit event(s) since the last successful flush; oldest events are kept.`
     );
@@ -229,10 +229,9 @@ async function flushAuditLogs(): Promise<void> {
           AUDIT_RETRY_BASE_MS * 2 ** (consecutiveFlushFailures - 1),
           AUDIT_RETRY_MAX_MS
         );
-        console.error(
+        logger.error(
           `[Audit] Failed to flush ${batch.length} event(s); ${auditLogQueue.length} buffered, ` +
-          `retry ${consecutiveFlushFailures} in ${delayMs}ms:`,
-          error
+          `retry ${consecutiveFlushFailures} in ${delayMs}ms:`, error
         );
         if (flushTimer) {
           clearTimeout(flushTimer);
@@ -247,7 +246,7 @@ async function flushAuditLogs(): Promise<void> {
     }
 
     if (overflowRejectedCount > 0) {
-      console.error(
+      logger.error(
         `[Audit] Queue drained after outage; ${overflowRejectedCount} newest audit event(s) were rejected while it was full.`
       );
       overflowRejectedCount = 0;
@@ -298,12 +297,12 @@ export async function flushAuditLogsOnShutdown(timeoutMs = 5000): Promise<void> 
     }
 
     if (auditLogQueue.length > 0) {
-      console.error(
+      logger.error(
         `[Audit] Shutdown flush stopped after ${timeoutMs}ms; ${auditLogQueue.length} audit event(s) not persisted.`
       );
     }
   } catch (error: unknown) {
-    console.error("[Audit] Shutdown flush failed:", error);
+    logger.error("[Audit] Shutdown flush failed:", error);
   }
 }
 

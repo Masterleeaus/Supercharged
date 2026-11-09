@@ -16,6 +16,7 @@
  */
 import { db } from "./db";
 import { creditPackages } from "@shared/schema";
+import { logger } from './utils/logger.ts';
 
 const CREDIT_PACKAGES_SEED_DATA = [
   {
@@ -70,27 +71,27 @@ const CREDIT_PACKAGES_SEED_DATA = [
 
 async function seedCreditPackages() {
   try {
-    console.log("🌱 Starting Credit Packages seed...");
+    logger.info("🌱 Starting Credit Packages seed...");
     
     const existingPackages = await db.select().from(creditPackages);
     
     if (existingPackages.length > 0) {
-      console.log(`⚠️  Found ${existingPackages.length} existing credit packages. Skipping seed to prevent duplicates.`);
-      console.log("   To re-seed, first delete all credit packages from the database.");
+      logger.info(`⚠️  Found ${existingPackages.length} existing credit packages. Skipping seed to prevent duplicates.`);
+      logger.info("   To re-seed, first delete all credit packages from the database.");
       return;
     }
 
-    console.log(`📦 Inserting ${CREDIT_PACKAGES_SEED_DATA.length} credit packages...`);
+    logger.info(`📦 Inserting ${CREDIT_PACKAGES_SEED_DATA.length} credit packages...`);
     await db.insert(creditPackages).values(CREDIT_PACKAGES_SEED_DATA);
     
-    console.log("✅ Successfully seeded Credit Packages!");
+    logger.info("✅ Successfully seeded Credit Packages!");
     CREDIT_PACKAGES_SEED_DATA.forEach(pkg => {
       const pricePerCredit = (parseFloat(pkg.price) / pkg.credits).toFixed(4);
-      console.log(`   - ${pkg.name}: ${pkg.credits} credits @ $${pkg.price} ($${pricePerCredit}/credit)`);
+      logger.info(`   - ${pkg.name}: ${pkg.credits} credits @ $${pkg.price} ($${pricePerCredit}/credit)`);
     });
     
   } catch (error) {
-    console.error("❌ Error seeding Credit Packages:", error);
+    logger.error("❌ Error seeding Credit Packages:", error);
     throw error;
   }
 }

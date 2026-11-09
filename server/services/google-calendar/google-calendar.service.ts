@@ -36,7 +36,7 @@ async function refreshCalendarToken(userId: string, force = false): Promise<stri
 
   const creds = await getGoogleCredentials();
   if (!creds) {
-    console.error("[GoogleCalendar] Google OAuth credentials not configured");
+    logger.error("[GoogleCalendar] Google OAuth credentials not configured");
     return null;
   }
 
@@ -53,7 +53,7 @@ async function refreshCalendarToken(userId: string, force = false): Promise<stri
     });
 
     if (!resp.ok) {
-      console.error("[GoogleCalendar] Token refresh failed:", await resp.text());
+      logger.error("[GoogleCalendar] Token refresh failed:", await resp.text());
       return null;
     }
 
@@ -67,7 +67,7 @@ async function refreshCalendarToken(userId: string, force = false): Promise<stri
 
     return data.access_token;
   } catch (err: any) {
-    console.error("[GoogleCalendar] Token refresh error:", err.message);
+    logger.error("[GoogleCalendar] Token refresh error:", err.message);
     return null;
   }
 }
@@ -155,14 +155,14 @@ export async function createCalendarEvent(userId: string, apt: CalendarAppointme
       resp = await doCreate(fresh);
     }
     if (!resp.ok) {
-      console.error("[GoogleCalendar] Create event failed:", await resp.text());
+      logger.error("[GoogleCalendar] Create event failed:", await resp.text());
       return null;
     }
     const data = await resp.json() as { id: string };
     logger.info(`📅 [GoogleCalendar] Created event ${data.id} for appointment ${apt.id}`);
     return data.id;
   } catch (err: any) {
-    console.error("[GoogleCalendar] Create event error:", err.message);
+    logger.error("[GoogleCalendar] Create event error:", err.message);
     return null;
   }
 }
@@ -196,13 +196,13 @@ export async function updateCalendarEvent(userId: string, eventId: string, apt: 
       resp = await doUpdate(fresh);
     }
     if (!resp.ok) {
-      console.error("[GoogleCalendar] Update event failed:", await resp.text());
+      logger.error("[GoogleCalendar] Update event failed:", await resp.text());
       return false;
     }
     logger.info(`📅 [GoogleCalendar] Updated event ${eventId}`);
     return true;
   } catch (err: any) {
-    console.error("[GoogleCalendar] Update event error:", err.message);
+    logger.error("[GoogleCalendar] Update event error:", err.message);
     return false;
   }
 }
@@ -225,17 +225,17 @@ export async function deleteCalendarEvent(userId: string, eventId: string): Prom
       resp = await doDelete(fresh);
     }
     if (resp.status === 404) {
-      console.warn(`[GoogleCalendar] Event ${eventId} not found (already deleted?)`);
+      logger.warn(`[GoogleCalendar] Event ${eventId} not found (already deleted?)`);
       return true;
     }
     if (!resp.ok) {
-      console.error("[GoogleCalendar] Delete event failed:", await resp.text());
+      logger.error("[GoogleCalendar] Delete event failed:", await resp.text());
       return false;
     }
     logger.info(`📅 [GoogleCalendar] Deleted event ${eventId}`);
     return true;
   } catch (err: any) {
-    console.error("[GoogleCalendar] Delete event error:", err.message);
+    logger.error("[GoogleCalendar] Delete event error:", err.message);
     return false;
   }
 }

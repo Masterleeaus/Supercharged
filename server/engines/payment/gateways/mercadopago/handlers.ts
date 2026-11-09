@@ -76,7 +76,7 @@ export async function handlePaymentApproved(
         await generateInvoiceForTransaction(newTransaction.id);
         await emailService.sendPurchaseConfirmation(newTransaction.id);
       } catch (emailError: any) {
-        console.error(`❌ [MercadoPago] Failed to send purchase confirmation:`, emailError);
+        logger.error(`❌ [MercadoPago] Failed to send purchase confirmation:`);
       }
 
       return {
@@ -166,7 +166,7 @@ export async function handleSubscriptionAuthorized(
         await generateInvoiceForTransaction(newTransaction.id);
         await emailService.sendPurchaseConfirmation(newTransaction.id);
       } catch (emailError: any) {
-        console.error(`❌ [MercadoPago] Failed to send renewal email:`, emailError);
+        logger.error(`❌ [MercadoPago] Failed to send renewal email:`);
       }
 
       return {
@@ -239,7 +239,7 @@ export async function handlePaymentFailed(
   try {
     await emailService.sendPaymentFailed(subscription.userId, '0', 'Subscription payment failed');
   } catch (emailError: any) {
-    console.error(`❌ [MercadoPago] Failed to send payment failed email:`, emailError);
+    logger.error(`❌ [MercadoPago] Failed to send payment failed email:`);
   }
 
   return { success: true, action: 'payment_failed_notified', userId: subscription.userId };
@@ -367,7 +367,7 @@ export async function handleDisputeCreated(
   try {
     await emailService.sendAccountSuspended(userId, `Chargeback dispute: ${disputeReason}`);
   } catch (emailError: any) {
-    console.error(`❌ [MercadoPago] Failed to send account suspended email:`, emailError);
+    logger.error(`❌ [MercadoPago] Failed to send account suspended email:`);
   }
 
   logger.info(`⛔ [MercadoPago] User ${userId} suspended due to chargeback. Dispute ID: ${disputeId}`);
@@ -427,7 +427,7 @@ export async function handleCreditsPayment(
       await generateInvoiceForTransaction(newTransaction.id);
       await emailService.sendPurchaseConfirmation(newTransaction.id);
     } catch (emailError: any) {
-      console.error(`❌ [MercadoPago] Failed to send purchase confirmation:`, emailError);
+      logger.error(`❌ [MercadoPago] Failed to send purchase confirmation:`);
     }
 
     return {

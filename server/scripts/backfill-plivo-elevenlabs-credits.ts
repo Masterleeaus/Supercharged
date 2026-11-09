@@ -19,6 +19,7 @@ import { db } from "../db";
 import { plivoCalls, creditTransactions } from "@shared/schema";
 import { and, eq, gte, isNotNull, isNull, sql } from "drizzle-orm";
 import { deductCallCredits } from "../services/credit-service";
+import { logger } from '../utils/logger.ts';
 
 interface BackfillStats {
   scanned: number;
@@ -35,7 +36,7 @@ async function run() {
   const userIdx = args.indexOf("--user");
   const filterUserId = userIdx !== -1 ? args[userIdx + 1] : undefined;
 
-  console.log(
+  logger.info(
     `[Backfill] Starting Plivo+ElevenLabs credit backfill (dryRun=${dryRun}${
       filterUserId ? `, user=${filterUserId}` : ""
     })`,
@@ -86,7 +87,7 @@ async function run() {
     totalCreditsDeducted: 0,
   };
 
-  console.log(`[Backfill] Unbilled candidates: ${candidates.length}`);
+  logger.info(`[Backfill] Unbilled candidates: ${candidates.length}`);
 
   for (const call of candidates) {
     if (!call.userId || !call.duration || call.duration < 1) continue;
@@ -94,7 +95,7 @@ async function run() {
     if (credits <= 0) continue;
 
     if (dryRun) {
-      console.log(
+      logger.info(
         `[Backfill] DRY: would deduct ${credits} credits from user ${call.userId} for call ${call.id} (${call.duration}s)`,
       );
       continue;
@@ -114,42 +115,42 @@ async function run() {
       if (result.success && result.creditsDeducted > 0) {
         stats.charged += 1;
         stats.totalCreditsDeducted += result.creditsDeducted;
-        console.log(
+        logger.info(
           `[Backfill] Charged ${result.creditsDeducted} credits to user ${call.userId} for call ${call.id} (new balance: ${result.newBalance})`,
         );
       } else if (result.alreadyDeducted) {
         stats.alreadyDeducted += 1;
       } else if (!result.success && result.error === "Insufficient credits") {
         stats.insufficientCredits += 1;
-        console.warn(
+        logger.warn(
           `[Backfill] Skipped call ${call.id}: user ${call.userId} has insufficient credits for ${credits}`,
         );
       } else {
         stats.errors += 1;
-        console.error(
+        logger.error(
           `[Backfill] Failed call ${call.id}: ${result.error || "unknown error"}`,
         );
       }
     } catch (err: any) {
       stats.errors += 1;
-      console.error(
+      logger.error(
         `[Backfill] Exception for call ${call.id}: ${err?.message || err}`,
       );
     }
   }
 
-  console.log("[Backfill] Summary:");
-  console.log(`  Unbilled candidates:   ${stats.scanned}`);
-  console.log(`  Charged:               ${stats.charged}`);
-  console.log(`  Already deducted:      ${stats.alreadyDeducted}`);
-  console.log(`  Insufficient credits:  ${stats.insufficientCredits}`);
-  console.log(`  Errors:                ${stats.errors}`);
-  console.log(`  Total credits taken:   ${stats.totalCreditsDeducted}`);
+  logger.info("[Backfill] Summary:");
+  logger.info(`  Unbilled candidates:   ${stats.scanned}`);
+  logger.info(`  Charged:               ${stats.charged}`);
+  logger.info(`  Already deducted:      ${stats.alreadyDeducted}`);
+  logger.info(`  Insufficient credits:  ${stats.insufficientCredits}`);
+  logger.info(`  Errors:                ${stats.errors}`);
+  logger.info(`  Total credits taken:   ${stats.totalCreditsDeducted}`);
 
   process.exit(stats.errors > 0 ? 1 : 0);
 }
 
 run().catch((err) => {
-  console.error("[Backfill] Fatal error:", err);
+  logger.error("[Backfill] Fatal error:", err);
   process.exit(1);
 });

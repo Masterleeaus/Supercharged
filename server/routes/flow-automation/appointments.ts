@@ -54,7 +54,7 @@ export function registerAppointmentRoutes(router: Router): void {
 
       res.json(appointmentsWithScheduledFor);
     } catch (error: any) {
-      console.error("Error fetching appointments:", error);
+      logger.error("Error fetching appointments:", error);
       res.status(500).json({ error: "Failed to fetch appointments" });
     }
   });
@@ -128,7 +128,7 @@ export function registerAppointmentRoutes(router: Router): void {
 
       res.json(newAppointment);
     } catch (error: any) {
-      console.error("Error creating appointment:", error);
+      logger.error("Error creating appointment:", error);
       res.status(500).json({ error: "Failed to create appointment" });
     }
   });
@@ -210,7 +210,7 @@ export function registerAppointmentRoutes(router: Router): void {
           });
           logger.info(`📅 [Appointment Webhook] Triggered appointment.rescheduled for ${id}`);
         } catch (webhookError: any) {
-          console.error(`📅 [Appointment Webhook] Failed to trigger rescheduled webhook:`, webhookError.message);
+          logger.error(`📅 [Appointment Webhook] Failed to trigger rescheduled webhook:`, webhookError.message);
         }
       }
 
@@ -254,7 +254,7 @@ export function registerAppointmentRoutes(router: Router): void {
               break;
           }
         } catch (webhookError: any) {
-          console.error(`📅 [Appointment Webhook] Failed to trigger ${newStatus} webhook:`, webhookError.message);
+          logger.error(`📅 [Appointment Webhook] Failed to trigger ${newStatus} webhook:`, webhookError.message);
         }
       }
 
@@ -281,13 +281,13 @@ export function registerAppointmentRoutes(router: Router): void {
               .set({ googleCalendarEventId: null, updatedAt: new Date() })
               .where(eq(appointments.id, id));
           } else {
-            console.warn(`[GoogleCalendar] Delete failed for event ${existingEventId} on cancel — keeping ID for retry`);
+            logger.warn(`[GoogleCalendar] Delete failed for event ${existingEventId} on cancel — keeping ID for retry`);
           }
         } else if (existingEventId) {
           await updateCalendarEvent(userId, existingEventId, calendarApt);
         }
       } catch (calErr: any) {
-        console.error(`📅 [GoogleCalendar] Sync error on PATCH for ${id}:`, calErr.message);
+        logger.error(`📅 [GoogleCalendar] Sync error on PATCH for ${id}:`, calErr.message);
       }
 
       res.json({
@@ -295,7 +295,7 @@ export function registerAppointmentRoutes(router: Router): void {
         scheduledFor: `${updatedAppointment.appointmentDate}T${updatedAppointment.appointmentTime}`,
       });
     } catch (error: any) {
-      console.error("Error updating appointment:", error);
+      logger.error("Error updating appointment:", error);
       res.status(500).json({ error: "Failed to update appointment" });
     }
   });
@@ -347,7 +347,7 @@ export function registerAppointmentRoutes(router: Router): void {
         scheduledFor: `${updated.appointmentDate}T${updated.appointmentTime}`,
       });
     } catch (error: any) {
-      console.error("Error syncing appointment to calendar:", error);
+      logger.error("Error syncing appointment to calendar:", error);
       res.status(500).json({ error: "Failed to sync to Google Calendar" });
     }
   });
@@ -396,7 +396,7 @@ export function registerAppointmentRoutes(router: Router): void {
         });
         logger.info(`📅 [Appointment Webhook] Triggered appointment.cancelled for deleted appointment ${id}`);
       } catch (webhookError: any) {
-        console.error(`📅 [Appointment Webhook] Failed to trigger cancelled webhook:`, webhookError.message);
+        logger.error(`📅 [Appointment Webhook] Failed to trigger cancelled webhook:`, webhookError.message);
       }
 
       await db
@@ -405,7 +405,7 @@ export function registerAppointmentRoutes(router: Router): void {
 
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Error deleting appointment:", error);
+      logger.error("Error deleting appointment:", error);
       res.status(500).json({ error: "Failed to delete appointment" });
     }
   });
@@ -485,7 +485,7 @@ export function registerAppointmentRoutes(router: Router): void {
         updatedAt: settings.updatedAt,
       });
     } catch (error: any) {
-      console.error("Error fetching appointment settings:", error);
+      logger.error("Error fetching appointment settings:", error);
       res.status(500).json({ error: "Failed to fetch appointment settings" });
     }
   });
@@ -613,7 +613,7 @@ export function registerAppointmentRoutes(router: Router): void {
         return res.json(frontendFormat);
       }
     } catch (error: any) {
-      console.error("Error updating appointment settings:", error);
+      logger.error("Error updating appointment settings:", error);
       res.status(500).json({ error: "Failed to update appointment" });
     }
   });
@@ -708,7 +708,7 @@ export function registerAppointmentRoutes(router: Router): void {
         appointment: newAppointment,
       });
     } catch (error: any) {
-      console.error("Error syncing appointment:", error);
+      logger.error("Error syncing appointment:", error);
       res.status(500).json({ error: "Failed to sync appointment" });
     }
   });

@@ -16,6 +16,7 @@
  */
 import { db } from "./db";
 import { promptTemplates } from "@shared/schema";
+import { logger } from './utils/logger.ts';
 
 const AGENT_TEMPLATES_SEED_DATA = [
   {
@@ -261,27 +262,27 @@ Information to collect:
 
 async function seedAgentTemplates() {
   try {
-    console.log("🤖 Starting Agent Templates seed...");
+    logger.info("🤖 Starting Agent Templates seed...");
     
     const existingTemplates = await db.select().from(promptTemplates);
     const agentPresets = existingTemplates.filter(t => t.category === "agent_preset" && t.isSystemTemplate);
     
     if (agentPresets.length > 0) {
-      console.log(`⚠️  Found ${agentPresets.length} existing agent preset templates. Skipping seed to prevent duplicates.`);
-      console.log("   To re-seed, first delete agent preset templates from the database.");
+      logger.info(`⚠️  Found ${agentPresets.length} existing agent preset templates. Skipping seed to prevent duplicates.`);
+      logger.info("   To re-seed, first delete agent preset templates from the database.");
       return;
     }
 
-    console.log(`📦 Inserting ${AGENT_TEMPLATES_SEED_DATA.length} agent preset templates...`);
+    logger.info(`📦 Inserting ${AGENT_TEMPLATES_SEED_DATA.length} agent preset templates...`);
     await db.insert(promptTemplates).values(AGENT_TEMPLATES_SEED_DATA);
     
-    console.log("✅ Successfully seeded Agent Templates!");
+    logger.info("✅ Successfully seeded Agent Templates!");
     AGENT_TEMPLATES_SEED_DATA.forEach(template => {
-      console.log(`   - ${template.name}: ${template.variables.length} variables`);
+      logger.info(`   - ${template.name}: ${template.variables.length} variables`);
     });
     
   } catch (error) {
-    console.error("❌ Error seeding Agent Templates:", error);
+    logger.error("❌ Error seeding Agent Templates:", error);
     throw error;
   }
 }

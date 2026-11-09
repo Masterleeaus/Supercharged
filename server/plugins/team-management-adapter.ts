@@ -13,6 +13,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 import type { Request, Response, NextFunction } from 'express';
+import { logger } from '../utils/logger.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -110,12 +111,12 @@ async function loadServices(): Promise<boolean> {
     
     const anyLoaded = results.some(r => r.status === 'fulfilled');
     if (anyLoaded) {
-      console.log('[TeamManagementAdapter] Services loaded successfully');
+      logger.info('[TeamManagementAdapter] Services loaded successfully');
     }
     
     return anyLoaded;
   } catch (error) {
-    console.warn('[TeamManagementAdapter] Failed to load services:', error);
+    logger.warn('[TeamManagementAdapter] Failed to load services:', error);
     return false;
   }
 }
@@ -129,10 +130,10 @@ async function loadMiddleware(): Promise<boolean> {
     const middlewareBase = path.join(PLUGIN_DIR, 'middleware', 'team-auth.middleware');
     const module = await dynamicImport(middlewareBase);
     cachedServices.applyTeamContext = module.applyTeamContext;
-    console.log('[TeamManagementAdapter] Middleware loaded successfully');
+    logger.info('[TeamManagementAdapter] Middleware loaded successfully');
     return true;
   } catch (error) {
-    console.warn('[TeamManagementAdapter] Failed to load middleware:', error);
+    logger.warn('[TeamManagementAdapter] Failed to load middleware:', error);
     return false;
   }
 }
@@ -188,7 +189,7 @@ export async function validateUserTeamSession(token: string): Promise<TeamMember
   try {
     return await TeamAuthService.validateSession(token);
   } catch (error) {
-    console.error('[TeamManagementAdapter] User team session validation error:', error);
+    logger.error('[TeamManagementAdapter] User team session validation error:', error);
     return null;
   }
 }
@@ -222,7 +223,7 @@ export async function validateAdminTeamSession(token: string): Promise<AdminTeam
       adminId: session.adminId,
     };
   } catch (error) {
-    console.error('[TeamManagementAdapter] Admin team session validation error:', error);
+    logger.error('[TeamManagementAdapter] Admin team session validation error:', error);
     return null;
   }
 }

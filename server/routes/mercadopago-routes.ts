@@ -53,7 +53,7 @@ router.get('/config', async (_req: Request, res: Response) => {
       supportedCurrencies: currencies,
     });
   } catch (error: any) {
-    console.error('Error fetching MercadoPago config:', error);
+    logger.error('Error fetching MercadoPago config:', error);
     res.status(500).json({ error: 'Failed to fetch MercadoPago configuration' });
   }
 });
@@ -132,7 +132,7 @@ router.post('/create-preference', authenticateToken, async (req: AuthRequest, re
       currencySymbol: currencyConfig.symbol,
     });
   } catch (error: any) {
-    console.error('Create MercadoPago preference error:', error);
+    logger.error('Create MercadoPago preference error:', error);
     res.status(500).json({ error: 'Failed to create MercadoPago preference' });
   }
 });
@@ -203,10 +203,10 @@ router.post('/verify-payment', authenticateToken, async (req: AuthRequest, res: 
             await emailService.sendPurchaseConfirmation(creditTransaction.id);
             logger.info(`✅ [MercadoPago] Credits purchase confirmation email sent for transaction ${creditTransaction.id}`);
           } catch (emailError: any) {
-            console.error(`❌ [MercadoPago] Failed to send credits purchase confirmation email:`, emailError);
+            logger.error(`❌ [MercadoPago] Failed to send credits purchase confirmation email:`);
           }
         } catch (txError: any) {
-          console.error('Failed to log payment transaction:', txError);
+          logger.error('Failed to log payment transaction:', txError);
         }
 
         res.json({ success: true, credits: metadata.credits });
@@ -221,7 +221,7 @@ router.post('/verify-payment', authenticateToken, async (req: AuthRequest, res: 
       res.json({ success: true });
     }
   } catch (error: any) {
-    console.error('Verify MercadoPago payment error:', error);
+    logger.error('Verify MercadoPago payment error:', error);
     res.status(500).json({ error: 'Failed to verify MercadoPago payment' });
   }
 });
@@ -275,7 +275,7 @@ router.post('/create-subscription', authenticateToken, async (req: AuthRequest, 
       billingPeriod,
     });
   } catch (error: any) {
-    console.error('Create MercadoPago subscription error:', error);
+    logger.error('Create MercadoPago subscription error:', error);
     res.status(500).json({ error: 'Failed to create MercadoPago subscription' });
   }
 });
@@ -317,7 +317,7 @@ router.post('/confirm-subscription', authenticateToken, async (req: AuthRequest,
       try {
         await cancelMercadoPagoSubscription(existingSubscription.mercadopagoSubscriptionId);
       } catch (e) {
-        console.warn('Failed to cancel old MercadoPago subscription:', e);
+        logger.warn('Failed to cancel old MercadoPago subscription:', e);
       }
     }
 
@@ -378,15 +378,15 @@ router.post('/confirm-subscription', authenticateToken, async (req: AuthRequest,
         await emailService.sendPurchaseConfirmation(newTransaction.id);
         logger.info(`✅ [MercadoPago] Purchase confirmation email sent for transaction ${newTransaction.id}`);
       } catch (emailError: any) {
-        console.error(`❌ [MercadoPago] Failed to send purchase confirmation email:`, emailError);
+        logger.error(`❌ [MercadoPago] Failed to send purchase confirmation email:`);
       }
     } catch (txError: any) {
-      console.error('Failed to log payment transaction:', txError);
+      logger.error('Failed to log payment transaction:', txError);
     }
 
     res.json({ success: true, planName: plan.displayName });
   } catch (error: any) {
-    console.error('Confirm MercadoPago subscription error:', error);
+    logger.error('Confirm MercadoPago subscription error:', error);
     res.status(500).json({ error: 'Failed to confirm MercadoPago subscription' });
   }
 });
@@ -430,7 +430,7 @@ router.post('/cancel-subscription', authenticateToken, async (req: AuthRequest, 
       currentPeriodEnd: subscription.currentPeriodEnd,
     });
   } catch (error: any) {
-    console.error('Cancel MercadoPago subscription error:', error);
+    logger.error('Cancel MercadoPago subscription error:', error);
     res.status(500).json({ error: 'Failed to cancel MercadoPago subscription' });
   }
 });
@@ -443,7 +443,7 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
 
     const isValid = await verifyMercadoPagoWebhookSignature(rawBody, xSignature, xRequestId);
     if (!isValid) {
-      console.warn('⚠️ [MercadoPago] Invalid webhook signature - rejecting');
+      logger.warn('⚠️ [MercadoPago] Invalid webhook signature - rejecting');
       return res.status(401).json({ error: 'Invalid webhook signature' });
     }
 
@@ -467,7 +467,7 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
                 try {
                   metadata = JSON.parse(payment.external_reference);
                 } catch {
-                  console.warn('[MercadoPago] Invalid external reference');
+                  logger.warn('[MercadoPago] Invalid external reference');
                   break;
                 }
 
@@ -504,21 +504,21 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
                           await emailService.sendPurchaseConfirmation(webhookCreditTransaction.id);
                           logger.info(`✅ [MercadoPago] Credits purchase confirmation email sent for transaction ${webhookCreditTransaction.id}`);
                         } catch (emailError: any) {
-                          console.error(`❌ [MercadoPago] Failed to send credits purchase confirmation email:`, emailError);
+                          logger.error(`❌ [MercadoPago] Failed to send credits purchase confirmation email:`);
                         }
                       } catch (txError: any) {
-                        console.error('Failed to log payment transaction:', txError);
+                        logger.error('Failed to log payment transaction:', txError);
                       }
                     } catch (error: any) {
                       if (!error.message?.includes('unique') && !error.message?.includes('duplicate')) {
-                        console.error('Error adding credits from webhook:', error);
+                        logger.error('Error adding credits from webhook:', error);
                       }
                     }
                   }
                 }
               }
             } catch (e) {
-              console.error('[MercadoPago] Failed to process payment webhook:', e);
+              logger.error('[MercadoPago] Failed to process payment webhook:', e);
             }
           }
         }
@@ -593,16 +593,16 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
                         await emailService.sendPurchaseConfirmation(renewalTransaction.id);
                         logger.info(`✅ [MercadoPago] Renewal confirmation email sent for transaction ${renewalTransaction.id}`);
                       } catch (emailError: any) {
-                        console.error(`❌ [MercadoPago] Failed to send renewal confirmation email:`, emailError);
+                        logger.error(`❌ [MercadoPago] Failed to send renewal confirmation email:`);
                       }
                     } catch (txError: any) {
-                      console.error('Failed to log payment transaction:', txError);
+                      logger.error('Failed to log payment transaction:', txError);
                     }
                   }
                 }
               }
             } catch (e) {
-              console.error('[MercadoPago] Failed to process subscription webhook:', e);
+              logger.error('[MercadoPago] Failed to process subscription webhook:', e);
             }
           }
         }
@@ -674,7 +674,7 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
                 logger.info(`✅ [MercadoPago] External refund processed for user ${userId}. Payment: ${paymentId}`);
               }
             } catch (error: any) {
-              console.error('Error processing external refund:', error);
+              logger.error('Error processing external refund:', error);
             }
           }
         }
@@ -749,15 +749,15 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
                   await emailService.sendAccountSuspended(userId, `Chargeback dispute: ${chargebackData?.reason || 'Unknown reason'}`);
                   logger.info(`✅ [MercadoPago] Account suspended email sent to user ${userId}`);
                 } catch (emailError: any) {
-                  console.error(`❌ [MercadoPago] Failed to send account suspended email:`, emailError);
+                  logger.error(`❌ [MercadoPago] Failed to send account suspended email:`);
                 }
                 
                 logger.warn(`⛔ [MercadoPago] User ${userId} suspended due to chargeback. Payment ID: ${paymentId}, Reason: ${chargebackData?.reason}`);
               } else {
-                console.warn(`⚠️ [MercadoPago] No transaction found for payment ${paymentId}`);
+                logger.warn(`⚠️ [MercadoPago] No transaction found for payment ${paymentId}`);
               }
             } catch (error: any) {
-              console.error('Error processing chargeback:', error);
+              logger.error('Error processing chargeback:', error);
             }
           }
         }
@@ -769,7 +769,7 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
 
     res.status(200).json({ received: true });
   } catch (error: any) {
-    console.error('MercadoPago webhook error:', error);
+    logger.error('MercadoPago webhook error:', error);
     
     const event = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
     await queueFailedWebhook(

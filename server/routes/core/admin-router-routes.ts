@@ -10,6 +10,7 @@ import refundRouter from "../../routes/refund-routes";
 import emailSettingsRouter from "../../routes/email-settings-routes";
 import { generateRefundNoteForRefund, refundNoteService } from "../../services/refund-note-service";
 import { safeErrorMessage } from "../../utils/safe-error";
+import { logger } from "../../utils/logger";
 
 export function registerAdminRouterRoutes(app: Express): void {
   // Admin routes accessible by admin team members (read-only analytics)
@@ -76,7 +77,7 @@ export function registerAdminRouterRoutes(app: Express): void {
       res.setHeader('Content-Length', pdfBuffer.length);
       res.send(pdfBuffer);
     } catch (error: any) {
-      console.error("Error downloading refund note:", error);
+      logger.error("Error downloading refund note:", error);
       res.status(500).json({ message: "Failed to download refund note", error: safeErrorMessage(error, "Failed to download refund note") });
     }
   });

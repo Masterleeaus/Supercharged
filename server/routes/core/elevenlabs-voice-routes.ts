@@ -4,6 +4,7 @@ import { authenticateToken, type AuthRequest } from "../../middleware/auth";
 import { elevenLabsService, ElevenLabsService } from "../../services/elevenlabs";
 import { ElevenLabsPoolService } from "../../services/elevenlabs-pool";
 import { safeErrorMessage } from "../../utils/safe-error";
+import { logger } from "../../utils/logger";
 
 export function registerElevenLabsVoiceRoutes(app: Express): void {
   // ElevenLabs Voices routes
@@ -15,7 +16,7 @@ export function registerElevenLabsVoiceRoutes(app: Express): void {
 
       if (!credential) {
         // No pool credentials available - return empty array with helpful message
-        console.warn("⚠️ [Voices] No ElevenLabs credentials in pool - voices cannot be fetched");
+        logger.warn("⚠️ [Voices] No ElevenLabs credentials in pool - voices cannot be fetched");
         return res.json([]);
       }
 
@@ -24,7 +25,7 @@ export function registerElevenLabsVoiceRoutes(app: Express): void {
       const { voices } = await poolService.listVoices();
       res.json(voices);
     } catch (error: any) {
-      console.error("Get ElevenLabs voices error:", error);
+      logger.error("Get ElevenLabs voices error:", error);
       res.status(500).json({ error: safeErrorMessage(error, "Failed to get voices") });
     }
   });
@@ -63,7 +64,7 @@ export function registerElevenLabsVoiceRoutes(app: Express): void {
       };
       res.json(response);
     } catch (error: any) {
-      console.error("Get voice limit error:", error);
+      logger.error("Get voice limit error:", error);
       // Fallback to reasonable defaults if subscription fetch fails
       res.json({
         used: 0,
@@ -104,7 +105,7 @@ export function registerElevenLabsVoiceRoutes(app: Express): void {
 
       res.json(result);
     } catch (error: any) {
-      console.error("Get ElevenLabs shared voices error:", error);
+      logger.error("Get ElevenLabs shared voices error:", error);
       res.status(500).json({ error: safeErrorMessage(error, "Failed to get shared voices") });
     }
   });
@@ -142,7 +143,7 @@ export function registerElevenLabsVoiceRoutes(app: Express): void {
 
       res.json(pricingWithMargin);
     } catch (error: any) {
-      console.error("Get LLM pricing error:", error);
+      logger.error("Get LLM pricing error:", error);
       res.status(500).json({ error: safeErrorMessage(error, "Failed to get LLM pricing") });
     }
   });

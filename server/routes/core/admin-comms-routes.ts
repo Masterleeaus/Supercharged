@@ -6,6 +6,7 @@ import { eq, desc, or } from "drizzle-orm";
 import { campaignExecutor } from "../../services/campaign-executor";
 import { BatchCallingService } from "../../services/batch-calling";
 import { checkAdminOrTeamMember, requireAdminPermission, AdminRequest } from "../../middleware/admin-auth";
+import { logger } from "../../utils/logger";
 
 export function registerAdminCommsRoutes(app: Express): void {
   // Admin Email Templates Routes (supports both platform admins and admin team members)
@@ -14,7 +15,7 @@ export function registerAdminCommsRoutes(app: Express): void {
       const templates = await storage.getEmailTemplates();
       res.json(templates);
     } catch (error: any) {
-      console.error("Get email templates error:", error);
+      logger.error("Get email templates error:", error);
       res.status(500).json({ error: "Failed to get email templates" });
     }
   });
@@ -27,7 +28,7 @@ export function registerAdminCommsRoutes(app: Express): void {
       }
       res.json(template);
     } catch (error: any) {
-      console.error("Get email template error:", error);
+      logger.error("Get email template error:", error);
       res.status(500).json({ error: "Failed to get email template" });
     }
   });
@@ -45,7 +46,7 @@ export function registerAdminCommsRoutes(app: Express): void {
       });
       res.json({ success: true, message: "Email template updated successfully" });
     } catch (error: any) {
-      console.error("Update email template error:", error);
+      logger.error("Update email template error:", error);
       res.status(500).json({ error: "Failed to update email template" });
     }
   });
@@ -75,7 +76,7 @@ export function registerAdminCommsRoutes(app: Express): void {
 
       res.json(template);
     } catch (error: any) {
-      console.error("Create email template error:", error);
+      logger.error("Create email template error:", error);
       res.status(500).json({ error: "Failed to create email template" });
     }
   });
@@ -143,7 +144,7 @@ export function registerAdminCommsRoutes(app: Express): void {
 
       res.json({ batchJobs });
     } catch (error: any) {
-      console.error("Get batch jobs error:", error);
+      logger.error("Get batch jobs error:", error);
       res.status(500).json({ error: "Failed to fetch batch jobs" });
     }
   });
@@ -176,7 +177,7 @@ export function registerAdminCommsRoutes(app: Express): void {
         }
       });
     } catch (error: any) {
-      console.error("Get batch job detail error:", error);
+      logger.error("Get batch job detail error:", error);
       res.status(500).json({ error: "Failed to fetch batch job details" });
     }
   });

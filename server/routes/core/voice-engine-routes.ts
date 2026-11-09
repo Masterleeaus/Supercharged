@@ -4,6 +4,7 @@ import { createPlivoApiRoutes, setupPlivoWebhooks } from "../../engines/plivo";
 import { initPlivoElevenLabsEngine } from "../../engines/plivo-elevenlabs";
 import { twilioOpenaiWebhookRoutes, twilioOpenaiIncomingConnectionsRoutes } from "../../engines/twilio-openai";
 import { registerKycRoutes } from "../../engines/kyc";
+import { logger } from "../../utils/logger";
 
 export function registerVoiceEngineRoutes(app: Express, deps: { requireAuth: RequestHandler; requireAdmin: RequestHandler }): void {
   const { requireAuth, requireAdmin } = deps;
@@ -28,21 +29,21 @@ export function registerVoiceEngineRoutes(app: Express, deps: { requireAuth: Req
   import("../../engines/plivo/services/plivo-call.service").then(({ PlivoCallService }) => {
     PlivoCallService.startStuckCallsScheduler();
   }).catch((error) => {
-    console.error('❌ Failed to start Plivo stuck calls scheduler:', error.message);
+    logger.error('❌ Failed to start Plivo stuck calls scheduler:', error.message);
   });
 
-  console.log('✅ Plivo + OpenAI Realtime Engine initialized');
+  logger.info('✅ Plivo + OpenAI Realtime Engine initialized');
 
   // Initialize Plivo-ElevenLabs SIP Trunk Engine (ISOLATED from Twilio+ElevenLabs)
   // This provides Plivo SIP trunk to ElevenLabs connection for Indian phone numbers
   initPlivoElevenLabsEngine(app);
-  console.log('✅ Plivo-ElevenLabs SIP Trunk Engine initialized');
+  logger.info('✅ Plivo-ElevenLabs SIP Trunk Engine initialized');
 
   // Initialize Twilio + OpenAI Realtime Engine (ISOLATED from Twilio+ElevenLabs and Plivo+OpenAI)
   // This provides Twilio telephony with OpenAI Realtime API for international calling
   app.use('/api/twilio-openai', twilioOpenaiWebhookRoutes);
   app.use('/api/twilio-openai/incoming-connections', requireAuth, twilioOpenaiIncomingConnectionsRoutes);
-  console.log('✅ Twilio + OpenAI Realtime Engine initialized');
+  logger.info('✅ Twilio + OpenAI Realtime Engine initialized');
 
   // Register KYC Engine routes
   registerKycRoutes(app, requireAuth, requireAdmin);

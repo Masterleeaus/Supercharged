@@ -19,6 +19,7 @@ import {
   executeBackfill,
   type BackfillEngine,
 } from "../services/credit-backfill-monitor";
+import { logger } from '../utils/logger.ts';
 
 function parseArg(args: string[], name: string): string | undefined {
   const idx = args.indexOf(name);
@@ -65,7 +66,7 @@ async function run() {
 
   const sinceDays = sinceDaysArg ? Number(sinceDaysArg) : undefined;
 
-  console.log(
+  logger.info(
     `[Backfill] Starting credit backfill (engines=${engines!.join(",")}, dryRun=${dryRun}${
       filterUserId ? `, user=${filterUserId}` : ""
     }${sinceDays ? `, sinceDays=${sinceDays}` : ""})`,
@@ -79,25 +80,25 @@ async function run() {
   });
 
   for (const e of result.engines) {
-    console.log(`[Backfill] ${e.engine}:`);
-    console.log(`  Unbilled candidates:   ${e.scanned}`);
-    console.log(`  Charged:               ${e.charged}`);
-    console.log(`  Already deducted:      ${e.alreadyDeducted}`);
-    console.log(`  Insufficient credits:  ${e.insufficientCredits}`);
-    console.log(`  Errors:                ${e.errors}`);
-    console.log(`  Total credits taken:   ${e.totalCreditsDeducted}`);
+    logger.info(`[Backfill] ${e.engine}:`);
+    logger.info(`  Unbilled candidates:   ${e.scanned}`);
+    logger.info(`  Charged:               ${e.charged}`);
+    logger.info(`  Already deducted:      ${e.alreadyDeducted}`);
+    logger.info(`  Insufficient credits:  ${e.insufficientCredits}`);
+    logger.info(`  Errors:                ${e.errors}`);
+    logger.info(`  Total credits taken:   ${e.totalCreditsDeducted}`);
   }
 
-  console.log("[Backfill] Totals:");
-  console.log(`  Scanned: ${result.totals.scanned}`);
-  console.log(`  Charged: ${result.totals.charged}`);
-  console.log(`  Credits: ${result.totals.totalCreditsDeducted}`);
-  console.log(`  Errors:  ${result.totals.errors}`);
+  logger.info("[Backfill] Totals:");
+  logger.info(`  Scanned: ${result.totals.scanned}`);
+  logger.info(`  Charged: ${result.totals.charged}`);
+  logger.info(`  Credits: ${result.totals.totalCreditsDeducted}`);
+  logger.info(`  Errors:  ${result.totals.errors}`);
 
   process.exit(result.totals.errors > 0 ? 1 : 0);
 }
 
 run().catch((err) => {
-  console.error("[Backfill] Fatal error:", err);
+  logger.error("[Backfill] Fatal error:", err);
   process.exit(1);
 });
