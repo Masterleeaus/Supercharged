@@ -5,8 +5,8 @@ const predicate="company_id = nullif(current_setting('app.company_id', true),'')
 const tables=['landing_pages','content_items'];
 function fixture(extra=[]){
  return {async query(sql){
-  if(sql.includes('FROM pg_roles'))return {rows:[{rolname:'desk_app',rolsuper:false,rolbypassrls:false}]};
-  if(sql.includes('FROM pg_class'))return {rows:tables.map(relname=>({relname,relrowsecurity:true,relforcerowsecurity:true,can_select:true,can_insert:true,can_update:true}))};
+  if(sql.startsWith('SELECT rolname'))return {rows:[{rolname:'desk_app',rolsuper:false,rolbypassrls:false}]};
+  if(sql.includes('FROM pg_class c JOIN'))return {rows:tables.map(relname=>({relname,relrowsecurity:true,relforcerowsecurity:true,can_select:true,can_insert:true,can_update:true}))};
   if(sql.includes('FROM pg_policies'))return {rows:[...tables.map(tablename=>({tablename,policyname:tablename+'_tenant_boundary',roles:['desk_app'],cmd:'ALL',permissive:'PERMISSIVE',qual:predicate,with_check:predicate})),...extra]};
   throw Error('unknown SQL');
  }};

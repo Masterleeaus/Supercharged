@@ -21,8 +21,8 @@ test('service never starts from an in-memory pool substitute without connect()',
 
 test('production service refuses unsafe policy readiness even if tenant pool exists',async()=>{
  const schemaProbe={async query(sql){
-  if(sql.includes('FROM pg_roles'))return{rows:[{rolsuper:false,rolbypassrls:false}]};
-  if(sql.includes('FROM pg_class'))return{rows:['landing_pages','content_items'].map(relname=>({relname,relrowsecurity:true,relforcerowsecurity:true,can_select:true,can_insert:true,can_update:true}))};
+  if(sql.startsWith('SELECT rolname'))return{rows:[{rolsuper:false,rolbypassrls:false}]};
+  if(sql.includes('FROM pg_class c JOIN'))return{rows:['landing_pages','content_items'].map(relname=>({relname,relrowsecurity:true,relforcerowsecurity:true,can_select:true,can_insert:true,can_update:true}))};
   if(sql.includes('FROM pg_policies'))return{rows:[]};throw Error(sql);
  }};
  await assert.rejects(createVerifiedMarketingService({...valid,schemaProbe}),/tenant policy missing/);
