@@ -59,3 +59,7 @@ A disposable PostgreSQL CI job exercises real tenant isolation, restricted role 
 ## Pass 11: verified production composition
 
 `createVerifiedMarketingService` is an opt-in async composition root. It requires a tenant Postgres pool, a separate schema inspection probe, real company-scoped campaign reference checks, and chatbot reference checks. It checks both Marketing tables for enforced and forced RLS and verifies the restricted database role before creating the SQL-backed service. It does not modify the production feature flag or run any migrations.
+
+## Pass 12: policy combination hardening
+
+The `policy-inspection.ts` helper validates the complete PostgreSQL policy expression and the exact desk_app role. The readiness gate now rejects permissive PUBLIC/desk_app overrides, allows only additional restrictive policies and explicitly fails closed on missing RLS metadata. CI exercises both simulated policy attacks and actual PostgreSQL pg_policies output.

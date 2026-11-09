@@ -247,3 +247,9 @@ test('production service requires explicit database readiness before use',async(
  const schemaProbe={query:async()=>({rows:[]})};
  await assert.rejects(createVerifiedMarketingService({pool,campaigns:campaign,chatbots:chatbot,schemaProbe}),/database security not ready/);
 });
+
+test('schema readiness gate rejects an incomplete or unsafe RLS policy',async()=>{
+ const {requireMarketingSchema}=await import('../../server/modules/marketing/schema-readiness.ts');
+ const fake={query:async sql=>sql.includes('FROM pg_roles')?{rows:[]}:{rows:[]}};
+ await assert.rejects(requireMarketingSchema(fake),/database security not ready/);
+});
