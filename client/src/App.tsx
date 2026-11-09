@@ -84,6 +84,9 @@ import Approvals from "@/pages/Approvals";
 import ChatbotBuilder from "@/pages/ChatbotBuilder";
 import ChatbotWizard from "@/pages/chatbot-builder/wizard-shell";
 import ChatbotInboxPage from "@/pages/chatbot-inbox/inbox-page";
+import MarketingHome from "@/pages/modes/MarketingHome";
+import InboxHome from "@/pages/modes/InboxHome";
+import { ModeRouteGuard } from "@/components/modes/ModeRouteGuard";
 import {
   AnalyticsPage as ChatbotAnalyticsPage,
   CannedResponsesPage as ChatbotCannedResponsesPage,
@@ -359,6 +362,8 @@ function UserRouter() {
                 <Route path="/app/flows/:id" component={FlowBuilderPage} />
                 <Route path="/app/flows" component={FlowsPage} />
                 <Route path="/app/approvals" component={Approvals} />
+                <Route path="/app/modes/marketing">{() => <ModeRouteGuard mode="marketing"><MarketingHome /></ModeRouteGuard>}</Route>
+                <Route path="/app/modes/inbox">{() => <ModeRouteGuard mode="inbox"><InboxHome /></ModeRouteGuard>}</Route>
                 <Route path="/app/chatbot-builder" component={ChatbotBuilder} />
                 <Route
                   path="/app/chatbot-builder/wizard/:id?"
@@ -366,7 +371,7 @@ function UserRouter() {
                 />
                 <Route
                   path="/app/chatbot-inbox"
-                  component={chatbotInboxFlagOn ? ChatbotInboxPage : NotFound}
+                  component={() => <ModeRouteGuard mode="inbox">{chatbotInboxFlagOn ? <ChatbotInboxPage /> : <InboxHome />}</ModeRouteGuard>}
                 />
                 <Route
                   path="/app/chatbot-admin/knowledge-base"

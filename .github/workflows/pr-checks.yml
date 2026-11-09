@@ -63,26 +63,7 @@ jobs:
         with:
           node-version: 22
       - name: Check listed migrations exist
-        run: |
-          node -e "
-          const fs = require('fs');
-          const src = fs.readFileSync('scripts/run-safe-migration.mjs', 'utf8');
-          const re = /resolve\(rootDir,\s*'migrations',\s*'([^']+)'\)/g;
-          const names = [];
-          let m;
-          while ((m = re.exec(src))) names.push(m[1]);
-          if (names.length === 0) {
-            console.error('No migration names found in scripts/run-safe-migration.mjs');
-            process.exit(1);
-          }
-          const missing = names.filter((n) => !fs.existsSync('migrations/' + n));
-          console.log('Listed migrations: ' + names.length);
-          if (missing.length) {
-            console.error('Missing under migrations/:\n  ' + missing.join('\n  '));
-            process.exit(1);
-          }
-          console.log('All listed migrations exist.');
-          "
+        run: node scripts/check-migration-inventory.mjs
 
   docker:
     name: Docker build and smoke test

@@ -58,7 +58,7 @@ interface Move {
 }
 
 const fault = (code: string, message: string): DecisionError => ({ code, message });
-const isObject = (v: unknown): v is Record<string, any> => typeof v === 'object' && v !== null && !Array.isArray(v);
+const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const nonEmpty = (v: unknown): v is string => typeof v === 'string' && v.trim().length > 0;
 const isIso = (v: unknown): v is string => typeof v === 'string' && ISO_RE.test(v) && !Number.isNaN(Date.parse(v));
 const isScalar = (v: unknown): v is ScalarParameter =>
@@ -80,9 +80,10 @@ function isDelegate(v: unknown): v is DelegateRef {
 function isActor(v: unknown): v is DecisionActor {
   return (
     isDelegate(v) &&
-    ((v as any).authority === null || inList(APPROVAL_AUTHORITIES, (v as any).authority)) &&
-    Array.isArray((v as any).business_scopes) &&
-    (v as any).business_scopes.every(nonEmpty)
+    isObject(v) &&
+    (v.authority === null || inList(APPROVAL_AUTHORITIES, v.authority)) &&
+    Array.isArray(v.business_scopes) &&
+    v.business_scopes.every(nonEmpty)
   );
 }
 
@@ -97,7 +98,9 @@ function checkCard(raw: unknown): Fault {
   for (const field of TEXT_FIELDS) {
     if (!nonEmpty(c[field])) return fault('missing_field', `Required field ${field} is missing or empty.`);
   }
-  if (!UUID_RE.test(c.decision_id)) return fault('invalid_value', 'decision_id must be a UUID.');
+  if (typeof c.decision_id !== 'string' || !UUID_RE.test(c.decision_id)) {
+    return fault('invalid_value', 'decision_id must be a UUID.');
+  }
   if (!isIso(c.created_at)) return fault('invalid_value', 'created_at must be an ISO timestamp.');
   if (!inList(DECISION_CATEGORIES, c.category)) return fault('invalid_value', 'category is not recognised.');
   if (!inList(DECISION_PRIORITIES, c.priority)) return fault('invalid_value', 'priority is not recognised.');
@@ -232,7 +235,7 @@ function applied<T>(value: T, move: Move): DecisionResult<T> {
 export function createDecision(input: CreateDecisionInput, now: Date = new Date()): DecisionResult<DecisionCard> {
   const at = now.toISOString();
   const move: Move = { action: 'create', at, actor: null, target: null, from: null, to: 'awaiting_approval', reason: null };
-  const src: Record<string, any> = isObject(input) ? input : {};
+  const src: Record<string, unknown> = isObject(input) ? input : {};
   if (src.status !== undefined && src.status !== 'awaiting_approval') {
     return refused(src, move, fault('status_not_awaiting', 'New decisions must start awaiting approval.'));
   }
@@ -335,13 +338,15 @@ export function modify(card: DecisionCard, actor: DecisionActor, changes: unknow
   }
   if ('parameters' in changes) {
     if (!isObject(changes.parameters)) return refused(card, move, fault('invalid_value', 'parameters must be an object.'));
+    const updates: [string, ScalarParameter][] = [];
     for (const [name, value] of Object.entries(changes.parameters)) {
       if (!card.permitted_parameters.includes(name)) {
         return refused(card, move, fault('parameter_not_permitted', `Parameter ${name} cannot be changed.`));
       }
       if (!isScalar(value)) return refused(card, move, fault('invalid_value', `Parameter ${name} must be a scalar.`));
+      updates.push([name, value]);
     }
-    next.parameters = { ...card.parameters, ...changes.parameters };
+    next.parameters = { ...card.parameters, ...Object.fromEntries(updates) };
   }
   const revalidated = checkCard(next);
   if (revalidated) return refused(card, move, revalidated);

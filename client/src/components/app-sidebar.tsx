@@ -45,6 +45,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from 'react-i18next';
 import { useBranding } from "@/components/BrandingProvider";
 import { AuthStorage } from "@/lib/auth-storage";
+import { ModeNavigation } from "@/components/modes/ModeNavigation";
 
 interface User {
   id: string;
@@ -164,6 +165,11 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent className="group-data-[collapsible=icon]:px-0 px-2 py-1">
+        <SidebarGroup>
+          <SidebarGroupLabel className="px-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">Modes</SidebarGroupLabel>
+          <SidebarGroupContent><ModeNavigation /></SidebarGroupContent>
+        </SidebarGroup>
+
         {/* Home */}
         <SidebarGroup>
           <SidebarGroupContent>
