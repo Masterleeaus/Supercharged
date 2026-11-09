@@ -27,3 +27,7 @@ test('production service refuses unsafe policy readiness even if tenant pool exi
  }};
  await assert.rejects(createVerifiedMarketingService({...valid,schemaProbe}),/tenant policy missing/);
 });
+
+test('a missing canonical chatbot reference function fails before checking schema',async()=>{
+ await assert.rejects(createVerifiedMarketingService({...valid,chatbots:{}}),/chatbot reference adapter/);
+});

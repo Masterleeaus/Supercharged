@@ -5,3 +5,7 @@ PostgreSQL combines permissive policies by OR. Therefore the mere presence of a 
 The activation check now requires an ALL-command permissive tenant policy for `desk_app`, with exact company predicates for both USING and WITH CHECK, and refuses additional permissive policies accessible to `desk_app` or PUBLIC. Extra RESTRICTIVE policies are allowed because they can only narrow access. Missing role or unknown policy metadata fails closed. This is a read-only preflight, not a migration.
 
 Tests include PostgreSQL's `name[]` literal encoding, rendered policy expressions, permissive-policy bypass attempts and the actual rows from pg_policies in disposable PostgreSQL.
+
+## Pass 13 — production startup
+
+The verified production route composer is invoked from the actual Workforce/Comms route registration function. The feature flag remains off by default, and enabling it must pass the schema/RLS readiness check before Marketing handlers mount. Reuse the canonical chatbot storage, never a marketing-owned chatbot copy. Legacy voice-call campaign records cannot satisfy new Marketing campaign references while the separate Campaigns schema remains unpromoted.

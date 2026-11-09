@@ -24,3 +24,7 @@ Even with passing PostgreSQL CI, the production database must be inspected befor
 ## Row-level security review check
 
 Before enabling Marketing, run the read-only schema verifier against the target database and audit **every** RLS policy affecting desk_app and PUBLIC. The required policy alone is insufficient if an additional permissive policy broadens access. Pass 12 introduces strict predicate and policy combination validation. Keep the feature disabled until passing production-equivalent checks.
+
+## Pass 13 — actual server registration
+
+The main Workforce/Comms route registrar now uses the verified asynchronous Marketing composition root. In an un-migrated environment the default disabled flag causes no Marketing database lookup and no route mount. Setting `COMMS_MARKETING_ENABLED=true` requires a verified Marketing schema, forced RLS and restricted database roles, otherwise server startup refuses activation. Chatbot links use existing canonical ChatbotStorage; campaign links are refused until the new campaigns schema is deployed.

@@ -16,3 +16,5 @@ export * from './types.ts';
 export { createMarketingRouter, type MarketingRouterDeps } from './marketing-router.ts';
 export { createMarketingRouterForProduction, type MarketingProductionRouterDeps } from './production-router.ts';
 // Production routers verify all required MarketingService operations before accepting the dependency.
+
+export { chatbotReferences, unavailableCampaignReferences } from './reference-adapters.ts';

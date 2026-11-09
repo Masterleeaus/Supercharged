@@ -9,3 +9,7 @@ Neither callable service methods nor a successful schema inspection proves that 
 ## Pass 12: composite-policy risk
 
 PostgreSQL OR-combines PERMISSIVE RLS policies. The readiness verifier now audits all policies on both tables: it requires the expected ALL-command tenant restriction with exact PostgreSQL-normalized USING and WITH CHECK predicates, and denies any additional permissive rule accessible to desk_app or PUBLIC. Extra restrictive policies are allowed. A missing application role is handled without relying on privilege checks that assume the role exists.
+
+## Route mounting boundary
+
+Production registration awaits `createVerifiedMarketingService` before calling the existing synchronous optional route mount. This preserves atomic preflight: Marketing cannot partially mount when PostgreSQL schema inspection fails. Never enable a flag before reviewing the production database's RLS and role membership. All app traffic still passes the existing authentication, company-scope, role and comms-mode guards.

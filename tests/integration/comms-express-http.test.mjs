@@ -59,3 +59,11 @@ test('unknown hosts are rejected before either mode service is invoked',async()=
   assert.equal(s.calls.length,0);
  }finally{await s.close();}
 });
+
+test('marketing staff-only operations remain protected by the role guard',async()=>{
+ const s=await serverFor();try{
+  const denied=await s.request('/api/comms/marketing/pages','superchargedat.work');
+  assert.equal(denied.status,404);
+  assert.equal(s.calls.length,0);
+ }finally{await s.close();}
+});
