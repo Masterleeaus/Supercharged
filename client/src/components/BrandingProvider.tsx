@@ -61,7 +61,7 @@ const CACHE_KEY = "agentlabs-branding:v3";
 const CACHE_TTL = 1000 * 60 * 60 * 24;
 
 const defaultBranding: BrandingData = {
-  app_name: "",
+  app_name: "Supercharged",
   app_tagline: "",
   logo_url: null,
   logo_url_light: null,
