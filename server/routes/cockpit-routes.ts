@@ -130,7 +130,7 @@ export function createCockpitRouter(deps: CockpitDeps, guards: CockpitGuards): R
 
   // Session mode for the client. Host header only; unknown hosts get the workforce default.
   // Not mode-guarded: the client needs this answer on every host to choose its screens.
-  router.get(DESK_MODE_PATH, ...chain, (req: Request, res: Response) => {
+  router.get(DESK_MODE_PATH, modeFromHost, ...chain, (req: Request, res: Response) => {
     const result = sessionDeskMode(req.headers.host, modeConfig);
     res.json(result);
   });

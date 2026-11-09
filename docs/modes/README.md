@@ -10,3 +10,7 @@ Issue #52 implementation pass: the authenticated server `GET /api/desk-mode` rem
 - The existing server host-based module guards remain authoritative for guarded APIs.
 
 **Not complete:** company-specific capability provisioning, authorized company switching, comprehensive server enforcement of every marketing/inbox API and a live channel integration test. This work does not close #52.
+
+## Host-bound availability
+
+The client treats `source: "default"` as unverified. The server `/api/desk-mode` endpoint rejects unknown and repeated Host values with HTTP 404 before returning mode discovery. X-Forwarded-Host and browser-supplied company parameters are never sources of server authorization.

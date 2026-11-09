@@ -76,3 +76,8 @@ test('requireModule for a comms module with no mode set fails closed', () => {
   assert.equal(status, 404);
   assert.ok(!modulesForMode('workforce').includes('inbox'));
 });
+
+test('untrusted hosts never produce source host', () => {
+  assert.equal(sessionDeskMode('unknown.example', config).source, 'default');
+  assert.equal(sessionDeskMode('syncedat.work', config).source, 'host');
+});

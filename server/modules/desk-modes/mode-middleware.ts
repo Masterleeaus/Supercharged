@@ -24,7 +24,7 @@ export type NextFn = (err?: unknown) => void;
 function hostOf(req: ModeRequest): string | undefined {
   // Host only. X-Forwarded-Host is client-controlled and is never read.
   const raw = req.headers['host'];
-  if (Array.isArray(raw)) return raw[0];
+  if (Array.isArray(raw)) return undefined; // Repeated Host is invalid.
   return raw;
 }
 

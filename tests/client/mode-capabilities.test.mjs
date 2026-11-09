@@ -18,3 +18,7 @@ test('disabled inbox capability does not disappear as an unexplained 404', () =>
 test('marketing capability may be disabled independently', () => {
   assert.equal(modeAvailability('marketing', 'comms', { inbox: true, marketing: false }).reason, 'feature_disabled');
 });
+
+test('unknown server mode denies both product modes', () => {
+  for (const mode of ['marketing','inbox']) assert.equal(modeAvailability(mode,null,enabled).available,false);
+});

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { MODE_DESTINATIONS, selectedMode, destinationForMode } from '../../client/src/lib/mode-navigation.ts';
+import { MODE_DESTINATIONS, selectedMode, destinationForMode, destinationForPath } from '../../client/src/lib/mode-navigation.ts';
 test('both modes have unique, stable deep links', () => {
   assert.deepEqual(MODE_DESTINATIONS.map(x => x.id), ['marketing', 'inbox']);
   assert.equal(new Set(MODE_DESTINATIONS.map(x => x.href)).size, 2);
@@ -13,4 +13,9 @@ test('reload and route selection derive from URL, not client tenant storage', ()
 test('unknown navigation mode fails explicitly', () => {
   assert.equal(destinationForMode('inbox').label, 'Omnichannel Inbox');
   assert.throws(() => destinationForMode('not-a-mode'), /Unknown/);
+});
+
+test('company query parameter cannot choose the destination', () => {
+  assert.equal(destinationForPath('/app/modes/inbox?companyId=other').id, 'inbox');
+  assert.equal(destinationForPath('/app/settings?companyId=other'), null);
 });

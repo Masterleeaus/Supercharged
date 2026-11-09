@@ -18,3 +18,9 @@ export function destinationForMode(mode: ProductMode): ModeDestination {
 export function selectedMode(pathname: string): ProductMode | null {
   return productModeForPath(pathname.split(/[?#]/, 1)[0]);
 }
+
+/** Selection comes from the route, never a company query parameter. */
+export function destinationForPath(pathname: string): ModeDestination | null {
+  const mode = selectedMode(pathname);
+  return mode ? destinationForMode(mode) : null;
+}

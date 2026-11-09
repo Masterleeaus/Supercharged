@@ -6,7 +6,7 @@ import { ModeUnavailable } from "./ModeUnavailable";
 
 export function ModeRouteGuard({ mode, children }: { mode: ProductMode; children: ReactNode }) {
   const { loading, availability } = useDeskProductMode(mode);
-  if (loading) return <div role="status" aria-label="Checking mode access"><Skeleton className="h-32 w-full" /></div>;
+  if (loading) return <div role="status" aria-busy="true" aria-label="Checking mode access"><Skeleton className="h-32 w-full" /></div>;
   if (!availability.available) return <ModeUnavailable mode={mode} reason={availability.reason} />;
   return <>{children}</>;
 }
