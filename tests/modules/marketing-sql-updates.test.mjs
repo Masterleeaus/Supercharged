@@ -19,3 +19,11 @@ test('empty patch contains no SQL assignments',()=>{
  assert.deepEqual(pageSqlPatch({}),{assignments:'',params:[]});
  assert.deepEqual(contentSqlPatch({}),{assignments:'',params:[]});
 });
+
+test('status allowlists for lifecycle transitions are never user-derived SQL',()=>{
+ const p=pageSqlPatch({status:'published',updatedAt:date});
+ const c=contentSqlPatch({status:'approved',updatedAt:date});
+ assert.ok(p.assignments.includes('status = $3'));
+ assert.ok(c.assignments.includes('status = $3'));
+ assert.ok(!p.assignments.includes('company_id'));
+});

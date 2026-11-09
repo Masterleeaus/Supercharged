@@ -7,3 +7,7 @@ The implementation matches `migrations/archive/DRAFT_marketing.sql`. **That draf
 The SQL store uses fixed column allowlists for updates, JSON-encodes structured sections, and retains per-company slug uniqueness through the proposed database unique constraint. It does not implement public hosting, HTML rendering, outbound delivery or publication concurrency controls.
 
 Testing should verify two real tenant DB roles/companies and concurrent status transitions before production use.
+
+## Pass 9 concurrency protection
+
+All Marketing updates now use expected-status SQL predicates. A draft page edit or publication must still see a draft; content approval must see a draft, and publication must see an approved item. The service maps an update returning no row to a conflict rather than returning the previously loaded row. This prevents basic read-then-write races, although genuine concurrent PostgreSQL tests remain a rollout requirement.

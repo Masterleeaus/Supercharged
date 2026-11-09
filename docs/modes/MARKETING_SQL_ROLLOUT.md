@@ -8,3 +8,7 @@
 6. Only then inject the durable service into `registerOptionalCommsRoutes` and opt in to `COMMS_MARKETING_ENABLED=true`.
 
 Pass 8 prepares an adapter, **not** a promoted migration, verified RLS policy or public marketing deployment. Production mounting stays disabled and fail closed until every dependency is explicitly supplied.
+
+## Proposed reviewed migration
+
+A candidate that includes both table definitions and restricted-role RLS is in `migrations/candidates/0017_marketing_tenant_rls.sql`. Verify it against a disposable PostgreSQL database before promoting it into the automatic migration manifest. Run `node scripts/check-marketing-migration.mjs` as a static preflight; this is not a database integration test. No runtime flags were changed in Pass 9.

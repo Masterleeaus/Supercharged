@@ -17,3 +17,11 @@ test('company B content operations use a separate transaction-scoped identity',a
  assert.deepEqual(configs.map(x=>x.values[1]),[A,B]);
  assert.equal(h.calls.filter(x=>x.sql==='COMMIT').length,2);
 });
+
+test('a cross-company content update stays scoped even after a publication transition',async()=>{
+ const h=recordingPool(),s=createSqlMarketingStore({pool:h.pool});
+ assert.equal(await s.updateContent(B,'company-a-item',{status:'published',updatedAt:new Date()}),null);
+ const update=h.calls.find(x=>x.sql.startsWith('UPDATE content_items'));
+ assert.deepEqual(update.values.slice(0,2),[B,'company-a-item']);
+ assert.match(update.sql,/status = 'approved'/);
+});

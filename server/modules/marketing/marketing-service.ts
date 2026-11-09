@@ -245,7 +245,9 @@ export function createMarketingService(deps: MarketingServiceDeps): MarketingSer
         patch.chatbotId = assertOptionalRef(input.chatbotId, 'chatbotId');
         await checkChatbot(companyId, patch.chatbotId);
       }
-      return (await store.updatePage(companyId, page.id, patch)) ?? page;
+      const changed = await store.updatePage(companyId, page.id, patch);
+      if (!changed) throw new MarketingError('Page changed before the update completed', 'conflict');
+      return changed;
     },
 
     async publishPage(rawCompanyId, actor, pageId) {
@@ -254,7 +256,9 @@ export function createMarketingService(deps: MarketingServiceDeps): MarketingSer
       const page = await loadPage(companyId, pageId);
       if (page.status !== 'draft') throw new MarketingError(`Page is ${page.status}`, 'conflict');
       const at = now();
-      return (await store.updatePage(companyId, page.id, { status: 'published', publishedAt: at, updatedAt: at })) ?? page;
+      const changed = await store.updatePage(companyId, page.id, { status: 'published', publishedAt: at, updatedAt: at });
+      if (!changed) throw new MarketingError('Page is no longer a publishable draft', 'conflict');
+      return changed;
     },
 
     async archivePage(rawCompanyId, actor, pageId) {
@@ -262,7 +266,9 @@ export function createMarketingService(deps: MarketingServiceDeps): MarketingSer
       requireHuman(actor, 'archive a page');
       const page = await loadPage(companyId, pageId);
       if (page.status === 'archived') throw new MarketingError('Page is already archived', 'conflict');
-      return (await store.updatePage(companyId, page.id, { status: 'archived', updatedAt: now() })) ?? page;
+      const changed = await store.updatePage(companyId, page.id, { status: 'archived', updatedAt: now() });
+      if (!changed) throw new MarketingError('Page status changed before archiving', 'conflict');
+      return changed;
     },
 
     async getPage(rawCompanyId, pageId) {
@@ -310,7 +316,9 @@ export function createMarketingService(deps: MarketingServiceDeps): MarketingSer
         patch.campaignId = assertOptionalRef(input.campaignId, 'campaignId');
         await checkCampaign(companyId, patch.campaignId);
       }
-      return (await store.updateContent(companyId, item.id, patch)) ?? item;
+      const changed = await store.updateContent(companyId, item.id, patch);
+      if (!changed) throw new MarketingError('Content changed before the update completed', 'conflict');
+      return changed;
     },
 
     async approveContent(rawCompanyId, actor, id) {
@@ -318,7 +326,9 @@ export function createMarketingService(deps: MarketingServiceDeps): MarketingSer
       requireHuman(actor, 'approve content');
       const item = await loadContent(companyId, id);
       if (item.status !== 'draft') throw new MarketingError(`Content is ${item.status}`, 'conflict');
-      return (await store.updateContent(companyId, item.id, { status: 'approved', updatedAt: now() })) ?? item;
+      const changed = await store.updateContent(companyId, item.id, { status: 'approved', updatedAt: now() });
+      if (!changed) throw new MarketingError('Content is no longer a draft', 'conflict');
+      return changed;
     },
 
     async publishContent(rawCompanyId, actor, id) {
@@ -327,7 +337,9 @@ export function createMarketingService(deps: MarketingServiceDeps): MarketingSer
       const item = await loadContent(companyId, id);
       if (item.status !== 'approved') throw new MarketingError('Content must be approved before it is published', 'conflict');
       const at = now();
-      return (await store.updateContent(companyId, item.id, { status: 'published', publishedAt: at, updatedAt: at })) ?? item;
+      const changed = await store.updateContent(companyId, item.id, { status: 'published', publishedAt: at, updatedAt: at });
+      if (!changed) throw new MarketingError('Content is no longer approved for publication', 'conflict');
+      return changed;
     },
 
     async getContent(rawCompanyId, id) {

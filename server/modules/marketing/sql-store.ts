@@ -34,7 +34,8 @@ export function createSqlMarketingStore({pool}:MarketingSqlOptions):MarketingSto
    return scoped(companyId,async db=>{
     const compiled=pageSqlPatch(patch);
     if (!compiled.assignments) return one((await db.query(`SELECT ${PAGE_COLUMNS} FROM landing_pages WHERE company_id = $1 AND id = $2`,[companyId,id])).rows,pageFromSql);
-    const rows=(await db.query(`UPDATE landing_pages SET ${compiled.assignments} WHERE company_id = $1 AND id = $2 RETURNING ${PAGE_COLUMNS}`,[companyId,id,...compiled.params])).rows;
+    const previousStatus = patch.status === 'archived' ? "status <> 'archived'" : "status = 'draft'";
+    const rows=(await db.query(`UPDATE landing_pages SET ${compiled.assignments} WHERE company_id = $1 AND id = $2 AND ${previousStatus} RETURNING ${PAGE_COLUMNS}`,[companyId,id,...compiled.params])).rows;
     return one(rows,pageFromSql);
    });
   },
@@ -63,7 +64,8 @@ export function createSqlMarketingStore({pool}:MarketingSqlOptions):MarketingSto
    return scoped(companyId,async db=>{
     const compiled=contentSqlPatch(patch);
     if (!compiled.assignments) return one((await db.query(`SELECT ${CONTENT_COLUMNS} FROM content_items WHERE company_id = $1 AND id = $2`,[companyId,id])).rows,contentFromSql);
-    return one((await db.query(`UPDATE content_items SET ${compiled.assignments} WHERE company_id = $1 AND id = $2 RETURNING ${CONTENT_COLUMNS}`,[companyId,id,...compiled.params])).rows,contentFromSql);
+    const previousStatus = patch.status === 'published' ? "status = 'approved'" : "status = 'draft'";
+    return one((await db.query(`UPDATE content_items SET ${compiled.assignments} WHERE company_id = $1 AND id = $2 AND ${previousStatus} RETURNING ${CONTENT_COLUMNS}`,[companyId,id,...compiled.params])).rows,contentFromSql);
    });
   },
   listContent(companyId:string,filter:{kind?:ContentKind;status?:ContentStatus;campaignId?:string}) {

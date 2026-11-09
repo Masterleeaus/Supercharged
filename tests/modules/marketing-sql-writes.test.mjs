@@ -28,3 +28,13 @@ test('updates cannot switch tenant or row identity',async()=>{
   assert.ok(!q.sql.includes('SET company_id ='));
  }
 });
+
+test('tenant update cannot change a page that has left draft status',async()=>{
+ const r=recorder();await createSqlMarketingStore({pool:r.pool}).updatePage(A,'page1',{title:'edit',updatedAt:now});
+ const q=r.seen.find(x=>x.sql.startsWith('UPDATE landing_pages'));
+ assert.match(q.sql,/id = \$2 AND status = 'draft'/);
+});
+test('page archiving uses a conditional status update',async()=>{
+ const r=recorder();await createSqlMarketingStore({pool:r.pool}).updatePage(A,'page1',{status:'archived',updatedAt:now});
+ assert.match(r.seen.find(x=>x.sql.startsWith('UPDATE landing_pages')).sql,/status <> 'archived'/);
+});
