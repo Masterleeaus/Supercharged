@@ -14,9 +14,12 @@ const { TOOL_ACCESS } = await import('../../server/workforce/catalogue/tool-acce
 const { createReadToolDefinitions } = await import('../../server/workforce/tools/read-handlers.ts');
 const { GROUP00_TOOL_IDS } = await import('../../server/workforce/tools/handlers/group-00.ts');
 const { GROUP01_TOOL_IDS } = await import('../../server/workforce/tools/handlers/group-01.ts');
+const { GROUP_02_TOOL_IDS } = await import('../../server/workforce/tools/handlers/group-02.ts');
 
 // Every handler group's ids. The bound read specs are the only ids outside this set.
-const ALL_GROUP_IDS = new Set([...GROUP00_TOOL_IDS, ...GROUP01_TOOL_IDS]);
+const ALL_GROUP_IDS = new Set([...GROUP00_TOOL_IDS, ...GROUP01_TOOL_IDS, ...GROUP_02_TOOL_IDS]);
+
+const GROUP02_IDS = new Set(GROUP_02_TOOL_IDS);
 
 const READ_VERBS = new Set(['list', 'get', 'search', 'view', 'lookup', 'check', 'read', 'availability', 'status']);
 
@@ -37,11 +40,14 @@ test('every TOOL_ACCESS value is read or write', () => {
 });
 
 test('bound read tool definitions declare access read', () => {
-  // Groups 00 and 01 are excluded: they hold writes and side-effect tools, each classified on its own.
-  const definitions = createReadToolDefinitions(new Proxy({}, { get: () => async () => [] }))
-    .filter((def) => !ALL_GROUP_IDS.has(def.id));
-  assert.ok(definitions.length > 0, 'expected bound read tool definitions');
-  const notRead = definitions.filter((def) => def.access !== 'read').map((def) => `${def.id}=${String(def.access)}`);
+  const definitions = createReadToolDefinitions(new Proxy({}, { get: () => async () => [] }));
+  // Groups 00 and 01 hold writes and side-effect tools, each classified on its own, so they are skipped here.
+  // Handler group 02 writes and drafts are declared write by design. Its read-named tools must still be read.
+  const readSpecs = definitions.filter(
+    (def) => !ALL_GROUP_IDS.has(def.id) || (GROUP02_IDS.has(def.id) && READ_VERBS.has(verbOf(def.id))),
+  );
+  assert.ok(readSpecs.length > 0, 'expected bound read tool definitions');
+  const notRead = readSpecs.filter((def) => def.access !== 'read').map((def) => `${def.id}=${String(def.access)}`);
   assert.deepEqual(notRead, [], `bound read tools not declared read: ${notRead.join(', ')}`);
 });
 

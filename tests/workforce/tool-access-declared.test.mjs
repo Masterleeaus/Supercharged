@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 import { createReadToolDefinitions } from '../../server/workforce/tools/read-handlers.ts';
 import { GROUP00_TOOL_IDS } from '../../server/workforce/tools/handlers/group-00.ts';
 import { GROUP01_TOOL_IDS } from '../../server/workforce/tools/handlers/group-01.ts';
+import { GROUP_02_TOOL_IDS } from '../../server/workforce/tools/handlers/group-02.ts';
 
 const READ_VERBS = new Set(['list', 'get', 'search', 'view', 'lookup', 'check', 'read', 'availability']);
 
@@ -16,7 +17,11 @@ const stubStore = new Proxy({}, { get: () => async () => [] });
 const definitions = createReadToolDefinitions(stubStore);
 // Groups 00 and 01 hold writes as well as reads. Each member declares access explicitly, checked below.
 const GROUP_IDS = new Set([...GROUP00_TOOL_IDS, ...GROUP01_TOOL_IDS]);
-const readDefinitions = definitions.filter((def) => !GROUP_IDS.has(def.id));
+
+// Handler group 02 also sits in this list. Its writes and drafts are declared write, so only its read-named tools
+// are held to access 'read' here.
+const isGroupWrite = (def) => GROUP_02_TOOL_IDS.includes(def.id) && !READ_VERBS.has(def.id.split('.').pop());
+const readDefinitions = definitions.filter((def) => !GROUP_IDS.has(def.id) && !isGroupWrite(def));
 
 test('every read tool defined under tools/ declares access read', () => {
   assert.ok(readDefinitions.length > 0, 'expected at least one bound read tool definition');
