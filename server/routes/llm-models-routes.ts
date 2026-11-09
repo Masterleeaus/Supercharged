@@ -77,7 +77,7 @@ router.patch('/:id', requireAdminPermission('settings', 'llm_models', 'update'),
   } catch (error) {
     console.error('Error updating LLM model:', error);
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: 'Invalid request data', details: error.errors });
+      return res.status(400).json({ error: 'Invalid request data', details: error.issues });
     }
     res.status(500).json({ error: 'Failed to update LLM model' });
   }

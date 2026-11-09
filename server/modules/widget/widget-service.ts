@@ -3,6 +3,7 @@ import { nanoid } from "nanoid";
 import { db } from "../../db";
 import { sql } from "drizzle-orm";
 import type { WebsiteWidget, InsertWebsiteWidget } from "@shared/schema";
+import { logger } from '../../utils/logger';
 
 export interface BusinessHoursCheck {
   isOpen: boolean;
@@ -136,7 +137,7 @@ export class WidgetService {
     
     const cleaned = result.rows?.length || 0;
     if (cleaned > 0) {
-      console.log(`[Widget] Cleaned up ${cleaned} stale session(s) for widget ${widgetId} (older than ${maxDurationMinutes + 5} min)`);
+      logger.info(`[Widget] Cleaned up ${cleaned} stale session(s) for widget ${widgetId} (older than ${maxDurationMinutes + 5} min)`);
     }
     return cleaned;
   }

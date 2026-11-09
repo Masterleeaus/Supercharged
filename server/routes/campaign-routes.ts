@@ -28,6 +28,7 @@ import { ElevenLabsPoolService } from "../services/elevenlabs-pool";
 import { BatchCallingService } from "../services/batch-calling";
 import { PlanLimitExceededError } from "../services/contact-upload-service";
 import { getPluginStatus } from "../plugins/loader";
+import { logger } from '../utils/logger';
 
 /** Large CSV campaigns (100k rows); separate from global 20MB upload limit. */
 const CAMPAIGN_CSV_MAX_BYTES = 80 * 1024 * 1024;
@@ -666,7 +667,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
 
       // Use campaignExecutor.getBatchJobStatus which handles all engines correctly and synthesizes status when needed:
       const batchJob = await campaignExecutor.getBatchJobStatus(req.params.campaignId);
-      console.log(`[Campaign Batch Debug] ID: ${req.params.campaignId}, BatchJob: ${batchJob ? JSON.stringify(batchJob).substring(0, 100) : 'null'}`);
+      logger.info(`[Campaign Batch Debug] ID: ${req.params.campaignId}, BatchJob: ${batchJob ? 'present' : 'null'}`);
       if (!batchJob) {
         return res.status(404).json({ error: "Batch job status not available" });
       }
@@ -1186,7 +1187,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
         });
       } else {
         // Campaign has no batch job - create a new one for pending/failed contacts only
-        console.log(`▶️ [Campaign Resume] Campaign ${id} has no batchJobId, creating new batch for pending contacts...`);
+        logger.info(`▶️ [Campaign Resume] Campaign ${id} has no batchJobId, creating new batch for pending contacts...`);
         
         const result = await campaignExecutor.resumeWithNewBatch(id);
         
@@ -1300,7 +1301,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
 
       // AUTO-FIX: If phone lacks ElevenLabs sync and agent uses ElevenLabs, try to sync
       if (!campaignPhone.elevenLabsPhoneNumberId && isElevenLabsAgent) {
-        console.log(`📞 [Campaign Test] Phone ${campaignPhone.phoneNumber} missing ElevenLabs sync - attempting auto-sync`);
+        logger.warn(`📞 [Campaign Test] Phone ${campaignPhone.id} missing ElevenLabs sync - attempting auto-sync`);
         
         if (!agentForSync?.elevenLabsCredentialId) {
           return res.status(400).json({ 
@@ -1317,7 +1318,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
           );
           
           if (migrationResult.success && migrationResult.newElevenLabsPhoneId) {
-            console.log(`✅ [Campaign Test] Phone synced successfully via PhoneMigrator`);
+            logger.info(`✅ [Campaign Test] Phone synced successfully via PhoneMigrator`);
             // Re-fetch updated phone record to ensure we have correct state
             const [updatedPhone] = await db
               .select()
@@ -1370,12 +1371,11 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
         return res.status(500).json({ error: "No ElevenLabs credential found for agent" });
       }
 
-      console.log(`📞 [Test Call] Initiating test call via ElevenLabs native API`);
-      console.log(`   Campaign: ${campaign.name} (${campaign.id})`);
-      console.log(`   To: ${phoneNumber}`);
-      console.log(`   From: ${campaignPhone.phoneNumber} (ElevenLabs ID: ${campaignPhone.elevenLabsPhoneNumberId})`);
-      console.log(`   Agent: ${agent.name} (ElevenLabs ID: ${agent.elevenLabsAgentId})`);
-      console.log(`   Credential: ${credential.name}`);
+      logger.info(`📞 [Test Call] Initiating test call via ElevenLabs native API`);
+      logger.info(`   Campaign: ${campaign.name} (${campaign.id})`);
+      logger.info(`   From: campaign phone ${campaignPhone.id} (ElevenLabs ID: ${campaignPhone.elevenLabsPhoneNumberId})`);
+      logger.info(`   Agent: ${agent.name} (ElevenLabs ID: ${agent.elevenLabsAgentId})`);
+      logger.info(`   Credential: ${credential.name}`);
 
       // company_id from the owning campaign and the verified session; refuse if missing or conflicting
       const testCallCompanyIds = [campaign.companyId, res.locals.companyId].filter(
@@ -1411,10 +1411,10 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
           firstMessage: agent.firstMessage || undefined,
         });
 
-        console.log(`✅ [Test Call] ElevenLabs call initiated`);
-        console.log(`   Conversation ID: ${callResult.conversation_id}`);
+        logger.info(`✅ [Test Call] ElevenLabs call initiated`);
+        logger.info(`   Conversation ID: ${callResult.conversation_id}`);
         if (callResult.call_sid) {
-          console.log(`   Call SID: ${callResult.call_sid}`);
+          logger.info(`   Call SID: ${callResult.call_sid}`);
         }
 
         await db

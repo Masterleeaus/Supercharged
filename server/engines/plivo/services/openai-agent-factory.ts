@@ -27,6 +27,7 @@ import { eq, and } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { webhookDeliveryService } from '../../../services/webhook-delivery';
 import { validateWebhookUrl } from '../../../utils/url-validator';
+import { logger } from '../../../utils/logger';
 
 /**
  * Context passed to tool handlers during calls
@@ -102,7 +103,7 @@ export class OpenAIAgentFactory {
     const model = this.validateModel(params.model, tier);
     const language = params.language || 'en';
 
-    console.log(`[Agent Factory] Creating config: voice=${voice}, model=${model}, tier=${tier}, language=${language}`);
+    logger.info(`[Agent Factory] Creating config: voice=${voice}, model=${model}, tier=${tier}, language=${language}`);
 
     // Add language instructions to system prompt if not English
     // Guard against duplication (e.g., when called after compileFlow which already added the header)
@@ -134,11 +135,11 @@ export class OpenAIAgentFactory {
     companyId: string
   ): AgentConfigWithContext {
     if (!knowledgeBaseIds || knowledgeBaseIds.length === 0) {
-      console.log(`[Agent Factory] No knowledge bases to add`);
+      logger.info(`[Agent Factory] No knowledge bases to add`);
       return config;
     }
 
-    console.log(`[Agent Factory] Adding KB tool for ${knowledgeBaseIds.length} knowledge bases`);
+    logger.info(`[Agent Factory] Adding KB tool for ${knowledgeBaseIds.length} knowledge bases`);
 
     const kbTool: AgentTool = {
       name: 'lookup_knowledge_base',
@@ -156,7 +157,7 @@ export class OpenAIAgentFactory {
       handler: async (params: Record<string, unknown>) => {
         try {
           const query = params.query as string;
-          console.log(`[KB Tool] Searching: "${query.substring(0, 50)}..."`);
+          logger.info(`[KB Tool] Searching`);
           
           const results = await RAGKnowledgeService.searchKnowledge(
             { companyId, userId },
@@ -166,7 +167,7 @@ export class OpenAIAgentFactory {
           );
           
           if (results.length === 0) {
-            console.log(`[KB Tool] No results found`);
+            logger.info(`[KB Tool] No results found`);
             return { 
               found: false, 
               message: 'No relevant information found in the knowledge base.' 
@@ -174,7 +175,7 @@ export class OpenAIAgentFactory {
           }
           
           const formattedResponse = RAGKnowledgeService.formatResultsForAgent(results, 400);
-          console.log(`[KB Tool] Found ${results.length} results`);
+          logger.info(`[KB Tool] Found ${results.length} results`);
           
           return { 
             found: true, 
@@ -210,13 +211,13 @@ export class OpenAIAgentFactory {
   ): AgentConfigWithContext {
     // Skip if appointment tool already exists to prevent duplicates
     if (config.tools?.some(t => t.name === 'book_appointment')) {
-      console.log(`[Agent Factory] Appointment tool already exists, skipping`);
+      logger.warn(`[Agent Factory] Appointment tool already exists, skipping`);
       return config;
     }
     
-    console.log(`[Agent Factory] Adding appointment tool for agent ${agentId}`);
+    logger.info(`[Agent Factory] Adding appointment tool for agent ${agentId}`);
     if (callerPhone) {
-      console.log(`[Agent Factory] Caller phone available: ${callerPhone}`);
+      logger.info(`[Agent Factory] Caller phone available`);
     }
 
     const toolDescription = callerPhone
@@ -271,10 +272,10 @@ export class OpenAIAgentFactory {
           // Auto-fill caller phone if AI didn't provide one or sent a placeholder
           if (callerPhone && (!params.contactPhone || params.contactPhone === 'USE_CALLER_NUMBER' || params.contactPhone === 'same')) {
             params.contactPhone = callerPhone;
-            console.log(`[Appointment Tool] Auto-filled caller phone: ${callerPhone}`);
+            logger.info(`[Appointment Tool] Auto-filled caller phone`);
           }
           
-          console.log(`[Appointment Tool] Booking: ${JSON.stringify(params)}`);
+          logger.info(`[Appointment Tool] Booking`);
           
           // Validate required parameters
           if (!params.contactName || !params.contactPhone || !params.appointmentDate || !params.appointmentTime) {
@@ -323,11 +324,11 @@ export class OpenAIAgentFactory {
               ? { ...defaultWorkingHours[dayName], ...userWorkingHours[dayName] }
               : defaultWorkingHours[dayName];
             
-            console.log(`[Appointment Tool] Working hours for ${dayName}:`, daySettings);
+            logger.info(`[Appointment Tool] Working hours for ${dayName}:`, daySettings);
             
             if (!daySettings?.enabled) {
               const capitalizedDay = dayName.charAt(0).toUpperCase() + dayName.slice(1);
-              console.log(`[Appointment Tool] Rejected: ${dayName} is not available for appointments`);
+              logger.warn(`[Appointment Tool] Rejected: ${dayName} is not available for appointments`);
               return {
                 success: false,
                 message: `We're not available on ${capitalizedDay}s. Please choose a different day.`
@@ -349,14 +350,14 @@ export class OpenAIAgentFactory {
               
               if (requestedMinutes < startMinutes || appointmentEndMinutes > endMinutes) {
                 const capitalizedDay = dayName.charAt(0).toUpperCase() + dayName.slice(1);
-                console.log(`[Appointment Tool] Rejected: ${appointmentTime} is outside working hours`);
+                logger.warn(`[Appointment Tool] Rejected: ${appointmentTime} is outside working hours`);
                 return {
                   success: false,
                   message: `${appointmentTime} is outside our available hours on ${capitalizedDay}. We're available from ${daySettings.start} to ${daySettings.end}.`
                 };
               }
             } catch (e) {
-              console.log(`[Appointment Tool] Time validation error, allowing booking`);
+              logger.warn(`[Appointment Tool] Time validation error, allowing booking`);
             }
           }
           
@@ -374,7 +375,7 @@ export class OpenAIAgentFactory {
               );
             
             if (duplicateFromCall.length > 0) {
-              console.log(`[Appointment Tool] Duplicate booking attempt from same call ${callId}`);
+              logger.info(`[Appointment Tool] Duplicate booking attempt from same call ${callId}`);
               return {
                 success: true,
                 appointmentId: duplicateFromCall[0].id,
@@ -399,7 +400,7 @@ export class OpenAIAgentFactory {
             );
           
           if (duplicateByContact.length > 0) {
-            console.log(`[Appointment Tool] Duplicate booking attempt by same contact`);
+            logger.info(`[Appointment Tool] Duplicate booking attempt by same contact`);
             return {
               success: true,
               appointmentId: duplicateByContact[0].id,
@@ -423,7 +424,7 @@ export class OpenAIAgentFactory {
               );
             
             if (existing.length > 0) {
-              console.log(`[Appointment Tool] Slot conflict at ${params.appointmentDate} ${params.appointmentTime}`);
+              logger.info(`[Appointment Tool] Slot conflict at ${params.appointmentDate} ${params.appointmentTime}`);
               return {
                 success: false,
                 message: `That time slot is already booked. Please choose a different time.`
@@ -463,7 +464,7 @@ export class OpenAIAgentFactory {
             })
             .returning();
           
-          console.log(`[Appointment Tool] Created appointment ${appointmentId}`);
+          logger.info(`[Appointment Tool] Created appointment ${appointmentId}`);
           
           return { 
             success: true, 
@@ -501,11 +502,11 @@ export class OpenAIAgentFactory {
     // Skip if form tool already exists to prevent duplicates
     // Form tool names can be "submit_form" or "submit_form_node_2" (with node ID suffix)
     if (config.tools?.some(t => t.name.startsWith('submit_form'))) {
-      console.log(`[Agent Factory] Form tool already exists, skipping`);
+      logger.warn(`[Agent Factory] Form tool already exists, skipping`);
       return config;
     }
     
-    console.log(`[Agent Factory] Adding form tool for form ${formId} (${formName})`);
+    logger.info(`[Agent Factory] Adding form tool for form ${formId} (${formName})`);
 
     // Build field descriptions for the tool
     const fieldProperties: Record<string, any> = {
@@ -559,7 +560,7 @@ export class OpenAIAgentFactory {
       },
       handler: async (params: Record<string, unknown>) => {
         try {
-          console.log(`[Form Tool] Submitting to form ${formId}: ${JSON.stringify(params)}`);
+          logger.info(`[Form Tool] Submitting to form ${formId}`);
           
           // Build responses array in the required format
           const responses: Array<{ fieldId: string; question: string; answer: string }> = [];
@@ -605,7 +606,7 @@ export class OpenAIAgentFactory {
             })
             .returning();
           
-          console.log(`[Form Tool] Created submission ${submissionId}`);
+          logger.info(`[Form Tool] Created submission ${submissionId}`);
           
           return { 
             success: true, 
@@ -642,11 +643,11 @@ export class OpenAIAgentFactory {
   ): AgentConfigWithContext {
     // Skip if transfer tool already exists to prevent duplicates
     if (config.tools?.some(t => t.name === 'transfer_call')) {
-      console.log(`[Agent Factory] Transfer tool already exists, skipping`);
+      logger.warn(`[Agent Factory] Transfer tool already exists, skipping`);
       return config;
     }
     
-    console.log(`[Agent Factory] Adding transfer tool to ${transferNumber}`);
+    logger.info(`[Agent Factory] Adding transfer tool`);
 
     const transferTool: AgentTool & { _transferNumber: string } = {
       name: 'transfer_call',
@@ -662,7 +663,7 @@ export class OpenAIAgentFactory {
         required: ['reason'],
       },
       handler: async (params: Record<string, unknown>) => {
-        console.log(`[Transfer Tool] Initiating transfer to ${transferNumber}, reason: ${params.reason || 'none'}`);
+        logger.info(`[Transfer Tool] Initiating transfer`);
         // The actual transfer is handled by the audio bridge
         return { 
           action: 'transfer',
@@ -685,11 +686,11 @@ export class OpenAIAgentFactory {
   static addEndCallTool(config: AgentConfigWithContext): AgentConfigWithContext {
     // Skip if end_call tool already exists to prevent duplicates
     if (config.tools?.some(t => t.name === 'end_call')) {
-      console.log(`[Agent Factory] End call tool already exists, skipping`);
+      logger.warn(`[Agent Factory] End call tool already exists, skipping`);
       return config;
     }
     
-    console.log(`[Agent Factory] Adding end call tool`);
+    logger.info(`[Agent Factory] Adding end call tool`);
 
     const endCallTool: AgentTool = {
       name: 'end_call',
@@ -705,7 +706,7 @@ export class OpenAIAgentFactory {
         required: [],
       },
       handler: async (params: Record<string, unknown>) => {
-        console.log(`[End Call Tool] Ending call, reason: ${params.reason || 'conversation complete'}`);
+        logger.info(`[End Call Tool] Ending call`);
         return { 
           action: 'end_call',
           reason: params.reason as string || 'conversation complete'
@@ -728,7 +729,7 @@ export class OpenAIAgentFactory {
     templateNames: string[] = []
   ): AgentConfigWithContext {
     if (config.tools?.some(t => t.name === 'send_email')) {
-      console.log(`[Agent Factory] send_email tool already exists, skipping`);
+      logger.warn(`[Agent Factory] send_email tool already exists, skipping`);
       return config;
     }
 
@@ -741,7 +742,7 @@ export class OpenAIAgentFactory {
       templateInstruction = 'Use the template name configured by the user.';
     }
 
-    console.log(`[Agent Factory] Adding send_email tool`);
+    logger.info(`[Agent Factory] Adding send_email tool`);
 
     const emailTool: AgentTool = {
       name: 'send_email',
@@ -788,7 +789,7 @@ export class OpenAIAgentFactory {
     if (config.tools?.some(t => t.name === 'collect_caller_email')) {
       return config;
     }
-    console.log(`[Agent Factory] Adding collect_caller_email tool`);
+    logger.info(`[Agent Factory] Adding collect_caller_email tool`);
     const collectTool: AgentTool & { _messagingContext: { userId: string; agentId: string; callId: string | undefined } } = {
       name: 'collect_caller_email',
       description: 'Ask the caller for their email address and store it for post-call follow-up email. Call this tool as soon as you have collected the caller\'s email address. Do not send an email immediately — the email will be sent automatically after the call ends.',
@@ -821,7 +822,7 @@ export class OpenAIAgentFactory {
     variableDescriptions?: string | null
   ): AgentConfigWithContext {
     if (config.tools?.some(t => t.name === 'send_whatsapp')) {
-      console.log(`[Agent Factory] send_whatsapp tool already exists, skipping`);
+      logger.warn(`[Agent Factory] send_whatsapp tool already exists, skipping`);
       return config;
     }
 
@@ -871,7 +872,7 @@ export class OpenAIAgentFactory {
       variableInstruction += ` The following variables are pre-filled automatically: ${fixedList}. Do NOT ask the caller for these values.`;
     }
 
-    console.log(`[Agent Factory] Adding send_whatsapp tool (${hasCollectVars ? Object.keys(collectVars).length + ' collect' : '0 collect'}, ${hasFixedVars ? Object.keys(fixedVars).length + ' fixed' : '0 fixed'})`);
+    logger.info(`[Agent Factory] Adding send_whatsapp tool (${hasCollectVars ? Object.keys(collectVars).length + ' collect' : '0 collect'}, ${hasFixedVars ? Object.keys(fixedVars).length + ' fixed' : '0 fixed'})`);
 
     const properties: Record<string, any> = {
       template_name: {
@@ -931,7 +932,7 @@ export class OpenAIAgentFactory {
    * OpenAI models can naturally detect and respond in multiple languages
    */
   static enableLanguageDetection(config: AgentConfigWithContext): AgentConfigWithContext {
-    console.log(`[Agent Factory] Enabling language detection`);
+    logger.info(`[Agent Factory] Enabling language detection`);
 
     const languageInstruction = `
 
@@ -988,9 +989,9 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
     webhookMethod: string = 'POST',
     payloadTemplate?: Record<string, any>
   ): AgentConfigWithContext {
-    console.log(`[Agent Factory] Adding webhook tool: ${toolName} (${webhookMethod})`);
+    logger.info(`[Agent Factory] Adding webhook tool: ${toolName} (${webhookMethod})`);
     if (payloadTemplate) {
-      console.log(`[Agent Factory] Webhook payload template:`, JSON.stringify(payloadTemplate));
+      logger.info(`[Agent Factory] Webhook payload template`);
     }
 
     // Ensure contact_name and contact_phone are always in the parameters so OpenAI collects them
@@ -1020,14 +1021,14 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
           // Only use payloadTemplate if it has actual content, otherwise use params directly
           if (payloadTemplate && Object.keys(payloadTemplate).length > 0) {
             payload = OpenAIAgentFactory.substituteVariables(payloadTemplate, params);
-            console.log(`[Webhook Tool] Substituted payload:`, JSON.stringify(payload));
+            logger.info(`[Webhook Tool] Substituted payload`);
           } else {
             // Use params directly - this contains the collected conversation data from OpenAI
             payload = params;
-            console.log(`[Webhook Tool] Using params as payload:`, JSON.stringify(params));
+            logger.info(`[Webhook Tool] Using params as payload`);
           }
           
-          console.log(`[Webhook Tool] ${webhookMethod} ${webhookUrl} with:`, JSON.stringify(payload));
+          logger.info(`[Webhook Tool] ${webhookMethod} request`);
           
           const urlCheck = await validateWebhookUrl(webhookUrl);
           if (!urlCheck.valid) {
@@ -1050,7 +1051,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
           }
           
           const data = await response.json();
-          console.log(`[Webhook Tool] Response:`, data);
+          logger.info(`[Webhook Tool] Response received`);
           return data;
         } catch (error: any) {
           console.error(`[Webhook Tool] Error:`, error.message);
@@ -1100,7 +1101,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
       switch (toolName) {
         case 'end_call':
           handler = async (params: Record<string, unknown>) => {
-            console.log(`[End Call Tool] Ending call, reason: ${params.reason || 'conversation complete'}`);
+            logger.info(`[End Call Tool] Ending call`);
             return { 
               action: 'end_call',
               reason: params.reason as string || 'conversation complete'
@@ -1111,7 +1112,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
         case 'transfer_call':
           handler = async (params: Record<string, unknown>) => {
             const phoneNumber = context.transferPhoneNumber || 'unknown';
-            console.log(`[Transfer Tool] Initiating transfer to ${phoneNumber}, reason: ${params.reason || 'none'}`);
+            logger.info(`[Transfer Tool] Initiating transfer`);
             return { 
               action: 'transfer',
               phoneNumber,
@@ -1125,7 +1126,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
           handler = async (params: Record<string, unknown>) => {
             try {
               const query = params.query as string;
-              console.log(`[KB Tool] Searching: "${query?.substring(0, 50)}..."`);
+              logger.info(`[KB Tool] Searching`);
               
               if (!context.knowledgeBaseIds || context.knowledgeBaseIds.length === 0) {
                 return { found: false, message: 'No knowledge base configured.' };
@@ -1143,7 +1144,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
               }
               
               const formattedResponse = RAGKnowledgeService.formatResultsForAgent(results, 400);
-              console.log(`[KB Tool] Found ${results.length} results`);
+              logger.info(`[KB Tool] Found ${results.length} results`);
               
               return { found: true, information: formattedResponse };
             } catch (error: any) {
@@ -1157,7 +1158,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
           // Use the full appointment handler - delegate to addAppointmentTool's handler logic
           handler = async (params: Record<string, unknown>) => {
             try {
-              console.log(`[Appointment Tool] Booking via hydrated tool:`, JSON.stringify(params));
+              logger.info(`[Appointment Tool] Booking via hydrated tool`);
               
               if (!params.contactName || !params.contactPhone || !params.appointmentDate || !params.appointmentTime) {
                 return {
@@ -1193,7 +1194,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
                 })
                 .returning();
               
-              console.log(`[Appointment Tool] Created appointment ${appointmentId}`);
+              logger.info(`[Appointment Tool] Created appointment ${appointmentId}`);
               return { success: true, appointmentId, message: 'Appointment booked successfully.' };
             } catch (error: any) {
               console.error(`[Appointment Tool] Error:`, error.message);
@@ -1210,7 +1211,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
             
             handler = async (params: Record<string, unknown>) => {
               try {
-                console.log(`[Form Tool Hydrated] ${toolName} called with:`, JSON.stringify(params));
+                logger.info(`[Form Tool Hydrated] ${toolName} called`);
                 
                 // Extract form ID from tool name (e.g., submit_form_node_2 -> node_2)
                 const formIdMatch = toolName.match(/submit_form_(.+)/);
@@ -1263,7 +1264,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
                   })
                   .returning();
                 
-                console.log(`[Form Tool Hydrated] Created submission ${submissionId} with contactName=${contactName}, contactPhone=${contactPhone}`);
+                logger.info(`[Form Tool Hydrated] Created submission ${submissionId}`);
                 
                 // Trigger form.submitted webhook event
                 try {
@@ -1281,7 +1282,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
                       id: context.callId || null,
                     },
                   });
-                  console.log(`[Form Tool Hydrated] Triggered form.submitted webhook event`);
+                  logger.info(`[Form Tool Hydrated] Triggered form.submitted webhook event`);
                 } catch (webhookError: any) {
                   console.error(`[Form Tool Hydrated] Failed to trigger webhook:`, webhookError.message);
                 }
@@ -1319,14 +1320,14 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
                   // Only use payloadTemplate if it has actual content
                   if (payloadTemplate && Object.keys(payloadTemplate).length > 0) {
                     payload = OpenAIAgentFactory.substituteVariables(payloadTemplate, params);
-                    console.log(`[Webhook Tool Hydrated] Substituted payload:`, JSON.stringify(payload));
+                    logger.info(`[Webhook Tool Hydrated] Substituted payload`);
                   } else {
                     // Use params directly - contains collected conversation data
                     payload = params;
-                    console.log(`[Webhook Tool Hydrated] Using params as payload:`, JSON.stringify(params));
+                    logger.info(`[Webhook Tool Hydrated] Using params as payload`);
                   }
                   
-                  console.log(`[Webhook Tool Hydrated] ${webhookMethod} ${webhookUrl} with:`, JSON.stringify(payload));
+                  logger.info(`[Webhook Tool Hydrated] ${webhookMethod} request`);
                   
                   const urlCheck2 = await validateWebhookUrl(webhookUrl);
                   if (!urlCheck2.valid) {
@@ -1356,7 +1357,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
                     data = await response.text();
                   }
                   
-                  console.log(`[Webhook Tool Hydrated] Response:`, data);
+                  logger.info(`[Webhook Tool Hydrated] Response received`);
                   return { success: true, data };
                 } catch (error: any) {
                   console.error(`[Webhook Tool Hydrated] Error:`, error.message);
@@ -1367,14 +1368,14 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
               // No webhook URL in metadata, fallback to generic handler
               console.warn(`[Hydrate] Webhook tool ${toolName} missing URL in metadata, using generic handler`);
               handler = async (params: Record<string, unknown>) => {
-                console.log(`[Generic Tool] ${toolName} called with:`, params);
+                logger.info(`[Generic Tool] ${toolName} called`);
                 return { success: true, toolName, params };
               };
             }
           } else {
             // Generic handler for other custom/unknown tools
             handler = async (params: Record<string, unknown>) => {
-              console.log(`[Generic Tool] ${toolName} called with:`, params);
+              logger.info(`[Generic Tool] ${toolName} called`);
               return { success: true, toolName, params };
             };
           }
@@ -1389,7 +1390,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
       });
     }
     
-    console.log(`[Agent Factory] Hydrated ${tools.length} tools from compiled data`);
+    logger.info(`[Agent Factory] Hydrated ${tools.length} tools from compiled data`);
     return tools;
   }
 
@@ -1409,7 +1410,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
     }
   ): AgentConfigWithContext {
     const toolName = `api_call_${nodeId.replace(/-/g, '_').substring(0, 8)}`;
-    console.log(`[Agent Factory] Adding API call tool: ${toolName} -> ${apiConfig.url}`);
+    logger.info(`[Agent Factory] Adding API call tool: ${toolName}`);
 
     const apiTool: AgentTool & { 
       _webhookUrl: string; 
@@ -1447,7 +1448,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
             url = `${url}${url.includes('?') ? '&' : '?'}${queryString}`;
           }
 
-          console.log(`[API Call Tool] ${method} ${url}`);
+          logger.info(`[API Call Tool] ${method} request`);
 
           const headers: Record<string, string> = {
             'Content-Type': 'application/json',
@@ -1497,7 +1498,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
             data = await response.text();
           }
 
-          console.log(`[API Call Tool] Response received`);
+          logger.info(`[API Call Tool] Response received`);
 
           // Apply response mapping if configured
           if (apiConfig.responseMapping && typeof data === 'object') {
@@ -1548,18 +1549,18 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
       webhookUrl?: string;
     }
   ): AgentConfigWithContext {
-    console.log(`[Agent Factory] Adding custom tool: ${toolConfig.name}`);
+    logger.info(`[Agent Factory] Adding custom tool: ${toolConfig.name}`);
 
     const customTool: AgentTool = {
       name: toolConfig.name,
       description: toolConfig.description,
       parameters: toolConfig.parameters,
       handler: async (params: Record<string, unknown>) => {
-        console.log(`[Custom Tool ${toolConfig.name}] Params:`, params);
+        logger.info(`[Custom Tool ${toolConfig.name}] Params`);
 
         switch (toolConfig.action) {
           case 'log':
-            console.log(`[Custom Tool ${toolConfig.name}] Logged:`, params);
+            logger.info(`[Custom Tool ${toolConfig.name}] Logged`);
             return { success: true, message: 'Data logged successfully' };
 
           case 'store':
@@ -1654,7 +1655,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
       };
     }
   ): Promise<AgentConfigWithContext> {
-    console.log(`[Agent Factory] Compiling flow with ${flowConfig.nodes.length} nodes, language: ${params.language || 'en'}`);
+    logger.info(`[Agent Factory] Compiling flow with ${flowConfig.nodes.length} nodes, language: ${params.language || 'en'}`);
     
     const { nodes, edges, variables } = flowConfig;
     
@@ -1671,7 +1672,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
       const message = this.getNodeContent(startNode, 'message');
       if (message) {
         firstMessage = message;
-        console.log(`[Agent Factory] Found firstMessage from start node: "${message.substring(0, 50)}..."`);
+        logger.info(`[Agent Factory] Found firstMessage from start node: "${message.substring(0, 50)}..."`);
       }
     }
 
@@ -1799,7 +1800,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
                   params.userId,
                   params.callId
                 );
-                console.log(`[Agent Factory] Added form tool for form ${formId} with ${formFieldsData.length} fields`);
+                logger.info(`[Agent Factory] Added form tool for form ${formId} with ${formFieldsData.length} fields`);
               } else {
                 console.warn(`[Agent Factory] Form ${formId} has no fields, skipping form tool`);
               }
@@ -2109,7 +2110,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
     callId?: string,
     flowConfig?: CompiledFlowConfig
   ): Promise<AgentConfigWithContext> {
-    console.log(`[Agent Factory] Creating agent from record: ${agent.id}, type: ${agent.type}, language: ${agent.language || 'en'}`);
+    logger.info(`[Agent Factory] Creating agent from record: ${agent.id}, type: ${agent.type}, language: ${agent.language || 'en'}`);
 
     const voice = this.validateVoice(agent.openaiVoice || 'alloy');
     const model = this.validateModel(agent.openaiModel || 'gpt-realtime-1.5', userTier);
@@ -2184,7 +2185,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
       config = this.addMessagingWhatsAppTool(config, agent.userId, agent.id, callId, agent.messagingWhatsappTemplate, [], undefined);
     }
 
-    console.log(`[Agent Factory] Created config with ${config.tools?.length || 0} tools`);
+    logger.info(`[Agent Factory] Created config with ${config.tools?.length || 0} tools`);
     
     return config;
   }

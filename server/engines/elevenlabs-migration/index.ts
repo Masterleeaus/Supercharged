@@ -37,6 +37,7 @@ import {
 } from './migration-service';
 import { markCampaignForRetry } from './retry-scheduler';
 import { MigrationResult } from './types';
+import { logger } from '../../utils/logger';
 
 /**
  * Wrapper that handles automatic migration on concurrency errors
@@ -76,39 +77,39 @@ export async function withMigrationFallback<T>(
   while (attempts <= maxRetries) {
     try {
       attempts++;
-      console.log(`🔄 [Migration Fallback] Attempt ${attempts}/${maxRetries + 1}`);
+      logger.warn(`🔄 [Migration Fallback] Attempt ${attempts}/${maxRetries + 1}`);
       
       const result = await operation();
-      console.log(`✅ [Migration Fallback] Operation succeeded on attempt ${attempts}`);
+      logger.warn(`✅ [Migration Fallback] Operation succeeded on attempt ${attempts}`);
       return result;
       
     } catch (error) {
       lastError = error;
       const concurrencyError = detectConcurrencyError(error);
       
-      console.log(`❌ [Migration Fallback] Operation failed:`, formatErrorForLog(error));
-      console.log(`   Is concurrency error: ${concurrencyError.isConcurrencyError}`);
-      console.log(`   Is recoverable: ${isRecoverableError(error)}`);
+      logger.error(`❌ [Migration Fallback] Operation failed:`, formatErrorForLog(error));
+      logger.info(`   Is concurrency error: ${concurrencyError.isConcurrencyError}`);
+      logger.info(`   Is recoverable: ${isRecoverableError(error)}`);
       
       if (!concurrencyError.isConcurrencyError) {
-        console.log(`   Not a concurrency error, throwing original error`);
+        logger.error(`   Not a concurrency error, throwing original error`);
         throw error;
       }
       
       if (attempts > maxRetries) {
-        console.log(`   Max retries exceeded`);
+        logger.info(`   Max retries exceeded`);
         break;
       }
       
-      console.log(`🔄 [Migration Fallback] Attempting auto-migration...`);
+      logger.warn(`🔄 [Migration Fallback] Attempting auto-migration...`);
       
       const migrationResult = await autoMigrateUser(userId, currentCredentialId);
       
       if (!migrationResult.success) {
-        console.log(`❌ [Migration Fallback] Migration failed: ${migrationResult.error}`);
+        logger.error(`❌ [Migration Fallback] Migration failed: ${migrationResult.error}`);
         
         if (campaignId) {
-          console.log(`📋 [Migration Fallback] Marking campaign for retry queue`);
+          logger.warn(`📋 [Migration Fallback] Marking campaign for retry queue`);
           await markCampaignForRetry(campaignId, migrationResult.error || 'No capacity available');
         }
         
@@ -119,8 +120,8 @@ export async function withMigrationFallback<T>(
         );
       }
       
-      console.log(`✅ [Migration Fallback] Migration successful to ${migrationResult.toCredentialId}`);
-      console.log(`   Migrated: ${migrationResult.migratedAgents.length} agents, ${migrationResult.migratedPhones.length} phones`);
+      logger.warn(`✅ [Migration Fallback] Migration successful to ${migrationResult.toCredentialId}`);
+      logger.info(`   Migrated: ${migrationResult.migratedAgents.length} agents, ${migrationResult.migratedPhones.length} phones`);
       
       if (!retryAfterMigration) {
         throw new MigrationCompletedError(
@@ -208,15 +209,15 @@ export class MigrationCompletedError extends Error {
  * Call this on server startup to start the retry scheduler
  */
 export function initializeMigrationEngine(): void {
-  console.log(`🔄 ============================================`);
-  console.log(`🔄 ELEVENLABS MIGRATION ENGINE INITIALIZED`);
-  console.log(`🔄 ============================================`);
-  console.log(`🔄 Features:`);
-  console.log(`   ✓ Automatic concurrency error detection`);
-  console.log(`   ✓ Dynamic resource migration between API keys`);
-  console.log(`   ✓ Campaign retry queue (hourly)`);
-  console.log(`   ✓ Agent + Phone number migration`);
-  console.log(`🔄 ============================================\n`);
+  logger.info(`🔄 ============================================`);
+  logger.info(`🔄 ELEVENLABS MIGRATION ENGINE INITIALIZED`);
+  logger.info(`🔄 ============================================`);
+  logger.info(`🔄 Features:`);
+  logger.info(`   ✓ Automatic concurrency error detection`);
+  logger.info(`   ✓ Dynamic resource migration between API keys`);
+  logger.warn(`   ✓ Campaign retry queue (hourly)`);
+  logger.info(`   ✓ Agent + Phone number migration`);
+  logger.info(`🔄 ============================================\n`);
   
   import('./retry-scheduler').then(({ startRetryScheduler }) => {
     startRetryScheduler();

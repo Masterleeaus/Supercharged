@@ -1,13 +1,13 @@
 # Desk tenancy inventory
 
-Status: classification for review. Schema columns (`shared/schema.ts`, `shared/schema.js`) and the draft `migrations/DRAFT_companies_foundation.sql` add nullable `company_id` and `companies`; nothing is applied and no route is changed.
-Source: `shared/schema.ts`, 91 `pgTable` declarations (rows 1-83 as before, the three chatbot tables at rows 84-86, and the five workforce tables at rows 87-91). The check is
+Status: classification for review. Schema columns (`shared/schema.ts`) and the draft `migrations/DRAFT_companies_foundation.sql` add nullable `company_id` and `companies`; nothing is applied and no route is changed.
+Source: `shared/schema.ts`, 130 `pgTable` declarations (rows 1-83 as before, the three chatbot tables at rows 84-86, the five workforce tables at rows 87-91, and the 39 workforce tool tables at rows 92-130, created by `migrations/0014_workforce_tool_tables.sql`). The check is
 `tests/infrastructure/tenancy-inventory.test.mjs`. Migration steps are in
 `migrations/DRAFT_company_scope.sql`. The eight tenant tables from `DRAFT_chatbot.sql` and the workforce drafts are protected by row-level security in `migrations/DRAFT_company_scope_extension.sql`. A tenant table counts as covered if either draft protects it (decision 12).
 
 ## Coverage by draft
 
-- Tenant tables (63): all covered. 55 by `DRAFT_company_scope.sql` (its backfill is blocked on decision D1), 8 by `DRAFT_company_scope_extension.sql`.
+- Tenant tables (102): all covered. 55 by `DRAFT_company_scope.sql` (its backfill is blocked on decision D1), 8 by `DRAFT_company_scope_extension.sql`, 39 by `migrations/0014_workforce_tool_tables.sql`. The 39 workforce tool tables are not in any archived draft. Their own migration creates each one with `company_id uuid NOT NULL REFERENCES companies(id)`, so they need no backfill and no STEP A-D work. The coverage test reads 0014 for this.
 - Not covered by any draft, by class: the 11 ambiguous tables (`users`, `otp_verifications`, `synced_voices`, `phone_numbers`, `notifications`, `prompt_templates`, `audit_logs`, `payment_webhook_queue`, `plivo_phone_numbers`, `demo_sessions`, `phone_release_retry_queue`) and the 16 global tables. `companies` is the root.
 - Open gap: `users.company_id` is the source for every backfill and its value mapping is still open (D1).
 
@@ -20,11 +20,11 @@ Source: `shared/schema.ts`, 91 `pgTable` declarations (rows 1-83 as before, the 
 
 ## Counts
 
-- tenant: 63
+- tenant: 102
 - global: 16
 - ambiguous: 11
 - root: 1 (companies)
-- total: 91
+- total: 130
 
 ## Table classification
 
@@ -121,6 +121,45 @@ Source: `shared/schema.ts`, 91 `pgTable` declarations (rows 1-83 as before, the 
 | 89 | workforce_tool_calls | tenant | companies.id via company_id | New table, no backfill. company_id NOT NULL; no FK. |
 | 90 | workforce_audit_events | tenant | companies.id via company_id | New table, no backfill. company_id NOT NULL; append-only; no FK. |
 | 91 | workforce_agents | tenant | companies.id via company_id | New table, no backfill. company_id NOT NULL; PK (company_id, id); no FK. |
+| 92 | clients | tenant | companies.id via company_id | Workforce table (0014). New table, no backfill. company_id NOT NULL; no parent FK. |
+| 93 | client_merge_suggestions | tenant | clients.id via client_id, clients.id via duplicate_client_id | Workforce table (0014). New table, no backfill. Composite FKs to clients. |
+| 94 | properties | tenant | clients.id via client_id | Workforce table (0014). New table, no backfill. Composite FK to clients. |
+| 95 | property_contacts | tenant | properties.id via property_id, clients.id via client_id | Workforce table (0014). New table, no backfill. Composite FKs. |
+| 96 | property_issues | tenant | properties.id via property_id | Workforce table (0014). New table, no backfill. Composite FK to properties. |
+| 97 | work_orders | tenant | clients.id via client_id, properties.id via property_id | Workforce table (0014). New table, no backfill. Composite FKs. |
+| 98 | visits | tenant | work_orders.id via work_order_id | Workforce table (0014). New table, no backfill. Composite FK to work_orders. |
+| 99 | visit_checklist_items | tenant | visits.id via visit_id | Workforce table (0014). New table, no backfill. Composite FK to visits. |
+| 100 | visit_media | tenant | visits.id via visit_id | Workforce table (0014). New table, no backfill. Composite FK to visits. |
+| 101 | job_notes | tenant | work_orders.id via work_order_id, visits.id via visit_id | Workforce table (0014). New table, no backfill. Composite FKs. |
+| 102 | job_signoffs | tenant | visits.id via visit_id | Workforce table (0014). New table, no backfill. Composite FK to visits. |
+| 103 | job_material_lines | tenant | work_orders.id via work_order_id | Workforce table (0014). New table, no backfill. Composite FK to work_orders. |
+| 104 | inventory_items | tenant | companies.id via company_id | Workforce table (0014). New table, no backfill. company_id NOT NULL; no parent FK. |
+| 105 | purchase_orders | tenant | companies.id via company_id | Workforce table (0014). New table, no backfill. company_id NOT NULL; no parent FK. |
+| 106 | supplier_bills | tenant | purchase_orders.id via purchase_order_id | Workforce table (0014). New table, no backfill. Composite FK to purchase_orders. |
+| 107 | end_of_lease_checklists | tenant | properties.id via property_id | Workforce table (0014). New table, no backfill. Composite FK to properties. |
+| 108 | crew_rosters | tenant | companies.id via company_id | Workforce table (0014). New table, no backfill. company_id NOT NULL; no parent FK. |
+| 109 | timesheets | tenant | companies.id via company_id | Workforce table (0014). New table, no backfill. company_id NOT NULL; no parent FK. |
+| 110 | timesheet_flags | tenant | timesheets.id via timesheet_id | Workforce table (0014). New table, no backfill. Composite FK to timesheets. |
+| 111 | staff_tasks | tenant | work_orders.id via work_order_id, visits.id via visit_id | Workforce table (0014). New table, no backfill. Composite FKs. |
+| 112 | business_hours | tenant | companies.id via company_id | Workforce table (0014). New table, no backfill. company_id NOT NULL; no parent FK. |
+| 113 | service_agreements | tenant | clients.id via client_id, properties.id via property_id | Workforce table (0014). New table, no backfill. Composite FKs. |
+| 114 | maintenance_plans | tenant | clients.id via client_id, properties.id via property_id | Workforce table (0014). New table, no backfill. Composite FKs. |
+| 115 | estimates | tenant | clients.id via client_id, properties.id via property_id, work_orders.id via work_order_id | Workforce table (0014). New table, no backfill. Composite FKs. |
+| 116 | quote_requests | tenant | clients.id via client_id | Workforce table (0014). New table, no backfill. Composite FK to clients. |
+| 117 | opportunities | tenant | clients.id via client_id | Workforce table (0014). New table, no backfill. Composite FK to clients. |
+| 118 | disputes | tenant | clients.id via client_id | Workforce table (0014). New table, no backfill. Composite FK to clients. |
+| 119 | collection_notes | tenant | clients.id via client_id | Workforce table (0014). New table, no backfill. Composite FK to clients. |
+| 120 | reviews | tenant | clients.id via client_id | Workforce table (0014). New table, no backfill. Composite FK to clients. |
+| 121 | review_alerts | tenant | reviews.id via review_id | Workforce table (0014). New table, no backfill. Composite FK to reviews. |
+| 122 | feedback_responses | tenant | visits.id via visit_id, clients.id via client_id | Workforce table (0014). New table, no backfill. Composite FKs. |
+| 123 | complaints | tenant | clients.id via client_id, properties.id via property_id, work_orders.id via work_order_id | Workforce table (0014). New table, no backfill. Composite FKs. |
+| 124 | compliance_certificates | tenant | properties.id via property_id | Workforce table (0014). New table, no backfill. Composite FK to properties. |
+| 125 | compliance_documents | tenant | properties.id via property_id | Workforce table (0014). New table, no backfill. Composite FK to properties. |
+| 126 | pool_profiles | tenant | properties.id via property_id | Workforce table (0014). New table, no backfill. Composite FK to properties. |
+| 127 | pool_equipment | tenant | pool_profiles.id via pool_profile_id | Workforce table (0014). New table, no backfill. Composite FK to pool_profiles. |
+| 128 | pool_equipment_faults | tenant | pool_equipment.id via pool_equipment_id | Workforce table (0014). New table, no backfill. Composite FK to pool_equipment. |
+| 129 | water_tests | tenant | pool_profiles.id via pool_profile_id | Workforce table (0014). New table, no backfill. Composite FK to pool_profiles. |
+| 130 | water_test_results | tenant | water_tests.id via water_test_id, pool_profiles.id via pool_profile_id | Workforce table (0014). New table, no backfill. Composite FKs. |
 
 ## Blockers
 

@@ -27,6 +27,7 @@ import { db } from '../../db';
 import { leads, calls, plivoCalls, twilioOpenaiCalls, sipCalls, appointments, AI_LEAD_CATEGORIES, type AILeadCategory } from '@shared/schema';
 import { CRMStorage } from '../../storage/crm-storage';
 import { eq, and, or, sql } from 'drizzle-orm';
+import { logger } from '../../utils/logger';
 
 export interface CallData {
   id: string;
@@ -219,16 +220,16 @@ export class CRMLeadProcessor {
     const hasTransfer = callData.wasTransferred === true || aiInsights.primaryOutcome === 'call_transfer';
     const hasCallback = aiInsights.primaryOutcome === 'need_follow_up' || aiInsights.needsFollowUp === true;
     
-    console.log(`${this.LOG_PREFIX} [Quality Threshold Check] Call ID: ${callData.id}`);
-    console.log(`  - Duration: ${callData.duration || 0}s (Min: ${this.MIN_DURATION_SECONDS}s)`);
-    console.log(`  - Transcript length: ${callData.transcript?.trim().length || 0} chars (Min: ${this.MIN_TRANSCRIPT_LENGTH} chars)`);
-    console.log(`  - High-value indicators: Appointment=${hasAppointment}, Form=${hasForm}, Transfer=${hasTransfer}, Callback=${hasCallback}`);
+    logger.info(`${this.LOG_PREFIX} [Quality Threshold Check] Call ID: ${callData.id}`);
+    logger.info(`  - Duration: ${callData.duration || 0}s (Min: ${this.MIN_DURATION_SECONDS}s)`);
+    logger.info(`  - Transcript length: ${callData.transcript?.trim().length || 0} chars (Min: ${this.MIN_TRANSCRIPT_LENGTH} chars)`);
+    logger.info(`  - High-value indicators: Appointment=${hasAppointment}, Form=${hasForm}, Transfer=${hasTransfer}, Callback=${hasCallback}`);
     
     // Explicitly reject extremely short calls (under 10 seconds) unless they have a high-value outcome
     const duration = callData.duration ?? 0;
     if (duration > 0 && duration < this.MIN_DURATION_SECONDS && !hasAppointment && !hasForm && !hasTransfer && !hasCallback) {
       const failReason = `Call duration too short (${duration}s) without high-value business outcome`;
-      console.log(`  - Passed: False (Reason: ${failReason})`);
+      logger.info(`  - Passed: False (Reason: ${failReason})`);
       return { passed: false, reason: failReason };
     }
 
@@ -240,7 +241,7 @@ export class CRMLeadProcessor {
         hasTransfer && 'Call Transferred',
         hasCallback && 'Callback Requested'
       ].filter(Boolean).join(', ');
-      console.log(`  - Passed: True (bypassed via high-value outcome: ${activeSignals})`);
+      logger.info(`  - Passed: True (bypassed via high-value outcome: ${activeSignals})`);
       return { passed: true, reason: `Has high-value business outcome: ${activeSignals}` };
     }
     
@@ -261,16 +262,16 @@ export class CRMLeadProcessor {
       hasValidClassification ||
       (callData.sentiment && callData.sentiment.trim() !== '');
     
-    console.log(`  - Standard Checks: HasTranscript=${!!hasTranscript}, HasDuration=${!!hasDuration}, HasExplicitSignal=${!!hasExplicitSignal}`);
-    console.log(`  - Explicit signals: AI Summary length=${callData.aiSummary?.trim().length || 0}, Classification=${callData.classification || 'none'} (valid=${!!hasValidClassification}), Sentiment=${callData.sentiment || 'none'}`);
+    logger.info(`  - Standard Checks: HasTranscript=${!!hasTranscript}, HasDuration=${!!hasDuration}, HasExplicitSignal=${!!hasExplicitSignal}`);
+    logger.info(`  - Explicit signals: AI Summary length=${callData.aiSummary?.trim().length || 0}, Classification=${callData.classification || 'none'} (valid=${!!hasValidClassification}), Sentiment=${callData.sentiment || 'none'}`);
     
     if (hasTranscript || hasDuration || hasExplicitSignal) {
-      console.log(`  - Passed: True (Meets standard quality thresholds)`);
+      logger.info(`  - Passed: True (Meets standard quality thresholds)`);
       return { passed: true, reason: 'Meets quality threshold' };
     }
     
     const failReason = `Call too short (${callData.duration || 0}s) and no transcript (${callData.transcript?.length || 0} chars)`;
-    console.log(`  - Passed: False (Reason: ${failReason})`);
+    logger.info(`  - Passed: False (Reason: ${failReason})`);
     return { 
       passed: false, 
       reason: failReason
@@ -281,12 +282,12 @@ export class CRMLeadProcessor {
    * Process a completed call and create a lead if it qualifies
    */
   static async processCall(callData: CallData): Promise<{ leadId: string | null; qualification: LeadQualification }> {
-    console.log(`${this.LOG_PREFIX} Processing call ${callData.id} from engine: ${callData.engine}`);
+    logger.info(`${this.LOG_PREFIX} Processing call ${callData.id} from engine: ${callData.engine}`);
     
     // Check minimum quality threshold first
     const qualityCheck = this.meetsQualityThreshold(callData);
     if (!qualityCheck.passed) {
-      console.log(`${this.LOG_PREFIX} Call ${callData.id} rejected: ${qualityCheck.reason}`);
+      logger.warn(`${this.LOG_PREFIX} Call ${callData.id} rejected: ${qualityCheck.reason}`);
       return { 
         leadId: null, 
         qualification: {
@@ -306,7 +307,7 @@ export class CRMLeadProcessor {
       const qualification = await this.qualifyCall(callData);
       
       if (!qualification.qualified) {
-        console.log(`${this.LOG_PREFIX} Call ${callData.id} does not qualify for CRM (no category matched)`);
+        logger.info(`${this.LOG_PREFIX} Call ${callData.id} does not qualify for CRM (no category matched)`);
         return { leadId: null, qualification };
       }
 
@@ -322,23 +323,23 @@ export class CRMLeadProcessor {
         const updatedLead = await this.updateExistingLead(existingLead, callData, qualification);
         if (updatedLead) {
           const categoryChanged = existingLead.aiCategory !== updatedLead.aiCategory;
-          console.log(`${this.LOG_PREFIX} Updated existing lead ${updatedLead.id} - aiCategory: ${existingLead.aiCategory || 'none'} -> ${updatedLead.aiCategory || qualification.category}${categoryChanged ? ' (changed)' : ''}`);
+          logger.info(`${this.LOG_PREFIX} Updated existing lead ${updatedLead.id} - aiCategory: ${existingLead.aiCategory || 'none'} -> ${updatedLead.aiCategory || qualification.category}${categoryChanged ? ' (changed)' : ''}`);
           return {
             leadId: updatedLead.id,
             qualification,
           };
         }
         // Fall through to create new lead if update failed
-        console.log(`${this.LOG_PREFIX} Update returned null, creating new lead`);
+        logger.info(`${this.LOG_PREFIX} Update returned null, creating new lead`);
       }
 
       // Create new lead
       const lead = await this.createLeadFromCall(callData, qualification);
       if (!lead) {
-        console.log(`${this.LOG_PREFIX} Failed to create lead for call ${callData.id} - createLeadFromCall returned null`);
+        logger.error(`${this.LOG_PREFIX} Failed to create lead for call ${callData.id} - createLeadFromCall returned null`);
         return { leadId: null, qualification };
       }
-      console.log(`${this.LOG_PREFIX} Created lead ${lead.id} with category: ${qualification.category}`);
+      logger.info(`${this.LOG_PREFIX} Created lead ${lead.id} with category: ${qualification.category}`);
 
       // Log activity
       try {
@@ -387,7 +388,7 @@ export class CRMLeadProcessor {
           }
         }, callData.campaignId);
         
-        console.log(`${this.LOG_PREFIX} Triggered form.lead_created webhook event for lead ${lead.id}`);
+        logger.info(`${this.LOG_PREFIX} Triggered form.lead_created webhook event for lead ${lead.id}`);
       } catch (webhookError: any) {
         console.error(`${this.LOG_PREFIX} Failed to trigger form.lead_created webhook:`, webhookError.message);
       }
@@ -461,7 +462,7 @@ export class CRMLeadProcessor {
 
     const qualified = category !== null;
 
-    console.log(`${this.LOG_PREFIX} Qualification result for call ${callData.id}:`, {
+    logger.info(`${this.LOG_PREFIX} Qualification result for call ${callData.id}:`, {
       qualified,
       category,
       score: engagementScore,
@@ -623,7 +624,7 @@ export class CRMLeadProcessor {
   private static async checkAppointmentInDatabase(callData: CallData): Promise<Record<string, unknown> | null> {
     try {
       const formatAppt = (appt: any, matchedBy: string) => {
-        console.log(`${this.LOG_PREFIX} Found appointment ${appt.id} in database for call ${callData.id} (matched by: ${matchedBy})`);
+        logger.info(`${this.LOG_PREFIX} Found appointment ${appt.id} in database for call ${callData.id} (matched by: ${matchedBy})`);
         return {
           appointmentId: appt.id,
           contactName: appt.contactName,
@@ -1035,13 +1036,13 @@ export class CRMLeadProcessor {
       .limit(1);
 
     if (!call || !call.userId) {
-      console.log(`${this.LOG_PREFIX} Call not found or no user: ${callId}`);
+      logger.warn(`${this.LOG_PREFIX} Call not found or no user: ${callId}`);
       return null;
     }
 
     // Only process completed calls
     if (call.status !== 'completed' && call.status !== 'done') {
-      console.log(`${this.LOG_PREFIX} Call ${callId} not completed (status: ${call.status})`);
+      logger.warn(`${this.LOG_PREFIX} Call ${callId} not completed (status: ${call.status})`);
       return null;
     }
 
@@ -1090,13 +1091,13 @@ export class CRMLeadProcessor {
       .limit(1);
 
     if (!call || !call.userId) {
-      console.log(`${this.LOG_PREFIX} Plivo call not found or no user: ${callId}`);
+      logger.warn(`${this.LOG_PREFIX} Plivo call not found or no user: ${callId}`);
       return null;
     }
 
     // Only process completed calls
     if (call.status !== 'completed' && call.status !== 'done') {
-      console.log(`${this.LOG_PREFIX} Plivo call ${callId} not completed (status: ${call.status})`);
+      logger.warn(`${this.LOG_PREFIX} Plivo call ${callId} not completed (status: ${call.status})`);
       return null;
     }
 
@@ -1141,13 +1142,13 @@ export class CRMLeadProcessor {
       .limit(1);
 
     if (!call || !call.userId) {
-      console.log(`${this.LOG_PREFIX} Twilio-OpenAI call not found or no user: ${callId}`);
+      logger.warn(`${this.LOG_PREFIX} Twilio-OpenAI call not found or no user: ${callId}`);
       return null;
     }
 
     // Only process completed calls
     if (call.status !== 'completed' && call.status !== 'done') {
-      console.log(`${this.LOG_PREFIX} Twilio-OpenAI call ${callId} not completed (status: ${call.status})`);
+      logger.warn(`${this.LOG_PREFIX} Twilio-OpenAI call ${callId} not completed (status: ${call.status})`);
       return null;
     }
 
@@ -1192,12 +1193,12 @@ export class CRMLeadProcessor {
       .limit(1);
 
     if (!call || !call.userId) {
-      console.log(`${this.LOG_PREFIX} SIP call not found or no user: ${callId}`);
+      logger.warn(`${this.LOG_PREFIX} SIP call not found or no user: ${callId}`);
       return null;
     }
 
     if (call.status !== 'completed' && call.status !== 'done') {
-      console.log(`${this.LOG_PREFIX} SIP call ${callId} not completed (status: ${call.status})`);
+      logger.warn(`${this.LOG_PREFIX} SIP call ${callId} not completed (status: ${call.status})`);
       return null;
     }
 
@@ -1241,13 +1242,13 @@ export class CRMLeadProcessor {
       const call = (result.rows as any[])[0];
 
       if (!call || !call.user_id) {
-        console.log(`${this.LOG_PREFIX} Custom Voice Engine session not found or no user: ${sessionId}`);
+        logger.warn(`${this.LOG_PREFIX} Custom Voice Engine session not found or no user: ${sessionId}`);
         return null;
       }
 
       // Only process completed calls
       if (call.status !== 'completed' && call.status !== 'done') {
-        console.log(`${this.LOG_PREFIX} Custom Voice Engine session ${sessionId} not completed (status: ${call.status})`);
+        logger.warn(`${this.LOG_PREFIX} Custom Voice Engine session ${sessionId} not completed (status: ${call.status})`);
         return null;
       }
 
@@ -1324,7 +1325,7 @@ Return ONLY the JSON object. No explanation, no markdown formatting.`;
               extractedEmail = result.extractedEmail || null;
               extractedCompany = result.extractedCompany || null;
 
-              console.log(`💼 [CRM Lead Processor] Extracted call details: Summary="${aiSummary}", Classification="${classification}", Company="${extractedCompany}"`);
+              logger.info(`💼 [CRM Lead Processor] Extracted call details: Summary="${aiSummary}", Classification="${classification}", Company="${extractedCompany}"`);
             }
           }
         } catch (err: any) {
@@ -1408,7 +1409,7 @@ Return ONLY the JSON object. No explanation, no markdown formatting.`;
    */
   private static async updateCallClassification(callId: string, engine: string, category: string): Promise<void> {
     try {
-      console.log(`[CRM Lead Processor] Updating call classification for call ${callId} to: ${category} (engine: ${engine})`);
+      logger.info(`[CRM Lead Processor] Updating call classification for call ${callId} to: ${category} (engine: ${engine})`);
       if (engine === 'elevenlabs-twilio') {
         await db
           .update(calls)

@@ -14,6 +14,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
+import { logger } from '../utils/logger';
 import crypto from 'crypto';
 import { storage } from '../storage';
 import { db } from '../db';
@@ -107,8 +108,8 @@ export class WebhookDeliveryService {
     const headers = this.buildHeaders(webhook, payloadString, deliveryId);
     const startTime = Date.now();
 
-    console.log(`📤 [Webhook] Delivering to ${webhook.url} (attempt ${attemptNumber})`);
-    console.log(`   Event: ${payload.event}`);
+    logger.info(`📤 [Webhook] Delivering to ${webhook.url} (attempt ${attemptNumber})`);
+    logger.info(`   Event: ${payload.event}`);
 
     try {
       const urlCheck = await validateWebhookUrl(webhook.url);
@@ -145,7 +146,7 @@ export class WebhookDeliveryService {
 
       const success = response.ok;
       
-      console.log(`${success ? '✅' : '❌'} [Webhook] Status: ${response.status}, Time: ${responseTime}ms`);
+      logger.info(`${success ? '✅' : '❌'} [Webhook] Status: ${response.status}, Time: ${responseTime}ms`);
 
       return {
         success,
@@ -223,7 +224,7 @@ export class WebhookDeliveryService {
       if (!result.success && attempt < maxAttempts) {
         const delay = RETRY_DELAYS[attempt] || 300000;
         logData.nextRetryAt = new Date(Date.now() + delay);
-        console.log(`⏳ [Webhook] Scheduling retry in ${delay / 1000}s`);
+        logger.info(`⏳ [Webhook] Scheduling retry in ${delay / 1000}s`);
       }
 
       latestAttemptLogged = false;
@@ -237,19 +238,19 @@ export class WebhookDeliveryService {
             retryingRowIds.push(newLog.id);
           }
         } else {
-          console.log(`ℹ️ [Webhook] Skipping log - webhook ${webhook.id} was deleted`);
+          logger.warn(`ℹ️ [Webhook] Skipping log - webhook ${webhook.id} was deleted`);
         }
       } catch (err: any) {
         // Handle foreign key constraint violations gracefully (webhook was deleted)
         if (err.code === '23503' || err.message?.includes('foreign key constraint')) {
-          console.log(`ℹ️ [Webhook] Skipping log - webhook ${webhook.id} no longer exists`);
+          logger.warn(`ℹ️ [Webhook] Skipping log - webhook ${webhook.id} no longer exists`);
         } else {
           console.error(`❌ [Webhook] Failed to log delivery:`, err);
         }
       }
 
       if (result.success) {
-        console.log(`✅ [Webhook] Delivery successful on attempt ${attempt}`);
+        logger.info(`✅ [Webhook] Delivery successful on attempt ${attempt}`);
         if (latestAttemptLogged) {
           await this.supersedeEarlierAttempts(retryingRowIds);
         }
@@ -258,7 +259,7 @@ export class WebhookDeliveryService {
 
       if (attempt < maxAttempts) {
         const delay = RETRY_DELAYS[attempt] || 60000;
-        console.log(`⏳ [Webhook] Waiting ${delay / 1000}s before retry...`);
+        logger.info(`⏳ [Webhook] Waiting ${delay / 1000}s before retry...`);
         await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
@@ -300,19 +301,19 @@ export class WebhookDeliveryService {
       return;
     }
 
-    console.log(`🔔 [Webhook] Triggering event: ${event}`);
-    console.log(`   UserId: ${userId}, CampaignId: ${campaignId || 'N/A'}`);
+    logger.info(`🔔 [Webhook] Triggering event: ${event}`);
+    logger.info(`   UserId: ${userId}, CampaignId: ${campaignId || 'N/A'}`);
 
     try {
       const webhooks = (await storage.getWebhooksForEvent(userId, event, campaignId || undefined))
         .filter((webhook) => webhook.companyId === companyId);
 
       if (webhooks.length === 0) {
-        console.log(`ℹ️ [Webhook] No webhooks configured for event: ${event}`);
+        logger.info(`ℹ️ [Webhook] No webhooks configured for event: ${event}`);
         return;
       }
 
-      console.log(`📤 [Webhook] Found ${webhooks.length} webhook(s) to deliver`);
+      logger.info(`📤 [Webhook] Found ${webhooks.length} webhook(s) to deliver`);
 
       const payload: WebhookPayload = {
         event,
@@ -328,7 +329,7 @@ export class WebhookDeliveryService {
 
       await Promise.allSettled(deliveryPromises);
       
-      console.log(`✅ [Webhook] Event ${event} processing complete`);
+      logger.info(`✅ [Webhook] Event ${event} processing complete`);
     } catch (error) {
       console.error(`❌ [Webhook] Error triggering event ${event}:`, error);
     }
@@ -363,7 +364,7 @@ export class WebhookDeliveryService {
       }
     };
 
-    console.log(`🧪 Testing webhook ${webhookId}...`);
+    logger.info(`🧪 Testing webhook ${webhookId}...`);
 
     const result = await this.deliverWebhook(webhook, testPayload, 1);
 
@@ -404,7 +405,7 @@ export class WebhookDeliveryService {
       throw new Error('Webhook not found or access denied');
     }
 
-    console.log(`🔄 Manually retrying webhook ${webhook.id} (log ${logId})...`);
+    logger.info(`🔄 Manually retrying webhook ${webhook.id} (log ${logId})...`);
 
     const payload: WebhookPayload = {
       event: log.event,

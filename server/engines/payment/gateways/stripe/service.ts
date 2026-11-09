@@ -8,6 +8,7 @@ import Stripe from 'stripe';
 import { storage } from '../../../../storage';
 import { PaymentError } from '../../../../utils/errors';
 import { GLOBAL_SETTINGS_KEYS, getCurrencySymbol } from '../../types';
+import { logger } from '../../../../utils/logger';
 
 let stripeInstance: Stripe | null = null;
 
@@ -144,7 +145,7 @@ export async function lockStripeCurrency(): Promise<{ success: boolean; error?: 
   
   await storage.updateGlobalSetting(GLOBAL_SETTINGS_KEYS.STRIPE_CURRENCY_LOCKED, true);
   
-  console.log(`🔒 [Stripe] Currency locked to ${currentConfig.currency}`);
+  logger.info(`🔒 [Stripe] Currency locked to ${currentConfig.currency}`);
   return { success: true };
 }
 
@@ -203,7 +204,7 @@ export async function getOrCreateStripeCustomer(
       return stripeCustomerId;
     } catch (error: any) {
       if (error.code === 'resource_missing') {
-        console.log(`⚠️ [Stripe] Customer ${stripeCustomerId} not found, creating new customer for user ${userId}`);
+        logger.warn(`⚠️ [Stripe] Customer ${stripeCustomerId} not found, creating new customer for user ${userId}`);
         stripeCustomerId = null;
         await storage.updateUser(userId, { stripeCustomerId: null });
       } else {
@@ -218,7 +219,7 @@ export async function getOrCreateStripeCustomer(
     metadata: { userId }
   });
   
-  console.log(`✅ [Stripe] Created new customer ${customer.id} for user ${userId}`);
+  logger.info(`✅ [Stripe] Created new customer ${customer.id} for user ${userId}`);
   await storage.updateUser(userId, { stripeCustomerId: customer.id });
   return customer.id;
 }

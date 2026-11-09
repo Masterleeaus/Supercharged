@@ -26,6 +26,7 @@ import { ElevenLabsPoolService } from "../services/elevenlabs-pool";
 import { getTwilioClient } from "../services/twilio-connector";
 import { fetchElevenLabsConversation } from "./webhook-routes";
 import PDFDocument from "pdfkit";
+import { logger } from '../utils/logger';
 
 function formatDurationPDF(seconds: number): string {
   if (!seconds) return "0:00";
@@ -141,7 +142,7 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
 
       // Handle OpenAI widget calls - WebRTC calls don't have server-side recordings
       if (callWithDetails.engine === 'openai') {
-        console.log(`🎙️ [Recording] OpenAI widget call ${callWithDetails.id} - WebRTC calls don't have server-side recordings`);
+        logger.info(`🎙️ [Recording] OpenAI widget call ${callWithDetails.id} - WebRTC calls don't have server-side recordings`);
         return res.status(404).json({ 
           error: "Recording not available", 
           details: "OpenAI widget calls use WebRTC and don't have server-side recordings. The conversation transcript is available instead." 
@@ -150,18 +151,18 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
 
       // Handle Custom Voice Engine calls (local recording file)
       if (callWithDetails.engine === 'custom-voice-engine') {
-        console.log(`🎙️ [Recording] Fetching Custom Voice Engine recording for session ${callWithDetails.id}`);
+        logger.info(`🎙️ [Recording] Fetching Custom Voice Engine recording for session ${callWithDetails.id}`);
         
         // Find the recording details in ve_call_recordings table
         const result = await db.execute(sql`
           SELECT storage_path, status, storage_url FROM ve_call_recordings WHERE session_id = ${callWithDetails.id} LIMIT 1
         `);
         
-        console.log(`🎙️ [Recording] Database query completed. Found ${result.rows.length} recording records in ve_call_recordings.`);
+        logger.info(`🎙️ [Recording] Database query completed. Found ${result.rows.length} recording records in ve_call_recordings.`);
         
         if (result.rows.length > 0) {
           const row = result.rows[0] as any;
-          console.log(`🎙️ [Recording] Found record. status: "${row.status}", storage_path: "${row.storage_path}", storage_url: "${row.storage_url}"`);
+          logger.info(`🎙️ [Recording] Found record. status: "${row.status}", storage_path: "${row.storage_path}"`);
           
           if (row.status !== 'available') {
             console.warn(`🎙️ [Recording] Recording for session ${callWithDetails.id} is not marked as 'available' (current status: ${row.status})`);
@@ -169,7 +170,7 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
           
           const storagePath = row.storage_path;
           if (fs.existsSync(storagePath)) {
-            console.log(`🎙️ [Recording] File exists on disk. Reading and sending: ${storagePath}`);
+            logger.info(`🎙️ [Recording] File exists on disk. Reading and sending: ${storagePath}`);
             const audioBuffer = fs.readFileSync(storagePath);
             res.setHeader('Content-Type', 'audio/wav');
             res.setHeader('Content-Disposition', `inline; filename="call-recording-${callWithDetails.id}.wav"`);
@@ -190,7 +191,7 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
 
       // Handle Twilio+OpenAI calls - fetch recording directly from Twilio using twilioSid
       if (callWithDetails.engine === 'twilio-openai') {
-        console.log(`🎙️ [Recording] Fetching Twilio+OpenAI recording for call ${callWithDetails.id}`);
+        logger.info(`🎙️ [Recording] Fetching Twilio+OpenAI recording for call ${callWithDetails.id}`);
         
         if (callWithDetails.twilioSid) {
           const twilioResult = await recordingService.fetchTwilioRecordingBySid(callWithDetails.twilioSid);
@@ -224,7 +225,7 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
 
       // Handle Plivo+OpenAI calls - fetch recording from Plivo API or stored URL
       if (callWithDetails.engine === 'plivo-openai') {
-        console.log(`🎙️ [Recording] Fetching Plivo+OpenAI recording for call ${callWithDetails.id}`);
+        logger.info(`🎙️ [Recording] Fetching Plivo+OpenAI recording for call ${callWithDetails.id}`);
         
         // Get plivoCallUuid directly or from metadata
         const plivoCallUuid = callWithDetails.plivoCallUuid || (callWithDetails.metadata as any)?.plivoCallUuid;
@@ -260,7 +261,7 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
 
       // Handle SIP calls (ElevenLabs SIP + OpenAI SIP)
       if (callWithDetails.engine === 'elevenlabs-sip' || callWithDetails.engine === 'openai-sip') {
-        console.log(`🎙️ [Recording] Fetching SIP recording for call ${callWithDetails.id} (engine: ${callWithDetails.engine})`);
+        logger.info(`🎙️ [Recording] Fetching SIP recording for call ${callWithDetails.id} (engine: ${callWithDetails.engine})`);
         
         if (callWithDetails.recordingUrl) {
           let isTwilioHosted = false;
@@ -337,7 +338,7 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
   // Sync missing call recordings from Twilio AND ElevenLabs
   router.post("/api/calls/sync-recordings", authenticateHybrid, async (req: AuthRequest, res: Response) => {
     try {
-      console.log(`🎙️ [User ${req.userId}] Starting recording sync...`);
+      logger.info(`🎙️ [User ${req.userId}] Starting recording sync...`);
       
       const userCalls = await storage.getUserCallsWithDetails(req.userId!);
       
@@ -351,8 +352,8 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
           (call.status === 'completed' || call.status === 'answered' || call.status === 'ended')
       );
       
-      console.log(`📊 Found ${twilioCalls.length} Twilio calls without recordings for user ${req.userId}`);
-      console.log(`📊 Found ${elevenLabsCalls.length} ElevenLabs calls missing metadata for user ${req.userId}`);
+      logger.info(`📊 Found ${twilioCalls.length} Twilio calls without recordings for user ${req.userId}`);
+      logger.warn(`📊 Found ${elevenLabsCalls.length} ElevenLabs calls missing metadata for user ${req.userId}`);
       
       let successCount = 0;
       let failCount = 0;
@@ -365,7 +366,7 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
           
           for (const call of twilioCalls) {
             try {
-              console.log(`🔍 [Twilio] Fetching recordings for call ${call.id} (Twilio SID: ${call.twilioSid})`);
+              logger.info(`🔍 [Twilio] Fetching recordings for call ${call.id} (Twilio SID: ${call.twilioSid})`);
               
               const recordings = await twilioClient.recordings.list({
                 callSid: call.twilioSid!,
@@ -376,7 +377,7 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
                 const recording = recordings[0];
                 const recordingUrl = `https://api.twilio.com${recording.uri.replace('.json', '')}`;
                 
-                console.log(`✅ [Twilio] Found recording: ${recordingUrl}`);
+                logger.info(`✅ [Twilio] Found recording: ${recordingUrl}`);
                 
                 await db
                   .update(calls)
@@ -388,7 +389,7 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
                 
                 successCount++;
               } else {
-                console.log(`⚠️  [Twilio] No recording found for call ${call.id}`);
+                logger.warn(`⚠️  [Twilio] No recording found for call ${call.id}`);
                 failCount++;
                 errors.push(`[Twilio] No recording for call ${call.id}`);
               }
@@ -408,7 +409,7 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
       if (elevenLabsCalls.length > 0) {
         for (const call of elevenLabsCalls) {
           try {
-            console.log(`🔍 [ElevenLabs] Fetching conversation details for call ${call.id} (Conversation: ${call.elevenLabsConversationId})`);
+            logger.info(`🔍 [ElevenLabs] Fetching conversation details for call ${call.id} (Conversation: ${call.elevenLabsConversationId})`);
             
             let elService = elevenLabsService;
             
@@ -437,7 +438,7 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
               
               if (conversationDetails.transcript && !call.transcript) {
                 updates.transcript = conversationDetails.transcript;
-                console.log(`✅ [ElevenLabs] Found transcript`);
+                logger.info(`✅ [ElevenLabs] Found transcript`);
               }
               
               if (conversationDetails.metadata?.call_duration_secs && !call.duration) {
@@ -461,13 +462,13 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
                   .where(eq(calls.id, call.id));
                 
                 successCount++;
-                console.log(`✅ [ElevenLabs] Updated call ${call.id} with ${Object.keys(updates).length} field(s)`);
+                logger.info(`✅ [ElevenLabs] Updated call ${call.id} with ${Object.keys(updates).length} field(s)`);
               } else {
-                console.log(`⚠️  [ElevenLabs] No new data found for call ${call.id}`);
+                logger.warn(`⚠️  [ElevenLabs] No new data found for call ${call.id}`);
                 failCount++;
               }
             } else {
-              console.log(`⚠️  [ElevenLabs] No conversation details for call ${call.id}`);
+              logger.warn(`⚠️  [ElevenLabs] No conversation details for call ${call.id}`);
               failCount++;
               errors.push(`[ElevenLabs] No data for call ${call.id}`);
             }
@@ -487,12 +488,12 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
           (call.status === 'completed' || call.status === 'answered' || call.status === 'ended')
       );
       
-      console.log(`📊 Found ${sipElevenLabsCalls.length} SIP ElevenLabs calls missing metadata for user ${req.userId}`);
+      logger.warn(`📊 Found ${sipElevenLabsCalls.length} SIP ElevenLabs calls missing metadata for user ${req.userId}`);
       
       if (sipElevenLabsCalls.length > 0) {
         for (const call of sipElevenLabsCalls) {
           try {
-            console.log(`🔍 [SIP ElevenLabs] Fetching conversation details for call ${call.id} (Conversation: ${call.elevenlabsConversationId})`);
+            logger.info(`🔍 [SIP ElevenLabs] Fetching conversation details for call ${call.id} (Conversation: ${call.elevenlabsConversationId})`);
             
             let elService = elevenLabsService;
             
@@ -521,7 +522,7 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
                   `${entry.role.toUpperCase()} (${entry.time_in_call_secs}s): ${entry.message}`
                 ).join('\n');
                 updates.transcript = transcriptText;
-                console.log(`✅ [SIP ElevenLabs] Found transcript`);
+                logger.info(`✅ [SIP ElevenLabs] Found transcript`);
               }
               
               const callDuration = conversationDetails.call_duration_secs || conversationDetails.metadata?.call_duration_secs;
@@ -550,13 +551,13 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
                   .where(eq(sipCalls.id, call.id));
                 
                 successCount++;
-                console.log(`✅ [SIP ElevenLabs] Updated call ${call.id} with ${Object.keys(updates).length} field(s)`);
+                logger.info(`✅ [SIP ElevenLabs] Updated call ${call.id} with ${Object.keys(updates).length} field(s)`);
               } else {
-                console.log(`⚠️  [SIP ElevenLabs] No new data found for call ${call.id}`);
+                logger.warn(`⚠️  [SIP ElevenLabs] No new data found for call ${call.id}`);
                 failCount++;
               }
             } else {
-              console.log(`⚠️  [SIP ElevenLabs] No conversation details for call ${call.id}`);
+              logger.warn(`⚠️  [SIP ElevenLabs] No conversation details for call ${call.id}`);
               failCount++;
               errors.push(`[SIP ElevenLabs] No data for call ${call.id}`);
             }
@@ -578,7 +579,7 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
         errors: errors.length > 0 ? errors : undefined
       };
       
-      console.log(`✅ [User ${req.userId}] Recording sync complete:`, summary);
+      logger.info(`✅ [User ${req.userId}] Recording sync complete:`, summary);
       
       res.json(summary);
     } catch (error: any) {

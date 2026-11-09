@@ -11,6 +11,7 @@
  * ============================================================
  */
 
+import { logger } from '../../utils/logger';
 import type { CompiledFunctionTool, CompiledConversationState } from '@shared/schema';
 import { RAGKnowledgeService } from '../rag-knowledge';
 import { db } from '../../db';
@@ -50,7 +51,7 @@ async function markCallGoogleSheetsWarning(
         await db.execute(
           sql`UPDATE ${sql.identifier(table)} SET metadata = COALESCE(metadata, '{}'::jsonb) || ${JSON.stringify(warning)}::jsonb WHERE id = ${callId}`
         );
-        console.log(`[Sheets Warning] Wrote googleSheetsWarning to ${table} call ${callId}`);
+        logger.warn(`[Sheets Warning] Wrote googleSheetsWarning to ${table} call ${callId}`);
         return;
       }
     } catch (e: any) {
@@ -205,7 +206,7 @@ function substituteVariables(
  */
 function createEndCallHandler(): (params: Record<string, unknown>) => Promise<unknown> {
   return async (params: Record<string, unknown>) => {
-    console.log(`[End Call Tool] Ending call, reason: ${params.reason || 'conversation complete'}`);
+    logger.info(`[End Call Tool] Ending call, reason: ${params.reason || 'conversation complete'}`);
     return { 
       action: 'end_call',
       reason: params.reason as string || 'conversation complete'
@@ -219,7 +220,7 @@ function createEndCallHandler(): (params: Record<string, unknown>) => Promise<un
 function createTransferHandler(transferPhoneNumber?: string): (params: Record<string, unknown>) => Promise<unknown> {
   return async (params: Record<string, unknown>) => {
     const phoneNumber = (params.destination as string) || transferPhoneNumber || 'unknown';
-    console.log(`[Transfer Tool] Initiating transfer to ${phoneNumber}, reason: ${params.reason || 'none'}`);
+    logger.warn(`[Transfer Tool] Initiating transfer to [redacted], reason: ${params.reason || 'none'}`);
     return { 
       action: 'transfer',
       phoneNumber,
@@ -239,7 +240,7 @@ function createKnowledgeBaseHandler(
   return async (params: Record<string, unknown>) => {
     try {
       const query = params.query as string;
-      console.log(`[KB Tool] Searching: "${query?.substring(0, 50)}..."`);
+      logger.info(`[KB Tool] Searching: "${query?.substring(0, 50)}..."`);
 
       if (!knowledgeBaseIds || knowledgeBaseIds.length === 0) {
         return { found: false, message: 'No knowledge base configured.' };
@@ -257,7 +258,7 @@ function createKnowledgeBaseHandler(
       }
       
       const formattedResponse = RAGKnowledgeService.formatResultsForAgent(results, 400);
-      console.log(`[KB Tool] Found ${results.length} results`);
+      logger.info(`[KB Tool] Found ${results.length} results`);
       
       return { found: true, information: formattedResponse };
     } catch (error: any) {
@@ -279,7 +280,7 @@ function createAppointmentHandler(
 ): (params: Record<string, unknown>) => Promise<unknown> {
   return async (params: Record<string, unknown>) => {
     try {
-      console.log(`[Appointment Tool] Booking:`, JSON.stringify(params));
+      logger.info(`[Appointment Tool] Booking requested`);
       
       if (!params.contactName || !params.contactPhone || !params.appointmentDate || !params.appointmentTime) {
         return {
@@ -339,7 +340,7 @@ function createAppointmentHandler(
         
         if (!daySettings?.enabled) {
           const capitalizedDay = dayName.charAt(0).toUpperCase() + dayName.slice(1);
-          console.log(`[Appointment Tool] Rejected: ${dayName} is not available for appointments`);
+          logger.warn(`[Appointment Tool] Rejected: ${dayName} is not available for appointments`);
           return {
             success: false,
             message: `We're not available on ${capitalizedDay}s. Please choose a different day.`
@@ -361,14 +362,14 @@ function createAppointmentHandler(
           
           if (requestedMinutes < startMinutes || appointmentEndMinutes > endMinutes) {
             const capitalizedDay = dayName.charAt(0).toUpperCase() + dayName.slice(1);
-            console.log(`[Appointment Tool] Rejected: ${appointmentTime} is outside working hours`);
+            logger.warn(`[Appointment Tool] Rejected: ${appointmentTime} is outside working hours`);
             return {
               success: false,
               message: `${appointmentTime} is outside our available hours on ${capitalizedDay}. We're available from ${daySettings.start} to ${daySettings.end}.`
             };
           }
         } catch (e) {
-          console.log(`[Appointment Tool] Time validation error, allowing booking`);
+          logger.warn(`[Appointment Tool] Time validation error, allowing booking`);
         }
       }
       
@@ -386,7 +387,7 @@ function createAppointmentHandler(
           );
         
         if (duplicateFromCall.length > 0) {
-          console.log(`[Appointment Tool] Duplicate booking attempt from same call ${callId}`);
+          logger.info(`[Appointment Tool] Duplicate booking attempt from same call ${callId}`);
           return {
             success: true,
             appointmentId: duplicateFromCall[0].id,
@@ -411,7 +412,7 @@ function createAppointmentHandler(
         );
       
       if (duplicateByContact.length > 0) {
-        console.log(`[Appointment Tool] Duplicate booking attempt by same contact`);
+        logger.info(`[Appointment Tool] Duplicate booking attempt by same contact`);
         return {
           success: true,
           appointmentId: duplicateByContact[0].id,
@@ -435,7 +436,7 @@ function createAppointmentHandler(
           );
         
         if (existing.length > 0) {
-          console.log(`[Appointment Tool] Slot conflict at ${params.appointmentDate} ${params.appointmentTime}`);
+          logger.info(`[Appointment Tool] Slot conflict at ${params.appointmentDate} ${params.appointmentTime}`);
           return {
             success: false,
             message: `That time slot is already booked. Please choose a different time.`
@@ -464,7 +465,7 @@ function createAppointmentHandler(
           metadata: { source: 'hydrated-flow', agentId },
         });
       
-      console.log(`[Appointment Tool] Created appointment ${appointmentId}`);
+      logger.info(`[Appointment Tool] Created appointment ${appointmentId}`);
 
       if (googleSheetId) {
         // Declare sheetTab outside the try so catch can reference it for the structured warning
@@ -477,7 +478,7 @@ function createAppointmentHandler(
               const tabs = await listSheetTabs(userId, googleSheetId);
               sheetTab = tabs[0]?.title || 'Sheet1';
               if (tabs[0]?.title) {
-                console.log(`[Appointment Tool] Auto-detected sheet tab: "${sheetTab}"`);
+                logger.info(`[Appointment Tool] Auto-detected sheet tab: "${sheetTab}"`);
               }
             } catch {
               sheetTab = 'Sheet1';
@@ -495,7 +496,7 @@ function createAppointmentHandler(
           ];
           const apptAppended = await appendRowToSheet(userId, googleSheetId, sheetTab, row);
           if (apptAppended) {
-            console.log(`[Appointment Tool] Row pushed to Google Sheet ${googleSheetId}`);
+            logger.info(`[Appointment Tool] Row pushed to Google Sheet ${googleSheetId}`);
           } else {
             const errMsg = `appendRowToSheet returned false for sheet ${googleSheetId} tab "${sheetTab}"`;
             console.error(`[Appointment Tool] Google Sheet append FAILED — appointment saved locally but NOT in Google Sheets. ${errMsg}`);
@@ -536,7 +537,7 @@ function createFormSubmissionHandler(
 ): (params: Record<string, unknown>) => Promise<unknown> {
   return async (params: Record<string, unknown>) => {
     try {
-      console.log(`[Form Tool] Submitting to form ${formId}:`, JSON.stringify(params));
+      logger.info(`[Form Tool] Submitting to form ${formId}`);
       
       // Fetch form from database to get current field definitions
       const [form] = await db
@@ -638,7 +639,7 @@ function createFormSubmissionHandler(
           responses,
         });
       
-      console.log(`[Form Tool] Created submission ${submissionId} with ${responses.length} responses`);
+      logger.info(`[Form Tool] Created submission ${submissionId} with ${responses.length} responses`);
 
       if (googleSheetId) {
         // Declare sheetTab outside the try so catch can reference it for the structured warning
@@ -651,7 +652,7 @@ function createFormSubmissionHandler(
               const tabs = await listSheetTabs(userId, googleSheetId);
               sheetTab = tabs[0]?.title || 'Sheet1';
               if (tabs[0]?.title) {
-                console.log(`[Form Tool] Auto-detected sheet tab: "${sheetTab}"`);
+                logger.info(`[Form Tool] Auto-detected sheet tab: "${sheetTab}"`);
               }
             } catch {
               sheetTab = 'Sheet1';
@@ -663,7 +664,7 @@ function createFormSubmissionHandler(
           const row = [contactName, contactPhone, ...answerValues, String(callId || ""), new Date().toISOString()];
           const formAppended = await appendRowToSheet(userId, googleSheetId, sheetTab, row);
           if (formAppended) {
-            console.log(`[Form Tool] Row pushed to Google Sheet ${googleSheetId}`);
+            logger.info(`[Form Tool] Row pushed to Google Sheet ${googleSheetId}`);
           } else {
             const errMsg = `appendRowToSheet returned false for sheet ${googleSheetId} tab "${sheetTab}"`;
             console.error(`[Form Tool] Google Sheet append FAILED — form data saved locally but NOT in Google Sheets. ${errMsg}`);
@@ -702,7 +703,7 @@ function createMessagingEmailHandler(
       const recipientEmail = (params.recipient_email as string) || defaultRecipientEmail;
       const template = (params.template_name as string) || templateName || 'default';
 
-      console.log(`[Send Email Tool] Sending email: template="${template}" to="${recipientEmail}"`);
+      logger.info(`[Send Email Tool] Sending email: template="${template}" to="[redacted]"`);
 
       if (!recipientEmail) {
         return {
@@ -723,7 +724,7 @@ function createMessagingEmailHandler(
         { callId: callId || '', agentId }
       );
 
-      console.log(`[Send Email Tool] Result:`, result.success ? 'sent' : result.error);
+      logger.info(`[Send Email Tool] Result:`, result.success ? 'sent' : result.error);
       return {
         success: result.success,
         message: result.success
@@ -766,7 +767,7 @@ function createMessagingWhatsAppHandler(
             const row = (Array.isArray(rows) ? rows : (rows as any).rows || [])[0];
             if (row?.caller_number || row?.from_number) {
               phoneNumber = row.caller_number || row.from_number;
-              console.log(`[Send WhatsApp Tool] Resolved caller phone from ${table}: ${phoneNumber}`);
+              logger.info(`[Send WhatsApp Tool] Resolved caller phone from ${table}: [redacted]`);
               break;
             }
           }
@@ -775,7 +776,7 @@ function createMessagingWhatsAppHandler(
         }
       }
 
-      console.log(`[Send WhatsApp Tool] Sending WhatsApp: template="${template}" to="${phoneNumber}"`);
+      logger.info(`[Send WhatsApp Tool] Sending WhatsApp: template="${template}" to="[redacted]"`);
 
       if (!phoneNumber) {
         return {
@@ -841,7 +842,7 @@ function createMessagingWhatsAppHandler(
       });
 
       const data = await response.json();
-      console.log(`[Send WhatsApp Tool] Result:`, data.success ? 'sent' : data.error);
+      logger.info(`[Send WhatsApp Tool] Result:`, data.success ? 'sent' : data.error);
 
       return {
         success: data.success,
@@ -873,13 +874,13 @@ function createWebhookHandler(
       
       if (payloadTemplate && Object.keys(payloadTemplate).length > 0) {
         payload = substituteVariables(payloadTemplate, params);
-        console.log(`[Webhook Tool] Substituted payload:`, JSON.stringify(payload));
+        logger.info(`[Webhook Tool] Substituted payload prepared`);
       } else {
         payload = params;
-        console.log(`[Webhook Tool] Using params as payload:`, JSON.stringify(params));
+        logger.info(`[Webhook Tool] Using params as payload`);
       }
       
-      console.log(`[Webhook Tool] ${webhookMethod} ${webhookUrl}`);
+      logger.info(`[Webhook Tool] ${webhookMethod} ${webhookUrl}`);
       
       const fetchOptions: RequestInit = {
         method: webhookMethod,
@@ -904,7 +905,7 @@ function createWebhookHandler(
         data = await response.text();
       }
       
-      console.log(`[Webhook Tool] Response received`);
+      logger.info(`[Webhook Tool] Response received`);
       return { success: true, data };
     } catch (error: any) {
       console.error(`[Webhook Tool] Error:`, error.message);
@@ -984,7 +985,7 @@ export function hydrateCompiledTools(
           } else {
             console.warn(`[Hydrator] Webhook tool ${toolName} missing URL in metadata`);
             handler = async (params: Record<string, unknown>) => {
-              console.log(`[Generic Tool] ${toolName} called with:`, params);
+              logger.info(`[Generic Tool] ${toolName} called`);
               return { success: true, toolName, params };
             };
           }
@@ -1001,7 +1002,7 @@ export function hydrateCompiledTools(
             );
           } else {
             handler = async (params: Record<string, unknown>) => {
-              console.log(`[API Call Tool] ${toolName} called with:`, params);
+              logger.info(`[API Call Tool] ${toolName} called`);
               return { success: true, toolName, params };
             };
           }
@@ -1071,7 +1072,7 @@ export function hydrateCompiledTools(
           
           // Handler just returns acknowledgment - actual playback is handled by audio bridge
           handler = async (params: Record<string, unknown>) => {
-            console.log(`[Play Audio Tool] ${toolName} called, audioUrl: ${audioUrl}`);
+            logger.info(`[Play Audio Tool] ${toolName} called, audioUrl: ${audioUrl}`);
             return { 
               action: 'play_audio',
               audioUrl: audioUrl || '',
@@ -1085,7 +1086,7 @@ export function hydrateCompiledTools(
         // Generic handler for unknown tools
         else {
           handler = async (params: Record<string, unknown>) => {
-            console.log(`[Generic Tool] ${toolName} called with:`, params);
+            logger.info(`[Generic Tool] ${toolName} called`);
             return { success: true, toolName, params };
           };
         }
@@ -1143,7 +1144,7 @@ export function hydrateCompiledTools(
     tools.push(tool);
   }
   
-  console.log(`[Hydrator] Hydrated ${tools.length} tools from compiled data`);
+  logger.info(`[Hydrator] Hydrated ${tools.length} tools from compiled data`);
   return tools;
 }
 
@@ -1189,7 +1190,7 @@ You MUST speak ONLY in ${languageName}. From the very first word you say, speak 
     transferPhoneNumber,
   });
   
-  console.log(`[Hydrator] Created agent config: voice=${voice}, model=${model}, language=${language || 'en'}, tools=${tools.length}`);
+  logger.info(`[Hydrator] Created agent config: voice=${voice}, model=${model}, language=${language || 'en'}, tools=${tools.length}`);
   
   return {
     voice,

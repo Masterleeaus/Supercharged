@@ -8,6 +8,7 @@
  * Uses the Team Management adapter for optional plugin loading.
  */
 
+import { logger } from '../utils/logger';
 import type { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { companyIdFromClaims } from "./auth";
@@ -105,7 +106,7 @@ export async function authenticateHybrid(req: HybridAuthRequest, res: Response, 
           companyId: parentCompanyId
         };
 
-        console.log(`[HybridAuth] Team member ${teamMember.memberId} authenticated as user ${teamMember.userId}`);
+        logger.info(`[HybridAuth] Team member ${teamMember.memberId} authenticated as user ${teamMember.userId}`);
         return next();
       }
     } catch (teamError) {
@@ -135,7 +136,7 @@ export async function authenticateHybrid(req: HybridAuthRequest, res: Response, 
           role: 'admin'
         };
         
-        console.log(`[HybridAuth] Admin team member ${adminMember.memberId} authenticated`);
+        logger.info(`[HybridAuth] Admin team member ${adminMember.memberId} authenticated`);
         return next();
       }
     } catch (adminTeamError) {

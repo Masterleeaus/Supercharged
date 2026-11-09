@@ -11,6 +11,7 @@ import { emailService } from '../../../../services/email-service';
 import { generateInvoiceForTransaction } from '../../invoice-service';
 import { PaymentAuditService } from '../../audit';
 import { getPayPalCurrency, fetchPayPalSubscription } from './service';
+import { logger } from '../../../../utils/logger';
 
 export interface HandlerResult {
   success: boolean;
@@ -262,7 +263,7 @@ export async function handleCaptureCompleted(
   captureId: string,
   resource: any
 ): Promise<HandlerResult> {
-  console.log(`📥 [PayPal] Payment capture completed: ${captureId}`);
+  logger.info(`📥 [PayPal] Payment capture completed: ${captureId}`);
   return { success: true, action: 'capture_completed' };
 }
 
@@ -271,7 +272,7 @@ export async function handleCaptureRefunded(
   resource: any,
   eventId: string
 ): Promise<HandlerResult> {
-  console.log(`🔄 [PayPal] External refund received for capture: ${captureId}`);
+  logger.info(`🔄 [PayPal] External refund received for capture: ${captureId}`);
   
   const transaction = await storage.getPaymentTransactionByGatewayId('paypal', captureId);
   
@@ -292,7 +293,7 @@ export async function handleCaptureRefunded(
     creditsReversed = transaction.creditsAwarded;
     const newCredits = Math.max(0, user.credits - creditsReversed);
     await storage.updateUserCredits(userId, newCredits);
-    console.log(`🔄 [PayPal] Reversed ${creditsReversed} credits for user ${userId}`);
+    logger.info(`🔄 [PayPal] Reversed ${creditsReversed} credits for user ${userId}`);
   }
   
   const refundAmount = resource?.amount?.value || transaction.amount;
@@ -336,7 +337,7 @@ export async function handleDisputeCreated(
   disputeId: string,
   resource: any
 ): Promise<HandlerResult> {
-  console.log(`🚨 [PayPal] Dispute created: ${disputeId}`);
+  logger.info(`🚨 [PayPal] Dispute created: ${disputeId}`);
   
   const disputedTransaction = resource?.disputed_transactions?.[0];
   const captureId = disputedTransaction?.seller_transaction_id || disputedTransaction?.buyer_transaction_id;
@@ -359,7 +360,7 @@ export async function handleDisputeCreated(
     creditsReversed = transaction.creditsAwarded;
     const newCredits = Math.max(0, user.credits - creditsReversed);
     await storage.updateUserCredits(userId, newCredits);
-    console.log(`🔄 [PayPal] Reversed ${creditsReversed} credits for user ${userId}`);
+    logger.info(`🔄 [PayPal] Reversed ${creditsReversed} credits for user ${userId}`);
   }
   
   const disputeAmount = resource?.dispute_amount?.value || disputedTransaction?.gross_amount?.value || transaction.amount;
@@ -401,7 +402,7 @@ export async function handleDisputeCreated(
     console.error(`❌ [PayPal] Failed to send account suspended email:`, emailError);
   }
 
-  console.log(`⛔ [PayPal] User ${userId} suspended due to chargeback. Dispute ID: ${disputeId}, Reason: ${resource?.reason}`);
+  logger.info(`⛔ [PayPal] User ${userId} suspended due to chargeback. Dispute ID: ${disputeId}, Reason: ${resource?.reason}`);
 
   return { 
     success: true, 

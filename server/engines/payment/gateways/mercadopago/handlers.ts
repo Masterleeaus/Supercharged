@@ -11,6 +11,7 @@ import { emailService } from '../../../../services/email-service';
 import { generateInvoiceForTransaction } from '../../invoice-service';
 import { PaymentAuditService } from '../../audit';
 import { getMercadoPagoCurrency, fetchMercadoPagoPayment, fetchMercadoPagoSubscription } from './service';
+import { logger } from '../../../../utils/logger';
 
 export interface HandlerResult {
   success: boolean;
@@ -248,7 +249,7 @@ export async function handleRefundProcessed(
   paymentId: string | number,
   refundData: any
 ): Promise<HandlerResult> {
-  console.log(`🔄 [MercadoPago] Refund received for payment: ${paymentId}`);
+  logger.info(`🔄 [MercadoPago] Refund received for payment: ${paymentId}`);
   
   const transaction = await storage.getPaymentTransactionByGatewayId('mercadopago', paymentId.toString());
   
@@ -269,7 +270,7 @@ export async function handleRefundProcessed(
     creditsReversed = transaction.creditsAwarded;
     const newCredits = Math.max(0, user.credits - creditsReversed);
     await storage.updateUserCredits(userId, newCredits);
-    console.log(`🔄 [MercadoPago] Reversed ${creditsReversed} credits for user ${userId}`);
+    logger.info(`🔄 [MercadoPago] Reversed ${creditsReversed} credits for user ${userId}`);
   }
   
   const refundAmount = refundData?.amount || transaction.amount;
@@ -314,7 +315,7 @@ export async function handleDisputeCreated(
   paymentId: string | number,
   disputeReason: string
 ): Promise<HandlerResult> {
-  console.log(`🚨 [MercadoPago] Dispute created: ${disputeId} for payment: ${paymentId}`);
+  logger.info(`🚨 [MercadoPago] Dispute created: ${disputeId} for payment: ${paymentId}`);
   
   const transaction = await storage.getPaymentTransactionByGatewayId('mercadopago', paymentId.toString());
   
@@ -330,7 +331,7 @@ export async function handleDisputeCreated(
     creditsReversed = transaction.creditsAwarded;
     const newCredits = Math.max(0, user.credits - creditsReversed);
     await storage.updateUserCredits(userId, newCredits);
-    console.log(`🔄 [MercadoPago] Reversed ${creditsReversed} credits for user ${userId}`);
+    logger.info(`🔄 [MercadoPago] Reversed ${creditsReversed} credits for user ${userId}`);
   }
   
   await storage.createRefund({
@@ -369,7 +370,7 @@ export async function handleDisputeCreated(
     console.error(`❌ [MercadoPago] Failed to send account suspended email:`, emailError);
   }
 
-  console.log(`⛔ [MercadoPago] User ${userId} suspended due to chargeback. Dispute ID: ${disputeId}`);
+  logger.info(`⛔ [MercadoPago] User ${userId} suspended due to chargeback. Dispute ID: ${disputeId}`);
 
   return {
     success: true,

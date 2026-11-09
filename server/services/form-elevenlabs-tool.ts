@@ -46,14 +46,14 @@ export function getFormWebhookSecret(): string {
           .createHmac('sha256', baseKey)
           .update('agentlabs:form-webhook-secret:v1')
           .digest('hex');
-        console.log(`📋 [Form Tool] Derived stable webhook secret from server key`);
+        logger.info(`📋 [Form Tool] Derived stable webhook secret from server key`);
       } else {
         // Final fallback: persist to a file so it survives restarts within the same deployment
         const secretPath = path.join(process.cwd(), '.form-webhook-secret');
         try {
           if (fs.existsSync(secretPath)) {
             formWebhookSecret = fs.readFileSync(secretPath, 'utf-8').trim();
-            console.log(`📋 [Form Tool] Loaded persisted webhook secret from file`);
+            logger.info(`📋 [Form Tool] Loaded persisted webhook secret from file`);
           }
         } catch (err: any) {
           logger.warn('Could not read persisted form webhook secret; a new one is generated', { code: err?.code }, 'FormTool');
@@ -66,7 +66,7 @@ export function getFormWebhookSecret(): string {
           } catch (err: any) {
             logger.error('Could not persist form webhook secret to file; it will change on restart', { code: err?.code }, 'FormTool');
           }
-          console.log(`📋 [Form Tool] Generated and persisted new webhook secret`);
+          logger.info(`📋 [Form Tool] Generated and persisted new webhook secret`);
         }
       }
     }
@@ -259,11 +259,11 @@ export function getSubmitFormWebhookTool(
     ? `submit_form_${nodeId.replace(/[^a-zA-Z0-9]/g, '_')}`
     : `submit_form_${formId.replace(/-/g, '_')}`;
   
-  console.log(`📋 [Form Tool] Creating webhook tool config for form ${formId}`);
-  console.log(`   Tool name: ${toolName}`);
-  console.log(`   Form: ${formName} (${fields.length} fields)`);
-  console.log(`   Node ID: ${nodeId || 'not provided'}`);
-  console.log(`   Webhook URL: ${webhookUrl.replace(secret, '[TOKEN]')}`);
+  logger.info(`📋 [Form Tool] Creating webhook tool config for form ${formId}`);
+  logger.info(`   Tool name: ${toolName}`);
+  logger.info(`   Form: ${formName} (${fields.length} fields)`);
+  logger.info(`   Node ID: ${nodeId || 'not provided'}`);
+  logger.info(`   Webhook URL: ${webhookUrl.replace(secret, '[TOKEN]')}`);
   
   const fieldDescriptions = fields
     .sort((a, b) => a.order - b.order)

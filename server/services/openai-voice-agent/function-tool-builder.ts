@@ -8,6 +8,7 @@
  * ============================================================
  */
 
+import { logger } from '../../utils/logger';
 import type {
   FlowNode,
   OpenAIFunctionTool,
@@ -63,7 +64,7 @@ export class FunctionToolBuilder {
       }
     }
     
-    console.log(`[FunctionToolBuilder] Built ${tools.length} tools from ${nodes.length} nodes`);
+    logger.info(`[FunctionToolBuilder] Built ${tools.length} tools from ${nodes.length} nodes`);
     
     return tools;
   }
@@ -297,7 +298,7 @@ export class FunctionToolBuilder {
         return null;
       
       default:
-        console.log(`[FunctionToolBuilder] Unknown node type '${nodeType}' for node ${node.id} - skipping tool creation`);
+        logger.warn(`[FunctionToolBuilder] Unknown node type '${nodeType}' for node ${node.id} - skipping tool creation`);
         return null;
     }
   }
@@ -480,7 +481,7 @@ export class FunctionToolBuilder {
         description: 'The phone number of the person.',
       };
       required.push('fullName', 'email', 'phone');
-      console.log(`[FunctionToolBuilder] Form node ${node.id} has no fields - using default contact fields`);
+      logger.warn(`[FunctionToolBuilder] Form node ${node.id} has no fields - using default contact fields`);
     } else {
       for (const field of fields) {
         properties[field.name || field.id] = {

@@ -9,6 +9,7 @@ import crypto from 'crypto';
 import { storage } from '../../../../storage';
 import { PaymentError } from '../../../../utils/errors';
 import { GLOBAL_SETTINGS_KEYS, getCurrencySymbol } from '../../types';
+import { logger } from '../../../../utils/logger';
 
 async function getSetting(key: string): Promise<any> {
   const setting = await storage.getGlobalSetting(key);
@@ -217,10 +218,10 @@ export async function processYookassaRefund(
     );
 
     if (response.data && response.data.status === 'succeeded') {
-      console.log(`✅ [YooKassa] Created refund ${response.data.id} for payment ${gatewayTransactionId}`);
+      logger.info(`✅ [YooKassa] Created refund ${response.data.id} for payment ${gatewayTransactionId}`);
       return { success: true, gatewayRefundId: response.data.id };
     } else if (response.data && response.data.status === 'pending') {
-      console.log(`⏳ [YooKassa] Refund ${response.data.id} is pending for payment ${gatewayTransactionId}`);
+      logger.info(`⏳ [YooKassa] Refund ${response.data.id} is pending for payment ${gatewayTransactionId}`);
       return { success: true, gatewayRefundId: response.data.id };
     }
 

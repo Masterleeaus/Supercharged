@@ -16,6 +16,7 @@
  * ============================================================
  */
 
+import { logger } from '../utils/logger';
 import { Request, Response, NextFunction } from "express";
 import crypto from "crypto";
 import { WebhookValidationError } from "../utils/errors";
@@ -149,7 +150,7 @@ export async function validateRazorpayWebhook(
       throw new WebhookValidationError("razorpay", "Invalid webhook signature");
     }
 
-    console.log("[Razorpay Webhook] Signature verified successfully");
+    logger.info("[Razorpay Webhook] Signature verified successfully");
     next();
   } catch (error) {
     if (error instanceof WebhookValidationError) {
@@ -239,7 +240,7 @@ export async function validateTwilioWebhook(
     
     const url = `${protocol}://${host}${req.originalUrl}`;
     
-    console.log(`[Twilio Webhook] Validating signature for URL: ${url}`);
+    logger.info(`[Twilio Webhook] Validating signature for URL: ${url}`);
     
     const isValid = validateRequest(
       authToken,
@@ -253,7 +254,7 @@ export async function validateTwilioWebhook(
       throw new WebhookValidationError("twilio", "Invalid Twilio webhook signature");
     }
 
-    console.log("[Twilio Webhook] Signature verified successfully");
+    logger.info("[Twilio Webhook] Signature verified successfully");
     next();
   } catch (error) {
     if (error instanceof WebhookValidationError) {
@@ -309,7 +310,7 @@ export function createHmacWebhookValidator(config: {
         throw new WebhookValidationError(config.provider, "Invalid webhook signature");
       }
 
-      console.log(`[${config.provider} Webhook] Signature verified successfully`);
+      logger.info(`[${config.provider} Webhook] Signature verified successfully`);
       next();
     } catch (error) {
       if (error instanceof WebhookValidationError) {
@@ -330,7 +331,7 @@ export function createHmacWebhookValidator(config: {
  */
 export function logWebhookRequest(provider: string) {
   return (req: Request, _res: Response, next: NextFunction): void => {
-    console.log(`[${provider} Webhook] Received request:`, {
+    logger.info(`[${provider} Webhook] Received request:`, {
       method: req.method,
       path: req.path,
       headers: {

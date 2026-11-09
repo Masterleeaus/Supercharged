@@ -21,6 +21,7 @@ import { plivoCredentials, plivoPhonePricing, openaiCredentials } from '@shared/
 import { eq, desc, and, inArray } from 'drizzle-orm';
 import { getDomain } from '../../../utils/domain';
 import { checkAdminOrTeamMember, requireAdminPermission, AdminRequest } from '../../../middleware/admin-auth';
+import { logger } from '../../../utils/logger';
 
 interface AuthRequest extends Request {
   userId?: string;
@@ -1021,7 +1022,7 @@ export function createPlivoApiRoutes(): Router {
         })
         .where(eq(plivoPhoneNumbers.id, phoneNumberId));
 
-      console.log(`[Plivo API] Assigned agent ${agentId} to phone number ${phoneNumber.phoneNumber}`);
+      logger.info(`[Plivo API] Assigned agent ${agentId} to phone number`);
 
       // Configure Plivo webhooks to route incoming calls to our endpoint
       try {
@@ -1032,7 +1033,7 @@ export function createPlivoApiRoutes(): Router {
           : `https://${domain}`;
         
         await PlivoPhoneService.configureWebhooks(phoneNumberId, baseUrl);
-        console.log(`[Plivo API] Webhooks configured for incoming calls on ${phoneNumber.phoneNumber}`);
+        logger.info(`[Plivo API] Webhooks configured for incoming calls`);
       } catch (webhookError: any) {
         console.error(`[Plivo API] Failed to configure webhooks:`, webhookError.message);
         // Continue anyway - agent is assigned, but webhooks may need manual config
@@ -1084,7 +1085,7 @@ export function createPlivoApiRoutes(): Router {
       // Clear webhooks from Plivo
       try {
         await PlivoPhoneService.clearWebhooks(phoneNumberId);
-        console.log(`[Plivo API] Webhooks cleared for ${phoneNumber.phoneNumber}`);
+        logger.info(`[Plivo API] Webhooks cleared`);
       } catch (webhookError: any) {
         console.error(`[Plivo API] Failed to clear webhooks:`, webhookError.message);
         // Continue anyway - agent will still be unassigned
@@ -1099,7 +1100,7 @@ export function createPlivoApiRoutes(): Router {
         })
         .where(eq(plivoPhoneNumbers.id, phoneNumberId));
 
-      console.log(`[Plivo API] Unassigned agent from phone number ${phoneNumber.phoneNumber}`);
+      logger.info(`[Plivo API] Unassigned agent from phone number`);
 
       res.json({
         success: true,

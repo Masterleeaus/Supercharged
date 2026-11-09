@@ -1,3 +1,4 @@
+import { logger } from './logger';
 import fs from 'fs';
 import path from 'path';
 
@@ -17,7 +18,7 @@ export function initializeDirectories(): void {
     const fullPath = path.resolve(process.cwd(), dir);
     if (!fs.existsSync(fullPath)) {
       fs.mkdirSync(fullPath, { recursive: true });
-      console.log(`[init] Created directory: ${dir}`);
+      logger.info(`[init] Created directory: ${dir}`);
     }
   }
 }

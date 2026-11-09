@@ -16,6 +16,7 @@
  * ============================================================
  */
 
+import { logger } from './logger';
 import { ExternalServiceError, AppError } from "./errors";
 
 export type ServiceName = "ElevenLabs" | "Twilio" | "Stripe" | "Razorpay" | "OpenAI" | "SMTP";
@@ -78,7 +79,7 @@ export async function withServiceErrorHandling<T>(
     }
     
     if (options?.fallback !== undefined) {
-      console.log(`⚠️ [${service}] Using fallback for ${operation}`);
+      logger.warn(`⚠️ [${service}] Using fallback for ${operation}`);
       return options.fallback;
     }
     

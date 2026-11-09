@@ -36,6 +36,7 @@ import {
   CampaignPhoneMigrationResult,
   PhoneMigrationStatus 
 } from './types';
+import { logger } from '../../utils/logger';
 
 /**
  * Phone Number Migrator
@@ -126,7 +127,7 @@ export class PhoneMigrator {
     targetCredentialId: string,
     targetAgentElevenLabsId?: string
   ): Promise<PhoneMigrationResult> {
-    console.log(`📞 [Phone Migrator] Starting migration for phone ${phoneNumberDbId} to credential ${targetCredentialId}`);
+    logger.info(`📞 [Phone Migrator] Starting migration for phone ${phoneNumberDbId} to credential ${targetCredentialId}`);
     
     const lockAcquired = await this.lockPhone(phoneNumberDbId);
     if (!lockAcquired) {
@@ -167,7 +168,7 @@ export class PhoneMigrator {
     const oldElevenLabsPhoneId = phoneRecord.elevenLabsPhoneNumberId;
     
     if (oldCredentialId === targetCredentialId) {
-      console.log(`   ℹ️  Phone ${phoneRecord.phoneNumber} already on target credential - no migration needed`);
+      logger.warn(`   ℹ️  Phone already on target credential - no migration needed`);
       await this.unlockPhone(phoneNumberDbId);
       return {
         success: true,
@@ -225,20 +226,20 @@ export class PhoneMigrator {
         
         if (oldCredential) {
           try {
-            console.log(`   🔍 Verifying phone exists in old ElevenLabs account (${oldCredential.name})`);
+            logger.info(`   🔍 Verifying phone exists in old ElevenLabs account (${oldCredential.name})`);
             const oldElevenLabsService = new ElevenLabsService(oldCredential.apiKey);
             
             try {
               const existingPhone = await oldElevenLabsService.getPhoneNumber(oldElevenLabsPhoneId);
               if (existingPhone && existingPhone.phone_number === phoneRecord.phoneNumber) {
-                console.log(`   🗑️  Deleting phone from old ElevenLabs account`);
+                logger.info(`   🗑️  Deleting phone from old ElevenLabs account`);
                 await oldElevenLabsService.deletePhoneNumber(oldElevenLabsPhoneId);
-                console.log(`   ✅ Deleted from old account`);
+                logger.info(`   ✅ Deleted from old account`);
               } else {
                 console.warn(`   ⚠️  Phone number mismatch - skipping delete from old account`);
               }
             } catch (getError: any) {
-              console.log(`   ℹ️  Phone not found in old account (may already be deleted)`);
+              logger.warn(`   ℹ️  Phone not found in old account (may already be deleted)`);
             }
           } catch (deleteError: any) {
             console.warn(`   ⚠️  Could not delete from old account: ${deleteError.message}`);
@@ -247,7 +248,7 @@ export class PhoneMigrator {
       }
       
       // Step 2: Import to new ElevenLabs account using Twilio credentials
-      console.log(`   📥 Importing phone to new ElevenLabs account (${targetCredential.name})`);
+      logger.info(`   📥 Importing phone to new ElevenLabs account (${targetCredential.name})`);
       
       const twilioAccountSid = await getTwilioAccountSid();
       const twilioAuthToken = await getTwilioAuthToken();
@@ -262,19 +263,19 @@ export class PhoneMigrator {
       });
       
       const newElevenLabsPhoneId = importResult.phone_number_id;
-      console.log(`   ✅ Imported to new account: ${newElevenLabsPhoneId}`);
+      logger.info(`   ✅ Imported to new account: ${newElevenLabsPhoneId}`);
       
       // Step 3: Reconfigure Twilio webhook
       if (phoneRecord.twilioSid) {
         try {
-          console.log(`   🔗 Reconfiguring Twilio webhook for phone`);
+          logger.info(`   🔗 Reconfiguring Twilio webhook for phone`);
           const { TwilioService } = await import('../../services/twilio');
           const twilioService = new TwilioService();
           await twilioService.configurePhoneWebhookForElevenLabs(
             phoneRecord.twilioSid,
             phoneRecord.phoneNumber
           );
-          console.log(`   ✅ Twilio webhook reconfigured`);
+          logger.info(`   ✅ Twilio webhook reconfigured`);
         } catch (webhookError: any) {
           console.warn(`   ⚠️  Could not reconfigure Twilio webhook: ${webhookError.message}`);
         }
@@ -282,13 +283,13 @@ export class PhoneMigrator {
       
       // Step 4: Assign agent if provided
       if (targetAgentElevenLabsId) {
-        console.log(`   🔗 Assigning agent ${targetAgentElevenLabsId} to phone`);
+        logger.info(`   🔗 Assigning agent ${targetAgentElevenLabsId} to phone`);
         await newElevenLabsService.assignAgentToPhoneNumber(
           newElevenLabsPhoneId,
           targetAgentElevenLabsId,
           true
         );
-        console.log(`   ✅ Agent assigned to phone`);
+        logger.info(`   ✅ Agent assigned to phone`);
       }
       
       // Step 5: Update database
@@ -300,8 +301,8 @@ export class PhoneMigrator {
         })
         .where(eq(phoneNumbers.id, phoneNumberDbId));
       
-      console.log(`   ✅ Database updated`);
-      console.log(`📞 [Phone Migrator] Successfully migrated ${phoneRecord.phoneNumber}`);
+      logger.info(`   ✅ Database updated`);
+      logger.info(`📞 [Phone Migrator] Successfully migrated phone`);
       
       return {
         success: true,
@@ -375,7 +376,7 @@ export class PhoneMigrator {
       }
     }
     
-    console.log(`📞 [Phone Migrator] Verifying phone ${phoneNumberDbId} exists on ElevenLabs credential ${credentialId}`);
+    logger.info(`📞 [Phone Migrator] Verifying phone ${phoneNumberDbId} exists on ElevenLabs credential ${credentialId}`);
     
     // Get phone record from database
     const [phoneRecord] = await db
@@ -426,11 +427,11 @@ export class PhoneMigrator {
     // If phone has an ElevenLabs ID, verify it exists
     if (phoneRecord.elevenLabsPhoneNumberId) {
       try {
-        console.log(`   🔍 Checking if phone ${phoneRecord.elevenLabsPhoneNumberId} exists on ElevenLabs...`);
+        logger.info(`   🔍 Checking if phone ${phoneRecord.elevenLabsPhoneNumberId} exists on ElevenLabs...`);
         const existingPhone = await elevenLabsService.getPhoneNumber(phoneRecord.elevenLabsPhoneNumberId);
         
         if (existingPhone && existingPhone.phone_number === phoneRecord.phoneNumber) {
-          console.log(`   ✅ Phone exists on ElevenLabs: ${existingPhone.phone_number_id}`);
+          logger.info(`   ✅ Phone exists on ElevenLabs: ${existingPhone.phone_number_id}`);
           await this.unlockPhoneVerification(phoneNumberDbId);
           return {
             success: true,
@@ -438,12 +439,12 @@ export class PhoneMigrator {
             wasReimported: false
           };
         } else {
-          console.log(`   ⚠️ Phone number mismatch - will re-import`);
+          logger.info(`   ⚠️ Phone number mismatch - will re-import`);
         }
       } catch (error: any) {
         // 404 means phone doesn't exist - need to re-import
         if (error.message?.includes('404') || error.message?.includes('not found') || error.message?.includes('Phone number') || error.status === 404) {
-          console.log(`   ⚠️ Phone not found on ElevenLabs (404) - will re-import from Twilio`);
+          logger.warn(`   ⚠️ Phone not found on ElevenLabs (404) - will re-import from Twilio`);
         } else {
           console.error(`   ❌ Error checking phone: ${error.message}`);
           await this.unlockPhoneVerification(phoneNumberDbId);
@@ -456,11 +457,11 @@ export class PhoneMigrator {
         }
       }
     } else {
-      console.log(`   ℹ️ Phone has no ElevenLabs ID - will import from Twilio`);
+      logger.info(`   ℹ️ Phone has no ElevenLabs ID - will import from Twilio`);
     }
     
     // Phone doesn't exist on ElevenLabs - re-import from Twilio
-    console.log(`   📥 Re-importing phone ${phoneRecord.phoneNumber} from Twilio to ElevenLabs...`);
+    logger.info(`   📥 Re-importing phone from Twilio to ElevenLabs...`);
     
     try {
       const twilioAccountSid = await getTwilioAccountSid();
@@ -475,19 +476,19 @@ export class PhoneMigrator {
       });
       
       const newElevenLabsPhoneId = importResult.phone_number_id;
-      console.log(`   ✅ Phone re-imported: ${newElevenLabsPhoneId}`);
+      logger.info(`   ✅ Phone re-imported: ${newElevenLabsPhoneId}`);
       
       // Reconfigure Twilio webhook
       if (phoneRecord.twilioSid) {
         try {
-          console.log(`   🔗 Reconfiguring Twilio webhook...`);
+          logger.info(`   🔗 Reconfiguring Twilio webhook...`);
           const { TwilioService } = await import('../../services/twilio');
           const twilioService = new TwilioService();
           await twilioService.configurePhoneWebhookForElevenLabs(
             phoneRecord.twilioSid,
             phoneRecord.phoneNumber
           );
-          console.log(`   ✅ Twilio webhook reconfigured`);
+          logger.info(`   ✅ Twilio webhook reconfigured`);
         } catch (webhookError: any) {
           console.warn(`   ⚠️ Could not reconfigure Twilio webhook: ${webhookError.message}`);
         }
@@ -496,13 +497,13 @@ export class PhoneMigrator {
       // Assign agent to phone if provided (for outbound call routing)
       if (agentElevenLabsId) {
         try {
-          console.log(`   🔗 Assigning agent ${agentElevenLabsId} to phone...`);
+          logger.info(`   🔗 Assigning agent ${agentElevenLabsId} to phone...`);
           await elevenLabsService.assignAgentToPhoneNumber(
             newElevenLabsPhoneId,
             agentElevenLabsId,
             false // for outbound, not inbound
           );
-          console.log(`   ✅ Agent assigned to phone`);
+          logger.info(`   ✅ Agent assigned to phone`);
         } catch (assignError: any) {
           console.warn(`   ⚠️ Could not assign agent to phone: ${assignError.message}`);
           // Don't fail the whole operation - phone is still usable
@@ -518,8 +519,8 @@ export class PhoneMigrator {
         })
         .where(eq(phoneNumbers.id, phoneNumberDbId));
       
-      console.log(`   ✅ Database updated with new ElevenLabs phone ID`);
-      console.log(`📞 [Phone Migrator] Phone ${phoneRecord.phoneNumber} re-imported successfully`);
+      logger.info(`   ✅ Database updated with new ElevenLabs phone ID`);
+      logger.info(`📞 [Phone Migrator] Phone re-imported successfully`);
       
       await this.unlockPhoneVerification(phoneNumberDbId);
       return {
@@ -544,7 +545,7 @@ export class PhoneMigrator {
    * Migrate all phone numbers connected to an agent (for incoming calls)
    */
   static async migrateAgentPhoneNumbers(agentDbId: string): Promise<AgentPhoneMigrationResult> {
-    console.log(`📞 [Phone Migrator] Migrating phone numbers for agent ${agentDbId}`);
+    logger.info(`📞 [Phone Migrator] Migrating phone numbers for agent ${agentDbId}`);
     
     const [agent] = await db
       .select()
@@ -586,7 +587,7 @@ export class PhoneMigrator {
       .where(eq(incomingConnections.agentId, agentDbId));
     
     const phoneIds = connections.map(c => c.phoneNumberId);
-    console.log(`   📱 Found ${phoneIds.length} phone(s) connected to agent ${agent.name}`);
+    logger.info(`   📱 Found ${phoneIds.length} phone(s) connected to agent ${agent.name}`);
     
     const results: PhoneMigrationResult[] = [];
     
@@ -602,7 +603,7 @@ export class PhoneMigrator {
     const successful = results.filter(r => r.success).length;
     const failed = results.filter(r => !r.success).length;
     
-    console.log(`📞 [Phone Migrator] Agent migration complete: ${successful}/${results.length} successful`);
+    logger.info(`📞 [Phone Migrator] Agent migration complete: ${successful}/${results.length} successful`);
     
     return {
       agentId: agentDbId,
@@ -626,7 +627,7 @@ export class PhoneMigrator {
     agentId: string,
     phoneNumberIds: string[]
   ): Promise<CampaignPhoneMigrationResult> {
-    console.log(`📞 [Phone Migrator] Migrating phones for campaign ${campaignId}`);
+    logger.info(`📞 [Phone Migrator] Migrating phones for campaign ${campaignId}`);
     
     const [agent] = await db
       .select()
@@ -665,7 +666,7 @@ export class PhoneMigrator {
       };
     }
     
-    console.log(`   📱 Checking ${phoneNumberIds.length} phone(s) for campaign`);
+    logger.info(`   📱 Checking ${phoneNumberIds.length} phone(s) for campaign`);
     
     const results: PhoneMigrationResult[] = [];
     
@@ -681,7 +682,7 @@ export class PhoneMigrator {
     const failed = results.filter(r => !r.success).length;
     const allReady = failed === 0;
     
-    console.log(`📞 [Phone Migrator] Campaign migration complete: ${successful}/${results.length} successful`);
+    logger.info(`📞 [Phone Migrator] Campaign migration complete: ${successful}/${results.length} successful`);
     
     return {
       campaignId,
@@ -888,12 +889,12 @@ export class PhoneMigrator {
     
     // Lock acquired - ALL code paths after this point must release the lock
     try {
-      console.log(`📞 [Phone Migrator] Starting system-wide migration check...`);
+      logger.info(`📞 [Phone Migrator] Starting system-wide migration check...`);
       
       const status = await this.getSystemMigrationStatus();
       const needsMigration = status.filter(s => s.needsMigration);
       
-      console.log(`   📱 Found ${needsMigration.length}/${status.length} phones needing migration`);
+      logger.info(`   📱 Found ${needsMigration.length}/${status.length} phones needing migration`);
       
       const results: PhoneMigrationResult[] = [];
       
@@ -917,7 +918,7 @@ export class PhoneMigrator {
       const successful = results.filter(r => r.success).length;
       const failed = results.filter(r => !r.success).length;
       
-      console.log(`📞 [Phone Migrator] System-wide migration complete: ${successful}/${results.length} successful`);
+      logger.info(`📞 [Phone Migrator] System-wide migration complete: ${successful}/${results.length} successful`);
       
       return {
         totalChecked: status.length,

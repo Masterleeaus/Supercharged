@@ -10,6 +10,7 @@ import { syncUserWithSubscription, applyPlanCredits } from '../../../../services
 import { emailService } from '../../../../services/email-service';
 import { generateInvoiceForTransaction } from '../../invoice-service';
 import { PaymentAuditService } from '../../audit';
+import { logger } from '../../../../utils/logger';
 
 export interface HandlerResult {
   success: boolean;
@@ -138,7 +139,7 @@ async function handleSubscriptionPayment(
   const existingSub = await storage.getUserSubscription(userId);
 
   if (existingSub) {
-    console.log(`[YooKassa] Updating existing subscription ${existingSub.id} for user ${userId}`);
+    logger.info(`[YooKassa] Updating existing subscription ${existingSub.id} for user ${userId}`);
     await storage.updateUserSubscription(existingSub.id, {
       planId,
       status: 'active',

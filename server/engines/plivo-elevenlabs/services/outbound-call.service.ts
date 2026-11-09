@@ -14,6 +14,7 @@ import { ElevenLabsBridgeService, CreateBridgeSessionParams } from './elevenlabs
 import { getSipWebhookUrl } from '../config/config';
 import { db } from '../../../db';
 import { plivoCalls, type InsertPlivoCall } from '@shared/schema';
+import { logger } from '../../../utils/logger';
 
 export interface OutboundCallParams {
   toNumber: string;
@@ -68,7 +69,7 @@ export class PlivoElevenLabsOutboundService {
     
     const callUuid = `plivo-el-${Date.now()}-${randomBytes(6).toString('hex')}`;
     
-    console.log(`[Plivo-ElevenLabs Outbound] Initiating call ${callUuid} to ${toNumber}`);
+    logger.info(`[Plivo-ElevenLabs Outbound] Initiating call ${callUuid}`);
     
     // Insert the call record FIRST (before dialing Plivo). This avoids a race
     // where Plivo's terminal status webhook arrives before our INSERT commits.
@@ -110,7 +111,7 @@ export class PlivoElevenLabsOutboundService {
       };
       
       await ElevenLabsBridgeService.createSession(sessionParams);
-      console.log(`[Plivo-ElevenLabs Outbound] Bridge session created for ${callUuid}`);
+      logger.info(`[Plivo-ElevenLabs Outbound] Bridge session created for ${callUuid}`);
       
       const answerUrl = getSipWebhookUrl(`/voice/${callUuid}`);
       const statusUrl = getSipWebhookUrl('/voice/status');
@@ -130,7 +131,7 @@ export class PlivoElevenLabsOutboundService {
         }
       );
 
-      console.log(`[Plivo-ElevenLabs Outbound] Plivo call initiated: ${response.requestUuid}`);
+      logger.info(`[Plivo-ElevenLabs Outbound] Plivo call initiated: ${response.requestUuid}`);
 
       return {
         success: true,

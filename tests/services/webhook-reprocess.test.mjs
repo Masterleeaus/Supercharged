@@ -92,6 +92,9 @@ export async function resolve(specifier, context, nextResolve) {
   if (m) {
     return { url: DATA(stubModule(HANDLER_NAMES[m[1]])), shortCircuit: true };
   }
+  if (/(^|\\/)utils\\/logger$/.test(specifier)) {
+    return { url: DATA('export const logger = { debug() {}, info() {}, warn() {}, error() {} };'), shortCircuit: true };
+  }
   return nextResolve(specifier, context);
 }
 `;

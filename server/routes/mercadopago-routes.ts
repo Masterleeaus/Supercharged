@@ -40,6 +40,7 @@ import { emailService } from '../services/email-service';
 import { generateInvoiceForTransaction } from '../services/invoice-service';
 import { FRONTEND_URL } from '../engines/payment/webhook-helper';
 import { applyRefund } from '../services/credit-service';
+import { logger } from '../utils/logger';
 
 const router: Router = express.Router();
 
@@ -194,13 +195,13 @@ router.post('/verify-payment', authenticateToken, async (req: AuthRequest, res: 
             status: 'completed',
             completedAt: new Date(),
           });
-          console.log(`✅ [MercadoPago] Logged credits transaction for user ${userId}`);
+          logger.info(`✅ [MercadoPago] Logged credits transaction for user ${userId}`);
           
           // Generate invoice and send purchase confirmation email
           try {
             await generateInvoiceForTransaction(creditTransaction.id);
             await emailService.sendPurchaseConfirmation(creditTransaction.id);
-            console.log(`✅ [MercadoPago] Credits purchase confirmation email sent for transaction ${creditTransaction.id}`);
+            logger.info(`✅ [MercadoPago] Credits purchase confirmation email sent for transaction ${creditTransaction.id}`);
           } catch (emailError: any) {
             console.error(`❌ [MercadoPago] Failed to send credits purchase confirmation email:`, emailError);
           }
@@ -369,13 +370,13 @@ router.post('/confirm-subscription', authenticateToken, async (req: AuthRequest,
         status: 'completed',
         completedAt: new Date(),
       });
-      console.log(`✅ [MercadoPago] Logged subscription transaction for user ${userId}`);
+      logger.info(`✅ [MercadoPago] Logged subscription transaction for user ${userId}`);
       
       // Generate invoice and send purchase confirmation email
       try {
         await generateInvoiceForTransaction(newTransaction.id);
         await emailService.sendPurchaseConfirmation(newTransaction.id);
-        console.log(`✅ [MercadoPago] Purchase confirmation email sent for transaction ${newTransaction.id}`);
+        logger.info(`✅ [MercadoPago] Purchase confirmation email sent for transaction ${newTransaction.id}`);
       } catch (emailError: any) {
         console.error(`❌ [MercadoPago] Failed to send purchase confirmation email:`, emailError);
       }
@@ -452,7 +453,7 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
       return res.status(400).json({ error: 'Invalid webhook payload' });
     }
 
-    console.log(`📥 [MercadoPago] Webhook received: ${event.type}`);
+    logger.info(`📥 [MercadoPago] Webhook received: ${event.type}`);
 
     switch (event.type) {
       case 'payment':
@@ -476,7 +477,7 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
                     try {
                       await storage.addCreditsAtomic(metadata.userId, metadata.credits, `Purchased ${pkg.name} via MercadoPago`, `mercadopago_${paymentId}`);
                       import('../services/sip-credit-guard').then(({ reconnectAfterRecharge }) => reconnectAfterRecharge(metadata.userId)).catch(() => {});
-                      console.log(`✅ [MercadoPago] Added ${metadata.credits} credits to user ${metadata.userId}`);
+                      logger.info(`✅ [MercadoPago] Added ${metadata.credits} credits to user ${metadata.userId}`);
 
                       // Log payment transaction for credits
                       const currencyConfig = await getMercadoPagoCurrency();
@@ -495,13 +496,13 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
                           status: 'completed',
                           completedAt: new Date(),
                         });
-                        console.log(`✅ [MercadoPago Webhook] Logged credits transaction for user ${metadata.userId}`);
+                        logger.info(`✅ [MercadoPago Webhook] Logged credits transaction for user ${metadata.userId}`);
                         
                         // Generate invoice and send purchase confirmation email
                         try {
                           await generateInvoiceForTransaction(webhookCreditTransaction.id);
                           await emailService.sendPurchaseConfirmation(webhookCreditTransaction.id);
-                          console.log(`✅ [MercadoPago] Credits purchase confirmation email sent for transaction ${webhookCreditTransaction.id}`);
+                          logger.info(`✅ [MercadoPago] Credits purchase confirmation email sent for transaction ${webhookCreditTransaction.id}`);
                         } catch (emailError: any) {
                           console.error(`❌ [MercadoPago] Failed to send credits purchase confirmation email:`, emailError);
                         }
@@ -584,13 +585,13 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
                         status: 'completed',
                         completedAt: new Date(),
                       });
-                      console.log(`✅ [MercadoPago Webhook] Logged subscription transaction for user ${existingSubscription.userId}`);
+                      logger.info(`✅ [MercadoPago Webhook] Logged subscription transaction for user ${existingSubscription.userId}`);
                       
                       // Generate invoice and send purchase confirmation email for renewal
                       try {
                         await generateInvoiceForTransaction(renewalTransaction.id);
                         await emailService.sendPurchaseConfirmation(renewalTransaction.id);
-                        console.log(`✅ [MercadoPago] Renewal confirmation email sent for transaction ${renewalTransaction.id}`);
+                        logger.info(`✅ [MercadoPago] Renewal confirmation email sent for transaction ${renewalTransaction.id}`);
                       } catch (emailError: any) {
                         console.error(`❌ [MercadoPago] Failed to send renewal confirmation email:`, emailError);
                       }
@@ -612,7 +613,7 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
           // Handle external refund (not initiated via our admin API)
           const paymentId = event.data?.id;
           
-          console.log(`🔄 [MercadoPago] Refund event for payment: ${paymentId}`);
+          logger.info(`🔄 [MercadoPago] Refund event for payment: ${paymentId}`);
           
           if (paymentId) {
             try {
@@ -623,7 +624,7 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
                 // Check if we already have a refund for this transaction
                 const existingRefunds = await storage.getTransactionRefunds(transaction.id);
                 if (existingRefunds.length > 0) {
-                  console.log(`ℹ️ [MercadoPago] Refund already exists for payment ${paymentId}, skipping`);
+                  logger.warn(`ℹ️ [MercadoPago] Refund already exists for payment ${paymentId}, skipping`);
                   break;
                 }
                 
@@ -643,7 +644,7 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
                   
                   if (refundResult.success && !refundResult.alreadyProcessed) {
                     creditsReversed = refundResult.creditsReversed;
-                    console.log(`🔄 [MercadoPago] Reversed ${creditsReversed} credits for user ${userId}. Transaction logged.`);
+                    logger.info(`🔄 [MercadoPago] Reversed ${creditsReversed} credits for user ${userId}. Transaction logged.`);
                   }
                 }
                 
@@ -670,7 +671,7 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
                   status: 'refunded',
                 });
                 
-                console.log(`✅ [MercadoPago] External refund processed for user ${userId}. Payment: ${paymentId}`);
+                logger.info(`✅ [MercadoPago] External refund processed for user ${userId}. Payment: ${paymentId}`);
               }
             } catch (error: any) {
               console.error('Error processing external refund:', error);
@@ -686,7 +687,7 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
           const chargebackData = event.data;
           const paymentId = chargebackData?.id || chargebackData?.payment_id;
           
-          console.log(`🚨 [MercadoPago] Chargeback/Dispute created for payment: ${paymentId}`);
+          logger.warn(`🚨 [MercadoPago] Chargeback/Dispute created for payment: ${paymentId}`);
           
           if (paymentId) {
             try {
@@ -710,7 +711,7 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
                   
                   if (refundResult.success && !refundResult.alreadyProcessed) {
                     creditsReversed = refundResult.creditsReversed;
-                    console.log(`🔄 [MercadoPago] Reversed ${creditsReversed} credits for user ${userId}. Transaction logged.`);
+                    logger.info(`🔄 [MercadoPago] Reversed ${creditsReversed} credits for user ${userId}. Transaction logged.`);
                   }
                 }
                 
@@ -746,12 +747,12 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
                 // Send account suspended email
                 try {
                   await emailService.sendAccountSuspended(userId, `Chargeback dispute: ${chargebackData?.reason || 'Unknown reason'}`);
-                  console.log(`✅ [MercadoPago] Account suspended email sent to user ${userId}`);
+                  logger.info(`✅ [MercadoPago] Account suspended email sent to user ${userId}`);
                 } catch (emailError: any) {
                   console.error(`❌ [MercadoPago] Failed to send account suspended email:`, emailError);
                 }
                 
-                console.log(`⛔ [MercadoPago] User ${userId} suspended due to chargeback. Payment ID: ${paymentId}, Reason: ${chargebackData?.reason}`);
+                logger.warn(`⛔ [MercadoPago] User ${userId} suspended due to chargeback. Payment ID: ${paymentId}, Reason: ${chargebackData?.reason}`);
               } else {
                 console.warn(`⚠️ [MercadoPago] No transaction found for payment ${paymentId}`);
               }
@@ -763,7 +764,7 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
         break;
 
       default:
-        console.log(`📥 [MercadoPago] Unhandled webhook event: ${event.type}`);
+        logger.warn(`📥 [MercadoPago] Unhandled webhook event: ${event.type}`);
     }
 
     res.status(200).json({ received: true });

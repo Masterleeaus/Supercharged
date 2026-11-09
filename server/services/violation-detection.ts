@@ -1,4 +1,5 @@
 'use strict';
+import { logger } from '../utils/logger';
 import { storage } from '../storage';
 import type { ContentViolation } from '@shared/schema';
 
@@ -54,7 +55,7 @@ export async function detectViolations(
             blockedAt: new Date(),
             blockedBy: 'system',
           });
-          console.log(`⚠️ [ViolationDetection] Auto-blocked user ${userId} for violation: ${bannedWord.word}`);
+          logger.info(`⚠️ [ViolationDetection] Auto-blocked user ${userId} for violation: ${bannedWord.word}`);
         }
       }
       
@@ -63,7 +64,7 @@ export async function detectViolations(
   }
   
   if (violations.length > 0) {
-    console.log(`🔍 [ViolationDetection] Found ${violations.length} violation(s) in call ${callId}`);
+    logger.info(`🔍 [ViolationDetection] Found ${violations.length} violation(s) in call ${callId}`);
   }
   
   return violations;

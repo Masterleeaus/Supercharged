@@ -15,6 +15,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
+import { logger } from '../utils/logger';
 import { Server } from 'http';
 import { CampaignScheduler } from './campaign-scheduler';
 import { stopPhoneBillingCron } from './phone-billing-cron';
@@ -50,12 +51,12 @@ export function registerServer(server: Server): void {
  */
 export async function gracefulShutdown(signal: string, exitCode: number = 0): Promise<void> {
   if (isShuttingDown) {
-    console.log(`⚠️ [Shutdown] Already shutting down, ignoring ${signal}`);
+    logger.info(`⚠️ [Shutdown] Already shutting down, ignoring ${signal}`);
     return;
   }
 
   isShuttingDown = true;
-  console.log(`\n🛑 [Shutdown] Received ${signal}, starting graceful shutdown...`);
+  logger.info(`\n🛑 [Shutdown] Received ${signal}, starting graceful shutdown...`);
 
   const shutdownStart = Date.now();
   const SHUTDOWN_TIMEOUT = 10000; // 10 seconds max
@@ -63,44 +64,44 @@ export async function gracefulShutdown(signal: string, exitCode: number = 0): Pr
   try {
     // Step 1: Stop accepting new requests
     if (httpServer) {
-      console.log('   [1/4] Closing HTTP server (no new connections)...');
+      logger.info('   [1/4] Closing HTTP server (no new connections)...');
       await new Promise<void>((resolve) => {
         httpServer!.close(() => {
-          console.log('   ✓ HTTP server closed');
+          logger.info('   ✓ HTTP server closed');
           resolve();
         });
         
         // Force close after timeout
         setTimeout(() => {
-          console.log('   ⚠️ HTTP server close timed out, forcing...');
+          logger.warn('   ⚠️ HTTP server close timed out, forcing...');
           resolve();
         }, 5000);
       });
     }
 
     // Step 2: Stop background schedulers
-    console.log('   [2/4] Stopping background schedulers...');
+    logger.info('   [2/4] Stopping background schedulers...');
     CampaignScheduler.stopBackgroundScheduler();
     stopPhoneBillingCron();
-    console.log('   ✓ Schedulers stopped');
+    logger.info('   ✓ Schedulers stopped');
 
     // Step 3: Wait for pending operations (brief delay)
-    console.log('   [3/4] Draining pending operations...');
+    logger.info('   [3/4] Draining pending operations...');
     await new Promise(resolve => setTimeout(resolve, 1000));
-    console.log('   ✓ Operations drained');
+    logger.info('   ✓ Operations drained');
 
     // Step 4: Close database pool
-    console.log('   [4/4] Closing database connections...');
+    logger.info('   [4/4] Closing database connections...');
     await flushAuditLogsOnShutdown(5000);
     try {
       await pool.end();
-      console.log('   ✓ Database pool closed');
+      logger.info('   ✓ Database pool closed');
     } catch (dbError: any) {
-      console.log(`   ⚠️ Database close warning: ${dbError.message}`);
+      logger.warn(`   ⚠️ Database close warning: ${dbError.message}`);
     }
 
     const shutdownDuration = Date.now() - shutdownStart;
-    console.log(`✅ [Shutdown] Graceful shutdown completed in ${shutdownDuration}ms`);
+    logger.info(`✅ [Shutdown] Graceful shutdown completed in ${shutdownDuration}ms`);
     
     // Signal PM2 that we're ready to die
     process.exit(exitCode);
@@ -137,11 +138,11 @@ export function setupGlobalHandlers(): void {
 
   // PM2 graceful reload signal
   process.on('SIGUSR2', () => {
-    console.log('📡 [PM2] Received SIGUSR2 (graceful reload)');
+    logger.info('📡 [PM2] Received SIGUSR2 (graceful reload)');
     gracefulShutdown('SIGUSR2');
   });
 
-  console.log('🛡️ [Process] Global error handlers and shutdown signals registered');
+  logger.info('🛡️ [Process] Global error handlers and shutdown signals registered');
 }
 
 /**
@@ -151,6 +152,6 @@ export function setupGlobalHandlers(): void {
 export function signalReady(): void {
   if (typeof process.send === 'function') {
     process.send('ready');
-    console.log('📡 [PM2] Signaled ready to process manager');
+    logger.info('📡 [PM2] Signaled ready to process manager');
   }
 }
