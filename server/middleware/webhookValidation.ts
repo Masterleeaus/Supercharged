@@ -105,7 +105,7 @@ export async function validateStripeWebhook(
     }
   } catch (error) {
     if (error instanceof WebhookValidationError) {
-      console.error(`[Stripe Webhook] Validation failed: ${error.message}`);
+      logger.error(`[Stripe Webhook] Validation failed: ${error.message}`);
       res.status(401).json(error.toJSON());
     } else {
       next(error);
@@ -154,7 +154,7 @@ export async function validateRazorpayWebhook(
     next();
   } catch (error) {
     if (error instanceof WebhookValidationError) {
-      console.error(`[Razorpay Webhook] Validation failed: ${error.message}`);
+      logger.error(`[Razorpay Webhook] Validation failed: ${error.message}`);
       res.status(401).json(error.toJSON());
     } else {
       next(error);
@@ -205,9 +205,9 @@ export async function validateTwilioWebhook(
       : (twilioModule as any).validateRequest;
     
     if (typeof validateRequest !== 'function') {
-      console.error("[Twilio Webhook] validateRequest function not found in Twilio module");
-      console.error("[Twilio Webhook] Module keys:", Object.keys(twilioModule));
-      console.error("[Twilio Webhook] Default keys:", twilio ? Object.keys(twilio) : 'no default');
+      logger.error("[Twilio Webhook] validateRequest function not found in Twilio module");
+      logger.error("[Twilio Webhook] Module keys:", Object.keys(twilioModule));
+      logger.error("[Twilio Webhook] Default keys:", twilio ? Object.keys(twilio) : 'no default');
       throw new Error("Twilio validateRequest function not available");
     }
     
@@ -250,7 +250,7 @@ export async function validateTwilioWebhook(
     );
 
     if (!isValid) {
-      console.error(`[Twilio Webhook] Signature mismatch. URL used: ${url}`);
+      logger.error(`[Twilio Webhook] Signature mismatch. URL used: ${url}`);
       throw new WebhookValidationError("twilio", "Invalid Twilio webhook signature");
     }
 
@@ -258,7 +258,7 @@ export async function validateTwilioWebhook(
     next();
   } catch (error) {
     if (error instanceof WebhookValidationError) {
-      console.error(`[Twilio Webhook] Validation failed: ${error.message}`);
+      logger.error(`[Twilio Webhook] Validation failed: ${error.message}`);
       res.status(401).json(error.toJSON());
     } else {
       next(error);
@@ -314,7 +314,7 @@ export function createHmacWebhookValidator(config: {
       next();
     } catch (error) {
       if (error instanceof WebhookValidationError) {
-        console.error(`[${config.provider} Webhook] Validation failed: ${error.message}`);
+        logger.error(`[${config.provider} Webhook] Validation failed: ${error.message}`);
         res.status(401).json(error.toJSON());
       } else {
         next(error);

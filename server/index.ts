@@ -27,13 +27,7 @@ import { perRouteBodyParser } from "./middleware/body-limits";
 import { db } from "./db";
 import { sql } from "drizzle-orm";
 function log(message: string, source = "express") {
-  const formattedTime = new Date().toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true,
-  });
-  console.log(`${formattedTime} [${source}] ${message}`);
+  logger.info(message, undefined, source);
 }
 import { startPhoneBillingCron } from "./services/phone-billing-cron";
 import { startCreditBackfillMonitor } from "./services/credit-backfill-monitor";
@@ -56,6 +50,7 @@ export { db } from "./db";
 import { resyncSipAgentTransferTools, resyncSipTrunkConfigs, resyncAppointmentWebhookUrls, resyncFormWebhookUrls, resyncMessagingWebhookUrls } from "./services/sip-transfer-resync";
 import { CRMLeadProcessor } from "./engines/crm/lead-processor.service";
 import { deductCallCredits } from "./services/credit-service";
+import { logger } from './utils/logger.ts';
 
 // Register CRMLeadProcessor globally so that dynamically loaded plugins can access it
 (global as any).CRMLeadProcessor = CRMLeadProcessor;
@@ -69,7 +64,7 @@ setupGlobalHandlers();
 initializeDirectories();
 
 // Diploy startup signature
-console.log(`
+logger.info(`
 ====================================
 Platform Initialized
 ©diploy
@@ -238,7 +233,7 @@ app.use((req, res, next) => {
       initDemoMode(app);
       registerDemoModeRoutes(app);
     } catch (error) {
-      console.error('[Demo Mode] Failed to initialize:', error);
+      logger.error('[Demo Mode] Failed to initialize:', error);
     }
   }
 
@@ -247,25 +242,25 @@ app.use((req, res, next) => {
   try {
     const emailInitialized = await emailService.reinitializeFromDatabase();
     if (emailInitialized) {
-      console.log('📧 [Email] Service initialized from database settings');
+      logger.info('📧 [Email] Service initialized from database settings');
     }
   } catch (error) {
-    console.error('⚠️ [Email] Failed to initialize from database:', error);
+    logger.error('⚠️ [Email] Failed to initialize from database:', error);
   }
 
   // Run startup health checks before serving traffic
   try {
     await runStartupHealthCheck();
   } catch (error) {
-    console.error('❌ [Startup] Health check failed:', error);
+    logger.error('❌ [Startup] Health check failed:', error);
   }
 
   // Run database seeding on startup (safe - skips if data already exists)
   try {
     await runAllSeeds();
-    console.log('✅ [Startup] Database seeding completed');
+    logger.info('✅ [Startup] Database seeding completed');
   } catch (error) {
-    console.error('⚠️ [Startup] Database seeding failed (non-fatal):', error);
+    logger.error('⚠️ [Startup] Database seeding failed (non-fatal):', error);
   }
 
   // Data fix: normalize phone number status 'assigned' → 'active'
@@ -274,7 +269,7 @@ app.use((req, res, next) => {
   try {
     await db.execute(sql`UPDATE phone_numbers SET status = 'active' WHERE status = 'assigned'`);
   } catch (error) {
-    console.error('⚠️ [Startup] Phone status normalization failed (non-fatal):', error);
+    logger.error('⚠️ [Startup] Phone status normalization failed (non-fatal):', error);
   }
 
   // One-time migration: auto-enable gateways that have credentials but no explicit *_enabled flag
@@ -296,15 +291,15 @@ app.use((req, res, next) => {
           const hasEnvCreds = check.envKeys.length > 0 && check.envKeys.every(k => !!process.env[k]);
           if (hasDbCreds || hasEnvCreds) {
             await storage.updateGlobalSetting(check.enableKey, true);
-            console.log(`🔄 [Migration] Auto-enabled ${check.enableKey} (credentials present, flag was unset)`);
+            logger.info(`🔄 [Migration] Auto-enabled ${check.enableKey} (credentials present, flag was unset)`);
           }
         }
       }
       await storage.updateGlobalSetting('gateway_enable_migration_v1', 'done');
-      console.log('✅ [Migration] Gateway enable migration v1 completed');
+      logger.info('✅ [Migration] Gateway enable migration v1 completed');
     }
   } catch (error) {
-    console.error('⚠️ [Migration] Gateway enable migration failed (non-fatal):', error);
+    logger.error('⚠️ [Migration] Gateway enable migration failed (non-fatal):', error);
   }
 
   // Preload JWT expiry settings from database
@@ -316,37 +311,37 @@ app.use((req, res, next) => {
 
   // Resync SIP agents' transfer tools on startup (non-blocking)
   resyncSipAgentTransferTools().catch(err => {
-    console.warn('[Startup] SIP transfer resync failed (non-fatal):', err);
+    logger.warn('[Startup] SIP transfer resync failed (non-fatal):', err);
   });
 
   // Resync SIP trunk configs (media encryption, addresses) on startup (non-blocking)
   resyncSipTrunkConfigs().catch(err => {
-    console.warn('[Startup] SIP trunk config resync failed (non-fatal):', err);
+    logger.warn('[Startup] SIP trunk config resync failed (non-fatal):', err);
   });
 
   // Resync appointment webhook URLs with current persisted secret (non-blocking)
   // Prevents "Invalid authentication token" errors when ElevenLabs agents have stale webhook URLs
   resyncAppointmentWebhookUrls().catch(err => {
-    console.warn('[Startup] Appointment webhook resync failed (non-fatal):', err);
+    logger.warn('[Startup] Appointment webhook resync failed (non-fatal):', err);
   });
 
   // Resync form submission webhook URLs with the now-stable HMAC-derived secret (non-blocking)
   // Repairs all existing flow agents that have stale form webhook URLs from the old random-secret era
   resyncFormWebhookUrls().catch(err => {
-    console.warn('[Startup] Form webhook resync failed (non-fatal):', err);
+    logger.warn('[Startup] Form webhook resync failed (non-fatal):', err);
   });
 
   // Resync messaging (WhatsApp/Email) webhook URLs with current context (non-blocking)
   // Repairs agents missing conversationId context or using stale secrets
   resyncMessagingWebhookUrls().catch(err => {
-    console.warn('[Startup] Messaging webhook resync failed (non-fatal):', err);
+    logger.warn('[Startup] Messaging webhook resync failed (non-fatal):', err);
   });
 
 
   // SIP Credit Guard: Disconnect agents from SIP numbers for users below credit threshold
   import('./services/sip-credit-guard').then(({ runStartupCreditGuardScan }) => {
     runStartupCreditGuardScan().catch(err => {
-      console.warn('[Startup] SIP credit guard scan failed (non-fatal):', err);
+      logger.warn('[Startup] SIP credit guard scan failed (non-fatal):', err);
     });
   }).catch(() => { });
 
@@ -370,7 +365,7 @@ app.use((req, res, next) => {
       errorResponse.correlationId = correlationId;
     }
 
-    console.error(`[Error Handler] ${req.method} ${req.path}:`, err.message || err);
+    logger.error(`[Error Handler] ${req.method} ${req.path}:`, err.message || err);
 
     if (!res.headersSent) {
       res.setHeader('Content-Type', 'application/json');
@@ -487,7 +482,7 @@ app.use((req, res, next) => {
 
       return html.replace('</head>', `${seoMetaTags}\n  </head>`);
     } catch (error) {
-      console.error('Error injecting SEO meta tags:', error);
+      logger.error('Error injecting SEO meta tags:', error);
       return html;
     }
   };
@@ -552,7 +547,7 @@ app.use((req, res, next) => {
         res.send(html);
         return;
       } catch (error) {
-        console.error('Error serving crawler-optimized HTML:', error);
+        logger.error('Error serving crawler-optimized HTML:', error);
       }
     }
     next();
@@ -596,7 +591,7 @@ app.use((req, res, next) => {
         res.setHeader('Content-Type', 'text/html');
         res.send(html);
       } catch (error) {
-        console.error('Error serving index.html:', error);
+        logger.error('Error serving index.html:', error);
         res.sendFile(path.resolve(distPath, "index.html"));
       }
     });
@@ -620,7 +615,7 @@ app.use((req, res, next) => {
     }, 30000);
     // Store reference to prevent garbage collection
     (global as any).__keepalive = keepalive;
-    console.log('🔄 [Production] Keepalive interval started before server.listen');
+    logger.info('🔄 [Production] Keepalive interval started before server.listen');
   }
 
   // Wrap server.listen in a Promise to ensure IIFE awaits server startup
@@ -666,21 +661,21 @@ app.use((req, res, next) => {
         try {
           const initialized = await bullmq.initializeBullMQ();
           if (initialized) {
-            console.log('✅ [BullMQ] Queue system ready for campaign processing');
+            logger.info('✅ [BullMQ] Queue system ready for campaign processing');
           }
         } catch (error: any) {
-          console.warn('⚠️ [BullMQ] Failed to initialize (using fallback queues):', error.message);
+          logger.warn('⚠️ [BullMQ] Failed to initialize (using fallback queues):', error.message);
         }
       }).catch(() => {
         // BullMQ module not available, continue without it
       });
 
-      console.log('✅ [Production] Server fully initialized and listening');
+      logger.info('✅ [Production] Server fully initialized and listening');
       resolve();
     });
   });
 
   // Keep the IIFE alive - this line is never reached because server runs indefinitely
   // but having an unresolved promise after await ensures the event loop stays active
-  console.log('🔄 [Server] Main initialization complete, server running...');
+  logger.info('🔄 [Server] Main initialization complete, server running...');
 })();

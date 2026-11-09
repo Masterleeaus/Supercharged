@@ -96,8 +96,8 @@ test('no suppression dependency: the check is skipped and the send goes through 
 });
 
 test('company quiet hours inside the window: the job is requeued and the transport is not called', async () => {
-  const companySettings = createCompanySettingsStore({});
-  companySettings.setQuietHours(CO_A, { startHour: 0, endHour: 6, timezone: 'UTC' });
+  const companySettings = createCompanySettingsStore({ memoryForTests: true });
+  await companySettings.setQuietHours(CO_A, { startHour: 0, endHour: 6, timezone: 'UTC' });
   const ctx = setup({ companySettings });
   const job = await queuedJob(ctx);
 
@@ -108,8 +108,8 @@ test('company quiet hours inside the window: the job is requeued and the transpo
 });
 
 test('company quiet hours outside the window: the send goes through', async () => {
-  const companySettings = createCompanySettingsStore({});
-  companySettings.setQuietHours(CO_A, { startHour: 12, endHour: 18, timezone: 'UTC' });
+  const companySettings = createCompanySettingsStore({ memoryForTests: true });
+  await companySettings.setQuietHours(CO_A, { startHour: 12, endHour: 18, timezone: 'UTC' });
   const ctx = setup({ companySettings });
   const job = await queuedJob(ctx);
 
@@ -119,8 +119,8 @@ test('company quiet hours outside the window: the send goes through', async () =
 });
 
 test('company quiet hours take precedence over deps.quietHours', async () => {
-  const companySettings = createCompanySettingsStore({});
-  companySettings.setQuietHours(CO_A, { startHour: 12, endHour: 18, timezone: 'UTC' });
+  const companySettings = createCompanySettingsStore({ memoryForTests: true });
+  await companySettings.setQuietHours(CO_A, { startHour: 12, endHour: 18, timezone: 'UTC' });
   // deps.quietHours would hold the send (window covers hour 0), but the company setting wins.
   const ctx = setup({ companySettings, quietHours: { quietHours: { startHour: 0, endHour: 6 }, timezone: 'UTC' } });
   const job = await queuedJob(ctx);
@@ -130,7 +130,7 @@ test('company quiet hours take precedence over deps.quietHours', async () => {
 });
 
 test('company settings store with no setting for the company: deps.quietHours still applies', async () => {
-  const companySettings = createCompanySettingsStore({});
+  const companySettings = createCompanySettingsStore({ memoryForTests: true });
   const ctx = setup({ companySettings, quietHours: { quietHours: { startHour: 0, endHour: 6 }, timezone: 'UTC' } });
   const job = await queuedJob(ctx);
 
@@ -140,7 +140,7 @@ test('company settings store with no setting for the company: deps.quietHours st
 });
 
 test('company without settings sends as before', async () => {
-  const companySettings = createCompanySettingsStore({});
+  const companySettings = createCompanySettingsStore({ memoryForTests: true });
   const ctx = setup({ companySettings });
   const job = await queuedJob(ctx);
 

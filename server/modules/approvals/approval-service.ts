@@ -48,6 +48,7 @@ import type {
   PolicyRule,
   PolicyScope,
 } from './types';
+import { logger } from '../../utils/logger.ts';
 
 /** Drizzle handle passed to queries. Typed loosely so the module does not import server/db. */
 export type ApprovalDb = PgDatabase<any, any, any>;
@@ -655,7 +656,7 @@ export class ApprovalService {
           .then((status) => this.notify(key, status))
           .catch((error: unknown) => {
             // Never leave the caller hanging. decideApproval refuses rows past their deadline.
-            console.error('[Approvals] Failed to persist approval expiry', { approvalId: id, error });
+            logger.error('[Approvals] Failed to persist approval expiry', { approvalId: id, error });
             this.notify(key, 'expired');
           });
       }, ttlMs);

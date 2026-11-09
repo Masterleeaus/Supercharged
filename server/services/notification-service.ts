@@ -16,6 +16,7 @@
  * ============================================================
  */
 import { storage } from "../storage";
+import { logger } from '../utils/logger.ts';
 
 // Default fallbacks - only used if database is unavailable
 const DEFAULT_LOW_CREDITS_THRESHOLD = 50;
@@ -43,7 +44,7 @@ async function getLowCreditsThreshold(): Promise<number> {
     thresholdCacheTime = now;
     return threshold;
   } catch (error) {
-    console.error('[NotificationService] Failed to fetch low_credits_threshold, using default:', error);
+    logger.error('[NotificationService] Failed to fetch low_credits_threshold, using default:', error);
     return DEFAULT_LOW_CREDITS_THRESHOLD;
   }
 }
@@ -61,7 +62,7 @@ async function getAppName(): Promise<string> {
     appNameCacheTime = now;
     return appName;
   } catch (error) {
-    console.error('[NotificationService] Failed to fetch app_name, using default:', error);
+    logger.error('[NotificationService] Failed to fetch app_name, using default:', error);
     return DEFAULT_APP_NAME;
   }
 }
@@ -95,7 +96,7 @@ export const NotificationService = {
         expiresAt: options.expiresAt || null,
       });
     } catch (error) {
-      console.error("Failed to create notification:", error);
+      logger.error("Failed to create notification:", error);
     }
   },
 
@@ -233,7 +234,7 @@ export const NotificationService = {
         });
       }
     } catch (error) {
-      console.error("Failed to create admin notifications:", error);
+      logger.error("Failed to create admin notifications:", error);
     }
   },
 

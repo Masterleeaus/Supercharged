@@ -154,14 +154,14 @@ export class OutboundCallService {
 
       if (!response.ok) {
         const errorMsg = `ElevenLabs outbound call failed: ${response.status} - ${responseText}`;
-        console.error(`❌ [OutboundCallService] ${errorMsg}`);
+        logger.error(`❌ [OutboundCallService] ${errorMsg}`);
         throw new Error(errorMsg);
       }
 
       const result = JSON.parse(responseText);
 
       if (result.success === false) {
-        console.error(`❌ [OutboundCallService] Call failed to initiate: ${result.message || 'Unknown ElevenLabs error'}`);
+        logger.error(`❌ [OutboundCallService] Call failed to initiate: ${result.message || 'Unknown ElevenLabs error'}`);
       } else {
         logger.info(`✅ [OutboundCallService] Call initiated successfully`);
       }
@@ -179,7 +179,7 @@ export class OutboundCallService {
         callSid: result.callSid || result.call_sid || null,
       };
     } catch (error) {
-      console.error(`❌ [OutboundCallService] Error initiating call:`, error);
+      logger.error(`❌ [OutboundCallService] Error initiating call:`, error);
       throw error;
     }
   }

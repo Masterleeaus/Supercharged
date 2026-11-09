@@ -149,7 +149,7 @@ export async function tryAdminTeamToken(token: string): Promise<{
       email: session.email,
     };
   } catch (error) {
-    console.error('[Admin Auth] Admin team token check error:', error);
+    logger.error('[Admin Auth] Admin team token check error:', error);
     return null;
   }
 }
@@ -194,7 +194,7 @@ export async function checkSuperAdmin(req: AdminRequest, res: Response, next: Ne
     req.isAdmin = true;
     next();
   } catch (error) {
-    console.error('[Admin Auth] Error:', error);
+    logger.error('[Admin Auth] Error:', error);
     if (error instanceof jwt.JsonWebTokenError) {
       return res.status(403).json({ error: "Invalid or expired token" });
     }
@@ -228,7 +228,7 @@ export async function checkAdmin(req: AdminRequest, res: Response, next: NextFun
     req.isAdmin = true;
     next();
   } catch (error) {
-    console.error('Admin auth error:', error);
+    logger.error('Admin auth error:', error);
     if (error instanceof jwt.JsonWebTokenError) {
       return res.status(403).json({ error: "Invalid or expired token" });
     }
@@ -272,7 +272,7 @@ export async function checkAdminWithReadOnly(req: AdminRequest, res: Response, n
 
     next();
   } catch (error) {
-    console.error('Admin auth error:', error);
+    logger.error('Admin auth error:', error);
     if (error instanceof jwt.JsonWebTokenError) {
       return res.status(403).json({ error: "Invalid or expired token" });
     }
@@ -326,7 +326,7 @@ export async function checkAdminOrTeamMember(req: AdminRequest, res: Response, n
 
     return res.status(403).json({ error: 'Admin access required' });
   } catch (error) {
-    console.error('Admin auth error:', error);
+    logger.error('Admin auth error:', error);
     res.status(500).json({ error: 'Authentication error' });
   }
 }
@@ -389,7 +389,7 @@ export function requireAdminPermission(
       // No valid authentication context
       return res.status(401).json({ error: 'Authentication required' });
     } catch (error) {
-      console.error('[Permission Check] Error:', error);
+      logger.error('[Permission Check] Error:', error);
       return res.status(500).json({ error: 'Permission check failed' });
     }
   };
@@ -443,7 +443,7 @@ export function requireAnyAdminPermission(
       // No valid authentication context
       return res.status(401).json({ error: 'Authentication required' });
     } catch (error) {
-      console.error('[Permission Check] Error:', error);
+      logger.error('[Permission Check] Error:', error);
       return res.status(500).json({ error: 'Permission check failed' });
     }
   };

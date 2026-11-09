@@ -14,6 +14,7 @@ import * as fs from 'fs';
 import { KycService } from '../services/kyc.service';
 import { KycEngineConfig } from '../config/kyc-config';
 import type { KycDocumentType, KycSettings } from '../types';
+import { logger } from '../../../utils/logger.ts';
 
 interface AuthRequest extends Request {
   userId?: string;
@@ -72,7 +73,7 @@ export function registerKycRoutes(
       const status = await KycService.getUserKycStatus(req.userId!);
       res.json(status);
     } catch (error: any) {
-      console.error('[KYC] Error fetching KYC status:', error);
+      logger.error('[KYC] Error fetching KYC status:', error);
       res.status(500).json({ error: 'Failed to fetch KYC status' });
     }
   });
@@ -86,7 +87,7 @@ export function registerKycRoutes(
       const documents = await KycService.getUserDocuments(req.userId!);
       res.json(documents);
     } catch (error: any) {
-      console.error('[KYC] Error fetching KYC documents:', error);
+      logger.error('[KYC] Error fetching KYC documents:', error);
       res.status(500).json({ error: 'Failed to fetch KYC documents' });
     }
   });
@@ -126,7 +127,7 @@ export function registerKycRoutes(
 
       res.json({ success: true, document });
     } catch (error: any) {
-      console.error('[KYC] Error uploading document:', error);
+      logger.error('[KYC] Error uploading document:', error);
       res.status(400).json({ error: 'Failed to upload document' });
     }
   });
@@ -141,7 +142,7 @@ export function registerKycRoutes(
       await KycService.deleteDocument(id, req.userId!);
       res.json({ success: true, message: 'Document deleted' });
     } catch (error: any) {
-      console.error('[KYC] Error deleting document:', error);
+      logger.error('[KYC] Error deleting document:', error);
       res.status(400).json({ error: 'Failed to delete document' });
     }
   });
@@ -155,7 +156,7 @@ export function registerKycRoutes(
       const status = await KycService.submitForReview(req.userId!);
       res.json(status);
     } catch (error: any) {
-      console.error('[KYC] Error submitting KYC:', error);
+      logger.error('[KYC] Error submitting KYC:', error);
       res.status(400).json({ error: 'Failed to submit KYC' });
     }
   });
@@ -188,7 +189,7 @@ export function registerKycRoutes(
       const result = await KycService.canPurchasePhoneNumbers(req.userId!, provider, kycSettings);
       res.json(result);
     } catch (error: any) {
-      console.error('[KYC] Error checking purchase eligibility:', error);
+      logger.error('[KYC] Error checking purchase eligibility:', error);
       res.status(500).json({ error: 'Failed to check purchase eligibility' });
     }
   });
@@ -207,7 +208,7 @@ export function registerKycRoutes(
       const status = await KycService.getUserKycStatus(userId);
       res.json(status);
     } catch (error: any) {
-      console.error('[KYC] Error fetching user KYC:', error);
+      logger.error('[KYC] Error fetching user KYC:', error);
       res.status(500).json({ error: 'Failed to fetch user KYC' });
     }
   });
@@ -222,7 +223,7 @@ export function registerKycRoutes(
       const documents = await KycService.getUserDocuments(userId);
       res.json(documents);
     } catch (error: any) {
-      console.error('[KYC] Error fetching user KYC documents:', error);
+      logger.error('[KYC] Error fetching user KYC documents:', error);
       res.status(500).json({ error: 'Failed to fetch user KYC documents' });
     }
   });
@@ -237,7 +238,7 @@ export function registerKycRoutes(
       const status = await KycService.approveKyc(userId);
       res.json(status);
     } catch (error: any) {
-      console.error('[KYC] Error approving KYC:', error);
+      logger.error('[KYC] Error approving KYC:', error);
       res.status(400).json({ error: 'Failed to approve KYC' });
     }
   });
@@ -253,7 +254,7 @@ export function registerKycRoutes(
       const status = await KycService.rejectKyc(userId, reason);
       res.json(status);
     } catch (error: any) {
-      console.error('[KYC] Error rejecting KYC:', error);
+      logger.error('[KYC] Error rejecting KYC:', error);
       res.status(400).json({ error: 'Failed to reject KYC' });
     }
   });
@@ -285,7 +286,7 @@ export function registerKycRoutes(
 
       res.sendFile(filePath);
     } catch (error: any) {
-      console.error('[KYC] Error serving document:', error);
+      logger.error('[KYC] Error serving document:', error);
       res.status(500).json({ error: 'Failed to serve document' });
     }
   });
@@ -308,7 +309,7 @@ export function registerKycRoutes(
       
       // Ensure resolved path is within base directory (prevent traversal)
       if (!filePath.startsWith(baseDir)) {
-        console.error(`[KYC] Path traversal attempt detected: ${document.filePath}`);
+        logger.error(`[KYC] Path traversal attempt detected: ${document.filePath}`);
         return res.status(400).json({ error: 'Invalid document path' });
       }
       
@@ -318,7 +319,7 @@ export function registerKycRoutes(
 
       res.sendFile(filePath);
     } catch (error: any) {
-      console.error('[KYC] Error downloading document:', error);
+      logger.error('[KYC] Error downloading document:', error);
       res.status(500).json({ error: 'Failed to download document' });
     }
   });

@@ -8,6 +8,7 @@ import { calls, users, bannedWords, contentViolations, agents, campaigns, eleven
 import { ElevenLabsPoolService } from '../../services/elevenlabs-pool';
 import { z } from 'zod';
 import { migrateCallUserIdsNotWired } from './calls-user-id-migration-stub';
+import { logger } from '../../utils/logger.ts';
 
 export function registerCallsModerationRoutes(router: Router) {
   router.get('/calls', requireAdminPermission('call_monitoring', 'all_calls', 'read'), async (req: AdminRequest, res: Response) => {
@@ -48,7 +49,7 @@ export function registerCallsModerationRoutes(router: Router) {
         }
       });
     } catch (error) {
-      console.error('Error fetching calls:', error);
+      logger.error('Error fetching calls:', error);
       res.status(500).json({ error: 'Failed to fetch calls' });
     }
   });
@@ -64,7 +65,7 @@ export function registerCallsModerationRoutes(router: Router) {
       
       res.json(call);
     } catch (error) {
-      console.error('Error fetching call:', error);
+      logger.error('Error fetching call:', error);
       res.status(500).json({ error: 'Failed to fetch call' });
     }
   });
@@ -75,7 +76,7 @@ export function registerCallsModerationRoutes(router: Router) {
       const violations = await db.select().from(contentViolations).where(eq(contentViolations.callId, id));
       res.json(violations);
     } catch (error) {
-      console.error('Error fetching call violations:', error);
+      logger.error('Error fetching call violations:', error);
       res.status(500).json({ error: 'Failed to fetch violations' });
     }
   });
@@ -95,7 +96,7 @@ export function registerCallsModerationRoutes(router: Router) {
         res.status(404).json({ error: 'No recording available' });
       }
     } catch (error) {
-      console.error('Error fetching recording:', error);
+      logger.error('Error fetching recording:', error);
       res.status(500).json({ error: 'Failed to fetch recording' });
     }
   });
@@ -105,7 +106,7 @@ export function registerCallsModerationRoutes(router: Router) {
       const words = await db.select().from(bannedWords).orderBy(desc(bannedWords.createdAt));
       res.json(words);
     } catch (error) {
-      console.error('Error fetching banned words:', error);
+      logger.error('Error fetching banned words:', error);
       res.status(500).json({ error: 'Failed to fetch banned words' });
     }
   });
@@ -127,7 +128,7 @@ export function registerCallsModerationRoutes(router: Router) {
       
       res.json(newWord);
     } catch (error: any) {
-      console.error('Error adding banned word:', error);
+      logger.error('Error adding banned word:', error);
       res.status(500).json({ error: 'Failed to add banned word' });
     }
   });
@@ -149,7 +150,7 @@ export function registerCallsModerationRoutes(router: Router) {
       
       res.json({ success: true });
     } catch (error) {
-      console.error('Error updating banned word:', error);
+      logger.error('Error updating banned word:', error);
       res.status(500).json({ error: 'Failed to update banned word' });
     }
   });
@@ -160,7 +161,7 @@ export function registerCallsModerationRoutes(router: Router) {
       await db.delete(bannedWords).where(eq(bannedWords.id, id));
       res.json({ success: true });
     } catch (error) {
-      console.error('Error deleting banned word:', error);
+      logger.error('Error deleting banned word:', error);
       res.status(500).json({ error: 'Failed to delete banned word' });
     }
   });
@@ -189,7 +190,7 @@ export function registerCallsModerationRoutes(router: Router) {
       
       res.json({ success: true, scanned: recentCalls.length, violations: violationsFound });
     } catch (error) {
-      console.error('Error scanning calls:', error);
+      logger.error('Error scanning calls:', error);
       res.status(500).json({ error: 'Failed to scan calls' });
     }
   });
@@ -209,7 +210,7 @@ export function registerCallsModerationRoutes(router: Router) {
       
       res.json(violations);
     } catch (error) {
-      console.error('Error fetching violations:', error);
+      logger.error('Error fetching violations:', error);
       res.status(500).json({ error: 'Failed to fetch violations' });
     }
   });
@@ -231,7 +232,7 @@ export function registerCallsModerationRoutes(router: Router) {
       
       res.json({ success: true });
     } catch (error) {
-      console.error('Error updating violation:', error);
+      logger.error('Error updating violation:', error);
       res.status(500).json({ error: 'Failed to update violation' });
     }
   });
@@ -257,7 +258,7 @@ export function registerCallsModerationRoutes(router: Router) {
       
       res.json({ violations: foundViolations, count: foundViolations.length });
     } catch (error) {
-      console.error('Error scanning call:', error);
+      logger.error('Error scanning call:', error);
       res.status(500).json({ error: 'Failed to scan call' });
     }
   });
@@ -286,7 +287,7 @@ export function registerCallsModerationRoutes(router: Router) {
       
       res.json({ valid: isValid });
     } catch (error: any) {
-      console.error('Error verifying webhook:', error);
+      logger.error('Error verifying webhook:', error);
       res.status(500).json({ error: 'Failed to verify webhook' });
     }
   });
@@ -332,7 +333,7 @@ export function registerCallsModerationRoutes(router: Router) {
       
       res.json({ success: true, data: conversationData });
     } catch (error: any) {
-      console.error('Error fetching ElevenLabs data:', error);
+      logger.error('Error fetching ElevenLabs data:', error);
       res.status(500).json({ error: 'Failed to fetch data' });
     }
   });
@@ -397,7 +398,7 @@ export function registerCallsModerationRoutes(router: Router) {
         results
       });
     } catch (error: any) {
-      console.error('Error fetching missing call data:', error);
+      logger.error('Error fetching missing call data:', error);
       res.status(500).json({ error: 'Failed to fetch missing data' });
     }
   });
@@ -406,7 +407,7 @@ export function registerCallsModerationRoutes(router: Router) {
     try {
       res.json({ success: true, message: 'Recordings sync initiated' });
     } catch (error) {
-      console.error('Error syncing recordings:', error);
+      logger.error('Error syncing recordings:', error);
       res.status(500).json({ error: 'Failed to sync recordings' });
     }
   });
@@ -415,7 +416,7 @@ export function registerCallsModerationRoutes(router: Router) {
     try {
       res.json({ success: true, message: 'Calls sync initiated' });
     } catch (error) {
-      console.error('Error syncing calls:', error);
+      logger.error('Error syncing calls:', error);
       res.status(500).json({ error: 'Failed to sync calls' });
     }
   });
@@ -427,7 +428,7 @@ export function registerCallsModerationRoutes(router: Router) {
     try {
       res.json({ success: true, message: 'Incoming webhooks sync initiated' });
     } catch (error) {
-      console.error('Error syncing incoming webhooks:', error);
+      logger.error('Error syncing incoming webhooks:', error);
       res.status(500).json({ error: 'Failed to sync incoming webhooks' });
     }
   });

@@ -1177,7 +1177,7 @@ export class WebhookTestService {
 
       const urlCheck = await validateWebhookUrl(webhook.url);
       if (!urlCheck.valid) {
-        console.warn(`🚫 [WebhookTest] SSRF blocked: ${urlCheck.error} for URL ${webhook.url}`);
+        logger.warn(`🚫 [WebhookTest] SSRF blocked: ${urlCheck.error} for URL ${webhook.url}`);
         return {
           success: false,
           responseTime: 0,
@@ -1232,7 +1232,7 @@ export class WebhookTestService {
         ? 'Request timed out after 30 seconds'
         : error.message || 'Unknown error';
 
-      console.error(`❌ [WebhookTest] Error: ${errorMessage}`);
+      logger.error(`❌ [WebhookTest] Error: ${errorMessage}`);
       
       result = {
         success: false,
@@ -1276,7 +1276,7 @@ export class WebhookTestService {
       await this.store.createWebhookLog(logData);
       logger.info(`📝 [WebhookTest] Logged delivery for webhook ${webhook.id}`);
     } catch (error) {
-      console.error(`⚠️ [WebhookTest] Failed to log delivery (non-fatal):`, error);
+      logger.error(`⚠️ [WebhookTest] Failed to log delivery (non-fatal):`, error);
     }
   }
 }

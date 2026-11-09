@@ -35,7 +35,7 @@ export function registerPhoneNumbersRoutes(router: Router) {
         .orderBy(desc(phoneNumbers.createdAt));
       res.json(numbers);
     } catch (error) {
-      console.error('Error fetching phone numbers:', error);
+      logger.error('Error fetching phone numbers:', error);
       res.status(500).json({ error: 'Failed to fetch phone numbers' });
     }
   });
@@ -66,7 +66,7 @@ export function registerPhoneNumbersRoutes(router: Router) {
         }))
       });
     } catch (error: any) {
-      console.error('Error fetching Twilio numbers:', error);
+      logger.error('Error fetching Twilio numbers:', error);
       res.status(500).json({ error: 'Failed to fetch Twilio numbers' });
     }
   });
@@ -121,7 +121,7 @@ export function registerPhoneNumbersRoutes(router: Router) {
                 error: 'Phone number not found in Twilio account. It may have been released.' 
               });
             }
-            console.error('Twilio validation error:', twilioError.message);
+            logger.error('Twilio validation error:', twilioError.message);
             return res.status(400).json({ 
               error: 'Twilio validation failed' 
             });
@@ -137,7 +137,7 @@ export function registerPhoneNumbersRoutes(router: Router) {
       
       res.json({ success: true, phoneNumber: newNumber });
     } catch (error: any) {
-      console.error('Error importing phone number:', error);
+      logger.error('Error importing phone number:', error);
       res.status(500).json({ error: 'Failed to import phone number' });
     }
   });
@@ -165,7 +165,7 @@ export function registerPhoneNumbersRoutes(router: Router) {
       
       res.json({ success: true });
     } catch (error: any) {
-      console.error('Error releasing phone number:', error);
+      logger.error('Error releasing phone number:', error);
       res.status(500).json({ error: 'Failed to release phone number' });
     }
   });
@@ -190,7 +190,7 @@ export function registerPhoneNumbersRoutes(router: Router) {
       
       res.json(allNumbers);
     } catch (error) {
-      console.error('Error fetching all phone numbers:', error);
+      logger.error('Error fetching all phone numbers:', error);
       res.status(500).json({ error: 'Failed to fetch phone numbers' });
     }
   });
@@ -222,7 +222,7 @@ export function registerPhoneNumbersRoutes(router: Router) {
       
       res.json({ success: true });
     } catch (error) {
-      console.error('Error assigning phone number:', error);
+      logger.error('Error assigning phone number:', error);
       res.status(500).json({ error: 'Failed to assign phone number' });
     }
   });
@@ -274,7 +274,7 @@ export function registerPhoneNumbersRoutes(router: Router) {
       
       res.json({ success: true, results });
     } catch (error: any) {
-      console.error('Error configuring webhooks:', error);
+      logger.error('Error configuring webhooks:', error);
       res.status(500).json({ error: 'Failed to configure webhooks' });
     }
   });
@@ -300,7 +300,7 @@ export function registerPhoneNumbersRoutes(router: Router) {
         numbers: numbersNeedingMigration
       });
     } catch (error) {
-      console.error('Error getting migration status:', error);
+      logger.error('Error getting migration status:', error);
       res.status(500).json({ error: 'Failed to get migration status' });
     }
   });
@@ -320,7 +320,7 @@ export function registerPhoneNumbersRoutes(router: Router) {
       
       res.json({ success: true, message: 'Phone number marked as migrated' });
     } catch (error: any) {
-      console.error('Error migrating phone number:', error);
+      logger.error('Error migrating phone number:', error);
       res.status(500).json({ error: 'Failed to migrate phone number' });
     }
   });
@@ -333,7 +333,7 @@ export function registerPhoneNumbersRoutes(router: Router) {
       
       res.json({ success: true, message: 'All phone numbers marked as migrated' });
     } catch (error: any) {
-      console.error('Error migrating all phone numbers:', error);
+      logger.error('Error migrating all phone numbers:', error);
       res.status(500).json({ error: 'Failed to migrate phone numbers' });
     }
   });
@@ -344,7 +344,7 @@ export function registerPhoneNumbersRoutes(router: Router) {
       
       res.json({ success: true, message: 'Agent migration endpoint - not implemented' });
     } catch (error: any) {
-      console.error('Error migrating agent:', error);
+      logger.error('Error migrating agent:', error);
       res.status(500).json({ error: 'Failed to migrate agent' });
     }
   });
@@ -426,7 +426,7 @@ export function registerPhoneNumbersRoutes(router: Router) {
         details: orphanedDetails
       });
     } catch (error: any) {
-      console.error('Error cleaning up phone numbers:', error);
+      logger.error('Error cleaning up phone numbers:', error);
       res.status(500).json({ error: 'Failed to cleanup phone numbers' });
     }
   });
@@ -439,7 +439,7 @@ export function registerPhoneNumbersRoutes(router: Router) {
       
       res.json({ success: true, message: 'Sync status cleared for all phone numbers' });
     } catch (error) {
-      console.error('Error clearing sync status:', error);
+      logger.error('Error clearing sync status:', error);
       res.status(500).json({ error: 'Failed to clear sync status' });
     }
   });
@@ -499,7 +499,7 @@ export function registerPhoneNumbersRoutes(router: Router) {
           
           if (!credential) {
             const ownerInfo = phone.userId ? `user ${phone.userId}` : 'system pool';
-            console.error(`❌ No ElevenLabs credential for ${phone.phoneNumber} (${ownerInfo})`);
+            logger.error(`❌ No ElevenLabs credential for [redacted] (${ownerInfo})`);
             results.push({ 
               id: phone.id, 
               phoneNumber: phone.phoneNumber, 
@@ -540,7 +540,7 @@ export function registerPhoneNumbersRoutes(router: Router) {
           synced++;
           logger.info(`✅ Phone number synced: ${phone.id} -> ${result.phone_number_id}`);
         } catch (error: any) {
-          console.error(`❌ Failed to sync phone number ${phone.phoneNumber}:`, error.message);
+          logger.error(`❌ Failed to sync phone number [redacted]:`, error.message);
           results.push({ 
             id: phone.id, 
             phoneNumber: phone.phoneNumber, 
@@ -560,7 +560,7 @@ export function registerPhoneNumbersRoutes(router: Router) {
         results
       });
     } catch (error: any) {
-      console.error('Error syncing to ElevenLabs:', error);
+      logger.error('Error syncing to ElevenLabs:', error);
       res.status(500).json({ error: 'Failed to sync to ElevenLabs' });
     }
   });
@@ -578,7 +578,7 @@ export function registerPhoneNumbersRoutes(router: Router) {
         errors: summary.errors,
       });
     } catch (error: any) {
-      console.error('[ElevenLabs Resync] Endpoint error:', error);
+      logger.error('[ElevenLabs Resync] Endpoint error:', error);
       res.status(500).json({ error: error.message || 'Failed to re-sync ElevenLabs phone credentials' });
     }
   });
@@ -648,7 +648,7 @@ export function registerPhoneNumbersRoutes(router: Router) {
             });
           }
           // Any other Twilio error — report it clearly
-          console.error(`[Admin Reactivate] Twilio verification error for ${phoneNumber.phoneNumber}:`, twilioError);
+          logger.error(`[Admin Reactivate] Twilio verification error for [redacted]:`, twilioError);
           return res.status(502).json({
             error: 'Twilio verification failed',
             message: twilioError.message || 'Could not verify phone number with Twilio',
@@ -676,7 +676,7 @@ export function registerPhoneNumbersRoutes(router: Router) {
         nextBillingDate: nextBillingDate.toISOString(),
       });
     } catch (error: any) {
-      console.error('Error reactivating phone number:', error);
+      logger.error('Error reactivating phone number:', error);
       res.status(500).json({ error: 'Failed to reactivate phone number' });
     }
   });

@@ -224,7 +224,7 @@ export async function migrateUserResources(
         migratedAgents.push(result);
         logger.info(`   ✅ Agent migrated: ${result.name}`);
       } catch (error) {
-        console.error(`   ❌ Failed to migrate agent ${agent.name}:`, formatErrorForLog(error));
+        logger.error(`   ❌ Failed to migrate agent ${agent.name}:`, formatErrorForLog(error));
         return {
           success: false,
           migratedAgents,
@@ -253,7 +253,7 @@ export async function migrateUserResources(
         migratedPhones.push(result);
         logger.info(`   ✅ Phone migrated`);
       } catch (error) {
-        console.error(`   ❌ Failed to migrate phone ${phone.phoneNumber}:`, formatErrorForLog(error));
+        logger.error(`   ❌ Failed to migrate phone [redacted]:`, formatErrorForLog(error));
         return {
           success: false,
           migratedAgents,
@@ -281,7 +281,7 @@ export async function migrateUserResources(
     await ElevenLabsPoolService.assignUserToCredential(userId, toCredentialId);
     logger.info(`🔄 Updated user ${userId} credential pointer to ${toCredentialId}`);
   } catch (error) {
-    console.error(`🔄 Warning: Failed to update user credential pointer:`, formatErrorForLog(error));
+    logger.error(`🔄 Warning: Failed to update user credential pointer:`, formatErrorForLog(error));
     // Don't fail the migration for this - resources are already moved
   }
 

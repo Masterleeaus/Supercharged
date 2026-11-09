@@ -94,7 +94,7 @@ export async function handleSubscriptionActivated(
         await generateInvoiceForTransaction(newTransaction.id);
         await emailService.sendPurchaseConfirmation(newTransaction.id);
       } catch (emailError: any) {
-        console.error(`❌ [PayPal] Failed to send purchase confirmation email:`, emailError);
+        logger.error(`❌ [PayPal] Failed to send purchase confirmation email:`);
       }
 
       return { 
@@ -178,7 +178,7 @@ export async function handleSubscriptionRenewed(
         await generateInvoiceForTransaction(newTransaction.id);
         await emailService.sendPurchaseConfirmation(newTransaction.id);
       } catch (emailError: any) {
-        console.error(`❌ [PayPal] Failed to send renewal email:`, emailError);
+        logger.error(`❌ [PayPal] Failed to send renewal email:`);
       }
 
       return { 
@@ -253,7 +253,7 @@ export async function handlePaymentFailed(
     const failedAmount = resource?.billing_info?.last_payment?.amount?.value || '0';
     await emailService.sendPaymentFailed(subscription.userId, failedAmount, 'Subscription payment failed');
   } catch (emailError: any) {
-    console.error(`❌ [PayPal] Failed to send payment failed email:`, emailError);
+    logger.error(`❌ [PayPal] Failed to send payment failed email:`);
   }
 
   return { success: true, action: 'payment_failed_notified', userId: subscription.userId };
@@ -399,7 +399,7 @@ export async function handleDisputeCreated(
   try {
     await emailService.sendAccountSuspended(userId, `Chargeback dispute: ${resource?.reason || 'Unknown reason'}`);
   } catch (emailError: any) {
-    console.error(`❌ [PayPal] Failed to send account suspended email:`, emailError);
+    logger.error(`❌ [PayPal] Failed to send account suspended email:`);
   }
 
   logger.info(`⛔ [PayPal] User ${userId} suspended due to chargeback. Dispute ID: ${disputeId}, Reason: ${resource?.reason}`);
@@ -458,7 +458,7 @@ export async function handleCreditsPayment(
       await generateInvoiceForTransaction(newTransaction.id);
       await emailService.sendPurchaseConfirmation(newTransaction.id);
     } catch (emailError: any) {
-      console.error(`❌ [PayPal] Failed to send purchase confirmation:`, emailError);
+      logger.error(`❌ [PayPal] Failed to send purchase confirmation:`);
     }
 
     return { 

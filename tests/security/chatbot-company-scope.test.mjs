@@ -9,7 +9,7 @@ const read = (rel) => fs.readFileSync(new URL('../../' + rel, import.meta.url), 
 const MODULE_INDEX = 'server/modules/chatbot/index.ts';
 const ROUTER = 'server/modules/chatbot/chatbot-routes.ts';
 const SCOPE = 'server/modules/chatbot/chatbot-scope.ts';
-const ROUTES = 'server/routes.ts';
+const ROUTES = 'server/routes/core/chatbot-wiring-routes.ts';
 
 test('registerChatbotModule mounts the router behind requireCompanyScope', () => {
   const src = read(MODULE_INDEX);
@@ -21,7 +21,7 @@ test('registerChatbotModule mounts the router behind requireCompanyScope', () =>
   assert.match(src, /requireCompanyScope:\s*RequestHandler;/, 'requireCompanyScope must be required, not optional');
 });
 
-test('server/routes.ts registers the chatbot module with requireCompanyScope', () => {
+test('the chatbot wiring module registers the chatbot module with requireCompanyScope', () => {
   assert.match(read(ROUTES), /registerChatbotModule\(app,\s*\{\s*requireCompanyScope:\s*requireCompanyScope\(\)/);
 });
 

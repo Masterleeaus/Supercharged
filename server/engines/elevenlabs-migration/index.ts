@@ -222,6 +222,6 @@ export function initializeMigrationEngine(): void {
   import('./retry-scheduler').then(({ startRetryScheduler }) => {
     startRetryScheduler();
   }).catch(err => {
-    console.error(`🔄 [Migration Engine] Failed to start retry scheduler:`, err);
+    logger.error(`🔄 [Migration Engine] Failed to start retry scheduler:`, err);
   });
 }

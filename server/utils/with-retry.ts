@@ -1,3 +1,4 @@
+import { logger } from './logger.ts';
 'use strict';
 /**
  * ============================================================
@@ -90,7 +91,7 @@ export async function withRetry<T>(fn: () => Promise<T>, opts: RetryOptions = {}
       const delay = backoff + jitter;
       const e = err as MaybeHttpError;
       const status = e.status ?? e.statusCode ?? e.response?.status;
-      console.warn(
+      logger.warn(
         `[${label}] attempt ${attempt}/${maxAttempts} failed${status ? ` (status ${status})` : ''}: ${e.message ?? err}. Retrying in ${delay}ms`
       );
       await sleep(delay);

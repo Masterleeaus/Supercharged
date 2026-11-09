@@ -82,7 +82,7 @@ export class OpenAIPoolService {
       });
 
       if (!response.ok) {
-        console.error('❌ OpenAI API key test failed');
+        logger.error('❌ OpenAI API key test failed');
         return false;
       }
 
@@ -90,9 +90,9 @@ export class OpenAIPoolService {
       return true;
     } catch (error: any) {
       if (error.name === 'AbortError') {
-        console.error('❌ OpenAI API key test timed out after 15s');
+        logger.error('❌ OpenAI API key test timed out after 15s');
       } else {
-        console.error('❌ OpenAI API key test failed:', error);
+        logger.error('❌ OpenAI API key test failed:', error);
       }
       return false;
     } finally {
@@ -266,7 +266,7 @@ export class OpenAIPoolService {
       logger.warn(`[OpenAI Pool] No available capacity${tier ? ` for tier ${tier}` : ''} - all credentials at max load or none configured`);
       return null;
     } catch (error) {
-      console.error(`[OpenAI Pool] Failed to reserve slot:`, error);
+      logger.error(`[OpenAI Pool] Failed to reserve slot:`, error);
       return null;
     }
   }
@@ -295,7 +295,7 @@ export class OpenAIPoolService {
       logger.info(`⚠️ [OpenAI Pool] Credential ${credentialId} has no capacity or is inactive`);
       return null;
     } catch (error) {
-      console.error(`❌ [OpenAI Pool] Failed to reserve slot on credential ${credentialId}:`, error);
+      logger.error(`❌ [OpenAI Pool] Failed to reserve slot on credential [redacted]:`, error);
       return null;
     }
   }

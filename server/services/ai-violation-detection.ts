@@ -32,7 +32,7 @@ async function getOpenAIClient(): Promise<OpenAI | null> {
       return new OpenAI({ apiKey: credential.apiKey });
     }
   } catch (err) {
-    console.warn('[AI Violation Detection] Could not fetch OpenAI credential from database:', err);
+    logger.warn('[AI Violation Detection] Could not fetch OpenAI credential from database:', err);
   }
   
   // Fall back to environment variable
@@ -54,7 +54,7 @@ export async function analyzeTranscriptWithAI(
 
   const openai = await getOpenAIClient();
   if (!openai) {
-    console.warn('⚠️ [AI Violation Detection] No OpenAI credentials available (database or env), skipping AI analysis');
+    logger.warn('⚠️ [AI Violation Detection] No OpenAI credentials available (database or env), skipping AI analysis');
     return [];
   }
 
@@ -107,7 +107,7 @@ Only flag genuine policy violations. Normal business conversations, expressions 
 
     const content = response.choices[0]?.message?.content;
     if (!content) {
-      console.warn(`⚠️ [AI Violation Detection] No response from OpenAI for call ${callId}`);
+      logger.warn(`⚠️ [AI Violation Detection] No response from OpenAI for call ${callId}`);
       return [];
     }
 
@@ -153,7 +153,7 @@ Only flag genuine policy violations. Normal business conversations, expressions 
     return createdViolations;
 
   } catch (error: any) {
-    console.error(`❌ [AI Violation Detection] Error analyzing call ${callId}:`, error.message);
+    logger.error(`❌ [AI Violation Detection] Error analyzing call ${callId}:`, error.message);
     return [];
   }
 }

@@ -18,6 +18,7 @@
 
 import { Router, Request, Response } from "express";
 import { RouteContext, AuthRequest, escapeCSV } from "./common";
+import { logger } from '../utils/logger.ts';
 
 export function createSubscriptionRoutes(ctx: RouteContext): Router {
   const router = Router();
@@ -33,7 +34,7 @@ export function createSubscriptionRoutes(ctx: RouteContext): Router {
       const plans = await storage.getAllPlans();
       res.json(plans);
     } catch (error: any) {
-      console.error("Get plans error:", error);
+      logger.error("Get plans error:", error);
       res.status(500).json({ error: "Failed to get plans" });
     }
   });
@@ -44,7 +45,7 @@ export function createSubscriptionRoutes(ctx: RouteContext): Router {
       const plans = await storage.getAllPlans();
       res.json(plans);
     } catch (error: any) {
-      console.error("Get subscription plans error:", error);
+      logger.error("Get subscription plans error:", error);
       res.status(500).json({ error: "Failed to get subscription plans" });
     }
   });
@@ -59,7 +60,7 @@ export function createSubscriptionRoutes(ctx: RouteContext): Router {
       const subscription = await storage.getUserSubscription(req.userId!);
       res.json(subscription || null);
     } catch (error: any) {
-      console.error("Get user subscription error:", error);
+      logger.error("Get user subscription error:", error);
       res.status(500).json({ error: "Failed to get subscription" });
     }
   });
@@ -70,7 +71,7 @@ export function createSubscriptionRoutes(ctx: RouteContext): Router {
       const subscription = await storage.getUserSubscription(req.userId!);
       res.json(subscription);
     } catch (error: any) {
-      console.error("Get user subscription error:", error);
+      logger.error("Get user subscription error:", error);
       res.status(500).json({ error: "Failed to get subscription" });
     }
   });
@@ -85,7 +86,7 @@ export function createSubscriptionRoutes(ctx: RouteContext): Router {
       const packages = await storage.getAllCreditPackages();
       res.json(packages);
     } catch (error: any) {
-      console.error("Get credit packages error:", error);
+      logger.error("Get credit packages error:", error);
       res.status(500).json({ error: "Failed to get credit packages" });
     }
   });
@@ -100,7 +101,7 @@ export function createSubscriptionRoutes(ctx: RouteContext): Router {
       const transactions = await storage.getUserCreditTransactions(req.userId!);
       res.json(transactions);
     } catch (error: any) {
-      console.error("Get credit transactions error:", error);
+      logger.error("Get credit transactions error:", error);
       res.status(500).json({ error: "Failed to get credit transactions" });
     }
   });
@@ -111,7 +112,7 @@ export function createSubscriptionRoutes(ctx: RouteContext): Router {
       const transactions = await storage.getUserCreditTransactions(req.userId!);
       res.json(transactions);
     } catch (error: any) {
-      console.error("Get credit transactions error:", error);
+      logger.error("Get credit transactions error:", error);
       res.status(500).json({ error: "Failed to get credit transactions" });
     }
   });
@@ -140,7 +141,7 @@ export function createSubscriptionRoutes(ctx: RouteContext): Router {
       res.setHeader("Content-Disposition", `attachment; filename="transactions-${new Date().toISOString().split('T')[0]}.csv"`);
       res.send(csv);
     } catch (error: any) {
-      console.error("Export credit transactions error:", error);
+      logger.error("Export credit transactions error:", error);
       res.status(500).json({ error: "Failed to export credit transactions" });
     }
   });
@@ -167,7 +168,7 @@ export function createSubscriptionRoutes(ctx: RouteContext): Router {
         billingCountry: user.billingCountry,
       });
     } catch (error: any) {
-      console.error("Get billing profile error:", error);
+      logger.error("Get billing profile error:", error);
       res.status(500).json({ error: "Failed to get billing profile" });
     }
   });
@@ -215,7 +216,7 @@ export function createSubscriptionRoutes(ctx: RouteContext): Router {
       
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Update billing profile error:", error);
+      logger.error("Update billing profile error:", error);
       res.status(500).json({ error: "Failed to update billing profile" });
     }
   });

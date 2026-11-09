@@ -150,7 +150,7 @@ export function registerFlowQueueRoutes(router: Router): void {
           toPhone: claimed.toPhone,
           queueEntryId: claimed.id,
         }).catch((err: any) => {
-          console.error(`[Queue] Background test call error for ${claimed.id}:`, err);
+          logger.error(`[Queue] Background test call error for ${claimed.id}:`, err);
           db.update(flowTestQueue)
             .set({ status: 'failed', errorMessage: err?.message || 'Unexpected error during call placement' })
             .where(and(eq(flowTestQueue.id, claimed.id), eq(flowTestQueue.status, 'processing')))
@@ -161,7 +161,7 @@ export function registerFlowQueueRoutes(router: Router): void {
       return res.json({ status: 'processing', position: 0, ready: false });
 
     } catch (error: any) {
-      console.error("Error fetching queue status:", error);
+      logger.error("Error fetching queue status:", error);
       return res.status(500).json({ error: "Failed to fetch queue status" });
     }
   });
@@ -197,7 +197,7 @@ export function registerFlowQueueRoutes(router: Router): void {
 
       return res.json({ success: true });
     } catch (error: any) {
-      console.error("Error cancelling queue entry:", error);
+      logger.error("Error cancelling queue entry:", error);
       return res.status(500).json({ error: "Failed to cancel queue entry" });
     }
   });

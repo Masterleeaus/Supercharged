@@ -32,7 +32,7 @@ export function registerFlowRoutes(router: Router): void {
 
       res.json(userFlows);
     } catch (error: any) {
-      console.error("Error fetching flows:", error);
+      logger.error("Error fetching flows:", error);
       res.status(500).json({ error: "Failed to fetch flows" });
     }
   });
@@ -59,7 +59,7 @@ export function registerFlowRoutes(router: Router): void {
 
       res.json(flow);
     } catch (error: any) {
-      console.error("Error fetching flow:", error);
+      logger.error("Error fetching flow:", error);
       res.status(500).json({ error: "Failed to fetch flow" });
     }
   });
@@ -133,7 +133,7 @@ export function registerFlowRoutes(router: Router): void {
 
       res.json(newFlow);
     } catch (error: any) {
-      console.error("Error creating flow:", error);
+      logger.error("Error creating flow:", error);
       res.status(500).json({ error: "Failed to create flow" });
     }
   });
@@ -227,7 +227,7 @@ export function registerFlowRoutes(router: Router): void {
             }
           }
         } catch (sheetErr: any) {
-          console.warn(`📋 [Flow Save] Google Sheets header init failed (non-fatal):`, sheetErr.message);
+          logger.warn(`📋 [Flow Save] Google Sheets header init failed (non-fatal):`, sheetErr.message);
         }
       })();
       // ──────────────────────────────────────────────────────────────────────────
@@ -333,7 +333,7 @@ export function registerFlowRoutes(router: Router): void {
                   logger.warn(`⚠️ [Flow Save] Flow has no nodes, skipping OpenAI compilation`);
                 }
               } catch (compileError: any) {
-                console.error(`❌ [Flow Save] OpenAI compilation error:`, compileError.message);
+                logger.error(`❌ [Flow Save] OpenAI compilation error:`, compileError.message);
               }
             } else {
               // ElevenLabs/Twilio flow agent - sync to ElevenLabs
@@ -512,7 +512,7 @@ export function registerFlowRoutes(router: Router): void {
                           );
                           logger.info(`✅ [Flow Save] Webhook tools added (${newAgentWebhookTools.length} tools)`);
                         } catch (toolError: any) {
-                          console.error(`❌ [Flow Save] Failed to add webhook tools:`, toolError.message);
+                          logger.error(`❌ [Flow Save] Failed to add webhook tools:`, toolError.message);
                         }
                       }
                     } else {
@@ -644,13 +644,13 @@ export function registerFlowRoutes(router: Router): void {
             }
           }
         } catch (syncError: any) {
-          console.error(`❌ [Flow Save] ElevenLabs sync error:`, syncError.message);
+          logger.error(`❌ [Flow Save] ElevenLabs sync error:`, syncError.message);
         }
       }
 
       res.json(updatedFlow);
     } catch (error: any) {
-      console.error("Error updating flow:", error);
+      logger.error("Error updating flow:", error);
       res.status(500).json({ error: "Failed to update flow" });
     }
   });
@@ -691,7 +691,7 @@ export function registerFlowRoutes(router: Router): void {
 
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Error deleting flow:", error);
+      logger.error("Error deleting flow:", error);
       res.status(500).json({ error: "This flow cannot be deleted — please try again or contact support." });
     }
   });
@@ -773,7 +773,7 @@ export function registerFlowRoutes(router: Router): void {
         firstMessage: firstMessageFromFlow
       });
     } catch (error: any) {
-      console.error("Error resyncing first message:", error);
+      logger.error("Error resyncing first message:", error);
       res.status(500).json({ error: "Failed to resync first message" });
     }
   });

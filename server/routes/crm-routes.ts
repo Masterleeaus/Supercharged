@@ -13,6 +13,7 @@ import { z } from 'zod';
 // Team Management - uses adapter for optional plugin loading
 import { getTeamService } from '../plugins/team-management-adapter';
 import { getCompanyScope, CompanyScopeError } from '../middleware/company-scope';
+import { logger } from '../utils/logger.ts';
 
 interface AuthRequest extends Request {
   userId?: string;
@@ -49,7 +50,7 @@ async function logTeamActivity(
         );
       }
     } catch (err) {
-      console.error('[CRM] Failed to log team activity:', err);
+      logger.error('[CRM] Failed to log team activity:', err);
     }
   }
 }
@@ -73,7 +74,7 @@ router.get('/stages', requireAuth, async (req: AuthRequest, res: Response) => {
     const stages = await CRMStorage.ensureDefaultStages(req.userId!);
     res.json(stages);
   } catch (error: any) {
-    console.error('[CRM] Error fetching stages:', error);
+    logger.error('[CRM] Error fetching stages:', error);
     res.status(500).json({ error: 'Failed to fetch stages' });
   }
 });
@@ -100,7 +101,7 @@ router.post('/stages', requireAuth, async (req: AuthRequest, res: Response) => {
     const stage = await CRMStorage.createStage(stageData);
     res.json(stage);
   } catch (error: any) {
-    console.error('[CRM] Error creating stage:', error);
+    logger.error('[CRM] Error creating stage:', error);
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: 'Invalid data', details: error.issues });
     }
@@ -120,7 +121,7 @@ router.patch('/stages/:id', requireAuth, async (req: AuthRequest, res: Response)
 
     res.json(stage);
   } catch (error: any) {
-    console.error('[CRM] Error updating stage:', error);
+    logger.error('[CRM] Error updating stage:', error);
     res.status(500).json({ error: 'Failed to update stage' });
   }
 });
@@ -136,7 +137,7 @@ router.delete('/stages/:id', requireAuth, async (req: AuthRequest, res: Response
 
     res.json({ success: true });
   } catch (error: any) {
-    console.error('[CRM] Error deleting stage:', error);
+    logger.error('[CRM] Error deleting stage:', error);
     res.status(500).json({ error: 'Failed to delete stage' });
   }
 });
@@ -152,7 +153,7 @@ router.post('/stages/reorder', requireAuth, async (req: AuthRequest, res: Respon
     await CRMStorage.reorderStages(req.userId!, stageIds);
     res.json({ success: true });
   } catch (error: any) {
-    console.error('[CRM] Error reordering stages:', error);
+    logger.error('[CRM] Error reordering stages:', error);
     res.status(500).json({ error: 'Failed to reorder stages' });
   }
 });
@@ -173,7 +174,7 @@ router.get('/sources', requireAuth, async (req: AuthRequest, res: Response) => {
       incomingConnections,
     });
   } catch (error: any) {
-    console.error('[CRM] Error fetching sources:', error);
+    logger.error('[CRM] Error fetching sources:', error);
     res.status(500).json({ error: 'Failed to fetch sources' });
   }
 });
@@ -219,7 +220,7 @@ router.get('/leads', requireAuth, async (req: AuthRequest, res: Response) => {
 
     res.json(leads);
   } catch (error: any) {
-    console.error('[CRM] Error fetching leads:', error);
+    logger.error('[CRM] Error fetching leads:', error);
     res.status(500).json({ error: 'Failed to fetch leads' });
   }
 });
@@ -265,7 +266,7 @@ router.get('/leads/kanban', requireAuth, async (req: AuthRequest, res: Response)
       counts: counts.reduce((acc, c) => ({ ...acc, [c.stage]: c.count }), {}),
     });
   } catch (error: any) {
-    console.error('[CRM] Error fetching kanban data:', error);
+    logger.error('[CRM] Error fetching kanban data:', error);
     res.status(500).json({ error: 'Failed to fetch kanban data' });
   }
 });
@@ -287,7 +288,7 @@ router.get('/leads/ai-categories', requireAuth, async (req: AuthRequest, res: Re
       })),
     });
   } catch (error: any) {
-    console.error('[CRM] Error fetching AI categories:', error);
+    logger.error('[CRM] Error fetching AI categories:', error);
     res.status(500).json({ error: 'Failed to fetch AI categories' });
   }
 });
@@ -326,7 +327,7 @@ router.get('/leads/categorized', requireAuth, async (req: AuthRequest, res: Resp
 
     res.json(result);
   } catch (error: any) {
-    console.error('[CRM] Error fetching categorized leads:', error);
+    logger.error('[CRM] Error fetching categorized leads:', error);
     res.status(500).json({ error: 'Failed to fetch categorized leads' });
   }
 });
@@ -363,7 +364,7 @@ router.get('/leads/category-counts', requireAuth, async (req: AuthRequest, res: 
       })),
     });
   } catch (error: any) {
-    console.error('[CRM] Error fetching category counts:', error);
+    logger.error('[CRM] Error fetching category counts:', error);
     res.status(500).json({ error: 'Failed to fetch category counts' });
   }
 });
@@ -429,7 +430,7 @@ router.get('/leads/ai-kanban', requireAuth, async (req: AuthRequest, res: Respon
       columns,
     });
   } catch (error: any) {
-    console.error('[CRM] Error fetching AI kanban data:', error);
+    logger.error('[CRM] Error fetching AI kanban data:', error);
     res.status(500).json({ error: 'Failed to fetch AI kanban data' });
   }
 });
@@ -462,7 +463,7 @@ router.get('/leads/ai-kanban/:category', requireAuth, async (req: AuthRequest, r
 
     res.json({ ...result, leads: enrichedLeads });
   } catch (error: any) {
-    console.error('[CRM] Error loading more leads:', error);
+    logger.error('[CRM] Error loading more leads:', error);
     res.status(500).json({ error: 'Failed to load more leads' });
   }
 });
@@ -497,7 +498,7 @@ router.patch('/leads/:id/ai-category', requireAuth, async (req: AuthRequest, res
 
     res.json(updatedLead);
   } catch (error: any) {
-    console.error('[CRM] Error updating lead AI category:', error);
+    logger.error('[CRM] Error updating lead AI category:', error);
     res.status(500).json({ error: 'Failed to update lead AI category' });
   }
 });
@@ -528,7 +529,7 @@ router.post('/leads/:id/recategorize', requireAuth, async (req: AuthRequest, res
 
     res.json(updatedLead);
   } catch (error: any) {
-    console.error('[CRM] Error recategorizing lead:', error);
+    logger.error('[CRM] Error recategorizing lead:', error);
     res.status(500).json({ error: 'Failed to recategorize lead' });
   }
 });
@@ -565,7 +566,7 @@ router.post('/leads/backfill-categories', requireAuth, async (req: AuthRequest, 
       total: allLeads.length,
     });
   } catch (error: any) {
-    console.error('[CRM] Error backfilling categories:', error);
+    logger.error('[CRM] Error backfilling categories:', error);
     res.status(500).json({ error: 'Failed to backfill categories' });
   }
 });
@@ -581,7 +582,7 @@ router.get('/leads/:id', requireAuth, async (req: AuthRequest, res: Response) =>
 
     res.json(lead);
   } catch (error: any) {
-    console.error('[CRM] Error fetching lead:', error);
+    logger.error('[CRM] Error fetching lead:', error);
     res.status(500).json({ error: 'Failed to fetch lead' });
   }
 });
@@ -616,7 +617,7 @@ router.patch('/leads/:id', requireAuth, async (req: AuthRequest, res: Response) 
 
     res.json(lead);
   } catch (error: any) {
-    console.error('[CRM] Error updating lead:', error);
+    logger.error('[CRM] Error updating lead:', error);
     res.status(500).json({ error: 'Failed to update lead' });
   }
 });
@@ -638,7 +639,7 @@ router.patch('/leads/:id/stage', requireAuth, async (req: AuthRequest, res: Resp
 
     res.json(lead);
   } catch (error: any) {
-    console.error('[CRM] Error updating lead stage:', error);
+    logger.error('[CRM] Error updating lead stage:', error);
     res.status(500).json({ error: 'Failed to update lead stage' });
   }
 });
@@ -677,7 +678,7 @@ router.post('/leads/bulk/ai-category', requireAuth, async (req: AuthRequest, res
 
     res.json({ success: true, count: updated });
   } catch (error: any) {
-    console.error('[CRM] Error bulk updating AI category:', error);
+    logger.error('[CRM] Error bulk updating AI category:', error);
     res.status(500).json({ error: 'Failed to bulk update AI category' });
   }
 });
@@ -718,7 +719,7 @@ router.post('/leads/bulk/stage', requireAuth, async (req: AuthRequest, res: Resp
 
     res.json({ success: true, updated: count });
   } catch (error: any) {
-    console.error('[CRM] Error bulk updating stage:', error);
+    logger.error('[CRM] Error bulk updating stage:', error);
     res.status(500).json({ error: 'Failed to bulk update stage' });
   }
 });
@@ -748,7 +749,7 @@ router.post('/leads/bulk/tags', requireAuth, async (req: AuthRequest, res: Respo
 
     res.json({ success: true, updated: count });
   } catch (error: any) {
-    console.error('[CRM] Error bulk adding tags:', error);
+    logger.error('[CRM] Error bulk adding tags:', error);
     res.status(500).json({ error: 'Failed to bulk add tags' });
   }
 });
@@ -771,7 +772,7 @@ router.post('/leads/bulk/assign', requireAuth, async (req: AuthRequest, res: Res
 
     res.json({ success: true, updated: count });
   } catch (error: any) {
-    console.error('[CRM] Error bulk assigning:', error);
+    logger.error('[CRM] Error bulk assigning:', error);
     res.status(500).json({ error: 'Failed to bulk assign' });
   }
 });
@@ -786,7 +787,7 @@ router.get('/leads/:leadId/notes', requireAuth, async (req: AuthRequest, res: Re
     const notes = await CRMStorage.getNotesByLead(leadId);
     res.json(notes);
   } catch (error: any) {
-    console.error('[CRM] Error fetching notes:', error);
+    logger.error('[CRM] Error fetching notes:', error);
     res.status(500).json({ error: 'Failed to fetch notes' });
   }
 });
@@ -817,7 +818,7 @@ router.post('/leads/:leadId/notes', requireAuth, async (req: AuthRequest, res: R
 
     res.json(note);
   } catch (error: any) {
-    console.error('[CRM] Error creating note:', error);
+    logger.error('[CRM] Error creating note:', error);
     res.status(500).json({ error: 'Failed to create note' });
   }
 });
@@ -839,7 +840,7 @@ router.patch('/notes/:id', requireAuth, async (req: AuthRequest, res: Response) 
 
     res.json(note);
   } catch (error: any) {
-    console.error('[CRM] Error updating note:', error);
+    logger.error('[CRM] Error updating note:', error);
     res.status(500).json({ error: 'Failed to update note' });
   }
 });
@@ -858,7 +859,7 @@ router.delete('/notes/:id', requireAuth, async (req: AuthRequest, res: Response)
 
     res.json({ success: true });
   } catch (error: any) {
-    console.error('[CRM] Error deleting note:', error);
+    logger.error('[CRM] Error deleting note:', error);
     res.status(500).json({ error: 'Failed to delete note' });
   }
 });
@@ -873,7 +874,7 @@ router.get('/leads/:leadId/activities', requireAuth, async (req: AuthRequest, re
     const activities = await CRMStorage.getActivitiesByLead(leadId, req.userId!);
     res.json(activities);
   } catch (error: any) {
-    console.error('[CRM] Error fetching activities:', error);
+    logger.error('[CRM] Error fetching activities:', error);
     res.status(500).json({ error: 'Failed to fetch activities' });
   }
 });
@@ -895,7 +896,7 @@ router.post('/leads/bulk/delete', requireAuth, async (req: AuthRequest, res: Res
 
     res.json({ deleted: deletedCount });
   } catch (error: any) {
-    console.error('[CRM] Error bulk deleting leads:', error);
+    logger.error('[CRM] Error bulk deleting leads:', error);
     res.status(500).json({ error: 'Failed to bulk delete leads' });
   }
 });
@@ -909,7 +910,7 @@ router.get('/analytics', requireAuth, async (req: AuthRequest, res: Response) =>
     const analytics = await CRMStorage.getAnalytics(req.userId!);
     res.json(analytics);
   } catch (error: any) {
-    console.error('[CRM] Error fetching analytics:', error);
+    logger.error('[CRM] Error fetching analytics:', error);
     res.status(500).json({ error: 'Failed to fetch analytics' });
   }
 });
@@ -1015,7 +1016,7 @@ router.get('/export/csv', requireAuth, async (req: AuthRequest, res: Response) =
     res.setHeader('Content-Disposition', `attachment; filename="leads-export-${new Date().toISOString().split('T')[0]}.csv"`);
     res.send(csvContent);
   } catch (error: any) {
-    console.error('[CRM] Error exporting CSV:', error);
+    logger.error('[CRM] Error exporting CSV:', error);
     res.status(500).json({ error: 'Failed to export CSV' });
   }
 });
@@ -1026,7 +1027,7 @@ router.get('/tags', requireAuth, async (req: AuthRequest, res: Response) => {
     const tags = await CRMStorage.getAllUniqueTags(req.userId!);
     res.json(tags);
   } catch (error: any) {
-    console.error('[CRM] Error fetching tags:', error);
+    logger.error('[CRM] Error fetching tags:', error);
     res.status(500).json({ error: 'Failed to fetch tags' });
   }
 });
@@ -1040,7 +1041,7 @@ router.get('/preferences', requireAuth, async (req: AuthRequest, res: Response) 
     const prefs = await CRMStorage.getOrCreateCategoryPreferences(req.userId!);
     res.json(prefs);
   } catch (error: any) {
-    console.error('[CRM] Error fetching preferences:', error);
+    logger.error('[CRM] Error fetching preferences:', error);
     res.status(500).json({ error: 'Failed to fetch preferences' });
   }
 });
@@ -1069,7 +1070,7 @@ router.patch('/preferences', requireAuth, async (req: AuthRequest, res: Response
     });
     res.json(prefs);
   } catch (error: any) {
-    console.error('[CRM] Error updating preferences:', error);
+    logger.error('[CRM] Error updating preferences:', error);
     res.status(500).json({ error: 'Failed to update preferences' });
   }
 });
@@ -1084,7 +1085,7 @@ router.patch('/preferences/color/:categoryId', requireAuth, async (req: AuthRequ
     const prefs = await CRMStorage.updateCategoryColor(req.userId!, categoryId, color);
     res.json(prefs);
   } catch (error: any) {
-    console.error('[CRM] Error updating color:', error);
+    logger.error('[CRM] Error updating color:', error);
     res.status(500).json({ error: 'Failed to update color' });
   }
 });
@@ -1098,7 +1099,7 @@ router.patch('/preferences/order', requireAuth, async (req: AuthRequest, res: Re
     const prefs = await CRMStorage.updateColumnOrder(req.userId!, columnOrder);
     res.json(prefs);
   } catch (error: any) {
-    console.error('[CRM] Error updating order:', error);
+    logger.error('[CRM] Error updating order:', error);
     res.status(500).json({ error: 'Failed to update order' });
   }
 });
@@ -1113,7 +1114,7 @@ router.patch('/preferences/sort/:categoryId', requireAuth, async (req: AuthReque
     const prefs = await CRMStorage.updateColumnSort(req.userId!, categoryId, sortBy);
     res.json(prefs);
   } catch (error: any) {
-    console.error('[CRM] Error updating sort:', error);
+    logger.error('[CRM] Error updating sort:', error);
     res.status(500).json({ error: 'Failed to update sort' });
   }
 });

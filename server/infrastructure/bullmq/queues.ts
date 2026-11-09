@@ -8,6 +8,7 @@
 
 import { Queue, QueueEvents } from 'bullmq';
 import { getRedisConnection } from './redis-connection';
+import { logger } from '../../utils/logger.ts';
 
 export const QUEUE_NAMES = {
   CAMPAIGN_CALLS: 'campaign-calls',
@@ -164,7 +165,7 @@ export async function closeAllQueues(): Promise<void> {
   }
 
   await Promise.all(closePromises);
-  console.log('[BullMQ] All queues closed');
+  logger.info('[BullMQ] All queues closed');
 }
 
 export async function addCampaignCallJobs(jobs: CampaignCallJob[]): Promise<void> {
@@ -179,7 +180,7 @@ export async function addCampaignCallJobs(jobs: CampaignCallJob[]): Promise<void
   }));
   
   await queue.addBulk(bulkJobs);
-  console.log(`[BullMQ] Added ${jobs.length} call jobs to queue`);
+  logger.info(`[BullMQ] Added ${jobs.length} call jobs to queue`);
 }
 
 export async function getQueueStats(queueName: QueueName): Promise<{

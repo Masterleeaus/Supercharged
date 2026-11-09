@@ -83,3 +83,65 @@ jobs:
           }
           console.log('All listed migrations exist.');
           "
+
+  docker:
+    name: Docker build and smoke test
+    runs-on: ubuntu-latest
+    # Gating job: no continue-on-error. No repository or organisation secrets are used.
+    # The app reads DATABASE_URL at import time (server/db.ts) and requires JWT_SECRET
+    # in production (server/middleware/auth.ts). Both are set below as CI-only values
+    # for a throwaway postgres service that exists only inside this job.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          # Throwaway CI-only password. Not a real secret; the database lives only for this job.
+          POSTGRES_PASSWORD: ci-only-throwaway-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # CI placeholder only: points at the postgres service above (same throwaway password).
+      DATABASE_URL: postgres://postgres:ci-only-throwaway-password@localhost:5432/postgres
+      # CI placeholder only: satisfies the production JWT_SECRET check. Not used anywhere real.
+      JWT_SECRET: ci-only-placeholder-jwt-secret-not-real
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t supercharged-ci .
+      - name: Start container
+        # --network host lets the app reach the postgres service on localhost:5432.
+        # Host networking also exposes the app on localhost:5000, so no -p is needed.
+        run: >-
+          docker run -d --name app --network host
+          -e NODE_ENV=production
+          -e PORT=5000
+          -e DATABASE_URL
+          -e JWT_SECRET
+          supercharged-ci
+      - name: Wait for HTTP response on /health (up to 60s)
+        run: |
+          for i in $(seq 1 60); do
+            if [ "$(docker inspect -f '{{.State.Running}}' app 2>/dev/null)" != "true" ]; then
+              echo "Container 'app' is not running after ${i}s; it exited."
+              exit 1
+            fi
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 2 http://localhost:5000/health || true)
+            if [ -n "$code" ] && [ "$code" != "000" ]; then
+              echo "App answered with HTTP $code after ${i}s."
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "No HTTP response from http://localhost:5000/health within 60s."
+          exit 1
+      - name: Dump container logs on failure
+        if: failure()
+        run: docker logs app || true
+      - name: Remove container
+        if: always()
+        run: docker rm -f app || true

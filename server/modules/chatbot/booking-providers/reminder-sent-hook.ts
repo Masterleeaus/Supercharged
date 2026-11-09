@@ -14,6 +14,7 @@
  */
 import type { OutboxStorage } from "../contracts/index.ts";
 import type { ReminderSentEvent } from "./reminders.ts";
+import { logger } from '../../../utils/logger.ts';
 
 export const REMINDER_SENT_EVENT = "appointment.reminder_sent";
 
@@ -29,7 +30,8 @@ export function reminderSentDedupeKey(appointmentId: string, channel: string): s
 }
 
 export function createReminderSentHook(deps: ReminderSentHookDeps): (event: ReminderSentEvent) => Promise<void> {
-  const error = deps.error ?? ((message: string) => console.error(message));
+  const warn = deps.warn ?? ((message: string) => logger.warn(message));
+  const error = deps.error ?? ((message: string) => logger.error(message));
 
   return async (event) => {
     try {

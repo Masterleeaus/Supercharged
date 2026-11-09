@@ -125,7 +125,7 @@ export async function findCallForWebhook(
     .limit(1);
   
   if (agentResult.length === 0) {
-    console.warn(`🔍 [Call Matcher] No agent found with ElevenLabs ID ${elevenLabsAgentId}`);
+    logger.warn(`🔍 [Call Matcher] No agent found with ElevenLabs ID ${elevenLabsAgentId}`);
     return null;
   }
   
@@ -297,7 +297,7 @@ export async function findCallForWebhook(
   if (activeCalls.length === 1) {
     const singleActiveCall = activeCalls[0];
     if (webhookPhone && singleActiveCall.phoneNumber && !phonesMatch(singleActiveCall.phoneNumber, webhookPhone)) {
-      console.warn(`🔍 [Call Matcher] ⚠️ Single active call phone mismatch (+${singleActiveCall.phoneNumber} vs +${webhookPhone}) - returning null`);
+      logger.warn(`🔍 [Call Matcher] ⚠️ Single active call phone mismatch (+[redacted] vs +[redacted]) - returning null`);
       return null;
     }
     logger.info(`🔍 [Call Matcher] ✅ Single active call found: ${singleActiveCall.id}`);
@@ -307,8 +307,8 @@ export async function findCallForWebhook(
   }
   
   if (activeCalls.length > 1) {
-    console.warn(`🔍 [Call Matcher] ⚠️ Multiple active calls (${activeCalls.length}) - ambiguous match, returning null`);
-    console.warn(`   Call IDs: ${activeCalls.map(c => c.id).join(', ')}`);
+    logger.warn(`🔍 [Call Matcher] ⚠️ Multiple active calls (${activeCalls.length}) - ambiguous match, returning null`);
+    logger.warn(`   Call IDs: ${activeCalls.map(c => c.id).join(', ')}`);
     return null;
   }
   
@@ -318,7 +318,7 @@ export async function findCallForWebhook(
   if (recentCalls.length === 1) {
     const singleRecentCall = recentCalls[0];
     if (webhookPhone && singleRecentCall.phoneNumber && !phonesMatch(singleRecentCall.phoneNumber, webhookPhone)) {
-      console.warn(`🔍 [Call Matcher] ⚠️ Single recent call phone mismatch (+${singleRecentCall.phoneNumber} vs +${webhookPhone}) - returning null`);
+      logger.warn(`🔍 [Call Matcher] ⚠️ Single recent call phone mismatch (+[redacted] vs +[redacted]) - returning null`);
       return null;
     }
     logger.info(`🔍 [Call Matcher] ✅ Single recent call fallback: ${singleRecentCall.id}`);
@@ -329,8 +329,8 @@ export async function findCallForWebhook(
   }
   
   // STRATEGY 4: No phone match, no active calls, multiple recent calls - cannot match
-  console.warn(`🔍 [Call Matcher] ⚠️ No phone match, no active calls, multiple recent calls - cannot confidently match`);
-  console.warn(`   Total calls in window: ${recentCalls.length}, Active: ${activeCalls.length}`);
+  logger.warn(`🔍 [Call Matcher] ⚠️ No phone match, no active calls, multiple recent calls - cannot confidently match`);
+  logger.warn(`   Total calls in window: ${recentCalls.length}, Active: ${activeCalls.length}`);
   return null;
 }
 

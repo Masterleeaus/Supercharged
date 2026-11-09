@@ -120,7 +120,7 @@ export class RecordingService {
       if (twilioResult) {
         return twilioResult;
       }
-      console.warn(`⚠️ [Recording] Stored recordingUrl failed for call ${call.id}, trying Twilio SID fallback`);
+      logger.warn(`⚠️ [Recording] Stored recordingUrl failed for call ${call.id}, trying Twilio SID fallback`);
     }
 
     // Final fallback: try Twilio SID directly (covers ElevenLabs native calls where
@@ -183,7 +183,7 @@ export class RecordingService {
       }
       return null;
     } catch (error: any) {
-      console.error(`❌ [Recording] ElevenLabs recording fetch error:`, error.message);
+      logger.error(`❌ [Recording] ElevenLabs recording fetch error:`, error.message);
       throw error;
     }
   }
@@ -242,7 +242,7 @@ export class RecordingService {
         source: 'twilio'
       };
     } catch (error: any) {
-      console.warn(`⚠️ [Recording] Twilio fallback failed: ${error.message}`);
+      logger.warn(`⚠️ [Recording] Twilio fallback failed: ${error.message}`);
       return null;
     }
   }
@@ -267,7 +267,7 @@ export class RecordingService {
       const recordingSid = urlWithoutQuery.split('/').pop()?.split('.')[0];
       
       if (!recordingSid) {
-        console.error(`❌ [Recording] Invalid recording URL: ${recordingUrl}`);
+        logger.error(`❌ [Recording] Invalid recording URL: [redacted]`);
         return null;
       }
       
@@ -283,7 +283,7 @@ export class RecordingService {
       });
       
       if (!response.ok) {
-        console.error(`❌ [Recording] Failed to fetch recording: ${response.statusText}`);
+        logger.error(`❌ [Recording] Failed to fetch recording: ${response.statusText}`);
         return null;
       }
       
@@ -298,7 +298,7 @@ export class RecordingService {
         source: 'twilio'
       };
     } catch (error: any) {
-      console.error(`❌ [Recording] Twilio recording fetch error:`, error.message);
+      logger.error(`❌ [Recording] Twilio recording fetch error:`, error.message);
       return null;
     }
   }
@@ -337,7 +337,7 @@ export class RecordingService {
           }
         }
       } catch (error) {
-        console.error(`🎙️ [Recording] Error resolving credential via direct agentId:`, error);
+        logger.error(`🎙️ [Recording] Error resolving credential via direct agentId:`, error);
       }
     }
 
@@ -404,7 +404,7 @@ export class RecordingService {
           }
         }
       } catch (error) {
-        console.error(`🎙️ [Recording] Error resolving widget credential:`, error);
+        logger.error(`🎙️ [Recording] Error resolving widget credential:`, error);
       }
     }
     
@@ -426,7 +426,7 @@ export class RecordingService {
           }
         }
       } catch (error) {
-        console.error(`🎙️ [Recording] Error resolving agent credential from metadata:`, error);
+        logger.error(`🎙️ [Recording] Error resolving agent credential from metadata:`, error);
       }
     }
     
@@ -449,7 +449,7 @@ export class RecordingService {
           }
         }
       } catch (error) {
-        console.error(`🎙️ [Recording] Error resolving credential via ElevenLabs agent ID:`, error);
+        logger.error(`🎙️ [Recording] Error resolving credential via ElevenLabs agent ID:`, error);
       }
     }
     
@@ -472,7 +472,7 @@ export class RecordingService {
           }
         }
       } catch (error) {
-        console.error(`🎙️ [Recording] Error resolving credential via user agents fallback:`, error);
+        logger.error(`🎙️ [Recording] Error resolving credential via user agents fallback:`, error);
       }
     }
     
@@ -553,7 +553,7 @@ export class RecordingService {
         source: 'plivo'
       };
     } catch (error: any) {
-      console.warn(`⚠️ [Recording] Plivo recording fetch failed: ${error.message}`);
+      logger.warn(`⚠️ [Recording] Plivo recording fetch failed: ${error.message}`);
       return null;
     }
   }
@@ -582,7 +582,7 @@ export class RecordingService {
         source: 'plivo'
       };
     } catch (error: any) {
-      console.warn(`⚠️ [Recording] Plivo URL fetch failed: ${error.message}`);
+      logger.warn(`⚠️ [Recording] Plivo URL fetch failed: ${error.message}`);
       return null;
     }
   }
@@ -630,7 +630,7 @@ export class RecordingService {
         authToken: credential.authToken
       };
     } catch (error) {
-      console.error(`❌ [Recording] Failed to get Plivo credentials:`, error);
+      logger.error(`❌ [Recording] Failed to get Plivo credentials:`, error);
       return null;
     }
   }

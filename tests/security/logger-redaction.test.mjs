@@ -125,3 +125,12 @@ test('logger does not import the workforce module', () => {
   const src = read('server/utils/logger.ts');
   assert.doesNotMatch(src, /from\s+['"][^'"]*workforce/, 'logger must copy the rules, not import them');
 });
+
+test('an Error passed as data keeps its message, and secrets in it are redacted', () => {
+  captured.length = 0;
+  logger.error('call failed', new Error(`upstream rejected Bearer ${FAKE_BEARER} for ${FAKE_EMAIL}`));
+  const out = lastOutput();
+  assert.ok(out.includes('upstream rejected'), 'error message must be logged, not {}');
+  assert.ok(!out.includes(FAKE_BEARER), 'bearer token inside an error message must not be logged');
+  assert.ok(!out.includes(FAKE_EMAIL), 'email inside an error message must not be logged');
+});

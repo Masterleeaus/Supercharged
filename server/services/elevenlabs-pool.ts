@@ -103,7 +103,7 @@ export class ElevenLabsPoolService {
       });
       
       if (!voicesResponse.ok) {
-        console.error("❌ ElevenLabs v2 voices API test failed");
+        logger.error("❌ ElevenLabs v2 voices API test failed");
         return false;
       }
       
@@ -117,7 +117,7 @@ export class ElevenLabsPoolService {
       });
       
       if (!agentsResponse.ok) {
-        console.error("❌ ElevenLabs v1 agents API test failed");
+        logger.error("❌ ElevenLabs v1 agents API test failed");
         return false;
       }
       
@@ -125,9 +125,9 @@ export class ElevenLabsPoolService {
       return true;
     } catch (error: any) {
       if (error.name === 'AbortError') {
-        console.error("❌ ElevenLabs API key test timed out after 15s");
+        logger.error("❌ ElevenLabs API key test timed out after 15s");
       } else {
-        console.error("❌ ElevenLabs API key test failed:", error);
+        logger.error("❌ ElevenLabs API key test failed:", error);
       }
       return false;
     } finally {
@@ -345,7 +345,7 @@ export class ElevenLabsPoolService {
       logger.warn(`⚠️ [Pool] No available capacity - all credentials at max load`);
       return null;
     } catch (error) {
-      console.error(`❌ [Pool] Failed to reserve slot:`, error);
+      logger.error(`❌ [Pool] Failed to reserve slot:`, error);
       return null;
     }
   }
@@ -400,7 +400,7 @@ export class ElevenLabsPoolService {
       logger.warn(`⚠️ [Pool] Credential ${credentialId} has no capacity or is inactive`);
       return null;
     } catch (error) {
-      console.error(`❌ [Pool] Failed to reserve slot on credential ${credentialId}:`, error);
+      logger.error(`❌ [Pool] Failed to reserve slot on credential [redacted]:`, error);
       return null;
     }
   }
@@ -704,7 +704,7 @@ export class ElevenLabsPoolService {
         isHealthy = await this.testCredential(credential.apiKey);
       } catch {
         // Undecryptable or no key: mark unhealthy and keep checking the rest
-        console.error(`❌ [Pool] Cannot open credential ${sealedCredential.id} for health check`);
+        logger.error(`❌ [Pool] Cannot open credential [redacted] for health check`);
       }
       await db
         .update(elevenLabsCredentials)
@@ -786,7 +786,7 @@ export class ElevenLabsPoolService {
                     details = await detailResponse.json();
                   }
                 } catch (detailError) {
-                  console.error(`Failed to fetch details for agent ${elAgent.agent_id}:`, detailError);
+                  logger.error(`Failed to fetch details for agent ${elAgent.agent_id}:`, detailError);
                 }
 
                 const agentConfig = details?.conversation_config?.agent;
@@ -838,7 +838,7 @@ export class ElevenLabsPoolService {
           }
         }
       } catch (fetchError: any) {
-        console.error(`Failed to fetch agents for credential ${credential.name}:`, fetchError);
+        logger.error(`Failed to fetch agents for credential [redacted]:`, fetchError);
       }
     }
 
@@ -1061,7 +1061,7 @@ export class ElevenLabsPoolService {
     // Step 3: Assign new credential using threshold-based selection
     const credential = await this.selectCredentialForNewUser();
     if (!credential) {
-      console.error(`❌ [User Affinity] No active credentials available for user ${userId}`);
+      logger.error(`❌ [User Affinity] No active credentials available for user ${userId}`);
       return null;
     }
 

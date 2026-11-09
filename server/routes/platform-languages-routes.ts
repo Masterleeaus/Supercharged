@@ -20,6 +20,7 @@ import { platformLanguages } from '@shared/schema';
 import { checkSuperAdmin, AdminRequest } from '../middleware/admin-auth';
 import { eq, asc } from 'drizzle-orm';
 import { z } from 'zod';
+import { logger } from '../utils/logger.ts';
 
 // Helper function to get enabled languages
 async function getEnabledLanguages() {
@@ -37,7 +38,7 @@ platformLanguagesPublicRouter.get('/', async (req: Request, res: Response) => {
     const languages = await getEnabledLanguages();
     res.json(languages);
   } catch (error) {
-    console.error('Error fetching enabled platform languages:', error);
+    logger.error('Error fetching enabled platform languages:', error);
     res.status(500).json({ error: 'Failed to fetch languages' });
   }
 });
@@ -58,7 +59,7 @@ router.get('/', async (req: AdminRequest, res: Response) => {
 
     res.json(languages);
   } catch (error) {
-    console.error('Error fetching platform languages:', error);
+    logger.error('Error fetching platform languages:', error);
     res.status(500).json({ error: 'Failed to fetch platform languages' });
   }
 });
@@ -108,7 +109,7 @@ router.post('/', async (req: AdminRequest, res: Response) => {
 
     res.status(201).json(newLanguage);
   } catch (error) {
-    console.error('Error creating platform language:', error);
+    logger.error('Error creating platform language:', error);
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: 'Invalid request data', details: error.issues });
     }
@@ -187,7 +188,7 @@ router.patch('/:id', async (req: AdminRequest, res: Response) => {
 
     res.json({ success: true });
   } catch (error) {
-    console.error('Error updating platform language:', error);
+    logger.error('Error updating platform language:', error);
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: 'Invalid request data', details: error.issues });
     }
@@ -222,7 +223,7 @@ router.delete('/:id', async (req: AdminRequest, res: Response) => {
 
     res.json({ success: true });
   } catch (error) {
-    console.error('Error deleting platform language:', error);
+    logger.error('Error deleting platform language:', error);
     res.status(500).json({ error: 'Failed to delete platform language' });
   }
 });
@@ -239,7 +240,7 @@ router.post('/seed', async (req: AdminRequest, res: Response) => {
       res.status(400).json({ error: result.message });
     }
   } catch (error) {
-    console.error('Error seeding platform languages:', error);
+    logger.error('Error seeding platform languages:', error);
     res.status(500).json({ error: 'Failed to seed platform languages' });
   }
 });
@@ -325,7 +326,7 @@ router.post('/add-key', async (req: AdminRequest, res: Response) => {
 
     res.json({ success: true, message: `Key "${addKeyData.keyPath}" added successfully` });
   } catch (error) {
-    console.error('Error adding translation key:', error);
+    logger.error('Error adding translation key:', error);
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: 'Invalid request data', details: error.issues });
     }
@@ -388,7 +389,7 @@ router.post('/delete-key', async (req: AdminRequest, res: Response) => {
 
     res.json({ success: true, message: `Key "${deleteKeyData.keyPath}" deleted successfully` });
   } catch (error) {
-    console.error('Error deleting translation key:', error);
+    logger.error('Error deleting translation key:', error);
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: 'Invalid request data', details: error.issues });
     }

@@ -95,7 +95,7 @@ async function handleCreditsPayment(
       await generateInvoiceForTransaction(creditTransaction.id);
       await emailService.sendPurchaseConfirmation(creditTransaction.id);
     } catch (emailError: any) {
-      console.error(`❌ [YooKassa] Failed to send credits purchase confirmation email:`, emailError);
+      logger.error(`❌ [YooKassa] Failed to send credits purchase confirmation email:`);
     }
 
     return {
@@ -213,7 +213,7 @@ async function handleSubscriptionPayment(
       await generateInvoiceForTransaction(newTransaction.id);
       await (emailService as any).sendPaymentReceipt(newTransaction.id);
     } catch (emailError: any) {
-      console.error(`❌ [YooKassa] Failed to send subscription confirmation email:`, emailError);
+      logger.error(`❌ [YooKassa] Failed to send subscription confirmation email:`);
     }
 
     // Sync with other membership services if needed

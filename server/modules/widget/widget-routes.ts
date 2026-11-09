@@ -73,7 +73,7 @@ router.get('/widgets', requireAuth, async (req: Request, res: Response) => {
     const widgets = await widgetService.getWidgetsByUser(userId);
     res.json(widgets);
   } catch (error) {
-    console.error('Error fetching widgets:', error);
+    logger.error('Error fetching widgets:', error);
     res.status(500).json({ error: 'Failed to fetch widgets' });
   }
 });
@@ -87,7 +87,7 @@ router.get('/widgets/:id', requireAuth, async (req: Request, res: Response) => {
     }
     res.json(widget);
   } catch (error) {
-    console.error('Error fetching widget:', error);
+    logger.error('Error fetching widget:', error);
     res.status(500).json({ error: 'Failed to fetch widget' });
   }
 });
@@ -182,7 +182,7 @@ router.post('/widgets', requireAuth, upload.single('icon'), async (req: Request,
     const widget = await widgetService.createWidget(userId, widgetData);
     res.status(201).json(widget);
   } catch (error: any) {
-    console.error('Error creating widget:', error);
+    logger.error('Error creating widget:', error);
     if (req.file) {
       try { fs.unlinkSync(req.file.path); } catch (cleanupErr: any) { logger.warn('Could not delete uploaded widget file after failed request', { code: cleanupErr?.code }, 'WidgetRoutes'); }
     }
@@ -239,7 +239,7 @@ router.patch('/widgets/:id', requireAuth, upload.single('icon'), async (req: Req
     }
     res.json(widget);
   } catch (error: any) {
-    console.error('Error updating widget:', error);
+    logger.error('Error updating widget:', error);
     if (req.file) {
       try { fs.unlinkSync(req.file.path); } catch (cleanupErr: any) { logger.warn('Could not delete uploaded widget file after failed request', { code: cleanupErr?.code }, 'WidgetRoutes'); }
     }
@@ -257,7 +257,7 @@ router.delete('/widgets/:id', requireAuth, async (req: Request, res: Response) =
     }
     res.json({ success: true });
   } catch (error) {
-    console.error('Error deleting widget:', error);
+    logger.error('Error deleting widget:', error);
     res.status(500).json({ error: 'Failed to delete widget' });
   }
 });
@@ -271,7 +271,7 @@ router.post('/widgets/:id/regenerate-token', requireAuth, async (req: Request, r
     }
     res.json({ embedToken: widget.embedToken });
   } catch (error) {
-    console.error('Error regenerating token:', error);
+    logger.error('Error regenerating token:', error);
     res.status(500).json({ error: 'Failed to regenerate token' });
   }
 });
@@ -295,7 +295,7 @@ router.post('/widgets/:id/icon', requireAuth, upload.single('icon'), async (req:
     
     res.json({ iconUrl });
   } catch (error) {
-    console.error('Error uploading icon:', error);
+    logger.error('Error uploading icon:', error);
     res.status(500).json({ error: 'Failed to upload icon' });
   }
 });
@@ -316,7 +316,7 @@ router.get('/widgets/:id/embed-code', requireAuth, async (req: Request, res: Res
     const embedCode = widgetService.generateEmbedCode(widget, baseUrl);
     res.json({ embedCode });
   } catch (error) {
-    console.error('Error generating embed code:', error);
+    logger.error('Error generating embed code:', error);
     res.status(500).json({ error: 'Failed to generate embed code' });
   }
 });
@@ -334,7 +334,7 @@ router.get('/widgets/:id/sessions', requireAuth, async (req: Request, res: Respo
     const sessions = await widgetStorage.getSessionsByWidgetId(req.params.id, limit);
     res.json(sessions);
   } catch (error) {
-    console.error('Error fetching sessions:', error);
+    logger.error('Error fetching sessions:', error);
     res.status(500).json({ error: 'Failed to fetch sessions' });
   }
 });
@@ -345,7 +345,7 @@ router.get('/widgets-stats', requireAuth, async (req: Request, res: Response) =>
     const stats = await widgetService.getWidgetStats(userId);
     res.json(stats);
   } catch (error) {
-    console.error('Error fetching widget stats:', error);
+    logger.error('Error fetching widget stats:', error);
     res.status(500).json({ error: 'Failed to fetch widget stats' });
   }
 });
@@ -356,7 +356,7 @@ router.get('/widgets-limits', requireAuth, async (req: Request, res: Response) =
     const limits = await widgetService.getWidgetLimits(userId);
     res.json(limits);
   } catch (error) {
-    console.error('Error fetching widget limits:', error);
+    logger.error('Error fetching widget limits:', error);
     res.status(500).json({ error: 'Failed to fetch widget limits' });
   }
 });

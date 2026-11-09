@@ -14,6 +14,7 @@ import { Worker, Job } from 'bullmq';
 import { getRedisConnection } from './redis-connection';
 import { QUEUE_NAMES, CampaignCallJob } from './queues';
 import { substituteContactVariables, enrichDynamicDataWithContactInfo } from '../../utils/contact-variable-substitution';
+import { logger } from '../../utils/logger.ts';
 
 const MAX_CONCURRENT_CALLS = parseInt(process.env.BULLMQ_MAX_CONCURRENT_CALLS || '10', 10);
 
@@ -30,15 +31,15 @@ interface CallResult {
 async function processCall(job: Job<CampaignCallJob>): Promise<CallResult> {
   const { callId, campaignId, engine, retryCount } = job.data;
   
-  console.log(`[CallWorker] Processing call ${callId} for campaign ${campaignId} engine=${engine} (attempt ${retryCount + 1})`);
+  logger.info(`[CallWorker] Processing call ${callId} for campaign ${campaignId} engine=${engine} (attempt ${retryCount + 1})`);
   
   try {
     const result = await initiateCall(job.data);
-    console.log(`[CallWorker] Call ${callId} result: ${result.status}`);
+    logger.info(`[CallWorker] Call ${callId} result: ${result.status}`);
     return result;
     
   } catch (error: any) {
-    console.error(`[CallWorker] Call ${callId} failed:`, error.message);
+    logger.error(`[CallWorker] Call ${callId} failed:`, error.message);
     
     return {
       success: false,
@@ -70,7 +71,7 @@ async function initiateCall(data: CampaignCallJob): Promise<CallResult> {
   
   const [existingCall] = await db.select().from(calls).where(eq(calls.id, callId)).limit(1);
   if (existingCall && existingCall.status !== 'pending' && existingCall.status !== 'queued') {
-    console.log(`[CallWorker] Call ${callId} already has status ${existingCall.status}, skipping`);
+    logger.info(`[CallWorker] Call ${callId} already has status ${existingCall.status}, skipping`);
     return {
       success: true,
       callId,
@@ -173,7 +174,7 @@ async function initiateCall(data: CampaignCallJob): Promise<CallResult> {
       }
       
       case 'elevenlabs': {
-        console.log(`[CallWorker] ElevenLabs calls are handled by batch API, marking ${callId} as initiated`);
+        logger.info(`[CallWorker] ElevenLabs calls are handled by batch API, marking ${callId} as initiated`);
         success = true;
         break;
       }
@@ -213,20 +214,20 @@ export function startCallWorker(): Worker<CampaignCallJob> {
   );
   
   callWorker.on('completed', (job, result) => {
-    console.log(`[CallWorker] Job ${job.id} completed:`, result.status);
+    logger.info(`[CallWorker] Job ${job.id} completed:`, result.status);
   });
   
   callWorker.on('failed', (job, err) => {
     if (job) {
-      console.error(`[CallWorker] Job ${job.id} failed after retries:`, err.message);
+      logger.error(`[CallWorker] Job ${job.id} failed after retries:`, err.message);
     }
   });
   
   callWorker.on('error', (err) => {
-    console.error('[CallWorker] Worker error:', err.message);
+    logger.error('[CallWorker] Worker error:', err.message);
   });
   
-  console.log(`[CallWorker] Started with concurrency: ${MAX_CONCURRENT_CALLS}`);
+  logger.info(`[CallWorker] Started with concurrency: ${MAX_CONCURRENT_CALLS}`);
   return callWorker;
 }
 
@@ -234,7 +235,7 @@ export async function stopCallWorker(): Promise<void> {
   if (callWorker) {
     await callWorker.close();
     callWorker = null;
-    console.log('[CallWorker] Stopped');
+    logger.info('[CallWorker] Stopped');
   }
 }
 

@@ -17,6 +17,7 @@ import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { authenticateToken, type AuthRequest } from '../middleware/auth';
 import jwt from 'jsonwebtoken';
+import { logger } from '../utils/logger.ts';
 
 /**
  * Returns the JWT signing secret used to verify demo-mode tokens.
@@ -132,7 +133,7 @@ async function blockAdminMutationsMiddleware(req: Request, res: Response, next: 
     if (isBlockedPath && !isAllowedPath) {
       const isDemoUser = await isRequestDemoUser(req);
       if (isDemoUser) {
-        console.log(`[Demo Mode] Blocked ${method} ${path}`);
+        logger.info(`[Demo Mode] Blocked ${method} ${path}`);
         return res.status(403).json({
           success: false,
           error: 'Demo Mode Active',
@@ -171,7 +172,7 @@ async function filterSensitiveDataMiddleware(req: Request, res: Response, next: 
           const filtered = deepFilterSensitiveData(data);
           return originalJson(filtered);
         } catch (error) {
-          console.error('[Demo Mode] Error filtering JSON response:', error);
+          logger.error('[Demo Mode] Error filtering JSON response:', error);
           return originalJson(data);
         }
       };
@@ -193,7 +194,7 @@ async function filterSensitiveDataMiddleware(req: Request, res: Response, next: 
           }
           return originalSend(data);
         } catch (error) {
-          console.error('[Demo Mode] Error filtering send response:', error);
+          logger.error('[Demo Mode] Error filtering send response:', error);
           return originalSend(data);
         }
       };
@@ -284,7 +285,7 @@ function maskEmail(email: string): string {
 
 export function initDemoMode(app: Express): void {
   if (!isDemoModeEnabled()) {
-    console.log('[Demo Mode] Disabled - DEMO_MODE env not set to true');
+    logger.info('[Demo Mode] Disabled - DEMO_MODE env not set to true');
     return;
   }
 
@@ -298,18 +299,18 @@ export function initDemoMode(app: Express): void {
           created_at TIMESTAMP NOT NULL DEFAULT NOW()
         );
       `);
-      console.log('[Demo Mode] demo_call_limit_logs table ready');
+      logger.info('[Demo Mode] demo_call_limit_logs table ready');
     } catch (err: any) {
-      console.error('[Demo Mode] Failed to create demo_call_limit_logs table:', err.message);
+      logger.error('[Demo Mode] Failed to create demo_call_limit_logs table:', err.message);
     }
   })();
 
-  console.log('');
-  console.log('╔════════════════════════════════════════════════════════════╗');
-  console.log('║           🎭 DEMO MODE ACTIVE                               ║');
-  console.log('║           Admin mutations blocked, sensitive data hidden    ║');
-  console.log('╚════════════════════════════════════════════════════════════╝');
-  console.log('');
+  logger.info('');
+  logger.info('╔════════════════════════════════════════════════════════════╗');
+  logger.info('║           🎭 DEMO MODE ACTIVE                               ║');
+  logger.info('║           Admin mutations blocked, sensitive data hidden    ║');
+  logger.info('╚════════════════════════════════════════════════════════════╝');
+  logger.info('');
 
   app.use(blockAdminMutationsMiddleware);
   app.use(filterSensitiveDataMiddleware);
@@ -411,7 +412,7 @@ export async function checkDemoCallLimit(userId: string, clientIp: string): Prom
 
     return { allowed: true };
   } catch (err: any) {
-    console.error('[Demo Mode] Error checking demo call limit:', err.message);
+    logger.error('[Demo Mode] Error checking demo call limit:', err.message);
     return { allowed: true }; // Allow in case of DB error
   }
 }
@@ -437,9 +438,9 @@ export async function logDemoCall(userId: string, clientIp: string): Promise<voi
       await db.execute(sql`
         INSERT INTO demo_call_limit_logs (ip) VALUES (${cleanIp})
       `);
-      console.log(`[Demo Mode] Logged outbound call for demo account from IP: ${cleanIp}`);
+      logger.info(`[Demo Mode] Logged outbound call for demo account from IP: ${cleanIp}`);
     }
   } catch (err: any) {
-    console.error('[Demo Mode] Error logging demo call:', err.message);
+    logger.error('[Demo Mode] Error logging demo call:', err.message);
   }
 }

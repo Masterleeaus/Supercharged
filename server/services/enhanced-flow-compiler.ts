@@ -929,7 +929,7 @@ Do not transition until you have confirmed it is sent.`;
           });
           logger.info(`   🔗 Webhook node configured: ${toolId} -> ${webhookMethod} ${webhookUrl}`);
         } else {
-          console.warn(`   ⚠️ Webhook node ${node.id} has no URL configured`);
+          logger.warn(`   ⚠️ Webhook node ${node.id} has no URL configured`);
         }
 
         return {
@@ -951,7 +951,7 @@ Do not transition until you have confirmed it is sent.`;
         const waitForComplete = config.waitForComplete ?? true;
 
         if (!audioUrl) {
-          console.warn(`   ⚠️ Play Audio node ${node.id} has no audio URL configured`);
+          logger.warn(`   ⚠️ Play Audio node ${node.id} has no audio URL configured`);
         }
 
         const toolId = `play_audio_${node.id.slice(-8)}`;

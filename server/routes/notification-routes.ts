@@ -18,6 +18,7 @@
 
 import { Router, Response } from "express";
 import { RouteContext, AuthRequest } from "./common";
+import { logger } from '../utils/logger.ts';
 
 export function createNotificationRoutes(ctx: RouteContext): Router {
   const router = Router();
@@ -30,7 +31,7 @@ export function createNotificationRoutes(ctx: RouteContext): Router {
       const notifications = await storage.getUserNotifications(req.userId!, limit);
       res.json(notifications);
     } catch (error: any) {
-      console.error("Get notifications error:", error);
+      logger.error("Get notifications error:", error);
       res.status(500).json({ error: "Failed to get notifications" });
     }
   });
@@ -41,7 +42,7 @@ export function createNotificationRoutes(ctx: RouteContext): Router {
       const count = await storage.getUnreadNotificationCount(req.userId!);
       res.json({ count });
     } catch (error: any) {
-      console.error("Get unread count error:", error);
+      logger.error("Get unread count error:", error);
       res.status(500).json({ error: "Failed to get unread count" });
     }
   });
@@ -52,7 +53,7 @@ export function createNotificationRoutes(ctx: RouteContext): Router {
       const notifications = await storage.getBannerNotifications(req.userId!);
       res.json(notifications);
     } catch (error: any) {
-      console.error("Get banner notifications error:", error);
+      logger.error("Get banner notifications error:", error);
       res.status(500).json({ error: "Failed to get banner notifications" });
     }
   });
@@ -68,7 +69,7 @@ export function createNotificationRoutes(ctx: RouteContext): Router {
       await storage.markNotificationAsRead(req.params.id);
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Mark notification as read error:", error);
+      logger.error("Mark notification as read error:", error);
       res.status(500).json({ error: "Failed to mark notification as read" });
     }
   });
@@ -79,7 +80,7 @@ export function createNotificationRoutes(ctx: RouteContext): Router {
       await storage.markAllNotificationsAsRead(req.userId!);
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Mark all notifications as read error:", error);
+      logger.error("Mark all notifications as read error:", error);
       res.status(500).json({ error: "Failed to mark all notifications as read" });
     }
   });
@@ -95,7 +96,7 @@ export function createNotificationRoutes(ctx: RouteContext): Router {
       await storage.dismissNotification(req.params.id);
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Dismiss notification error:", error);
+      logger.error("Dismiss notification error:", error);
       res.status(500).json({ error: "Failed to dismiss notification" });
     }
   });
@@ -111,7 +112,7 @@ export function createNotificationRoutes(ctx: RouteContext): Router {
       await storage.deleteNotification(req.params.id);
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Delete notification error:", error);
+      logger.error("Delete notification error:", error);
       res.status(500).json({ error: "Failed to delete notification" });
     }
   });
@@ -182,7 +183,7 @@ export function createNotificationRoutes(ctx: RouteContext): Router {
         message: `Broadcast sent to ${notifications.length} users` 
       });
     } catch (error: any) {
-      console.error("Broadcast notification error:", error);
+      logger.error("Broadcast notification error:", error);
       res.status(500).json({ error: "Failed to send broadcast notification" });
     }
   });

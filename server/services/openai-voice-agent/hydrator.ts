@@ -59,7 +59,7 @@ async function markCallGoogleSheetsWarning(
     }
   }
   // If not found in any table, just log (best effort)
-  console.warn(`[Sheets Warning] Could not find callId "${callId}" in any call table to record warning`);
+  logger.warn(`[Sheets Warning] Could not find callId "${callId}" in any call table to record warning`);
 }
 
 /**
@@ -262,7 +262,7 @@ function createKnowledgeBaseHandler(
       
       return { found: true, information: formattedResponse };
     } catch (error: any) {
-      console.error(`[KB Tool] Error:`, error.message);
+      logger.error(`[KB Tool] Error:`, error.message);
       return { found: false, message: 'Unable to search knowledge base.' };
     }
   };
@@ -298,7 +298,7 @@ function createAppointmentHandler(
 
       // company_id comes from the owning agent record, never from tool params
       if (!agent?.companyId) {
-        console.error(`[Appointment Tool] Refusing insert: agent ${agentId} has no company scope`);
+        logger.error(`[Appointment Tool] Refusing insert: agent ${agentId} has no company scope`);
         return {
           success: false,
           message: 'Appointment could not be booked right now. Please try again later.'
@@ -499,11 +499,11 @@ function createAppointmentHandler(
             logger.info(`[Appointment Tool] Row pushed to Google Sheet ${googleSheetId}`);
           } else {
             const errMsg = `appendRowToSheet returned false for sheet ${googleSheetId} tab "${sheetTab}"`;
-            console.error(`[Appointment Tool] Google Sheet append FAILED — appointment saved locally but NOT in Google Sheets. ${errMsg}`);
+            logger.error(`[Appointment Tool] Google Sheet append FAILED — appointment saved locally but NOT in Google Sheets. ${errMsg}`);
             if (callId) await markCallGoogleSheetsWarning(callId, googleSheetId, sheetTab, errMsg);
           }
         } catch (sheetErr: any) {
-          console.error(`[Appointment Tool] Google Sheets push failed (non-fatal):`, sheetErr.message);
+          logger.error(`[Appointment Tool] Google Sheets push failed (non-fatal):`, sheetErr.message);
           if (callId) await markCallGoogleSheetsWarning(callId, googleSheetId, sheetTab, sheetErr.message);
         }
       }
@@ -514,7 +514,7 @@ function createAppointmentHandler(
         message: `Appointment booked for ${params.contactName} on ${params.appointmentDate} at ${params.appointmentTime}` 
       };
     } catch (error: any) {
-      console.error(`[Appointment Tool] Error:`, error.message, error.stack);
+      logger.error(`[Appointment Tool] Error:`, [error.message, error.stack]);
       return { 
         success: false, 
         message: 'Unable to book appointment at this time. Please try again.' 
@@ -547,7 +547,7 @@ function createFormSubmissionHandler(
         .limit(1);
       
       if (!form) {
-        console.error(`[Form Tool] Form ${formId} not found in database`);
+        logger.error(`[Form Tool] Form ${formId} not found in database`);
         return { 
           success: false, 
           message: 'Form configuration not found.' 
@@ -619,7 +619,7 @@ function createFormSubmissionHandler(
       
       // company_id comes from the owning form record, never from tool params
       if (!form.companyId) {
-        console.error(`[Form Tool] Refusing submission: form ${formId} has no company scope`);
+        logger.error(`[Form Tool] Refusing submission: form ${formId} has no company scope`);
         return {
           success: false,
           message: 'Form submission could not be saved right now. Please try again later.'
@@ -667,11 +667,11 @@ function createFormSubmissionHandler(
             logger.info(`[Form Tool] Row pushed to Google Sheet ${googleSheetId}`);
           } else {
             const errMsg = `appendRowToSheet returned false for sheet ${googleSheetId} tab "${sheetTab}"`;
-            console.error(`[Form Tool] Google Sheet append FAILED — form data saved locally but NOT in Google Sheets. ${errMsg}`);
+            logger.error(`[Form Tool] Google Sheet append FAILED — form data saved locally but NOT in Google Sheets. ${errMsg}`);
             if (callId) await markCallGoogleSheetsWarning(callId, googleSheetId, sheetTab, errMsg);
           }
         } catch (sheetErr: any) {
-          console.error(`[Form Tool] Google Sheets push failed (non-fatal):`, sheetErr.message);
+          logger.error(`[Form Tool] Google Sheets push failed (non-fatal):`, sheetErr.message);
           if (callId) await markCallGoogleSheetsWarning(callId, googleSheetId, sheetTab, sheetErr.message);
         }
       }
@@ -682,7 +682,7 @@ function createFormSubmissionHandler(
         message: 'Your information has been saved successfully.' 
       };
     } catch (error: any) {
-      console.error(`[Form Tool] Error:`, error.message, error.stack);
+      logger.error(`[Form Tool] Error:`, [error.message, error.stack]);
       return { 
         success: false, 
         message: 'Unable to save information at this time. Please try again.' 
@@ -732,7 +732,7 @@ function createMessagingEmailHandler(
           : `Failed to send email: ${result.error || 'Unknown error'}`
       };
     } catch (error: any) {
-      console.error(`[Send Email Tool] Error:`, error.message);
+      logger.error(`[Send Email Tool] Error:`, error.message);
       return {
         success: false,
         message: 'Unable to send email at this time. Please try again later.'
@@ -772,7 +772,7 @@ function createMessagingWhatsAppHandler(
             }
           }
         } catch (e: any) {
-          console.warn(`[Send WhatsApp Tool] Could not resolve caller phone:`, e.message);
+          logger.warn(`[Send WhatsApp Tool] Could not resolve caller phone:`, e.message);
         }
       }
 
@@ -851,7 +851,7 @@ function createMessagingWhatsAppHandler(
           : `Failed to send WhatsApp message: ${data.message || data.error || 'Unknown error'}`
       };
     } catch (error: any) {
-      console.error(`[Send WhatsApp Tool] Error:`, error.message);
+      logger.error(`[Send WhatsApp Tool] Error:`, error.message);
       return {
         success: false,
         message: 'Unable to send WhatsApp message at this time. Please try again later.'
@@ -908,7 +908,7 @@ function createWebhookHandler(
       logger.info(`[Webhook Tool] Response received`);
       return { success: true, data };
     } catch (error: any) {
-      console.error(`[Webhook Tool] Error:`, error.message);
+      logger.error(`[Webhook Tool] Error:`, error.message);
       return { success: false, error: error.message };
     }
   };
@@ -983,7 +983,7 @@ export function hydrateCompiledTools(
               metadata.payloadTemplate
             );
           } else {
-            console.warn(`[Hydrator] Webhook tool ${toolName} missing URL in metadata`);
+            logger.warn(`[Hydrator] Webhook tool ${toolName} missing URL in metadata`);
             handler = async (params: Record<string, unknown>) => {
               logger.info(`[Generic Tool] ${toolName} called`);
               return { success: true, toolName, params };
@@ -1016,7 +1016,7 @@ export function hydrateCompiledTools(
             // Validate that nodeId in metadata matches the expected tool (stale metadata guard)
             const metaNodeId = metadata?.nodeId;
             if (metaNodeId && !toolName.includes(metaNodeId.replace(/[^a-zA-Z0-9]/g, '_'))) {
-              console.error(
+              logger.error(
                 `[Hydrator] STALE METADATA DETECTED: tool "${toolName}" has _metadata.nodeId="${metaNodeId}" ` +
                 `which does not match the tool name. The compiled flow may be outdated — ` +
                 `recompile the flow to fix this inconsistency. Using the formId from metadata anyway.`
@@ -1031,13 +1031,13 @@ export function hydrateCompiledTools(
               metadata?.googleSheetName
             );
           } else {
-            console.error(
+            logger.error(
               `[Hydrator] CRITICAL: Form tool "${toolName}" is missing formId in _metadata. ` +
               `nodeId in metadata: "${metadata?.nodeId || 'unknown'}". ` +
               `Submissions via this tool will return an error. Recompile the flow to fix this.`
             );
             handler = async (params: Record<string, unknown>) => {
-              console.error(`[Form Tool] ${toolName} called but no formId in metadata — cannot submit. params:`, JSON.stringify(params));
+              logger.error(`[Form Tool] ${toolName} called but no formId in metadata — cannot submit. params:`, JSON.stringify(params));
               return { success: false, message: 'Form configuration error: missing form reference. Please contact support.' };
             };
           }

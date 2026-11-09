@@ -75,7 +75,7 @@ export async function withServiceErrorHandling<T>(
     const originalError = error instanceof Error ? error : new Error(String(error));
     
     if (options?.logError !== false) {
-      console.error(`❌ [${service}] ${operation} failed:`, originalError.message);
+      logger.error(`❌ [${service}] ${operation} failed:`, originalError.message);
     }
     
     if (options?.fallback !== undefined) {
@@ -120,7 +120,7 @@ export function markServiceUnavailable(service: ServiceName, reason: string): vo
     reason,
     lastChecked: new Date()
   });
-  console.warn(`⚠️ [${service}] Marked as unavailable: ${reason}`);
+  logger.warn(`⚠️ [${service}] Marked as unavailable: ${reason}`);
 }
 
 export function markServiceAvailable(service: ServiceName): void {
