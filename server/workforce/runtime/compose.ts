@@ -32,6 +32,7 @@ import type { AuditSink, RunStore } from './store.ts';
 import type { BudgetLedger } from './budgets.ts';
 import { createControlState, seedControls, type ControlState, type RosterSeed } from './controls.ts';
 import { recoverInterruptedRuns } from './recovery.ts';
+import type { SqlExecutor } from './pg-store.ts';
 
 export type PolicyEvaluator = typeof evaluatePolicy;
 
@@ -59,6 +60,11 @@ export interface WorkforceRuntimeDeps {
   approvalService: ApprovalServiceLike;
   /** Data access for the bound read tools. Required. */
   readStore: ReadStore;
+  /**
+   * SQL executor for the handler groups 00 to 04 reads. Each read is company-scoped by its handler (company_id = $1).
+   * The production startup passes the app pool. Absent: group reads refuse at run time, as before.
+   */
+  sqlExecutor?: SqlExecutor;
   /** Secret redactor for tool output and refusal messages. Required by the tool registry. */
   redact: Redactor;
   /** The company this process serves. Optional at compose time; health reports identity not ready when absent or invalid. */
@@ -201,7 +207,7 @@ export function composeWorkforceRuntime(deps: WorkforceRuntimeDeps): WorkforceRu
   const gate = createApprovalGate(deps.approvalService);
   const audit = deps.audit ?? { record: (event) => deps.store.appendAudit(event) };
   const registry = createToolRegistry({ gate, redact: deps.redact, audit, now: deps.now, companyPolicy: deps.companyPolicy });
-  registerReadTools(registry, deps.readStore);
+  registerReadTools(registry, deps.readStore, deps.sqlExecutor);
 
   const engineCore = createRunEngine({
     registry,

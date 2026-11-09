@@ -426,3 +426,57 @@ test('onRunFinished is told about a run that completes, a failing hook leaves th
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(seen.length, 1, 'a refused finish is not reported');
 });
+
+/** Executor double that records every query and answers with no rows. */
+function recordingExecutor() {
+  const calls = [];
+  return {
+    calls,
+    async query(text, values) {
+      calls.push({ text, values });
+      return { rows: [], rowCount: 0 };
+    },
+  };
+}
+
+const READER = { kind: 'agent', agentId: 'reader-1', roleId: 'writer', autonomy: 'auto' };
+
+test('compose passes a non-null executor to the group 00 to 04 read handlers', async () => {
+  const { GROUP00_TOOL_IDS } = await import('../../server/workforce/tools/handlers/group-00.ts');
+  const { GROUP01_TOOL_IDS } = await import('../../server/workforce/tools/handlers/group-01.ts');
+  const { GROUP_02_TOOL_IDS } = await import('../../server/workforce/tools/handlers/group-02.ts');
+  const { GROUP03_TOOL_IDS } = await import('../../server/workforce/tools/handlers/group-03.ts');
+  const { GROUP04_IDS } = await import('../../server/workforce/tools/handlers/group-04.ts');
+  const groups = {
+    group00: GROUP00_TOOL_IDS,
+    group01: GROUP01_TOOL_IDS,
+    group02: GROUP_02_TOOL_IDS,
+    group03: GROUP03_TOOL_IDS,
+    group04: GROUP04_IDS,
+  };
+  const executor = recordingExecutor();
+  const runtime = composeWorkforceRuntime(fakeDeps({ sqlExecutor: executor }));
+
+  for (const [group, ids] of Object.entries(groups)) {
+    const reached = [];
+    for (const toolId of ids) {
+      if (!runtime.registry.has(toolId)) continue;
+      const before = executor.calls.length;
+      await runtime.registry.invoke({ companyId: CO, toolId, params: {}, actor: READER });
+      if (executor.calls.length > before) reached.push(toolId);
+    }
+    assert.ok(reached.length > 0, `${group} reads never reached the composed executor`);
+  }
+});
+
+test('a group read with no company context is refused before any query runs', async () => {
+  const { GROUP00_TOOL_IDS } = await import('../../server/workforce/tools/handlers/group-00.ts');
+  const executor = recordingExecutor();
+  const runtime = composeWorkforceRuntime(fakeDeps({ sqlExecutor: executor, companyScope: undefined }));
+  const toolId = GROUP00_TOOL_IDS.find((id) => runtime.registry.has(id));
+
+  const result = await runtime.registry.invoke({ companyId: undefined, toolId, params: {}, actor: READER });
+  assert.equal(result.outcome, 'refused');
+  assert.equal(result.reason, 'company_id_required');
+  assert.equal(executor.calls.length, 0, 'no query runs without a company');
+});

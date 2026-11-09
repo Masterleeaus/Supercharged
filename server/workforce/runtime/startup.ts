@@ -39,6 +39,8 @@ export interface WorkforceStartupDeps {
   catalogue?: RoleCatalogue;
   store?: RunStore;
   readStore?: ReadStore;
+  /** SQL executor for the handler group reads. Absent: the app pool is used, if it loads. */
+  sqlExecutor?: SqlExecutor;
   approvalService?: ApprovalServiceLike;
   controls?: ControlSource;
   retentionStore?: RetentionStore & { listCompanyIds(): Promise<string[]> };
@@ -91,13 +93,28 @@ function reasonOf(err: unknown, fallback: string): string {
   return fallback;
 }
 
-/** The database-backed store and retention store, over the app pool. Throws when the database module cannot load. */
-async function pgStores(): Promise<{ store: RunStore; retentionStore: RetentionStore & { listCompanyIds(): Promise<string[]> } }> {
+/** One SQL executor over the app pool, shared by the stores and the handler group reads. Throws when the database module cannot load. */
+async function appPoolExecutor(): Promise<SqlExecutor> {
   const { pool } = await import('../../db.ts');
-  const executor: SqlExecutor = {
+  return {
     query: async (text, values) => (await pool.query(text, [...values])) as unknown as SqlResult,
   };
+}
+
+/** The database-backed store and retention store, over the app pool. Throws when the database module cannot load. */
+async function pgStores(): Promise<{ store: RunStore; retentionStore: RetentionStore & { listCompanyIds(): Promise<string[]> } }> {
+  const executor = await appPoolExecutor();
   return { store: createPgRunStore(executor), retentionStore: createPgRetentionStore(executor) };
+}
+
+/** The group read executor: the injected one, else the app pool. Undefined when the pool cannot load, so reads refuse. */
+async function readExecutor(injected: SqlExecutor | undefined): Promise<SqlExecutor | undefined> {
+  if (injected !== undefined) return injected;
+  try {
+    return await appPoolExecutor();
+  } catch {
+    return undefined;
+  }
 }
 
 async function approvalDefault(): Promise<ApprovalServiceLike> {
@@ -179,6 +196,7 @@ export async function startWorkforceRuntime(deps: WorkforceStartupDeps = {}): Pr
         catalogue,
         approvalService,
         readStore: deps.readStore ?? createUnavailableReadStore(),
+        sqlExecutor: await readExecutor(deps.sqlExecutor),
         redact: redactForAudit,
         controls,
         now,
