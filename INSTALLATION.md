@@ -1,9 +1,9 @@
-# AgentLabs Installation Guide
+# Supercharged Installation Guide
 
 **Version:** 5.4.5  
 **Last Updated:** not verified in this repo (this guide was last dated December 2025)
 
-This guide provides comprehensive step-by-step instructions for installing and updating AgentLabs. Written for non-technical users with clear instructions.
+This guide provides comprehensive step-by-step instructions for installing and updating Supercharged. Written for non-technical users with clear instructions.
 
 ---
 

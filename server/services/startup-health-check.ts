@@ -120,7 +120,7 @@ async function checkDatabase(result: HealthCheckResult): Promise<void> {
       AND table_name IN ('users', 'agents', 'campaigns', 'calls', 'plans')
     `);
     
-    const existingTables = (tableCheck.rows as any[]).map((r: any) => r.table_name);
+    const existingTables = (tableCheck.rows as Array<{ table_name: string }>).map((r) => r.table_name);
     const requiredTables = ['users', 'agents', 'campaigns', 'calls', 'plans'];
     const missingTables = requiredTables.filter(t => !existingTables.includes(t));
     
@@ -144,13 +144,14 @@ async function checkDatabase(result: HealthCheckResult): Promise<void> {
         result.checks.database = { status: 'ok', message: 'All tables present' };
       }
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : '';
     result.healthy = false;
     result.checks.database = {
       status: 'error',
-      message: error.message || 'Database connection failed',
+      message: errorMessage || 'Database connection failed',
     };
-    result.errors.push(`Database: ${error.message}`);
+    result.errors.push(`Database: ${errorMessage}`);
   }
 }
 
@@ -175,15 +176,15 @@ async function validateSchemaColumns(): Promise<string[]> {
         WHERE table_schema = 'public' AND table_name = ${table}
       `);
       
-      const existingColumns = (result.rows as any[]).map((r: any) => r.column_name);
+      const existingColumns = (result.rows as Array<{ column_name: string }>).map((r) => r.column_name);
       
       for (const col of columns) {
         if (!existingColumns.includes(col)) {
           issues.push(`Missing column: ${table}.${col}`);
         }
       }
-    } catch (error: any) {
-      logger.warn('Could not inspect table columns during startup health check', { table, error: error?.message }, 'StartupHealth');
+    } catch (error: unknown) {
+      logger.warn('Could not inspect table columns during startup health check', { table, error: error instanceof Error ? error.message : undefined }, 'StartupHealth');
     }
   }
   
@@ -277,9 +278,10 @@ async function checkIntegrations(result: HealthCheckResult): Promise<void> {
       if (!smtpVerified) {
         result.warnings.push('SMTP credentials configured but connection failed. Emails will not be sent.');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       details.smtp = false;
-      const errorMsg = error?.message?.includes('timeout') 
+      const smtpErrorText = error instanceof Error ? error.message : '';
+      const errorMsg = smtpErrorText.includes('timeout') 
         ? 'SMTP verification timed out (server slow/unreachable)' 
         : 'SMTP connection verification failed';
       result.warnings.push(`${errorMsg}. Emails will not be sent.`);

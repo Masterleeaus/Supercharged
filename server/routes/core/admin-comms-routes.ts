@@ -14,7 +14,7 @@ export function registerAdminCommsRoutes(app: Express): void {
     try {
       const templates = await storage.getEmailTemplates();
       res.json(templates);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Get email templates error:", error);
       res.status(500).json({ error: "Failed to get email templates" });
     }
@@ -27,7 +27,7 @@ export function registerAdminCommsRoutes(app: Express): void {
         return res.status(404).json({ error: "Email template not found" });
       }
       res.json(template);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Get email template error:", error);
       res.status(500).json({ error: "Failed to get email template" });
     }
@@ -45,7 +45,7 @@ export function registerAdminCommsRoutes(app: Express): void {
         isActive,
       });
       res.json({ success: true, message: "Email template updated successfully" });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Update email template error:", error);
       res.status(500).json({ error: "Failed to update email template" });
     }
@@ -75,7 +75,7 @@ export function registerAdminCommsRoutes(app: Express): void {
       });
 
       res.json(template);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Create email template error:", error);
       res.status(500).json({ error: "Failed to create email template" });
     }
@@ -112,7 +112,7 @@ export function registerAdminCommsRoutes(app: Express): void {
               lastUpdatedAt: new Date().toISOString(),
               stats: stats,
             };
-          } catch (error: any) {
+          } catch (error: unknown) {
             return {
               campaignId: item.campaign.id,
               campaignName: item.campaign.name,
@@ -143,7 +143,7 @@ export function registerAdminCommsRoutes(app: Express): void {
       );
 
       res.json({ batchJobs });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Get batch jobs error:", error);
       res.status(500).json({ error: "Failed to fetch batch jobs" });
     }
@@ -176,7 +176,7 @@ export function registerAdminCommsRoutes(app: Express): void {
           status: campaign.status,
         }
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Get batch job detail error:", error);
       res.status(500).json({ error: "Failed to fetch batch job details" });
     }

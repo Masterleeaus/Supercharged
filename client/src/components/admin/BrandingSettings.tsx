@@ -625,7 +625,7 @@ export default function BrandingSettings() {
               <Input
                 value={formData.app_name}
                 onChange={(e) => setFormData({ ...formData, app_name: e.target.value })}
-                placeholder="AgentLabs"
+                placeholder="Supercharged"
                 data-testid="input-app-name"
               />
             </div>
