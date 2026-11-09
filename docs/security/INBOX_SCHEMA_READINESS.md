@@ -13,3 +13,7 @@ The verified production constructor now derives per-company atomic approval runn
 ## Pass 18: ApprovalService composition
 
 The verified Inbox service constructor accepts `approvalService`, converting the existing canonical approval engine into an Inbox approval port. The adapter insists on company-scoped reads, transactional claim and post-commit execution audit. Forbid supplying both `approvals` and `approvalService`, which would create ambiguous policy ownership. This does not activate Inbox transport or its routes.
+
+## Pass 19: startup route isolation
+
+The asynchronous verified comms route composer validates authentication, role and company guards, then creates enabled services before installing any HTTP route. If either Marketing or Inbox is enabled and its readiness check fails, neither route mounts. The Inbox database remains subject to a reviewed migration candidate, so production activation is still prohibited.

@@ -65,3 +65,7 @@ An InboxService shared by multiple authenticated companies no longer depends on 
 ## Pass 18: canonical approval integration boundary
 
 The `createInboxApprovalPort` adapter reuses the canonical ApprovalService for gate decisions, company-scoped reads and execution audit. It uses the conditional SQL claim from the existing Inbox transaction runner rather than passing a partial row into ApprovalService.markExecuted. Production construction can now accept `approvalService` directly, or an explicit approved custom port for existing integration tests; specifying both is an error. No routes or providers are enabled.
+
+## Pass 19: verified production Inbox route composition
+
+When explicitly enabled, the main verified comms registrar now composes Inbox with original SQL storage, the verified schema and canonical ApprovalService connected through the injected tenant pool. Both enabled modules verify before either route mounts. Defaults are unchanged and production provider sends remain unimplemented.

@@ -27,3 +27,5 @@ export {createInboxSqlTransactionRunner,inboxTransactionsFor} from './sql-transa
 
 export {createInboxApprovalPort} from './approval-port.ts';
 export type {CanonicalApprovalPortSource} from './approval-port.ts';
+
+export {createCanonicalInboxApprovalService} from './canonical-production-approval.ts';

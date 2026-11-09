@@ -29,3 +29,7 @@ test('the existing synchronous router remains disabled by default as a compatibi
  const status=registerOptionalCommsRoutes({use:(...args)=>calls.push(args)},{...guards,env:{COMMS_MARKETING_ENABLED:'false'}});
  assert.deepEqual(status.mounted,[]);assert.deepEqual(calls,[]);
 });
+
+test('legacy synchronous mount still rejects absent Inbox service',()=>{
+ const calls=[];assert.throws(()=>registerOptionalCommsRoutes({use:(...a)=>calls.push(a)},{...guards,env:{COMMS_INBOX_ENABLED:'true'}}),/durable InboxService/);assert.equal(calls.length,0);
+});

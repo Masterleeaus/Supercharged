@@ -27,3 +27,7 @@ test('ambiguous dual approval integration is rejected',async()=>{
  const canonical={gateAction:async()=>({}),getApproval:async()=>null,recordExecuted:async()=>{}};
  await assert.rejects(createVerifiedInboxService({pool,schemaProbe:fixture(),approvals,approvalService:canonical}),/one approval integration/);
 });
+
+test('canonical approval source must implement the complete durable API',async()=>{
+ await assert.rejects(createVerifiedInboxService({pool,schemaProbe:fixture(),approvalService:{getApproval:async()=>null}}),/canonical approval service/);
+});

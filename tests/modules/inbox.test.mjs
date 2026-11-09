@@ -492,3 +492,8 @@ test('canonical approval adapter is exported for verified Inbox composition',asy
  assert.equal(typeof createInboxApprovalPort,'function');
  assert.throws(()=>createInboxApprovalPort(null),/canonical approval/);
 });
+
+test('canonical production approval factory rejects missing durable PostgreSQL',async()=>{
+ const {createCanonicalInboxApprovalService}=await import('../../server/modules/inbox/canonical-production-approval.ts');
+ await assert.rejects(createCanonicalInboxApprovalService(null),/PostgreSQL pool/);
+});

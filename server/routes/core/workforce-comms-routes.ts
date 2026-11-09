@@ -59,7 +59,8 @@ export async function registerWorkforceCommsRoutes(app: Express, deps: { commsAu
     { authenticate: authenticateToken as unknown as import('express').RequestHandler, requireCompanyScope: requireCompanyScope(), requireApprover: requireRole("admin", "manager") as unknown as import('express').RequestHandler },
   ));
 
-  // First-class Inbox and Marketing are disabled unless durable services are injected. Enabling without those services fails startup.
+  // Inbox and Marketing default OFF. If enabled, create verified PostgreSQL-backed
+  // services and reject unprepared databases before exposing their routes.
   await registerVerifiedCommsRoutes(app, { authenticate: authenticateToken as RequestHandler,
     requireCompanyScope: requireCompanyScope(),
     requireRole: (...roles: string[]) => requireRole(...roles) as RequestHandler,

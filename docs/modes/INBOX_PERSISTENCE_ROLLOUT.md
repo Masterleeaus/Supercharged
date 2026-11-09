@@ -21,3 +21,7 @@ The existing Inbox SQL store and approval-write code are reused. The newly expor
 ## Pass 18: approval policy integration
 
 Production Inbox composition can now reuse the canonical ApprovalService as `approvalService`, so Inbox no longer needs a separate approval engine. A claim takes place atomically through the existing per-company SQL runner. Before feature activation, verify the target approval schema, role grants, real approval audit pipeline and outbound provider delivery, and run complete authenticated HTTP tests. Flags remain unchanged.
+
+## Pass 19: verified Inbox route mounting
+
+The actual Workforce/Comms registrar no longer needs a manually injected Inbox service. When `COMMS_INBOX_ENABLED=true`, startup constructs the existing SQL-backed Inbox service and canonical approval engine only after the database security gate succeeds. With the flag off, no Inbox schema query is performed. The RLS candidate is not promoted and no provider transport is enabled.
