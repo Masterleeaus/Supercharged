@@ -73,3 +73,7 @@ When explicitly enabled, the main verified comms registrar now composes Inbox wi
 ## Pass 20: durable outbound outbox (no provider enabled)
 
 A review-only `0019_inbox_outbox.sql` candidate adds a tenant-RLS protected outbox table linked to the existing Inbox message. The new `createSqlOutbox` handles deduplicated queue enrollment, worker leases with SKIP LOCKED, safe acknowledgments and retry/dead-letter transitions. `createOutboxDispatcher` requires an explicitly injected provider implementing stable idempotency keys. No default provider, background scheduler, migrations or outbound sending are enabled.
+
+## Pass 21: signed receipt callback boundary
+
+A generic gateway HMAC verifier authenticates exact raw bytes with timestamp expiry and constant-time comparison. Trusted integration IDs resolve company/provider/secret on the server. Receipt persistence accepts only provider IDs already acknowledged by the tenant's outbox and records each (company,provider,eventId) once. A receipt router factory is provided but not mounted; callback format is for a controlled gateway and MUST NOT be treated as the native signature protocol of arbitrary third-party providers. No provider credentials, live sending, production migration or webhook registration is enabled.

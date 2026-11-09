@@ -111,6 +111,8 @@ jobs:
         run: node scripts/check-inbox-outbox.mjs
       - name: Build disposable Inbox schema with restricted RLS
         run: node scripts/inbox-postgres-prepare.mjs
+      - name: Verify Inbox signed receipt contract, outbox and PostgreSQL isolation
+        run: node --test --experimental-transform-types tests/postgres/inbox-postgres-*.test.mjs
       - name: Verify real Inbox PostgreSQL storage, schema readiness and inbound service
         run: node --test --experimental-transform-types tests/postgres/inbox-postgres-*.test.mjs
 

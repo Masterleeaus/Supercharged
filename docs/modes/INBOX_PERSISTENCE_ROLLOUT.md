@@ -29,3 +29,7 @@ The actual Workforce/Comms registrar no longer needs a manually injected Inbox s
 ## Pass 20: opt-in persistent delivery queue
 
 An additional review-only outbox candidate supports unique queued message enrollment and tenant-bound worker leases. The disposable CI database applies this table after Inbox's existing schema and RLS, with real tests for duplicate enrollment, cross-company denial, token-protected acknowledgement and retry. The dispatcher has no provider configured or scheduler; production sending remains disabled until migration review, provider idempotency, signed callbacks and delivery reconciliation are complete.
+
+## Pass 21: signed delivery callback evidence
+
+A review-only `0020_inbox_delivery_receipts.sql` candidate records immutable provider acknowledgments for previously sent, tenant-owned outbox rows. Callback signatures use a generic internal HMAC over timestamp and raw request body. Integration ID resolution selects the company and signing secret; user-supplied tenant selectors are ignored. The optional Express router remains unmounted and requires an explicit provider guard. Disposable PostgreSQL checks verify event deduplication and foreign-tenant denial. Provider-native signature translators, actual signing credentials, and delivery reconciliation operations remain prerequisites to production activation.
