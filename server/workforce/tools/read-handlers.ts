@@ -20,8 +20,12 @@ import { createGroup01ToolDefinitions } from './handlers/group-01.ts';
 import { createGroup02ToolDefinitions } from './handlers/group-02.ts';
 import { createGroup03ToolDefinitions } from './handlers/group-03.ts';
 import { createGroup04ToolDefinitions } from './handlers/group-04.ts';
+import { createGroupMissingToolDefinitions } from './handlers/group-missing.ts';
 
 export const MAX_READ_ROWS = 50;
+
+/** Per-tool timeout for the five bound read tools (matches the group read timeouts). */
+export const READ_TOOL_TIMEOUT_MS = 10000;
 
 export class ReadToolInputError extends Error {
   constructor(message: string) {
@@ -307,6 +311,7 @@ export function createReadToolDefinitions(store: ReadStore, group00Db?: SqlExecu
       risk: 'low' as const,
       access: 'read' as const,
       schema: spec.schema,
+      timeoutMs: READ_TOOL_TIMEOUT_MS,
       handler: (params: Record<string, unknown>, context: { companyId: CompanyId }) => spec.run(context.companyId, params),
     })),
     ...createGroup00ToolDefinitions(group00Db),
@@ -315,6 +320,8 @@ export function createReadToolDefinitions(store: ReadStore, group00Db?: SqlExecu
     ...createGroup03ToolDefinitions({ sql: group00Db }),
     // Group 04 handler definitions: reads and writes, each with its own access class and timeout (handlers/group-04.ts).
     ...createGroup04ToolDefinitions({ db: group00Db }),
+    // Declared ids with no handler group yet: not_implemented stubs (handlers/group-missing.ts).
+    ...createGroupMissingToolDefinitions(),
   ];
 }
 

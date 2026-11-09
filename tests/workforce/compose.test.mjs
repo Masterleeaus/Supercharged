@@ -9,7 +9,12 @@ import { composeWorkforceRuntime } from '../../server/workforce/runtime/compose.
 import { runtimeHealth, workforceHealthHandler } from '../../server/workforce/runtime/health.ts';
 import { createMemoryRunStore } from '../../server/workforce/runtime/store.ts';
 import { evaluatePolicy } from '../../server/modules/approvals/policy-evaluator.ts';
+import { GROUP00_TOOL_IDS } from '../../server/workforce/tools/handlers/group-00.ts';
+import { GROUP01_TOOL_IDS } from '../../server/workforce/tools/handlers/group-01.ts';
+import { GROUP_02_TOOL_IDS } from '../../server/workforce/tools/handlers/group-02.ts';
 import { GROUP03_TOOL_IDS } from '../../server/workforce/tools/handlers/group-03.ts';
+import { GROUP04_IDS } from '../../server/workforce/tools/handlers/group-04.ts';
+import { GROUP_MISSING_TOOL_IDS } from '../../server/workforce/tools/handlers/group-missing.ts';
 
 const CO = 'company-1';
 
@@ -86,14 +91,24 @@ test('compose throws when the store lacks a required method', () => {
 
 // ---------- composition ----------
 
-test('compose registers the five bound read tools and the group 03 handlers, and nothing else', () => {
-  // The group 03 handlers include writes. Each one is gated by its access and category (see tools-real-03.test.mjs).
+test('compose registers the five bound read tools and every handler group, and nothing else', () => {
+  // Handler groups include writes. Each one is gated by its access and category (see the tools-real-0N tests).
   const runtime = composeWorkforceRuntime(fakeDeps());
   const ids = runtime.registry.list().map((t) => t.id).sort();
-  assert.deepEqual(
-    ids,
-    ['booking_requests.get', 'booking_requests.list', 'invoices.get', 'invoices.list', 'payments.list', ...GROUP03_TOOL_IDS].sort(),
-  );
+  const expected = [
+    'booking_requests.get',
+    'booking_requests.list',
+    'invoices.get',
+    'invoices.list',
+    'payments.list',
+    ...GROUP00_TOOL_IDS,
+    ...GROUP01_TOOL_IDS,
+    ...GROUP_02_TOOL_IDS,
+    ...GROUP03_TOOL_IDS,
+    ...GROUP04_IDS,
+    ...GROUP_MISSING_TOOL_IDS,
+  ];
+  assert.deepEqual(ids, expected.sort());
   assert.equal(runtime.model, null);
 });
 

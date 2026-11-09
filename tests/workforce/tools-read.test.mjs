@@ -16,9 +16,18 @@ import { GROUP01_TOOL_IDS } from '../../server/workforce/tools/handlers/group-01
 import { GROUP_02_TOOL_IDS } from '../../server/workforce/tools/handlers/group-02.ts';
 import { GROUP03_TOOL_IDS } from '../../server/workforce/tools/handlers/group-03.ts';
 import { GROUP04_IDS } from '../../server/workforce/tools/handlers/group-04.ts';
+import { GROUP_MISSING_TOOL_IDS } from '../../server/workforce/tools/handlers/group-missing.ts';
 
-// Every handler group's ids. The five bound read tools are the only ids outside this set.
-const ALL_GROUP_IDS = new Set([...GROUP00_TOOL_IDS, ...GROUP01_TOOL_IDS, ...GROUP_02_TOOL_IDS, ...GROUP03_TOOL_IDS, ...GROUP04_IDS]);
+// Every handler group's ids, and the not_implemented stubs for declared ids with no group. The five bound read tools
+// are the only ids outside this set.
+const ALL_GROUP_IDS = new Set([
+  ...GROUP00_TOOL_IDS,
+  ...GROUP01_TOOL_IDS,
+  ...GROUP_02_TOOL_IDS,
+  ...GROUP03_TOOL_IDS,
+  ...GROUP04_IDS,
+  ...GROUP_MISSING_TOOL_IDS,
+]);
 
 const CO_A = 'company-a';
 const CO_B = 'company-b';
