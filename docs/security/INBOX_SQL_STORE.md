@@ -9,3 +9,7 @@ This implementation is **not mounted automatically**. The numbered Inbox tables 
 ## Pass 15: PostgreSQL RLS candidate
 
 The SQL store has a real PostgreSQL integration gate using a disposable database, original numbered Inbox DDL, and a restricted-role RLS candidate for all four tenant tables. This is a proof of isolation and transaction behavior on CI; production Inbox remains disabled pending reviewed RLS deployment and approval wiring.
+
+## Pass 16 verified service
+
+`createVerifiedInboxService` uses the original SQL store, demands real PostgreSQL RLS catalog readiness for all four tables, and rejects absent durable approval and atomic-transaction ports. Its construction is separated from HTTP route mounting to avoid accidentally enabling sends. A live PostgreSQL inbound-deduplication regression now exercises the service across multiple operations.

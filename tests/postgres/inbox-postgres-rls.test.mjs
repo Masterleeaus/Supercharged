@@ -13,3 +13,15 @@ test('PostgreSQL: direct wrong-tenant insert rejected by WITH CHECK',{skip:!enab
   await c.query('ROLLBACK');
  }finally{c.release();}}finally{await f.close();}
 });
+
+test('PostgreSQL: restricted role cannot read other-tenant rows through direct SQL',{skip:!enabled},async()=>{
+ const f=fixture();try{
+  const t=thread(B,id('invisible'));await f.store.insertThread(t);
+  const client=await f.pool.connect();try{
+   await client.query('BEGIN');await client.query('SET LOCAL ROLE "desk_app"');
+   await client.query('SELECT set_config($1,$2,true)',['app.company_id',A]);
+   const rows=(await client.query('SELECT id FROM inbox_threads WHERE id=$1',[t.id])).rows;
+   assert.deepEqual(rows,[]);await client.query('ROLLBACK');
+  }finally{client.release();}
+ }finally{await f.close();}
+});
