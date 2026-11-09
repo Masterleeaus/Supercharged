@@ -147,12 +147,12 @@ export function createAgentRoutes(ctx: RouteContext): Router {
           },
         }));
       } catch (err) {
-        console.error("Error querying ve_voice_agents for user:", err);
+        logger.error("Error querying ve_voice_agents for user:", err);
       }
 
       res.json([...agents, ...veAgents]);
     } catch (error: any) {
-      console.error("Get agents error:", error);
+      logger.error("Get agents error:", error);
       res.status(500).json({ error: "Failed to get agents" });
     }
   });
@@ -353,12 +353,12 @@ export function createAgentRoutes(ctx: RouteContext): Router {
                 const kbItem = await storage.getKnowledgeBaseItem(kbId);
 
                 if (!kbItem) {
-                  console.warn(`⚠️  Knowledge base item ${kbId} not found, skipping`);
+                  logger.warn(`⚠️  Knowledge base item ${kbId} not found, skipping`);
                   continue;
                 }
 
                 if (!kbItem.elevenLabsDocId) {
-                  console.warn(`⚠️  Knowledge base item ${kbId} has no ElevenLabs doc ID, skipping`);
+                  logger.warn(`⚠️  Knowledge base item ${kbId} has no ElevenLabs doc ID, skipping`);
                   continue;
                 }
 
@@ -369,7 +369,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
                   elevenLabsDocId: kbItem.elevenLabsDocId
                 });
               } catch (error: any) {
-                console.error(`   ❌ Failed to fetch KB ${kbId}:`, error.message);
+                logger.error(`   ❌ Failed to fetch KB ${kbId}:`, error.message);
               }
             }
           }
@@ -401,7 +401,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
 
           elevenLabsAgentId = agentResponse.agent_id;
         } catch (error) {
-          console.error("Error creating ElevenLabs agent:", error);
+          logger.error("Error creating ElevenLabs agent:", error);
           return res.status(500).json({ error: "Failed to create ElevenLabs agent" });
         }
       }
@@ -473,7 +473,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
             usedCredentialId = result.credentialId;
             logger.info(`✅ [Flow Agent Create] ElevenLabs agent created via FlowAgentService: ${elevenLabsAgentId}`);
           } catch (error: any) {
-            console.error("Error creating ElevenLabs Flow agent:", error);
+            logger.error("Error creating ElevenLabs Flow agent:", error);
             const statusCode = error.status || 500;
             return res.status(statusCode).json({
               error: "Failed to create ElevenLabs Flow agent",
@@ -528,7 +528,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
           await ElevenLabsPoolService.updateAssignmentCount(usedCredentialId, true);
           logger.info(`📊 [Agent Create] Incremented agent count for credential ${usedCredentialId}`);
         } catch (countError) {
-          console.warn("Failed to update credential agent count:", countError);
+          logger.warn("Failed to update credential agent count:", countError);
         }
       }
 
@@ -542,7 +542,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
 
           await ElevenLabsPoolService.syncExistingAgents();
         } catch (poolError) {
-          console.warn("Failed to update flow or sync agent to pool:", poolError);
+          logger.warn("Failed to update flow or sync agent to pool:", poolError);
         }
       }
 
@@ -550,7 +550,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         try {
           await ElevenLabsPoolService.syncExistingAgents();
         } catch (poolError) {
-          console.warn("Failed to sync incoming agent to pool:", poolError);
+          logger.warn("Failed to sync incoming agent to pool:", poolError);
         }
       }
 
@@ -576,7 +576,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
             logger.info(`✅ [Agent Create] Appointment booking tool added (with system tools preserved)`);
           }
         } catch (appointmentError) {
-          console.warn("Failed to add appointment booking tool (non-fatal):", appointmentError);
+          logger.warn("Failed to add appointment booking tool (non-fatal):", appointmentError);
         }
       }
 
@@ -610,7 +610,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
             logger.info(`✅ [Agent Create] Messaging tools added`);
           }
         } catch (messagingError) {
-          console.warn("Failed to add messaging tools (non-fatal):", messagingError);
+          logger.warn("Failed to add messaging tools (non-fatal):", messagingError);
         }
       }
 
@@ -697,7 +697,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
 
           updatedAgent = await storage.getAgent(agent.id) || agent;
         } catch (ragError) {
-          console.warn("Failed to setup RAG tool (non-fatal):", ragError);
+          logger.warn("Failed to setup RAG tool (non-fatal):", ragError);
         }
       }
 
@@ -733,14 +733,14 @@ export function createAgentRoutes(ctx: RouteContext): Router {
               logger.warn(`🔊 Voice ${elevenLabsVoiceId} not found in shared library, skipping pool sync`);
             }
           } catch (syncError) {
-            console.warn(`⚠️ Async voice sync failed (non-fatal):`, syncError instanceof Error ? syncError.message : syncError);
+            logger.warn(`⚠️ Async voice sync failed (non-fatal):`, syncError instanceof Error ? syncError.message : syncError);
           }
         });
       }
 
       res.json(updatedAgent);
     } catch (error: any) {
-      console.error("Create agent error:", error);
+      logger.error("Create agent error:", error);
       res.status(500).json({ error: "Failed to create agent" });
     }
   });
@@ -754,7 +754,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
 
       res.json(agent);
     } catch (error: any) {
-      console.error("Get agent error:", error);
+      logger.error("Get agent error:", error);
       res.status(500).json({ error: "Failed to get agent" });
     }
   });
@@ -864,7 +864,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
           logger.info(`   ⏭️ No changes detected, skipping version creation`);
         }
       } catch (versionError) {
-        console.warn("Failed to create agent version:", versionError);
+        logger.warn("Failed to create agent version:", versionError);
       }
 
       const {
@@ -949,16 +949,16 @@ export function createAgentRoutes(ctx: RouteContext): Router {
               }
             );
           } catch (syncError: any) {
-            console.error(`❌ Flow agent ElevenLabs sync failed:`);
-            console.error(`   Agent ID: ${agent.id}`);
-            console.error(`   ElevenLabs Agent ID: ${agent.elevenLabsAgentId}`);
-            console.error(`   Flow ID: ${newFlowId || agent.flowId || 'none'}`);
-            console.error(`   Error: ${syncError.message}`);
+            logger.error(`❌ Flow agent ElevenLabs sync failed:`);
+            logger.error(`   Agent ID: ${agent.id}`);
+            logger.error(`   ElevenLabs Agent ID: ${agent.elevenLabsAgentId}`);
+            logger.error(`   Flow ID: ${newFlowId || agent.flowId || 'none'}`);
+            logger.error(`   Error: ${syncError.message}`);
             if (syncError.details) {
-              console.error(`   Details:`, JSON.stringify(syncError.details, null, 2));
+              logger.error(`   Details:`, JSON.stringify(syncError.details, null, 2));
             }
             if (syncError.stack) {
-              console.error(`   Stack:`, syncError.stack.split('\n').slice(0, 5).join('\n'));
+              logger.error(`   Stack:`, syncError.stack.split('\n').slice(0, 5).join('\n'));
             }
             return res.status(500).json({
               error: "Failed to sync changes to ElevenLabs",
@@ -1042,7 +1042,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
               }
             );
           } catch (error: any) {
-            console.error("Failed to sync Incoming agent to ElevenLabs:", error);
+            logger.error("Failed to sync Incoming agent to ElevenLabs:", error);
           }
         }
 
@@ -1057,7 +1057,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
 
       res.json(updatedAgent);
     } catch (error: any) {
-      console.error("Update agent error:", error);
+      logger.error("Update agent error:", error);
       res.status(500).json({ error: "Failed to update agent" });
     }
   });
@@ -1081,7 +1081,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
             logger.info(`✅ Deleted agent ${agent.name} from ElevenLabs using default credential`);
           }
         } catch (elevenLabsError: any) {
-          console.error(`⚠️ Failed to delete from ElevenLabs (will still delete from database):`, elevenLabsError.message);
+          logger.error(`⚠️ Failed to delete from ElevenLabs (will still delete from database):`, elevenLabsError.message);
         }
       }
 
@@ -1090,14 +1090,14 @@ export function createAgentRoutes(ctx: RouteContext): Router {
           await ElevenLabsPoolService.updateAssignmentCount(agent.elevenLabsCredentialId, false);
           logger.info(`📊 [Agent Delete] Decremented agent count for credential ${agent.elevenLabsCredentialId}`);
         } catch (countError) {
-          console.warn("Failed to update credential agent count:", countError);
+          logger.warn("Failed to update credential agent count:", countError);
         }
       }
 
       await storage.deleteAgent(req.params.id);
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Delete agent error:", error);
+      logger.error("Delete agent error:", error);
       res.status(500).json({ error: "Failed to delete agent" });
     }
   });
@@ -1111,7 +1111,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
       const items = await storage.getUserKnowledgeBase(req.userId!);
       res.json(items);
     } catch (error: any) {
-      console.error("Get knowledge base error:", error);
+      logger.error("Get knowledge base error:", error);
       res.status(500).json({ error: "Failed to get knowledge base" });
     }
   });
@@ -1150,7 +1150,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
 
       res.json(item);
     } catch (error: any) {
-      console.error("Create knowledge base item error:", error);
+      logger.error("Create knowledge base item error:", error);
       res.status(500).json({ error: "Failed to create knowledge base item" });
     }
   });
@@ -1199,7 +1199,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
 
       res.json(item);
     } catch (error: any) {
-      console.error("Upload knowledge base file error:", error);
+      logger.error("Upload knowledge base file error:", error);
       res.status(500).json({ error: "Failed to upload file" });
     }
   });
@@ -1239,7 +1239,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
 
       res.json(item);
     } catch (error: any) {
-      console.error("Add knowledge base URL error:", error);
+      logger.error("Add knowledge base URL error:", error);
       res.status(500).json({ error: "Failed to add URL" });
     }
   });
@@ -1283,7 +1283,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
 
       res.json(item);
     } catch (error: any) {
-      console.error("Add knowledge base text error:", error);
+      logger.error("Add knowledge base text error:", error);
       res.status(500).json({ error: "Failed to add text" });
     }
   });
@@ -1299,14 +1299,14 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         try {
           await elevenLabsService.deleteKnowledgeBase(item.elevenLabsDocId);
         } catch (elevenLabsError: any) {
-          console.error("Failed to delete from ElevenLabs:", elevenLabsError.message);
+          logger.error("Failed to delete from ElevenLabs:", elevenLabsError.message);
         }
       }
 
       await storage.deleteKnowledgeBaseItem(req.params.id);
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Delete knowledge base item error:", error);
+      logger.error("Delete knowledge base item error:", error);
       res.status(500).json({ error: "Failed to delete knowledge base item" });
     }
   });
@@ -1328,7 +1328,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
       const versions = await storage.getAgentVersions(req.params.agentId);
       res.json(versions);
     } catch (error: any) {
-      console.error("Get agent versions error:", error);
+      logger.error("Get agent versions error:", error);
       res.status(500).json({ error: "Failed to get agent versions" });
     }
   });
@@ -1355,7 +1355,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
 
       res.json(version);
     } catch (error: any) {
-      console.error("Get agent version error:", error);
+      logger.error("Get agent version error:", error);
       res.status(500).json({ error: "Failed to get agent version" });
     }
   });
@@ -1456,7 +1456,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
             });
           }
         } catch (syncError) {
-          console.warn("Failed to sync rollback with ElevenLabs:", syncError);
+          logger.warn("Failed to sync rollback with ElevenLabs:", syncError);
         }
       }
 
@@ -1469,7 +1469,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         previousVersionNumber: nextVersionNumber,
       });
     } catch (error: any) {
-      console.error("Rollback agent version error:", error);
+      logger.error("Rollback agent version error:", error);
       res.status(500).json({ error: "Failed to rollback agent version" });
     }
   });
@@ -1483,7 +1483,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
       const voices = await storage.getUserVoices(req.userId!);
       res.json(voices);
     } catch (error: any) {
-      console.error("Get voices error:", error);
+      logger.error("Get voices error:", error);
       res.status(500).json({ error: "Failed to get voices" });
     }
   });
@@ -1541,7 +1541,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
 
       res.send(audioBuffer);
     } catch (error: any) {
-      console.error("Voice preview error:", error);
+      logger.error("Voice preview error:", error);
       res.status(500).json({ error: "Failed to generate voice preview" });
     }
   });
@@ -1620,10 +1620,10 @@ export function createAgentRoutes(ctx: RouteContext): Router {
               return res.send(audioBuffer);
             }
           }
-          console.warn(`⚠️ Audio model "${model}" failed (status: ${response.status})`);
+          logger.warn(`⚠️ Audio model "${model}" failed (status: ${response.status})`);
         }
 
-        console.warn(`⚠️ All audio preview models failed — falling back to TTS with "alloy" voice`);
+        logger.warn(`⚠️ All audio preview models failed — falling back to TTS with "alloy" voice`);
       }
 
       // Standard path or fallback path (if chat completion call failed for realtime-only voices)
@@ -1647,7 +1647,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("OpenAI TTS error:", errorText);
+        logger.error("OpenAI TTS error:", errorText);
         return res.status(500).json({ error: "Failed to generate voice preview" });
       }
 
@@ -1659,7 +1659,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
 
       res.send(audioBuffer);
     } catch (error: any) {
-      console.error("OpenAI voice preview error:", error);
+      logger.error("OpenAI voice preview error:", error);
       res.status(500).json({ error: "Failed to generate voice preview" });
     }
   });

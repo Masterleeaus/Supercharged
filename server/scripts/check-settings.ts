@@ -1,16 +1,17 @@
 import { db } from '../db';
 import { globalSettings } from '@shared/schema';
 import { inArray } from 'drizzle-orm';
+import { logger } from '../utils/logger.ts';
 
 async function run() {
   try {
     const result = await db.select().from(globalSettings).where(inArray(globalSettings.key, ['ve_tts_sarvam_model', 've_tts_sarvam_speaker']));
-    console.log("Settings:");
+    logger.info("Settings:");
     result.forEach(row => {
-      console.log(`${row.key}: ${row.value}`);
+      logger.info(`${row.key}: ${row.value}`);
     });
   } catch (error) {
-    console.error("Database query failed:", error);
+    logger.error("Database query failed:", error);
   }
   process.exit(0);
 }

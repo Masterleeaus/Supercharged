@@ -10,6 +10,7 @@
 import { Router, Response } from 'express';
 import { checkAdminOrTeamMember, requireAdminPermission, AdminRequest } from '../middleware/admin-auth';
 import { storage } from '../storage';
+import { logger } from '../utils/logger.ts';
 
 const router = Router();
 
@@ -22,7 +23,7 @@ router.get('/analytics', checkAdminOrTeamMember, requireAdminPermission('setting
     const analytics = await storage.getGlobalAnalytics(timeRange as string);
     res.json(analytics);
   } catch (error) {
-    console.error('Error fetching analytics:', error);
+    logger.error('Error fetching analytics:', error);
     res.status(500).json({ error: 'Failed to fetch analytics' });
   }
 });

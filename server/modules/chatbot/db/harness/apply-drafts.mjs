@@ -14,6 +14,15 @@ import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+// Local logger. This script runs under plain Node and cannot import server/utils/logger.ts,
+// so it writes the same level prefixes as that logger (development format).
+const writeLog = (stream, prefix, parts) => stream.write(`${prefix} ${parts.join(" ")}\n`);
+const log = {
+  info: (...parts) => writeLog(process.stdout, "[INFO] ", parts),
+  warn: (...parts) => writeLog(process.stderr, "[WARN] ", parts),
+  error: (...parts) => writeLog(process.stderr, "[ERROR]", parts),
+};
+
 const HERE = dirname(fileURLToPath(import.meta.url));
 // harness -> db -> chatbot -> modules -> server -> repo root
 const REPO = resolve(HERE, "../../../../..");
@@ -201,7 +210,7 @@ async function loadPg() {
     const mod = await import("pg");
     return mod.default ?? mod;
   } catch {
-    console.error(
+    log.error(
       "Cannot load the 'pg' package. Install it in the repo, or run with\n" +
         '  NODE_OPTIONS="--import /home/claude/integration-scratch/hook/register.mjs"\n' +
         "as described in README.md.",
@@ -213,20 +222,20 @@ async function loadPg() {
 function report(stage, result) {
   const tag = `[${stage}]`;
   if (result.ok) {
-    console.log(`${tag} OK    ${result.file}  (${result.executed}/${result.total} statements)`);
+    log.info(`${tag} OK    ${result.file}  (${result.executed}/${result.total} statements)`);
     return;
   }
   const f = result.failure;
-  console.log(`${tag} FAIL  ${result.file}`);
-  console.log(`        line ${f.line}: ${f.code} ${f.message}`);
-  console.log(`        statement: ${f.preview}`);
-  if (f.detail) console.log(`        detail: ${f.detail}`);
-  if (f.hint) console.log(`        dependency: ${f.hint}`);
+  log.info(`${tag} FAIL  ${result.file}`);
+  log.info(`        line ${f.line}: ${f.code} ${f.message}`);
+  log.info(`        statement: ${f.preview}`);
+  if (f.detail) log.info(`        detail: ${f.detail}`);
+  if (f.hint) log.info(`        dependency: ${f.hint}`);
 }
 
 async function main() {
   if (!/^[a-z_][a-z0-9_]*$/.test(DB_NAME)) {
-    console.error("CHATBOT_HARNESS_DB must be a plain lowercase identifier.");
+    log.error("CHATBOT_HARNESS_DB must be a plain lowercase identifier.");
     return 1;
   }
   const pgMod = await loadPg();
@@ -236,7 +245,7 @@ async function main() {
   const steps = order.steps;
   const missing = steps.filter((s) => !existsSync(join(REPO, s.file)));
   if (missing.length) {
-    for (const s of missing) console.error(`missing file listed in migration-order.json: ${s.file}`);
+    for (const s of missing) log.error(`missing file listed in migration-order.json: ${s.file}`);
     return 1;
   }
   const draftCount = steps.filter((s) => s.stage === "draft").length;
@@ -244,7 +253,7 @@ async function main() {
   const admin = new URL(ADMIN_URL);
   const target = new URL(ADMIN_URL);
   target.pathname = `/${DB_NAME}`;
-  console.log(`cluster ${admin.hostname}:${admin.port || 5432}, fresh database "${DB_NAME}"`);
+  log.info(`cluster ${admin.hostname}:${admin.port || 5432}, fresh database "${DB_NAME}"`);
 
   const adminClient = new pgMod.Client({ connectionString: ADMIN_URL });
   await adminClient.connect();
@@ -272,16 +281,16 @@ async function main() {
   }
 
   if (halted) {
-    console.log("Stopped: a base or parent file failed, so the later steps were not run.");
+    log.info("Stopped: a base or parent file failed, so the later steps were not run.");
   }
   const applied = draftResults.filter((r) => r.ok).length;
-  console.log(`drafts applied: ${applied} of ${draftCount}`);
+  log.info(`drafts applied: ${applied} of ${draftCount}`);
   if (failures.length) {
-    console.log(`failures: ${failures.length}`);
-    for (const f of failures) console.log(`  - [${f.stage}] ${f.file}: ${f.failure.code} ${f.failure.message}`);
+    log.info(`failures: ${failures.length}`);
+    for (const f of failures) log.info(`  - [${f.stage}] ${f.file}: ${f.failure.code} ${f.failure.message}`);
     return 1;
   }
-  console.log("all files applied");
+  log.info("all files applied");
   return 0;
 }
 
@@ -292,7 +301,7 @@ if (isMain) {
       process.exitCode = code;
     })
     .catch((err) => {
-      console.error("harness error:", err.message);
+      log.error("harness error:", err.message);
       process.exitCode = 1;
     });
 }

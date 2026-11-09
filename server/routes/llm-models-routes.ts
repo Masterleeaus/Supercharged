@@ -20,6 +20,7 @@ import { llmModels } from '@shared/schema';
 import { checkAdminOrTeamMember, requireAdminPermission, AdminRequest } from '../middleware/admin-auth';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
+import { logger } from '../utils/logger.ts';
 
 const router = Router();
 
@@ -36,7 +37,7 @@ router.get('/', requireAdminPermission('settings', 'llm_models', 'read'), async 
 
     res.json(models);
   } catch (error) {
-    console.error('Error fetching LLM models:', error);
+    logger.error('Error fetching LLM models:', error);
     res.status(500).json({ error: 'Failed to fetch LLM models' });
   }
 });
@@ -75,7 +76,7 @@ router.patch('/:id', requireAdminPermission('settings', 'llm_models', 'update'),
 
     res.json({ success: true });
   } catch (error) {
-    console.error('Error updating LLM model:', error);
+    logger.error('Error updating LLM model:', error);
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: 'Invalid request data', details: error.issues });
     }

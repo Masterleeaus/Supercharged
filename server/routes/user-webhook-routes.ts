@@ -19,6 +19,7 @@
 import { Router, Response, RequestHandler, NextFunction } from "express";
 import { RouteContext, AuthRequest } from "./common";
 import crypto from "crypto";
+import { logger } from '../utils/logger.ts';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -50,7 +51,7 @@ export function createUserWebhookRoutes(
         source: limits.sources.maxWebhooks
       });
     } catch (error: any) {
-      console.error("Get webhook limits error:", error);
+      logger.error("Get webhook limits error:", error);
       res.status(500).json({ error: "Failed to get webhook limits" });
     }
   });
@@ -135,7 +136,7 @@ export function createUserWebhookRoutes(
 
       res.json(webhook);
     } catch (error: any) {
-      console.error("Create webhook error:", error);
+      logger.error("Create webhook error:", error);
       res.status(500).json({ error: "Failed to create webhook" });
     }
   });
@@ -146,7 +147,7 @@ export function createUserWebhookRoutes(
       const webhooks = await storage.getUserWebhooks(req.userId!);
       res.json(webhooks);
     } catch (error: any) {
-      console.error("Get webhooks error:", error);
+      logger.error("Get webhooks error:", error);
       res.status(500).json({ error: "Failed to get webhooks" });
     }
   });
@@ -161,7 +162,7 @@ export function createUserWebhookRoutes(
 
       res.json(webhook);
     } catch (error: any) {
-      console.error("Get webhook error:", error);
+      logger.error("Get webhook error:", error);
       res.status(500).json({ error: "Failed to get webhook" });
     }
   });
@@ -191,7 +192,7 @@ export function createUserWebhookRoutes(
       const updated = await storage.getWebhook(req.params.id);
       res.json(updated);
     } catch (error: any) {
-      console.error("Update webhook error:", error);
+      logger.error("Update webhook error:", error);
       res.status(500).json({ error: "Failed to update webhook" });
     }
   });
@@ -207,7 +208,7 @@ export function createUserWebhookRoutes(
       await storage.deleteWebhook(req.params.id);
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Delete webhook error:", error);
+      logger.error("Delete webhook error:", error);
       res.status(500).json({ error: "Failed to delete webhook" });
     }
   });
@@ -240,7 +241,7 @@ export function createUserWebhookRoutes(
         });
       }
     } catch (error: any) {
-      console.error("Test webhook error:", error);
+      logger.error("Test webhook error:", error);
       res.status(500).json({ 
         success: false,
         error: "Failed to send test webhook"
@@ -261,7 +262,7 @@ export function createUserWebhookRoutes(
       
       res.json(logs);
     } catch (error: any) {
-      console.error("Get webhook logs error:", error);
+      logger.error("Get webhook logs error:", error);
       res.status(500).json({ error: "Failed to get webhook logs" });
     }
   });
@@ -330,7 +331,7 @@ export function createUserWebhookRoutes(
         message: response.ok ? "Retry successful" : "Retry failed"
       });
     } catch (error: any) {
-      console.error("Retry webhook error:", error);
+      logger.error("Retry webhook error:", error);
       res.status(500).json({ error: "Failed to retry webhook" });
     }
   });

@@ -207,7 +207,7 @@ async function getAgentEngineType(agentId: string | null): Promise<{ engine: 'el
     agent = result;
   } catch (err: any) {
     if (err?.code === '42703') {
-      console.warn(`[Widget] Column missing in agents table, using minimal query: ${err.message}`);
+      logger.warn(`[Widget] Column missing in agents table, using minimal query: ${err.message}`);
       const [result] = await db.select({
         id: agents.id,
         name: agents.name,
@@ -243,7 +243,7 @@ async function getAgentEngineType(agentId: string | null): Promise<{ engine: 'el
         agent.telephonyProvider = 'custom-voice-engine';
       }
     } catch (err: any) {
-      console.error(`[Widget] Failed to query ve_voice_agents fallback:`, err);
+      logger.error(`[Widget] Failed to query ve_voice_agents fallback:`, err);
     }
   }
   
@@ -533,7 +533,7 @@ router.get('/widget/config/:token', async (req: Request, res: Response) => {
       credentialName: resolvedCredentialName,
     });
   } catch (error) {
-    console.error('Error fetching widget config:', error);
+    logger.error('Error fetching widget config:', error);
     res.status(500).json({ error: 'Failed to fetch widget config' });
   }
 });
@@ -611,7 +611,7 @@ router.post('/widget/session/start', async (req: Request, res: Response) => {
       engine: engine === 'none' ? 'openai' : engine,
     });
   } catch (error) {
-    console.error('Error starting widget session:', error);
+    logger.error('Error starting widget session:', error);
     res.status(500).json({ error: 'Failed to start session' });
   }
 });
@@ -650,7 +650,7 @@ router.post('/widget/session/:sessionId/connect', async (req: Request, res: Resp
       engine: engine === 'none' ? 'openai' : engine,
     });
   } catch (error) {
-    console.error('Error connecting session:', error);
+    logger.error('Error connecting session:', error);
     res.status(500).json({ error: 'Failed to connect session' });
   }
 });
@@ -675,7 +675,7 @@ router.post('/widget/session/:sessionId/end', async (req: Request, res: Response
     const ownerWidget = await widgetStorage.getWidgetById(session.widgetId);
     const companyId: string | null = ownerWidget?.companyId ?? null;
     if (!companyId) {
-      console.warn(`[Widget] Refusing session end for ${session.id}: owning widget has no company_id`);
+      logger.warn(`[Widget] Refusing session end for ${session.id}: owning widget has no company_id`);
       return res.status(403).json({ error: 'Forbidden' });
     }
 
@@ -751,7 +751,7 @@ router.post('/widget/session/:sessionId/end', async (req: Request, res: Response
               openaiApiKey = anyCredential.apiKey;
             }
           } catch (credError) {
-            console.warn('[Widget] Could not fetch OpenAI credential from database:', credError);
+            logger.warn('[Widget] Could not fetch OpenAI credential from database:', credError);
           }
           
           const insights = await CallInsightsService.analyzeTranscript(
@@ -771,7 +771,7 @@ router.post('/widget/session/:sessionId/end', async (req: Request, res: Response
             logger.info(`[Widget] AI insights generated: classification=${classification}, sentiment=${analyzedSentiment}`);
           }
         } catch (insightError) {
-          console.error('[Widget] Failed to generate AI insights:', insightError);
+          logger.error('[Widget] Failed to generate AI insights:', insightError);
         }
       }
       
@@ -825,7 +825,7 @@ router.post('/widget/session/:sessionId/end', async (req: Request, res: Response
                 credential = await ElevenLabsPoolService.getLeastLoadedCredential();
               }
               if (!credential) {
-                console.warn(`[Widget] No ElevenLabs credential available to fetch conversation details`);
+                logger.warn(`[Widget] No ElevenLabs credential available to fetch conversation details`);
                 return;
               }
               
@@ -853,7 +853,7 @@ router.post('/widget/session/:sessionId/end', async (req: Request, res: Response
                 logger.info(`[Widget] No transcript/summary available from ElevenLabs yet for session ${session.id}`);
               }
             } catch (fetchError: any) {
-              console.warn(`[Widget] Failed to fetch ElevenLabs conversation details (non-fatal):`, fetchError?.message || fetchError);
+              logger.warn(`[Widget] Failed to fetch ElevenLabs conversation details (non-fatal):`, fetchError?.message || fetchError);
             }
           }, 5000);
         });
@@ -862,7 +862,7 @@ router.post('/widget/session/:sessionId/end', async (req: Request, res: Response
     
     res.json({ success: true, creditsUsed });
   } catch (error) {
-    console.error('Error ending session:', error);
+    logger.error('Error ending session:', error);
     res.status(500).json({ error: 'Failed to end session' });
   }
 });
@@ -892,7 +892,7 @@ router.post('/widget/session/:sessionId/heartbeat', async (req: Request, res: Re
       remainingCredits: creditCheck.credits,
     });
   } catch (error) {
-    console.error('Error processing heartbeat:', error);
+    logger.error('Error processing heartbeat:', error);
     res.status(500).json({ error: 'Failed to process heartbeat' });
   }
 });
@@ -964,7 +964,7 @@ router.post('/widget/session/:sessionId/ephemeral-token', async (req: Request, r
         });
         
       } catch (elevenLabsError: any) {
-        console.error('[Widget] ElevenLabs signed URL error:', elevenLabsError);
+        logger.error('[Widget] ElevenLabs signed URL error:', elevenLabsError);
         return res.status(500).json({ error: 'Failed to connect to ElevenLabs. Please try again.' });
       }
       
@@ -1006,7 +1006,7 @@ router.post('/widget/session/:sessionId/ephemeral-token', async (req: Request, r
           language: agent.language || 'en',
         });
       } catch (cveError: any) {
-        console.error('[Widget] Custom Voice Engine session setup error:', cveError);
+        logger.error('[Widget] Custom Voice Engine session setup error:', cveError);
         return res.status(500).json({ error: 'Failed to connect to Custom Voice Engine. Please try again.' });
       }
       
@@ -1146,13 +1146,7 @@ router.post('/widget/session/:sessionId/ephemeral-token', async (req: Request, r
     
     if (!ephemeralResponse.ok) {
       const errorData = await ephemeralResponse.text();
-      console.error('[Widget] OpenAI Realtime API Error:', {
-        status: ephemeralResponse.status,
-        statusText: ephemeralResponse.statusText,
-        body: errorData,
-        credentialId: credential.id,
-        model: openaiModel
-      });
+      logger.error('[Widget] OpenAI Realtime API Error:', { status: ephemeralResponse.status, statusText: ephemeralResponse.statusText, model: openaiModel });
       
       let userMessage = 'Failed to initialize AI session';
       try {
@@ -1189,7 +1183,7 @@ router.post('/widget/session/:sessionId/ephemeral-token', async (req: Request, r
       appointmentBookingEnabled: appointmentEnabled,
     });
   } catch (error) {
-    console.error('Error getting ephemeral token:', error);
+    logger.error('Error getting ephemeral token:', error);
     res.status(500).json({ error: 'Failed to get ephemeral token' });
   }
 });
@@ -1360,7 +1354,7 @@ router.post('/widget/session/:sessionId/book-appointment', async (req: Request, 
     // Company comes from the owning widget row. Fail closed.
     const companyId: string | null = widget.companyId ?? null;
     if (!companyId) {
-      console.warn(`[Widget] Refusing appointment insert: owning widget ${widget.id} has no company_id`);
+      logger.warn(`[Widget] Refusing appointment insert: owning widget ${widget.id} has no company_id`);
       return res.status(403).json({ success: false, message: 'Forbidden' });
     }
 
@@ -1395,7 +1389,7 @@ router.post('/widget/session/:sessionId/book-appointment', async (req: Request, 
       scheduledAt: scheduledAt.toISOString(),
     });
   } catch (error) {
-    console.error('Error booking appointment:', error);
+    logger.error('Error booking appointment:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Failed to book appointment. Please try again.' 
@@ -1452,7 +1446,7 @@ router.post('/widget/session/:sessionId/knowledge-lookup', async (req: Request, 
     
     // Scope comes from the widget row only. A widget with no company is refused before any search.
     if (!widget.companyId) {
-      console.warn(`[Widget KB] Refused: widget ${widget.id} has no company scope`);
+      logger.warn(`[Widget KB] Refused: widget ${widget.id} has no company scope`);
       return res.json({
         found: false,
         message: 'Knowledge lookup is not available for this widget.'
@@ -1484,7 +1478,7 @@ router.post('/widget/session/:sessionId/knowledge-lookup', async (req: Request, 
       resultCount: results.length,
     });
   } catch (error) {
-    console.error('Error in knowledge lookup:', error);
+    logger.error('Error in knowledge lookup:', error);
     res.status(500).json({ 
       found: false, 
       message: 'Failed to search knowledge base. Please try again.' 

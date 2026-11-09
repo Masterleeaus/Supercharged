@@ -9,6 +9,7 @@
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
 import { authenticateToken, requireRole } from "../../middleware/auth";
+import { logger } from "../../utils/logger";
 import { {{pascal}}Error, type {{pascal}}Service } from "./{{name}}-service";
 
 /**
@@ -62,6 +63,6 @@ function sendError(res: Response, err: unknown) {
   if (err instanceof {{pascal}}Error) {
     return res.status(err.status).json({ error: err.message });
   }
-  console.error("[{{pascal}}] unexpected error:", err);
+  logger.error("[{{pascal}}] unexpected error:", err);
   return res.status(500).json({ error: "Internal server error" });
 }

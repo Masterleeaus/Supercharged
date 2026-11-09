@@ -14,6 +14,7 @@
 // "true" is refused (treated as false, with a warning) because it trusts every client.
 // Set the value to match the proxy in front of the app. See docs/proxy/desk-modes.nginx.conf.
 
+import { logger } from '../utils/logger.ts';
 export type TrustProxySetting = boolean | number | string;
 
 const NAMED_RANGES = new Set(['loopback', 'linklocal', 'uniquelocal']);
@@ -24,7 +25,7 @@ export function resolveTrustProxy(raw: string | undefined | null): TrustProxySet
     return false;
   }
   if (value.toLowerCase() === 'true') {
-    console.warn('[Security] TRUST_PROXY=true is refused because it lets clients spoof req.ip. Using false.');
+    logger.warn('[Security] TRUST_PROXY=true is refused because it lets clients spoof req.ip. Using false.');
     return false;
   }
   if (/^\d+$/.test(value)) {
@@ -34,6 +35,6 @@ export function resolveTrustProxy(raw: string | undefined | null): TrustProxySet
   if (parts.length > 0 && parts.every((part) => NAMED_RANGES.has(part) || part.includes('.') || part.includes(':'))) {
     return parts.join(',');
   }
-  console.warn(`[Security] TRUST_PROXY value "${value}" is not recognised. Using false.`);
+  logger.warn(`[Security] TRUST_PROXY value "${value}" is not recognised. Using false.`);
   return false;
 }

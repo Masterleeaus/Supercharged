@@ -55,7 +55,7 @@ export function setupPlivoElevenLabsStream(httpServer: HttpServer): void {
       const callUuid = pathname.split('/api/plivo-elevenlabs/stream/')[1];
       
       if (!callUuid) {
-        console.error(`[Plivo-ElevenLabs Stream] Invalid stream URL: ${pathname}`);
+        logger.error(`[Plivo-ElevenLabs Stream] Invalid stream URL: ${pathname}`);
         socket.destroy();
         return;
       }
@@ -100,8 +100,8 @@ function handleStreamConnection(ws: WebSocket, callUuid: string): void {
           }
           
           if (!ElevenLabsBridgeService.hasSession(callUuid)) {
-            console.error(`[Plivo-ElevenLabs Stream] ERROR: No session found for ${callUuid}. Audio will be dropped.`);
-            console.error(`[Plivo-ElevenLabs Stream] Session must be created by /incoming webhook or outbound call service before stream connects.`);
+            logger.error(`[Plivo-ElevenLabs Stream] ERROR: No session found for ${callUuid}. Audio will be dropped.`);
+            logger.error(`[Plivo-ElevenLabs Stream] Session must be created by /incoming webhook or outbound call service before stream connects.`);
             sessionMissing = true;
           } else {
             ElevenLabsBridgeService.setPlivoWebSocket(callUuid, ws, streamSid || '');
@@ -113,7 +113,7 @@ function handleStreamConnection(ws: WebSocket, callUuid: string): void {
           if (sessionMissing) {
             audioDropped++;
             if (audioDropped === 1 || audioDropped % 100 === 0) {
-              console.warn(`[Plivo-ElevenLabs Stream] Dropping audio (${audioDropped} chunks) - no session for ${callUuid}`);
+              logger.warn(`[Plivo-ElevenLabs Stream] Dropping audio (${audioDropped} chunks) - no session for ${callUuid}`);
             }
             return;
           }
@@ -126,7 +126,7 @@ function handleStreamConnection(ws: WebSocket, callUuid: string): void {
         case 'stop':
           logger.info(`[Plivo-ElevenLabs Stream] Stream stopped: ${message.stop?.reason}`);
           if (audioDropped > 0) {
-            console.warn(`[Plivo-ElevenLabs Stream] Total audio chunks dropped: ${audioDropped}`);
+            logger.warn(`[Plivo-ElevenLabs Stream] Total audio chunks dropped: ${audioDropped}`);
           }
           isConnected = false;
           break;
@@ -135,7 +135,7 @@ function handleStreamConnection(ws: WebSocket, callUuid: string): void {
           break;
       }
     } catch (error: any) {
-      console.error(`[Plivo-ElevenLabs Stream] Error processing message:`, error.message);
+      logger.error(`[Plivo-ElevenLabs Stream] Error processing message:`, error.message);
     }
   });
 
@@ -149,13 +149,13 @@ function handleStreamConnection(ws: WebSocket, callUuid: string): void {
         const result = await ElevenLabsBridgeService.endSession(callUuid);
         logger.info(`[Plivo-ElevenLabs Stream] Session ended: duration=${result.duration}s, transcript parts=${result.transcript.length}`);
       } catch (err: any) {
-        console.error(`[Plivo-ElevenLabs Stream] Error ending session:`, err.message);
+        logger.error(`[Plivo-ElevenLabs Stream] Error ending session:`, err.message);
       }
     }
   });
 
   ws.on('error', (error: Error) => {
-    console.error(`[Plivo-ElevenLabs Stream] WebSocket error for ${callUuid}:`, error);
+    logger.error(`[Plivo-ElevenLabs Stream] WebSocket error for ${callUuid}:`, error);
     isConnected = false;
   });
 }

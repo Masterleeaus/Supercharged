@@ -140,7 +140,7 @@ export class CallSyncService {
             logger.info(`   ✅ Twilio data: from=[redacted], to=[redacted], duration=${twilioData.duration}s`);
           }
         } catch (twilioError: any) {
-          console.warn(`   ⚠️ Twilio fetch failed: ${twilioError.message}`);
+          logger.warn(`   ⚠️ Twilio fetch failed: ${twilioError.message}`);
         }
       }
       
@@ -254,7 +254,7 @@ export class CallSyncService {
             logger.info(`   ✅ ElevenLabs data: status=${elevenLabsData.status}, transcript=${elevenLabsData.transcript?.length || 0} entries`);
           }
         } catch (elevenLabsError: any) {
-          console.warn(`   ⚠️ ElevenLabs fetch failed: ${elevenLabsError.message}`);
+          logger.warn(`   ⚠️ ElevenLabs fetch failed: ${elevenLabsError.message}`);
         }
       }
       
@@ -301,10 +301,10 @@ export class CallSyncService {
                 logger.info(`📋 [Sync Call CRM] Call ${callId} processed but did not result in a new/updated lead`);
               }
             } else {
-              console.error(`❌ [Sync Call] Credit deduction failed for call ${callId}: ${creditResult.error}`);
+              logger.error(`❌ [Sync Call] Credit deduction failed for call ${callId}: ${creditResult.error}`);
             }
           } catch (err: any) {
-            console.error(`❌ [Sync Call] Error during background credit/CRM process for call ${callId}:`, err.message);
+            logger.error(`❌ [Sync Call] Error during background credit/CRM process for call ${callId}:`, err.message);
           }
         })();
       }
@@ -312,7 +312,7 @@ export class CallSyncService {
       return { callId, success: true, updatedFields };
       
     } catch (error: any) {
-      console.error(`❌ [Sync] Error syncing call ${callId}:`, error.message);
+      logger.error(`❌ [Sync] Error syncing call ${callId}:`, error.message);
       return { callId, success: false, error: error.message, updatedFields };
     }
   }
@@ -420,17 +420,17 @@ export class CallSyncService {
                 logger.info(`📋 [Sync SIP Call CRM] SIP call ${callId} processed but did not result in a new/updated lead`);
               }
             } else {
-              console.error(`❌ [Sync SIP Call] Credit deduction failed for SIP call ${callId}: ${creditResult.error}`);
+              logger.error(`❌ [Sync SIP Call] Credit deduction failed for SIP call ${callId}: ${creditResult.error}`);
             }
           } catch (err: any) {
-            console.error(`❌ [Sync SIP Call] Error during background credit/CRM process for SIP call ${callId}:`, err.message);
+            logger.error(`❌ [Sync SIP Call] Error during background credit/CRM process for SIP call ${callId}:`, err.message);
           }
         })();
       }
       
       return { callId, success: true, updatedFields };
     } catch (error: any) {
-      console.error(`❌ [Sync] Error syncing SIP call ${callId}:`, error.message);
+      logger.error(`❌ [Sync] Error syncing SIP call ${callId}:`, error.message);
       return { callId, success: false, error: error.message, updatedFields };
     }
   }
@@ -531,7 +531,7 @@ export class CallSyncService {
       return summary;
       
     } catch (error: any) {
-      console.error('❌ [Sync] Error syncing calls:', error);
+      logger.error('❌ [Sync] Error syncing calls:', error);
       return {
         total: 0,
         success: 0,
@@ -773,7 +773,7 @@ export class CallSyncService {
           }
         }
       } catch (elError: any) {
-        console.warn(`   ⚠️ ElevenLabs recording fetch failed: ${elError.message}`);
+        logger.warn(`   ⚠️ ElevenLabs recording fetch failed: ${elError.message}`);
       }
     }
     
@@ -812,7 +812,7 @@ export class CallSyncService {
           logger.info(`   ✅ Twilio data: from=[redacted], to=[redacted]`);
         }
       } catch (twilioError: any) {
-        console.warn(`   ⚠️ Twilio fetch failed: ${twilioError.message}`);
+        logger.warn(`   ⚠️ Twilio fetch failed: ${twilioError.message}`);
       }
     } else if (callSidFromWebhook && !isTwilioSid) {
       logger.info(`   ℹ️ Skipping Twilio lookup for non-Twilio call SID: ${callSidFromWebhook} (source: ${callSidFromWebhook.startsWith('SCL') ? 'sip' : 'unknown'})`);

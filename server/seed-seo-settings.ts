@@ -17,6 +17,7 @@
 import { db } from "./db";
 import { globalSettings } from "@shared/schema";
 import { sql } from "drizzle-orm";
+import { logger } from './utils/logger.ts';
 
 const SEO_SETTINGS_SEED_DATA = [
   // ============================================
@@ -279,7 +280,7 @@ Sitemap: {{site_url}}/sitemap.xml`,
 
 async function seedSeoSettings() {
   try {
-    console.log("🔍 Starting SEO Settings seed...");
+    logger.info("🔍 Starting SEO Settings seed...");
     
     const existingSettings = await db.select().from(globalSettings);
     const existingKeys = existingSettings.map(s => s.key);
@@ -289,11 +290,11 @@ async function seedSeoSettings() {
     );
     
     if (settingsToInsert.length === 0) {
-      console.log(`⚠️  All ${SEO_SETTINGS_SEED_DATA.length} SEO settings already exist. Skipping.`);
+      logger.info(`⚠️  All ${SEO_SETTINGS_SEED_DATA.length} SEO settings already exist. Skipping.`);
       return;
     }
 
-    console.log(`📦 Inserting ${settingsToInsert.length} SEO settings...`);
+    logger.info(`📦 Inserting ${settingsToInsert.length} SEO settings...`);
     
     for (const setting of settingsToInsert) {
       await db.execute(sql`
@@ -303,7 +304,7 @@ async function seedSeoSettings() {
       `);
     }
     
-    console.log("✅ Successfully seeded SEO Settings!");
+    logger.info("✅ Successfully seeded SEO Settings!");
     
     const categories = {
       "Meta Tags": settingsToInsert.filter(s => s.key.includes("_title") || s.key.includes("_description") || s.key.includes("_keywords")).length,
@@ -317,12 +318,12 @@ async function seedSeoSettings() {
     
     Object.entries(categories).forEach(([category, count]) => {
       if (count > 0) {
-        console.log(`   - ${category}: ${count} settings`);
+        logger.info(`   - ${category}: ${count} settings`);
       }
     });
     
   } catch (error) {
-    console.error("❌ Error seeding SEO Settings:", error);
+    logger.error("❌ Error seeding SEO Settings:", error);
     throw error;
   }
 }

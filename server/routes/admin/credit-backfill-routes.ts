@@ -10,6 +10,7 @@ import {
   triggerScanNow,
   type BackfillEngine,
 } from '../../services/credit-backfill-monitor';
+import { logger } from '../../utils/logger.ts';
 
 const enginesSchema = z
   .array(z.enum(ALL_ENGINES as unknown as [BackfillEngine, ...BackfillEngine[]]))
@@ -41,7 +42,7 @@ export function registerCreditBackfillRoutes(router: Router) {
           },
         });
       } catch (err: any) {
-        console.error('[CreditBackfill] status error:', err);
+        logger.error('[CreditBackfill] status error:', err);
         res.status(500).json({ success: false, error: 'Failed to load status' });
       }
     },
@@ -59,7 +60,7 @@ export function registerCreditBackfillRoutes(router: Router) {
         if (err instanceof z.ZodError) {
           return res.status(400).json({ success: false, error: 'Invalid request', details: err.issues });
         }
-        console.error('[CreditBackfill] scan error:', err);
+        logger.error('[CreditBackfill] scan error:', err);
         res.status(500).json({ success: false, error: 'Failed to run scan' });
       }
     },
@@ -83,7 +84,7 @@ export function registerCreditBackfillRoutes(router: Router) {
         if (err instanceof z.ZodError) {
           return res.status(400).json({ success: false, error: 'Invalid request', details: err.issues });
         }
-        console.error('[CreditBackfill] run error:', err);
+        logger.error('[CreditBackfill] run error:', err);
         res.status(500).json({ success: false, error: 'Failed to run backfill' });
       }
     },

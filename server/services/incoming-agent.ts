@@ -139,12 +139,12 @@ export class IncomingAgentService {
         const kbItem = await storage.getKnowledgeBaseItem(kbId);
 
         if (!kbItem) {
-          console.warn(`⚠️  Knowledge base item ${kbId} not found, skipping`);
+          logger.warn(`⚠️  Knowledge base item ${kbId} not found, skipping`);
           continue;
         }
 
         if (!kbItem.elevenLabsDocId) {
-          console.warn(`⚠️  Knowledge base item ${kbId} has no ElevenLabs doc ID, skipping`);
+          logger.warn(`⚠️  Knowledge base item ${kbId} has no ElevenLabs doc ID, skipping`);
           continue;
         }
 
@@ -155,7 +155,7 @@ export class IncomingAgentService {
           elevenLabsDocId: kbItem.elevenLabsDocId
         });
       } catch (error: any) {
-        console.error(`   ❌ Failed to fetch KB ${kbId}:`, error.message);
+        logger.error(`   ❌ Failed to fetch KB ${kbId}:`, error.message);
       }
     }
 

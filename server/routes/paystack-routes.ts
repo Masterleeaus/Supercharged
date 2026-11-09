@@ -55,7 +55,7 @@ router.get('/config', async (_req: Request, res: Response) => {
       supportedCurrencies: currencies,
     });
   } catch (error: any) {
-    console.error('Error fetching Paystack config:', error);
+    logger.error('Error fetching Paystack config:', error);
     res.status(500).json({ error: 'Failed to fetch Paystack configuration' });
   }
 });
@@ -126,7 +126,7 @@ router.post('/initialize-transaction', authenticateToken, async (req: AuthReques
       currencySymbol: currencyConfig.symbol,
     });
   } catch (error: any) {
-    console.error('Initialize Paystack transaction error:', error);
+    logger.error('Initialize Paystack transaction error:', error);
     res.status(500).json({ error: 'Failed to initialize Paystack transaction' });
   }
 });
@@ -191,10 +191,10 @@ router.post('/verify-transaction', authenticateToken, async (req: AuthRequest, r
             await emailService.sendPurchaseConfirmation(creditTransaction.id);
             logger.info(`✅ [Paystack] Credits purchase confirmation email sent for transaction ${creditTransaction.id}`);
           } catch (emailError: any) {
-            console.error(`❌ [Paystack] Failed to send credits purchase confirmation email:`, emailError);
+            logger.error(`❌ [Paystack] Failed to send credits purchase confirmation email:`);
           }
         } catch (txError: any) {
-          console.error('Failed to log payment transaction:', txError);
+          logger.error('Failed to log payment transaction:', txError);
         }
 
         res.json({ success: true, credits: metadata.credits });
@@ -209,7 +209,7 @@ router.post('/verify-transaction', authenticateToken, async (req: AuthRequest, r
       res.json({ success: true });
     }
   } catch (error: any) {
-    console.error('Verify Paystack transaction error:', error);
+    logger.error('Verify Paystack transaction error:', error);
     res.status(500).json({ error: 'Failed to verify Paystack transaction' });
   }
 });
@@ -281,7 +281,7 @@ router.post('/create-subscription', authenticateToken, async (req: AuthRequest, 
       currencySymbol: currencyConfig.symbol,
     });
   } catch (error: any) {
-    console.error('Create Paystack subscription error:', error);
+    logger.error('Create Paystack subscription error:', error);
     res.status(500).json({ error: 'Failed to create Paystack subscription' });
   }
 });
@@ -326,7 +326,7 @@ router.post('/confirm-subscription', authenticateToken, async (req: AuthRequest,
       try {
         await disablePaystackSubscription(existingSubscription.paystackSubscriptionCode, existingSubscription.paystackEmailToken);
       } catch (e) {
-        console.warn('Failed to disable old Paystack subscription:', e);
+        logger.warn('Failed to disable old Paystack subscription:', e);
       }
     }
 
@@ -388,15 +388,15 @@ router.post('/confirm-subscription', authenticateToken, async (req: AuthRequest,
         await emailService.sendPurchaseConfirmation(newTransaction.id);
         logger.info(`✅ [Paystack] Purchase confirmation email sent for transaction ${newTransaction.id}`);
       } catch (emailError: any) {
-        console.error(`❌ [Paystack] Failed to send purchase confirmation email:`, emailError);
+        logger.error(`❌ [Paystack] Failed to send purchase confirmation email:`);
       }
     } catch (txError: any) {
-      console.error('Failed to log payment transaction:', txError);
+      logger.error('Failed to log payment transaction:', txError);
     }
 
     res.json({ success: true, planName: plan.displayName });
   } catch (error: any) {
-    console.error('Confirm Paystack subscription error:', error);
+    logger.error('Confirm Paystack subscription error:', error);
     res.status(500).json({ error: 'Failed to confirm Paystack subscription' });
   }
 });
@@ -441,7 +441,7 @@ router.post('/cancel-subscription', authenticateToken, async (req: AuthRequest, 
       currentPeriodEnd: subscription.currentPeriodEnd,
     });
   } catch (error: any) {
-    console.error('Cancel Paystack subscription error:', error);
+    logger.error('Cancel Paystack subscription error:', error);
     res.status(500).json({ error: 'Failed to cancel Paystack subscription' });
   }
 });
@@ -453,7 +453,7 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
 
     const isValid = await verifyPaystackWebhookSignature(rawBody, signature);
     if (!isValid) {
-      console.warn('⚠️ [Paystack] Invalid webhook signature');
+      logger.warn('⚠️ [Paystack] Invalid webhook signature');
       return res.status(401).json({ error: 'Invalid signature' });
     }
 
@@ -488,7 +488,7 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
               }
             }
           } catch (emailError: any) {
-            console.error(`❌ [Paystack] Failed to send payment failed email:`, emailError);
+            logger.error(`❌ [Paystack] Failed to send payment failed email:`);
           }
         }
         break;
@@ -532,14 +532,14 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
                     await emailService.sendPurchaseConfirmation(webhookCreditTransaction.id);
                     logger.info(`✅ [Paystack] Credits purchase confirmation email sent for transaction ${webhookCreditTransaction.id}`);
                   } catch (emailError: any) {
-                    console.error(`❌ [Paystack] Failed to send credits purchase confirmation email:`, emailError);
+                    logger.error(`❌ [Paystack] Failed to send credits purchase confirmation email:`);
                   }
                 } catch (txError: any) {
-                  console.error('Failed to log payment transaction:', txError);
+                  logger.error('Failed to log payment transaction:', txError);
                 }
               } catch (error: any) {
                 if (!error.message?.includes('unique') && !error.message?.includes('duplicate')) {
-                  console.error('Error adding credits from webhook:', error);
+                  logger.error('Error adding credits from webhook:', error);
                 }
               }
             }
@@ -638,7 +638,7 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
                 logger.info(`✅ [Paystack] External refund processed for user ${userId}. Reference: ${reference}`);
               }
             } catch (error: any) {
-              console.error('Error processing external refund:', error);
+              logger.error('Error processing external refund:', error);
             }
           }
         }
@@ -715,15 +715,15 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
                   await emailService.sendAccountSuspended(userId, `Chargeback dispute: ${disputeData?.category || 'Unknown reason'}`);
                   logger.info(`✅ [Paystack] Account suspended email sent to user ${userId}`);
                 } catch (emailError: any) {
-                  console.error(`❌ [Paystack] Failed to send account suspended email:`, emailError);
+                  logger.error(`❌ [Paystack] Failed to send account suspended email:`);
                 }
                 
                 logger.warn(`⛔ [Paystack] User ${userId} suspended due to chargeback. Dispute ID: ${disputeData?.id}, Reason: ${disputeData?.category}`);
               } else {
-                console.warn(`⚠️ [Paystack] No transaction found for reference ${reference}`);
+                logger.warn(`⚠️ [Paystack] No transaction found for reference ${reference}`);
               }
             } catch (error: any) {
-              console.error('Error processing chargeback:', error);
+              logger.error('Error processing chargeback:', error);
             }
           }
         }
@@ -735,7 +735,7 @@ router.post('/webhook', webhookRateLimiter, express.raw({ type: 'application/jso
 
     res.status(200).json({ received: true });
   } catch (error: any) {
-    console.error('Paystack webhook error:', error);
+    logger.error('Paystack webhook error:', error);
     
     const event = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
     await queueFailedWebhook(

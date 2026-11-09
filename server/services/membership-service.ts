@@ -373,7 +373,7 @@ export async function removeSystemPoolNumbersFromCampaigns(userId: string): Prom
     
     return campaignIds.length;
   } catch (error: any) {
-    console.error(`❌ [Membership] Error removing system pool numbers from campaigns:`, error.message);
+    logger.error(`❌ [Membership] Error removing system pool numbers from campaigns:`, error.message);
     return 0;
   }
 }

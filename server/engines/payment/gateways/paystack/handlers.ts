@@ -96,7 +96,7 @@ async function handleCreditsPayment(
       await generateInvoiceForTransaction(creditTransaction.id);
       await emailService.sendPurchaseConfirmation(creditTransaction.id);
     } catch (emailError: any) {
-      console.error(`❌ [Paystack] Failed to send credits purchase confirmation email:`, emailError);
+      logger.error(`❌ [Paystack] Failed to send credits purchase confirmation email:`);
     }
 
     return {
@@ -213,7 +213,7 @@ async function handleSubscriptionPayment(
       await generateInvoiceForTransaction(newTransaction.id);
       await emailService.sendPurchaseConfirmation(newTransaction.id);
     } catch (emailError: any) {
-      console.error(`❌ [Paystack] Failed to send purchase confirmation email:`, emailError);
+      logger.error(`❌ [Paystack] Failed to send purchase confirmation email:`);
     }
 
     return {
@@ -253,7 +253,7 @@ export async function handleSubscriptionDisable(
 
   const userSub = await storage.getUserSubscriptionByPaystackCode(subscriptionCode);
   if (!userSub) {
-    console.warn(`⚠️ [Paystack] Subscription ${subscriptionCode} not found in database`);
+    logger.warn(`⚠️ [Paystack] Subscription ${subscriptionCode} not found in database`);
     return { success: true, action: 'subscription_not_found' };
   }
 
@@ -286,7 +286,7 @@ export async function handleSubscriptionNotRenew(
 
   const userSub = await storage.getUserSubscriptionByPaystackCode(subscriptionCode);
   if (!userSub) {
-    console.warn(`⚠️ [Paystack] Subscription ${subscriptionCode} not found in database`);
+    logger.warn(`⚠️ [Paystack] Subscription ${subscriptionCode} not found in database`);
     return { success: true, action: 'subscription_not_found' };
   }
 
@@ -341,7 +341,7 @@ export async function handleInvoicePaymentFailed(
     const amount = data.amount ? (data.amount / 100).toFixed(2) : '0';
     await emailService.sendPaymentFailed(userSub.userId, amount, 'Subscription renewal failed');
   } catch (emailError: any) {
-    console.error(`❌ [Paystack] Failed to send payment failed email:`, emailError);
+    logger.error(`❌ [Paystack] Failed to send payment failed email:`);
   }
 
   return { success: true, action: 'invoice_payment_failed', userId: userSub.userId };
@@ -485,7 +485,7 @@ export async function handleChargeback(
   try {
     await emailService.sendAccountSuspended(userId, `Chargeback: ${data.reason || 'Unknown reason'}`);
   } catch (emailError: any) {
-    console.error(`❌ [Paystack] Failed to send account suspended email:`, emailError);
+    logger.error(`❌ [Paystack] Failed to send account suspended email:`);
   }
 
   return {

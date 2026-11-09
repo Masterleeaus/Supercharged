@@ -26,7 +26,7 @@ export function registerSmtpRoutes(router: Router) {
       
       res.json(smtpSettings);
     } catch (error) {
-      console.error('Error fetching SMTP settings:', error);
+      logger.error('Error fetching SMTP settings:', error);
       res.status(500).json({ error: 'Failed to fetch SMTP settings' });
     }
   });
@@ -52,7 +52,7 @@ export function registerSmtpRoutes(router: Router) {
       
       res.json({ success: true, emailServiceReinitialized: reinitialized });
     } catch (error) {
-      console.error('Error updating SMTP settings:', error);
+      logger.error('Error updating SMTP settings:', error);
       res.status(500).json({ error: 'Failed to update SMTP settings' });
     }
   });
@@ -103,7 +103,7 @@ export function registerSmtpRoutes(router: Router) {
       
       res.json({ success: true, message: 'Test email sent successfully' });
     } catch (error: any) {
-      console.error('Error sending test email:', error);
+      logger.error('Error sending test email:', error);
       
       const errorCode = error.code || '';
       const errorMsg = error.message || '';

@@ -36,7 +36,7 @@ export function registerUsersRoutes(router: Router) {
         hasMore: filteredUsers.length > limit
       });
     } catch (error) {
-      console.error('Error searching users:', error);
+      logger.error('Error searching users:', error);
       res.status(500).json({ error: 'Failed to search users' });
     }
   });
@@ -112,7 +112,7 @@ export function registerUsersRoutes(router: Router) {
         }
       });
     } catch (error) {
-      console.error('Error fetching users:', error);
+      logger.error('Error fetching users:', error);
       res.status(500).json({ error: 'Failed to fetch users' });
     }
   });
@@ -170,7 +170,7 @@ export function registerUsersRoutes(router: Router) {
           await emailService.sendAccountSuspended(userId, "Account suspended by administrator");
           logger.info(`[Admin] Sent suspension email to user ${userId}`);
         } catch (emailError) {
-          console.error(`Failed to send suspension email to user ${userId}:`, emailError);
+          logger.error(`Failed to send suspension email to user ${userId}:`);
         }
       }
       
@@ -179,7 +179,7 @@ export function registerUsersRoutes(router: Router) {
           await emailService.sendAccountReactivated(userId);
           logger.info(`[Admin] Sent reactivation email to user ${userId}`);
         } catch (emailError) {
-          console.error(`Failed to send reactivation email to user ${userId}:`, emailError);
+          logger.error(`Failed to send reactivation email to user ${userId}:`);
         }
       }
       
@@ -214,7 +214,7 @@ export function registerUsersRoutes(router: Router) {
               await emailService.sendMembershipUpgrade(userId, plan.displayName || plan.name);
               logger.info(`[Admin] Sent membership upgrade email to user ${userId}`);
             } catch (emailError) {
-              console.error(`Failed to send membership upgrade email to user ${userId}:`, emailError);
+              logger.error(`Failed to send membership upgrade email to user ${userId}:`);
             }
           }
           
@@ -224,7 +224,7 @@ export function registerUsersRoutes(router: Router) {
       
       res.json({ success: true });
     } catch (error) {
-      console.error('Error updating user:', error);
+      logger.error('Error updating user:', error);
       res.status(500).json({ error: 'Failed to update user' });
     }
   });
@@ -309,7 +309,7 @@ export function registerUsersRoutes(router: Router) {
         }
       });
     } catch (error: any) {
-      console.error('Error creating user:', error);
+      logger.error('Error creating user:', error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ error: 'Invalid input data', details: error.issues });
       }
@@ -386,7 +386,7 @@ export function registerUsersRoutes(router: Router) {
       
       res.json({ success: true, message: `User ${user.email} and all associated data have been permanently deleted` });
     } catch (error: any) {
-      console.error('Error deleting user:', error);
+      logger.error('Error deleting user:', error);
       res.status(500).json({ error: 'Failed to delete user' });
     }
   });
@@ -412,7 +412,7 @@ export function registerUsersRoutes(router: Router) {
       
       res.json({ success: true, message: 'User account has been recovered' });
     } catch (error) {
-      console.error('Error recovering user:', error);
+      logger.error('Error recovering user:', error);
       res.status(500).json({ error: 'Failed to recover user' });
     }
   });
@@ -476,7 +476,7 @@ export function registerUsersRoutes(router: Router) {
         }
       });
     } catch (error) {
-      console.error('Error fetching admin contacts:', error);
+      logger.error('Error fetching admin contacts:', error);
       res.status(500).json({ error: 'Failed to fetch contacts' });
     }
   });
@@ -487,7 +487,7 @@ export function registerUsersRoutes(router: Router) {
       const webhooks = await storage.getUserWebhooks(userId);
       res.json(webhooks);
     } catch (error) {
-      console.error('Error fetching user webhooks:', error);
+      logger.error('Error fetching user webhooks:', error);
       res.status(500).json({ error: 'Failed to fetch webhooks' });
     }
   });
@@ -504,7 +504,7 @@ export function registerUsersRoutes(router: Router) {
       await storage.deleteWebhook(webhookId);
       res.json({ success: true });
     } catch (error) {
-      console.error('Error deleting user webhook:', error);
+      logger.error('Error deleting user webhook:', error);
       res.status(500).json({ error: 'Failed to delete webhook' });
     }
   });
@@ -526,7 +526,7 @@ export function registerUsersRoutes(router: Router) {
       
       res.json({ success: true, message: 'User blocked successfully' });
     } catch (error) {
-      console.error('Error blocking user:', error);
+      logger.error('Error blocking user:', error);
       res.status(500).json({ error: 'Failed to block user' });
     }
   });
@@ -547,7 +547,7 @@ export function registerUsersRoutes(router: Router) {
       
       res.json({ success: true, message: 'User unblocked successfully' });
     } catch (error) {
-      console.error('Error unblocking user:', error);
+      logger.error('Error unblocking user:', error);
       res.status(500).json({ error: 'Failed to unblock user' });
     }
   });

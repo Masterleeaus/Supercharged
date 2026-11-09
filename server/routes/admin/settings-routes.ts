@@ -124,7 +124,7 @@ export function registerSettingsRoutes(router: Router) {
       
       res.json(settings);
     } catch (error) {
-      console.error('Error fetching settings:', error);
+      logger.error('Error fetching settings:', error);
       res.status(500).json({ error: 'Failed to fetch settings' });
     }
   });
@@ -164,7 +164,7 @@ export function registerSettingsRoutes(router: Router) {
       
       res.json(systemSettings);
     } catch (error) {
-      console.error('Error fetching system settings:', error);
+      logger.error('Error fetching system settings:', error);
       res.status(500).json({ error: 'Failed to fetch system settings' });
     }
   });
@@ -189,7 +189,7 @@ export function registerSettingsRoutes(router: Router) {
       
       res.json({ [key]: setting.value });
     } catch (error) {
-      console.error('Error fetching setting:', error);
+      logger.error('Error fetching setting:', error);
       res.status(500).json({ error: 'Failed to fetch setting' });
     }
   });
@@ -267,10 +267,10 @@ export function registerSettingsRoutes(router: Router) {
             logger.warn(`[Settings] Twilio credential change: re-synced ${summary.synced} ElevenLabs phone number(s), ${summary.failed} failed`);
           }
           if (summary.errors.length > 0) {
-            console.error('[Settings] ElevenLabs resync errors:', summary.errors);
+            logger.error('[Settings] ElevenLabs resync errors:', summary.errors);
           }
         }).catch(err => {
-          console.error('[Settings] Background ElevenLabs resync failed:', err.message);
+          logger.error('[Settings] Background ElevenLabs resync failed:', err.message);
         });
       }
       
@@ -281,7 +281,7 @@ export function registerSettingsRoutes(router: Router) {
       
       res.json({ success: true, key, value: finalValue });
     } catch (error: any) {
-      console.error(`Error updating setting '${req.params.key}':`, error);
+      logger.error(`Error updating setting '${req.params.key}':`, error);
       res.status(500).json({ error: 'Failed to update setting' });
     }
   });
@@ -291,7 +291,7 @@ export function registerSettingsRoutes(router: Router) {
       const status = await getResourceStatus();
       res.json(status);
     } catch (error) {
-      console.error('Error getting resource status:', error);
+      logger.error('Error getting resource status:', error);
       res.status(500).json({ error: 'Failed to get resource status' });
     }
   });
@@ -302,7 +302,7 @@ export function registerSettingsRoutes(router: Router) {
       const analytics = await storage.getGlobalAnalytics(timeRange);
       res.json(analytics || {});
     } catch (error) {
-      console.error('Error fetching analytics:', error);
+      logger.error('Error fetching analytics:', error);
       res.status(500).json({ error: 'Failed to fetch analytics' });
     }
   });

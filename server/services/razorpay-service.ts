@@ -83,7 +83,7 @@ export async function testRazorpayConnection(): Promise<{ success: boolean; erro
     await razorpay.plans.all({ count: 1 });
     return { success: true };
   } catch (error: any) {
-    console.error('❌ [Razorpay] Connection test failed:', error.message);
+    logger.error('❌ [Razorpay] Connection test failed:', error.message);
     return { success: false, error: error.message };
   }
 }
@@ -259,7 +259,7 @@ export async function verifyPaymentSignature(params: {
   if (isValid) {
     logger.info(`✅ [Razorpay] Payment signature verified for payment ${params.razorpay_payment_id}`);
   } else {
-    console.error(`❌ [Razorpay] Payment signature verification failed for payment ${params.razorpay_payment_id}`);
+    logger.error(`❌ [Razorpay] Payment signature verification failed for payment ${params.razorpay_payment_id}`);
   }
   
   return isValid;
@@ -271,7 +271,7 @@ export async function verifyWebhookSignature(
 ): Promise<boolean> {
   const webhookSecret = await getSetting('razorpay_webhook_secret');
   if (!webhookSecret) {
-    console.warn('⚠️ [Razorpay] Webhook secret not configured, rejecting webhook');
+    logger.warn('⚠️ [Razorpay] Webhook secret not configured, rejecting webhook');
     return false;
   }
   

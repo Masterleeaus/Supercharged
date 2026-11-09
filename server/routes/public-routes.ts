@@ -123,7 +123,7 @@ export function createPublicRoutes(ctx: RouteContext): Router {
         version
       });
     } catch (error: any) {
-      console.error('Error in /api/init:', error);
+      logger.error('Error in /api/init:', error);
       res.json({
         success: false,
         installed: false,
@@ -223,7 +223,7 @@ export function createPublicRoutes(ctx: RouteContext): Router {
       const seedResult = await runAllSeedsForInstaller();
 
       if (!seedResult.success) {
-        console.error("❌ Seeding failed:", seedResult.error);
+        logger.error("❌ Seeding failed:", seedResult.error);
         return res.status(500).json({
           message: "Installation failed during database seeding",
           error: seedResult.error
@@ -267,7 +267,7 @@ export function createPublicRoutes(ctx: RouteContext): Router {
           `);
           logger.info(`   ✅ Set ${setting.key}`);
         } catch (error: any) {
-          console.warn(`   ⚠️ Failed to set ${setting.key}: ${error.message}`);
+          logger.warn(`   ⚠️ Failed to set ${setting.key}: ${error.message}`);
         }
       }
       logger.info("✅ Platform settings configured!");
@@ -292,7 +292,7 @@ export function createPublicRoutes(ctx: RouteContext): Router {
         seeds: seedResult.summary
       });
     } catch (error: any) {
-      console.error("Installation error:", error);
+      logger.error("Installation error:", error);
       res.status(500).json({ message: "Installation failed" });
     }
   });
@@ -320,7 +320,7 @@ export function createPublicRoutes(ctx: RouteContext): Router {
 
       res.json({ version });
     } catch (error: any) {
-      console.error('Failed to read version:', error.message);
+      logger.error('Failed to read version:', error.message);
       res.json({ version: '5.4.5' });
     }
   });
@@ -355,7 +355,7 @@ export function createPublicRoutes(ctx: RouteContext): Router {
         message: 'System operational'
       });
     } catch (error: any) {
-      console.error('Diagnostic error:', error);
+      logger.error('Diagnostic error:', error);
       res.status(500).json({ error: 'Diagnostic failed' });
     }
   });
@@ -398,7 +398,7 @@ export function createPublicRoutes(ctx: RouteContext): Router {
         system_timezone: (systemTimezone?.value as string) || 'UTC',
       });
     } catch (error) {
-      console.error('Error fetching public settings:', error);
+      logger.error('Error fetching public settings:', error);
       res.json({
         phone_number_monthly_credits: 50,
         low_credits_threshold: 50,
@@ -417,7 +417,7 @@ export function createPublicRoutes(ctx: RouteContext): Router {
       const marginPercentage = setting?.value || 15;
       res.json({ llm_margin_percentage: parseFloat(marginPercentage as any) });
     } catch (error) {
-      console.error('Error fetching LLM margin:', error);
+      logger.error('Error fetching LLM margin:', error);
       res.json({ llm_margin_percentage: 15 });
     }
   });
@@ -444,7 +444,7 @@ export function createPublicRoutes(ctx: RouteContext): Router {
         default_tts_model: (defaultTtsModel?.value as string) || 'eleven_v3_conversational',
       });
     } catch (error) {
-      console.error('Error fetching voice engine settings:', error);
+      logger.error('Error fetching voice engine settings:', error);
       res.json({
         plivo_openai_engine_enabled: false,
         twilio_openai_engine_enabled: false,
@@ -578,7 +578,7 @@ export function createPublicRoutes(ctx: RouteContext): Router {
 
       res.json(result);
     } catch (error) {
-      console.error('Error fetching payment gateway config:', error);
+      logger.error('Error fetching payment gateway config:', error);
       res.json({
         stripeEnabled: false,
         razorpayEnabled: false,
@@ -645,7 +645,7 @@ export function createPublicRoutes(ctx: RouteContext): Router {
       res.setHeader('Cache-Control', 'public, max-age=300');
       res.json(branding);
     } catch (error) {
-      console.error('Error fetching branding:', error);
+      logger.error('Error fetching branding:', error);
       res.json({
         app_name: '',
         app_tagline: '',
@@ -752,7 +752,7 @@ ${allUrls.map(u => {
       res.setHeader('Cache-Control', 'public, max-age=3600');
       res.send(xml);
     } catch (error) {
-      console.error('Error generating sitemap:', error);
+      logger.error('Error generating sitemap:', error);
       res.status(500).send('Error generating sitemap');
     }
   });
@@ -799,7 +799,7 @@ ${allUrls.map(u => {
       res.setHeader('Cache-Control', 'public, max-age=86400');
       res.send(content);
     } catch (error) {
-      console.error('Error generating robots.txt:', error);
+      logger.error('Error generating robots.txt:', error);
       const fallbackBaseUrl = getCanonicalBaseUrl(null, req);
       res.setHeader('Content-Type', 'text/plain');
       res.send(`User-agent: *\nAllow: /\nDisallow: /app/\nDisallow: /admin/\nDisallow: /api/\n\nSitemap: ${fallbackBaseUrl}/sitemap.xml\n`);
@@ -837,7 +837,7 @@ ${allUrls.map(u => {
         estimatedProfit
       });
     } catch (error) {
-      console.error('Error fetching public stats:', error);
+      logger.error('Error fetching public stats:', error);
       res.json({
         totalUsers: 2500,
         totalCalls: 125000,
@@ -935,7 +935,7 @@ ${allUrls.map(u => {
         structuredDataProduct: structuredDataProduct
       });
     } catch (error) {
-      console.error('Error fetching public SEO settings:', error);
+      logger.error('Error fetching public SEO settings:', error);
       res.status(500).json({ error: 'Failed to fetch SEO settings' });
     }
   });
@@ -964,7 +964,7 @@ ${allUrls.map(u => {
       res.setHeader('Cache-Control', 'no-cache');
       res.json(sortedScripts);
     } catch (error) {
-      console.error('Error fetching public analytics scripts:', error);
+      logger.error('Error fetching public analytics scripts:', error);
       res.status(500).json({ error: 'Failed to fetch analytics scripts' });
     }
   });
@@ -1002,12 +1002,12 @@ ${allUrls.map(u => {
       const appName = (appNameSetting?.value as string) || '';
 
       if (!adminEmail) {
-        console.error('No admin email configured for contact form');
+        logger.error('No admin email configured for contact form');
         return res.status(500).json({ error: "Contact form not configured. Please try again later." });
       }
 
       if (!emailService.isEnabled()) {
-        console.error('Email service is not configured');
+        logger.error('Email service is not configured');
         return res.status(500).json({ error: "Email service not configured. Please contact the administrator." });
       }
 
@@ -1072,7 +1072,7 @@ ${allUrls.map(u => {
       });
 
       if (!result.success) {
-        console.error(`Contact form email failed: ${result.error}`);
+        logger.error(`Contact form email failed: ${result.error}`);
         return res.status(500).json({ error: "Failed to send message. Please try again later." });
       }
 
@@ -1080,7 +1080,7 @@ ${allUrls.map(u => {
 
       res.json({ success: true, message: "Thank you! We'll get back to you soon." });
     } catch (error: any) {
-      console.error('Contact form error:', error);
+      logger.error('Contact form error:', error);
       res.status(500).json({ error: "Failed to send message. Please try again later." });
     }
   });
@@ -1099,7 +1099,7 @@ ${allUrls.map(u => {
 
       res.json(countries);
     } catch (error) {
-      console.error('Error fetching Twilio countries:', error);
+      logger.error('Error fetching Twilio countries:', error);
       res.status(500).json({ error: 'Failed to fetch countries' });
     }
   });

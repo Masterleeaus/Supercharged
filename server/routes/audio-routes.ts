@@ -74,7 +74,7 @@ router.post('/upload', authenticateHybrid as any, upload.single('audio'), (req, 
       size: req.file.size,
     });
   } catch (error) {
-    console.error('[AudioUpload] Error:', error);
+    logger.error('[AudioUpload] Error:', error);
     res.status(500).json({ error: 'Failed to upload audio file' });
   }
 });
@@ -105,7 +105,7 @@ router.delete('/:filename', authenticateHybrid as any, strictRateLimiter, (req, 
 
     res.json({ success: true });
   } catch (error) {
-    console.error('[AudioUpload] Delete error:', error);
+    logger.error('[AudioUpload] Delete error:', error);
     res.status(500).json({ error: 'Failed to delete audio file' });
   }
 });

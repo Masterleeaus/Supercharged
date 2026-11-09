@@ -16,6 +16,7 @@
  */
 import { db } from "./db";
 import { promptTemplates } from "@shared/schema";
+import { logger } from './utils/logger.ts';
 
 const PROMPT_TEMPLATES_SEED_DATA = [
   // ============================================
@@ -473,29 +474,29 @@ Common statuses to explain:
 
 async function seedPromptTemplates() {
   try {
-    console.log("🌱 Starting Prompt Templates seed...");
+    logger.info("🌱 Starting Prompt Templates seed...");
     
     const existingTemplates = await db.select().from(promptTemplates);
     const systemTemplates = existingTemplates.filter(t => t.isSystemTemplate);
     
     if (systemTemplates.length > 0) {
-      console.log(`⚠️  Found ${systemTemplates.length} existing system templates. Skipping seed to prevent duplicates.`);
-      console.log("   To re-seed, first delete system templates from the database.");
+      logger.info(`⚠️  Found ${systemTemplates.length} existing system templates. Skipping seed to prevent duplicates.`);
+      logger.info("   To re-seed, first delete system templates from the database.");
       return;
     }
 
-    console.log(`📦 Inserting ${PROMPT_TEMPLATES_SEED_DATA.length} prompt templates...`);
+    logger.info(`📦 Inserting ${PROMPT_TEMPLATES_SEED_DATA.length} prompt templates...`);
     await db.insert(promptTemplates).values(PROMPT_TEMPLATES_SEED_DATA);
     
-    console.log("✅ Successfully seeded Prompt Templates!");
-    console.log(`   - Sales templates: ${PROMPT_TEMPLATES_SEED_DATA.filter(t => t.category === 'sales').length}`);
-    console.log(`   - Support templates: ${PROMPT_TEMPLATES_SEED_DATA.filter(t => t.category === 'support').length}`);
-    console.log(`   - Appointment templates: ${PROMPT_TEMPLATES_SEED_DATA.filter(t => t.category === 'appointment').length}`);
-    console.log(`   - Survey templates: ${PROMPT_TEMPLATES_SEED_DATA.filter(t => t.category === 'survey').length}`);
-    console.log(`   - General templates: ${PROMPT_TEMPLATES_SEED_DATA.filter(t => t.category === 'general').length}`);
+    logger.info("✅ Successfully seeded Prompt Templates!");
+    logger.info(`   - Sales templates: ${PROMPT_TEMPLATES_SEED_DATA.filter(t => t.category === 'sales').length}`);
+    logger.info(`   - Support templates: ${PROMPT_TEMPLATES_SEED_DATA.filter(t => t.category === 'support').length}`);
+    logger.info(`   - Appointment templates: ${PROMPT_TEMPLATES_SEED_DATA.filter(t => t.category === 'appointment').length}`);
+    logger.info(`   - Survey templates: ${PROMPT_TEMPLATES_SEED_DATA.filter(t => t.category === 'survey').length}`);
+    logger.info(`   - General templates: ${PROMPT_TEMPLATES_SEED_DATA.filter(t => t.category === 'general').length}`);
     
   } catch (error) {
-    console.error("❌ Error seeding Prompt Templates:", error);
+    logger.error("❌ Error seeding Prompt Templates:", error);
     throw error;
   }
 }

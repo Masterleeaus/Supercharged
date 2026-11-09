@@ -201,7 +201,7 @@ export async function testStripeConnection(): Promise<{ success: boolean; error?
       undefined,
       { operation: 'testConnection' }
     );
-    console.error('❌ [Stripe] Connection test failed:', paymentError.message);
+    logger.error('❌ [Stripe] Connection test failed:', paymentError.message);
     return { success: false, error: paymentError.message };
   }
 }

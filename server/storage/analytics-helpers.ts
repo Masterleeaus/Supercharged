@@ -7,6 +7,7 @@ import {
   type Call, type User, type Campaign
 } from "@shared/schema";
 import { eq, sql, and, gte, lte, lt, desc, isNull, isNotNull, or, inArray } from "drizzle-orm";
+import { logger } from '../utils/logger.ts';
 
 export interface GrowthDataPoint {
   date: string;
@@ -189,9 +190,9 @@ export async function calculateGlobalAnalytics(timeRange: string): Promise<Globa
     filteredCalls = await db.select().from(calls).where(gte(calls.createdAt, startDate));
   } catch (callFetchError: any) {
     if (callFetchError?.code === '42703') {
-      console.warn('[GlobalAnalytics] Missing database column (run pre-upgrade-cleanup.sql then drizzle-kit push):', callFetchError.message);
+      logger.warn('[GlobalAnalytics] Missing database column (run pre-upgrade-cleanup.sql then drizzle-kit push):', callFetchError.message);
     } else {
-      console.error('[GlobalAnalytics] Error fetching filtered calls:', callFetchError.message);
+      logger.error('[GlobalAnalytics] Error fetching filtered calls:', callFetchError.message);
     }
   }
 
@@ -209,9 +210,9 @@ export async function calculateGlobalAnalytics(timeRange: string): Promise<Globa
       );
     } catch (callFetchError: any) {
       if (callFetchError?.code === '42703') {
-        console.warn('[GlobalAnalytics] Missing database column for previous calls:', callFetchError.message);
+        logger.warn('[GlobalAnalytics] Missing database column for previous calls:', callFetchError.message);
       } else {
-        console.error('[GlobalAnalytics] Error fetching previous calls:', callFetchError.message);
+        logger.error('[GlobalAnalytics] Error fetching previous calls:', callFetchError.message);
       }
     }
     previousCampaigns = await db.select().from(campaigns).where(
@@ -576,13 +577,13 @@ export async function calculateUserAnalytics(userId: string, timeRange: string =
         } as Call);
       }
     } catch (veErr: any) {
-      console.error("[Analytics] Error fetching ve_sessions calls:", veErr.message);
+      logger.error("[Analytics] Error fetching ve_sessions calls:", veErr.message);
     }
   } catch (callFetchError: any) {
     if (callFetchError?.code === '42703') {
-      console.warn('[Analytics] Missing database column (run pre-upgrade-cleanup.sql then drizzle-kit push):', callFetchError.message);
+      logger.warn('[Analytics] Missing database column (run pre-upgrade-cleanup.sql then drizzle-kit push):', callFetchError.message);
     } else {
-      console.error('[Analytics] Error fetching calls:', callFetchError.message);
+      logger.error('[Analytics] Error fetching calls:', callFetchError.message);
     }
   }
 
@@ -867,13 +868,13 @@ export async function calculateDashboardData(userId: string): Promise<DashboardD
         } as Call);
       }
     } catch (veErr: any) {
-      console.error("[Dashboard] Error fetching ve_sessions calls:", veErr.message);
+      logger.error("[Dashboard] Error fetching ve_sessions calls:", veErr.message);
     }
   } catch (callFetchError: any) {
     if (callFetchError?.code === '42703') {
-      console.warn('[Dashboard] Missing database column (run pre-upgrade-cleanup.sql then drizzle-kit push):', callFetchError.message);
+      logger.warn('[Dashboard] Missing database column (run pre-upgrade-cleanup.sql then drizzle-kit push):', callFetchError.message);
     } else {
-      console.error('[Dashboard] Error fetching calls:', callFetchError.message);
+      logger.error('[Dashboard] Error fetching calls:', callFetchError.message);
     }
   }
 
@@ -973,9 +974,9 @@ export async function calculateDashboardData(userId: string): Promise<DashboardD
     .limit(10);
   } catch (callFetchError: any) {
     if (callFetchError?.code === '42703') {
-      console.warn('[Dashboard] Missing database column for recent calls:', callFetchError.message);
+      logger.warn('[Dashboard] Missing database column for recent calls:', callFetchError.message);
     } else {
-      console.error('[Dashboard] Error fetching recent calls:', callFetchError.message);
+      logger.error('[Dashboard] Error fetching recent calls:', callFetchError.message);
     }
   }
 
@@ -1004,9 +1005,9 @@ export async function calculateDashboardData(userId: string): Promise<DashboardD
       allCampaignCalls = await db.select().from(calls).where(inArray(calls.campaignId, campaignIds));
     } catch (callFetchError: any) {
       if (callFetchError?.code === '42703') {
-        console.warn('[Dashboard] Missing database column for campaign calls:', callFetchError.message);
+        logger.warn('[Dashboard] Missing database column for campaign calls:', callFetchError.message);
       } else {
-        console.error('[Dashboard] Error fetching campaign calls:', callFetchError.message);
+        logger.error('[Dashboard] Error fetching campaign calls:', callFetchError.message);
       }
     }
   }

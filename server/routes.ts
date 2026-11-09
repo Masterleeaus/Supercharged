@@ -229,7 +229,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   if (isTeamManagementInstalled()) {
     await initTeamAdapter();
     app.use('/api', getTeamContextMiddleware());
-    console.log('✅ Team Management plugin detected - team context middleware enabled');
+    logger.info('✅ Team Management plugin detected - team context middleware enabled');
   }
 
   // Register agent routes (agents CRUD, knowledge base, versions, voices)
@@ -305,21 +305,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   import("./engines/plivo/services/plivo-call.service").then(({ PlivoCallService }) => {
     PlivoCallService.startStuckCallsScheduler();
   }).catch((error) => {
-    console.error('❌ Failed to start Plivo stuck calls scheduler:', error.message);
+    logger.error('❌ Failed to start Plivo stuck calls scheduler:', error.message);
   });
 
-  console.log('✅ Plivo + OpenAI Realtime Engine initialized');
+  logger.info('✅ Plivo + OpenAI Realtime Engine initialized');
 
   // Initialize Plivo-ElevenLabs SIP Trunk Engine (ISOLATED from Twilio+ElevenLabs)
   // This provides Plivo SIP trunk to ElevenLabs connection for Indian phone numbers
   initPlivoElevenLabsEngine(app);
-  console.log('✅ Plivo-ElevenLabs SIP Trunk Engine initialized');
+  logger.info('✅ Plivo-ElevenLabs SIP Trunk Engine initialized');
 
   // Initialize Twilio + OpenAI Realtime Engine (ISOLATED from Twilio+ElevenLabs and Plivo+OpenAI)
   // This provides Twilio telephony with OpenAI Realtime API for international calling
   app.use('/api/twilio-openai', twilioOpenaiWebhookRoutes);
   app.use('/api/twilio-openai/incoming-connections', requireAuth, twilioOpenaiIncomingConnectionsRoutes);
-  console.log('✅ Twilio + OpenAI Realtime Engine initialized');
+  logger.info('✅ Twilio + OpenAI Realtime Engine initialized');
 
   // Register KYC Engine routes
   registerKycRoutes(app, requireAuth, requireAdmin);
@@ -343,9 +343,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       },
     });
     markPluginAsRegistered('sip-engine');
-    console.log('✅ SIP Engine Plugin initialized with service injection');
+    logger.info('✅ SIP Engine Plugin initialized with service injection');
   } catch (err: any) {
-    console.log('[SIP Engine Plugin] Not installed - skipping direct registration');
+    logger.info('[SIP Engine Plugin] Not installed - skipping direct registration');
   }
 
   // Register REST API Plugin dynamically (only if plugin directory exists)
@@ -377,9 +377,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       },
     });
     markPluginAsRegistered('rest-api');
-    console.log('✅ REST API Plugin initialized');
+    logger.info('✅ REST API Plugin initialized');
   } catch (err: any) {
-    console.log('[REST API Plugin] Not installed - skipping direct registration');
+    logger.info('[REST API Plugin] Not installed - skipping direct registration');
   }
 
   // Register Plugin Installer Routes FIRST (before general plugin routes to avoid /:name param conflict)
@@ -396,7 +396,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Uses authenticateAnyToken to accept both user JWTs and admin team session tokens
   app.use('/api/plugins', authenticateAnyToken, pluginRoutes.userPluginRouter);
 
-  console.log('✅ Plugin Management routes initialized');
+  logger.info('✅ Plugin Management routes initialized');
 
   // Auto-load any additional plugins from /plugins directory
   // This allows installing new plugins by just copying the folder and restarting
@@ -415,10 +415,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ...workforceLoaderOptions(),
     });
     if (loadedPlugins.filter(p => p.registered).length > 0) {
-      console.log(`✅ Auto-loaded ${loadedPlugins.filter(p => p.registered).length} plugin(s) from /plugins directory`);
+      logger.info(`✅ Auto-loaded ${loadedPlugins.filter(p => p.registered).length} plugin(s) from /plugins directory`);
     }
   } catch (error) {
-    console.warn('[Plugin Loader] Failed to auto-load plugins:', error);
+    logger.warn('[Plugin Loader] Failed to auto-load plugins:', error);
   }
 
   // LLM Models - Get available models for current user (filtered by plan tier)
@@ -449,7 +449,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const freeModels = allModels.filter(model => model.tier === 'free');
       res.json(freeModels);
     } catch (error: any) {
-      console.error("Get available LLM models error:", error);
+      logger.error("Get available LLM models error:", error);
       res.status(500).json({ error: "Failed to get available LLM models" });
     }
   });
@@ -481,7 +481,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({ success: true, newCredits });
     } catch (error: any) {
-      console.error("Update user credits error:", error);
+      logger.error("Update user credits error:", error);
       res.status(500).json({ error: "Failed to update user credits" });
     }
   });
@@ -531,7 +531,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
     } catch (error: any) {
-      console.error("Get user limits error:", error);
+      logger.error("Get user limits error:", error);
       res.status(500).json({ error: "Failed to get user limits" });
     }
   });
@@ -598,7 +598,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const newLimits = await storage.getUserEffectiveLimits(req.params.id);
       res.json({ success: true, effectiveLimits: newLimits });
     } catch (error: any) {
-      console.error("Update user limits error:", error);
+      logger.error("Update user limits error:", error);
       res.status(500).json({ error: safeErrorMessage(error, "Failed to update user limits") });
     }
   });
@@ -629,7 +629,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const newLimits = await storage.getUserEffectiveLimits(req.params.id);
       res.json({ success: true, effectiveLimits: newLimits, message: "User limits reset to plan defaults" });
     } catch (error: any) {
-      console.error("Reset user limits error:", error);
+      logger.error("Reset user limits error:", error);
       res.status(500).json({ error: "Failed to reset user limits" });
     }
   });
@@ -666,7 +666,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.json(allContacts);
       }
     } catch (error: any) {
-      console.error("Get all contacts error:", error);
+      logger.error("Get all contacts error:", error);
       res.status(500).json({ error: "Failed to get contacts" });
     }
   });
@@ -676,7 +676,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const contacts = await storage.getUserContactsDeduplicated(req.userId!);
       res.json(contacts);
     } catch (error: any) {
-      console.error("Get deduplicated contacts error:", error);
+      logger.error("Get deduplicated contacts error:", error);
       res.status(500).json({ error: "Failed to get deduplicated contacts" });
     }
   });
@@ -697,7 +697,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.deleteContact(req.params.id);
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Delete contact error:", error);
+      logger.error("Delete contact error:", error);
       res.status(500).json({ error: "Failed to delete contact" });
     }
   });
@@ -708,7 +708,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tools = await storage.getUserTools(req.userId!);
       res.json(tools);
     } catch (error: any) {
-      console.error("Get tools error:", error);
+      logger.error("Get tools error:", error);
       res.status(500).json({ error: "Failed to get tools" });
     }
   });
@@ -719,7 +719,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const agents = await storage.getUserAgents(req.userId!);
       res.json(agents);
     } catch (error: any) {
-      console.error("Get agents error:", error);
+      logger.error("Get agents error:", error);
       res.status(500).json({ error: "Failed to get agents" });
     }
   });
@@ -822,7 +822,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               elevenLabsDocId: item!.elevenLabsDocId!
             }));
 
-          console.log(`📚 Filtered ${knowledgeBases.length} valid knowledge base items from ${knowledgeBaseIds.length} selected`);
+          logger.info(`📚 Filtered ${knowledgeBases.length} valid knowledge base items from ${knowledgeBaseIds.length} selected`);
         }
 
         // Create agent in ElevenLabs
@@ -852,7 +852,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const credentialService = new ElevenLabsService(credential.apiKey);
 
         // Flow Agent: Compile flow and create ElevenLabs agent with workflow
-        console.log(`🔄 Creating Flow Agent with flowId: ${flowId}`);
+        logger.info(`🔄 Creating Flow Agent with flowId: ${flowId}`);
 
         // Fetch the flow from database
         const [flow] = await db
@@ -864,7 +864,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(404).json({ error: "Flow not found or access denied" });
         }
 
-        console.log(`📋 Found flow: ${flow.name} with ${(flow.nodes as FlowNode[]).length} nodes`);
+        logger.info(`📋 Found flow: ${flow.name} with ${(flow.nodes as FlowNode[]).length} nodes`);
 
         // Compile the flow to ElevenLabs workflow format
         const compiler = new ElevenLabsFlowCompiler(
@@ -878,12 +878,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Validate the compiled workflow
         const validation = compiler.validate();
         if (!validation.valid) {
-          console.warn(`⚠️ Flow validation warnings:`, validation.errors);
+          logger.warn(`⚠️ Flow validation warnings:`, validation.errors);
         }
 
-        console.log(`✅ Compiled workflow: ${Object.keys(compiledWorkflow.nodes).length} nodes, ${Object.keys(compiledWorkflow.edges).length} edges`);
+        logger.info(`✅ Compiled workflow: ${Object.keys(compiledWorkflow.nodes).length} nodes, ${Object.keys(compiledWorkflow.edges).length} edges`);
         if (flowFirstMessage) {
-          console.log(`📝 First message from flow: "${flowFirstMessage.substring(0, 50)}..."`);
+          logger.info(`📝 First message from flow: "${flowFirstMessage.substring(0, 50)}..."`);
         }
 
         // For Flow agents: Flow's extracted first message takes PRIORITY over request's firstMessage
@@ -904,30 +904,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Fetch KB objects with full details (ElevenLabs requires type, id, and name)
         const flowKnowledgeBases: Array<{ type: string; name: string; id: string }> = [];
         if (knowledgeBaseIds && Array.isArray(knowledgeBaseIds) && knowledgeBaseIds.length > 0) {
-          console.log(`📚 [Flow] Preparing ${knowledgeBaseIds.length} knowledge base(s)`);
+          logger.info(`📚 [Flow] Preparing ${knowledgeBaseIds.length} knowledge base(s)`);
 
           for (const kbId of knowledgeBaseIds) {
             try {
               const kbItem = await storage.getKnowledgeBaseItem(kbId);
 
               if (!kbItem) {
-                console.warn(`⚠️  Knowledge base item ${kbId} not found, skipping`);
+                logger.warn(`⚠️  Knowledge base item ${kbId} not found, skipping`);
                 continue;
               }
 
               if (!kbItem.elevenLabsDocId) {
-                console.warn(`⚠️  Knowledge base item ${kbId} has no ElevenLabs doc ID, skipping`);
+                logger.warn(`⚠️  Knowledge base item ${kbId} has no ElevenLabs doc ID, skipping`);
                 continue;
               }
 
-              console.log(`   Adding KB "${kbItem.title}" (${kbItem.elevenLabsDocId})`);
+              logger.info(`   Adding KB "${kbItem.title}" (${kbItem.elevenLabsDocId})`);
               flowKnowledgeBases.push({
                 type: kbItem.type === 'text' ? 'text' : 'file',
                 name: kbItem.title,
                 id: kbItem.elevenLabsDocId
               });
             } catch (error: any) {
-              console.error(`   ❌ Failed to fetch KB ${kbId}:`, error.message);
+              logger.error(`   ❌ Failed to fetch KB ${kbId}:`, error.message);
             }
           }
         }
@@ -952,7 +952,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         elevenLabsAgentId = elevenLabsAgent.agent_id;
         agentLink = `https://elevenlabs.io/app/conversational-ai/call/${elevenLabsAgent.agent_id}`;
 
-        console.log(`✅ Flow Agent created in ElevenLabs: ${elevenLabsAgentId}`);
+        logger.info(`✅ Flow Agent created in ElevenLabs: ${elevenLabsAgentId}`);
       }
 
       // Store in database - save all fields for both agent types
@@ -994,7 +994,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(agent);
     } catch (error: any) {
-      console.error("Create agent error:", error);
+      logger.error("Create agent error:", error);
       res.status(500).json({ error: safeErrorMessage(error, "Failed to create agent") });
     }
   });
@@ -1046,7 +1046,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .filter(item => item && item.userId === req.userId && item.elevenLabsDocId)
             .map(item => item!.elevenLabsDocId!);
 
-          console.log(`📚 Filtered ${elevenLabsKbIds.length} valid knowledge base items from ${knowledgeBaseIds.length} selected`);
+          logger.info(`📚 Filtered ${elevenLabsKbIds.length} valid knowledge base items from ${knowledgeBaseIds.length} selected`);
         } else {
           elevenLabsKbIds = [];
         }
@@ -1113,7 +1113,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           resolvedModelId = modelRecord.length > 0 ? modelRecord[0].modelId : model;
           resolvedModelId = sanitizeLlmModel(resolvedModelId);
-          console.log(`📝 Natural agent ElevenLabs sync - LLM model: ${resolvedModelId}`);
+          logger.info(`📝 Natural agent ElevenLabs sync - LLM model: ${resolvedModelId}`);
         }
 
         // Build update payload - no double spreading
@@ -1147,20 +1147,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         for (let attempt = 0; attempt < maxRetries; attempt++) {
           try {
             if (attempt > 0) {
-              console.log(`🔄 Retry attempt ${attempt + 1}/${maxRetries} for ElevenLabs sync...`);
+              logger.info(`🔄 Retry attempt ${attempt + 1}/${maxRetries} for ElevenLabs sync...`);
               await new Promise(resolve => setTimeout(resolve, delays[attempt]));
             }
 
             await elevenLabsService.updateAgent(agent.elevenLabsAgentId!, updatePayload);
-            console.log("✅ ElevenLabs agent synced successfully");
+            logger.info("✅ ElevenLabs agent synced successfully");
             break; // Success - exit retry loop
           } catch (error: any) {
             lastError = error;
-            console.warn(`⚠️ Attempt ${attempt + 1}/${maxRetries} failed:`, error.message);
+            logger.warn(`⚠️ Attempt ${attempt + 1}/${maxRetries} failed:`, error.message);
 
             // If this was the last attempt, return with warning
             if (attempt === maxRetries - 1) {
-              console.error("❌ All retry attempts failed. Changes saved locally only.");
+              logger.error("❌ All retry attempts failed. Changes saved locally only.");
               return res.json({
                 success: true,
                 warning: "Agent updated locally. ElevenLabs sync failed after 3 attempts. Please try editing again later."
@@ -1170,7 +1170,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       } else if (agentType === 'flow' && agent.elevenLabsAgentId && (flowId !== undefined || maxDurationSeconds !== undefined || detectLanguageEnabled !== undefined || elevenLabsVoiceId || name || language || model || temperature !== undefined)) {
         // Flow Agent: Sync workflow when flowId, maxDuration, language detection, voice, or other settings change
-        console.log(`🔄 Syncing Flow Agent: ${agent.elevenLabsAgentId}`);
+        logger.info(`🔄 Syncing Flow Agent: ${agent.elevenLabsAgentId}`);
 
         // Get the flow to compile (use new flowId if provided, otherwise use existing)
         const flowToUse = flowId || agent.flowId;
@@ -1193,9 +1193,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const compiledWorkflow = compileResult.workflow;
               const flowFirstMessage = compileResult.firstMessage;
 
-              console.log(`📋 Recompiled flow: ${flow.name} with ${Object.keys(compiledWorkflow.nodes).length} nodes`);
+              logger.info(`📋 Recompiled flow: ${flow.name} with ${Object.keys(compiledWorkflow.nodes).length} nodes`);
               if (flowFirstMessage) {
-                console.log(`📝 First message from flow: "${flowFirstMessage.substring(0, 50)}..."`);
+                logger.info(`📝 First message from flow: "${flowFirstMessage.substring(0, 50)}..."`);
               }
 
               // For Flow agents, prioritize the flow's extracted first message over agent's stored value
@@ -1227,7 +1227,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 // Sanitize the model ID for ElevenLabs compatibility
                 effectiveLlmModel5 = sanitizeLlmModel(effectiveLlmModel5);
 
-                console.log(`📝 Flow agent ElevenLabs sync - LLM model: ${effectiveLlmModel5}`);
+                logger.info(`📝 Flow agent ElevenLabs sync - LLM model: ${effectiveLlmModel5}`);
               }
 
               const strictWorkflowPrompt5 = `You are a call agent that must strictly follow a predefined workflow.
@@ -1269,12 +1269,12 @@ When using a tool:
                 { basePrompt: basePrompt5 }
               );
 
-              console.log("✅ Flow Agent workflow synced successfully");
+              logger.info("✅ Flow Agent workflow synced successfully");
             } else {
-              console.warn(`⚠️ Flow not found for sync: ${flowToUse}`);
+              logger.warn(`⚠️ Flow not found for sync: ${flowToUse}`);
             }
           } catch (error: any) {
-            console.error("❌ Flow Agent sync failed:", error.message);
+            logger.error("❌ Flow Agent sync failed:", error.message);
             return res.json({
               success: true,
               warning: "Agent updated locally. ElevenLabs workflow sync failed. Please try editing again later."
@@ -1285,7 +1285,7 @@ When using a tool:
 
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Update agent error:", error);
+      logger.error("Update agent error:", error);
       res.status(500).json({ error: safeErrorMessage(error, "Failed to update agent") });
     }
   });
@@ -1302,7 +1302,7 @@ When using a tool:
         try {
           await elevenLabsService.deleteAgent(agent.elevenLabsAgentId);
         } catch (error) {
-          console.error("Failed to delete from ElevenLabs:", error);
+          logger.error("Failed to delete from ElevenLabs:", error);
         }
       }
 
@@ -1310,9 +1310,9 @@ When using a tool:
       if (agent.elevenLabsCredentialId) {
         try {
           await ElevenLabsPoolService.updateAssignmentCount(agent.elevenLabsCredentialId, false);
-          console.log(`📊 [Agent Delete] Decremented agent count for credential ${agent.elevenLabsCredentialId}`);
+          logger.info(`📊 [Agent Delete] Decremented agent count for credential [redacted]`);
         } catch (countError) {
-          console.warn("Failed to update credential agent count:", countError);
+          logger.warn("Failed to update credential agent count:", countError);
         }
       }
 
@@ -1320,7 +1320,7 @@ When using a tool:
       await storage.deleteAgent(req.params.id);
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Delete agent error:", error);
+      logger.error("Delete agent error:", error);
       res.status(500).json({ error: "Failed to delete agent" });
     }
   });
@@ -1353,7 +1353,7 @@ When using a tool:
         if (await isAgentOnSipPhoneNumber(req.params.id)) {
           transferTypeForRules = "sip_refer";
           sipTrunkAddress = await getSipTrunkOutboundAddress(req.params.id);
-          console.log(`   📞 [Transfer Config] SIP agent detected - using sip_refer transfer type (trunk: ${sipTrunkAddress})`);
+          logger.info(`   📞 [Transfer Config] SIP agent detected - using sip_refer transfer type (trunk: ${sipTrunkAddress})`);
         }
       } catch (err: any) { logger.warn('SIP trunk check failed during transfer config; using conference transfer', { agentId: req.params.id, error: err?.message }, 'Routes'); }
 
@@ -1363,7 +1363,7 @@ When using a tool:
         numberType = "sip_uri";
         const phoneNum = transferNumber.startsWith('+') ? transferNumber : `+${transferNumber}`;
         destination = `sip:${phoneNum}@${sipTrunkAddress}`;
-        console.log(`   📞 [Transfer Config] SIP REFER: ${phoneNum} → ${destination}`);
+        logger.info(`   📞 [Transfer Config] SIP REFER: [redacted] → ${destination}`);
       }
 
       const transferRules = [{
@@ -1384,7 +1384,7 @@ When using a tool:
       // Update in ElevenLabs
       if (agent.elevenLabsAgentId) {
         await elevenLabsService.updateAgent(agent.elevenLabsAgentId, { tools });
-        console.log(`✅ Call transfer configured for agent ${agent.name} (${agent.elevenLabsAgentId})`);
+        logger.info(`✅ Call transfer configured for agent ${agent.name} (${agent.elevenLabsAgentId})`);
       }
 
       // Update in database
@@ -1401,7 +1401,7 @@ When using a tool:
         message: `Call transfer configured successfully. The AI will now transfer calls to ${transferNumber} when appropriate.`
       });
     } catch (error: any) {
-      console.error("Configure transfer error:", error);
+      logger.error("Configure transfer error:", error);
       res.status(500).json({ error: safeErrorMessage(error, "Failed to configure call transfer") });
     }
   });
@@ -1415,7 +1415,7 @@ When using a tool:
 
       if (!credential) {
         // No pool credentials available - return empty array with helpful message
-        console.warn("⚠️ [Voices] No ElevenLabs credentials in pool - voices cannot be fetched");
+        logger.warn("⚠️ [Voices] No ElevenLabs credentials in pool - voices cannot be fetched");
         return res.json([]);
       }
 
@@ -1424,7 +1424,7 @@ When using a tool:
       const { voices } = await poolService.listVoices();
       res.json(voices);
     } catch (error: any) {
-      console.error("Get ElevenLabs voices error:", error);
+      logger.error("Get ElevenLabs voices error:", error);
       res.status(500).json({ error: safeErrorMessage(error, "Failed to get voices") });
     }
   });
@@ -1463,7 +1463,7 @@ When using a tool:
       };
       res.json(response);
     } catch (error: any) {
-      console.error("Get voice limit error:", error);
+      logger.error("Get voice limit error:", error);
       // Fallback to reasonable defaults if subscription fetch fails
       res.json({
         used: 0,
@@ -1504,7 +1504,7 @@ When using a tool:
 
       res.json(result);
     } catch (error: any) {
-      console.error("Get ElevenLabs shared voices error:", error);
+      logger.error("Get ElevenLabs shared voices error:", error);
       res.status(500).json({ error: safeErrorMessage(error, "Failed to get shared voices") });
     }
   });
@@ -1542,7 +1542,7 @@ When using a tool:
 
       res.json(pricingWithMargin);
     } catch (error: any) {
-      console.error("Get LLM pricing error:", error);
+      logger.error("Get LLM pricing error:", error);
       res.status(500).json({ error: safeErrorMessage(error, "Failed to get LLM pricing") });
     }
   });
@@ -1718,7 +1718,7 @@ When using a tool:
       res.setHeader('Content-Length', pdfBuffer.length);
       res.send(pdfBuffer);
     } catch (error: any) {
-      console.error("Error downloading refund note:", error);
+      logger.error("Error downloading refund note:", error);
       res.status(500).json({ message: "Failed to download refund note", error: safeErrorMessage(error, "Failed to download refund note") });
     }
   });
@@ -1808,7 +1808,7 @@ When using a tool:
       if (req.headers.upgrade?.toLowerCase() === 'websocket') {
         return;
       }
-      console.log(`🔌 [Stream Proxy Fix] Reverse proxy stripped WebSocket headers for ${req.url}, restoring and re-emitting upgrade`);
+      logger.info(`🔌 [Stream Proxy Fix] Reverse proxy stripped WebSocket headers for ${req.url}, restoring and re-emitting upgrade`);
       const socket = req.socket;
       if (!socket || socket.destroyed) {
         return res.status(400).json({ error: 'WebSocket connection required — socket unavailable' });
@@ -1845,18 +1845,18 @@ When using a tool:
   httpServer.on('upgrade', (request, socket, head) => {
     const pathname = request.url?.split('?')[0] || '';
 
-    console.log(`🔌 [Upgrade] Request for: ${request.url}`);
-    console.log(`   Pathname: ${pathname}`);
+    logger.info(`🔌 [Upgrade] Request for: ${request.url}`);
+    logger.info(`   Pathname: ${pathname}`);
 
     // Only handle Twilio stream WebSocket upgrades
     if (pathname === '/api/webhooks/twilio/stream') {
-      console.log(`✅ [Upgrade] Handling Twilio stream WebSocket`);
+      logger.info(`✅ [Upgrade] Handling Twilio stream WebSocket`);
 
       const wss = new WebSocketServer({ noServer: true });
 
       wss.handleUpgrade(request, socket, head, async (ws: any) => {
-        console.log(`✅ [WebSocket] Upgrade successful for Twilio stream`);
-        console.log(`   Waiting for Twilio 'start' event to determine routing...`);
+        logger.info(`✅ [WebSocket] Upgrade successful for Twilio stream`);
+        logger.info(`   Waiting for Twilio 'start' event to determine routing...`);
 
         let handlerRouted = false;
         let startTimeout: NodeJS.Timeout | null = null;
@@ -1872,7 +1872,7 @@ When using a tool:
 
             // Ignore 'connected' and other non-start events
             if (data.event !== 'start') {
-              console.log(`📨 [WebSocket] Received '${data.event}' event, buffering...`);
+              logger.info(`📨 [WebSocket] Received '${data.event}' event, buffering...`);
               return;
             }
 
@@ -1882,19 +1882,19 @@ When using a tool:
               startTimeout = null;
             }
 
-            console.log(`📨 [WebSocket] Received Twilio 'start' event, routing to handler`);
+            logger.info(`📨 [WebSocket] Received Twilio 'start' event, routing to handler`);
 
             // Extract custom parameters sent from TwiML <Parameter> tags
             const customParams = data.start?.customParameters || {};
             const callId = customParams.callId;
             const agentId = customParams.agentId;
 
-            console.log(`   Extracted routing params:`);
-            console.log(`   - callId: ${callId}`);
-            console.log(`   - agentId: ${agentId}`);
+            logger.info(`   Extracted routing params:`);
+            logger.info(`   - callId: ${callId}`);
+            logger.info(`   - agentId: ${agentId}`);
 
             if (!agentId || !callId) {
-              console.error(`❌ [WebSocket] Missing required routing parameters (agentId or callId)`);
+              logger.error(`❌ [WebSocket] Missing required routing parameters (agentId or callId)`);
               ws.close(1008, 'Missing required parameters');
               return;
             }
@@ -1913,7 +1913,7 @@ When using a tool:
               const agent = agentRecords[0];
 
               if (!agent) {
-                console.error(`❌ [WebSocket] Agent not found for ID: ${agentId}`);
+                logger.error(`❌ [WebSocket] Agent not found for ID: ${agentId}`);
                 ws.close(1008, 'Agent not found');
                 return;
               }
@@ -1927,12 +1927,12 @@ When using a tool:
                 .limit(1);
 
               if (!existingCall) {
-                console.error(`❌ [WebSocket] Security: Call not found for ID: ${callId}`);
+                logger.error(`❌ [WebSocket] Security: Call not found for ID: ${callId}`);
                 ws.close(1008, 'Call not found');
                 return;
               }
 
-              console.log(`✅ [WebSocket] Found agent: ${agent.id} (type: ${agent.type})`);
+              logger.info(`✅ [WebSocket] Found agent: ${agent.id} (type: ${agent.type})`);
 
               // Remove temp message handler before routing
               ws.removeListener('message', tempMessageHandler);
@@ -1961,16 +1961,16 @@ When using a tool:
               // Route all agents to ElevenLabs handler
               // Both Natural and Flow Agents now execute through ElevenLabs
               // Flow Agents have their workflows synced to ElevenLabs
-              console.log(`🔀 [WebSocket] Routing to ElevenLabs handler (agent type: ${agent.type})`);
+              logger.info(`🔀 [WebSocket] Routing to ElevenLabs handler (agent type: ${agent.type})`);
               if (agent.type === 'flow') {
-                console.log(`   Flow context: flowId=${flowId}, executionId=${executionId}`);
+                logger.info(`   Flow context: flowId=${flowId}, executionId=${executionId}`);
               }
               handleTwilioStreamWebSocket(ws, mockReq);
 
               // Delay replay slightly to allow handlers to attach listeners
               // Then replay all buffered messages as raw Buffers
               setTimeout(() => {
-                console.log(`📨 [WebSocket] Replaying ${bufferedMessages.length} buffered messages`);
+                logger.info(`📨 [WebSocket] Replaying ${bufferedMessages.length} buffered messages`);
                 for (const bufferedMsg of bufferedMessages) {
                   ws.emit('message', bufferedMsg);
                 }
@@ -1979,11 +1979,11 @@ When using a tool:
               }, 100); // 100ms delay
 
             } catch (error) {
-              console.error('❌ [WebSocket] Error during routing:', error);
+              logger.error('❌ [WebSocket] Error during routing:', error);
               ws.close(1011, 'Internal server error during routing');
             }
           } catch (error) {
-            console.error('❌ [WebSocket] Error parsing message:', error);
+            logger.error('❌ [WebSocket] Error parsing message:', error);
             // Don't close on parse errors, just log and continue
           }
         };
@@ -1994,7 +1994,7 @@ When using a tool:
         // Set timeout for start event
         startTimeout = setTimeout(() => {
           if (!handlerRouted) {
-            console.error('❌ [WebSocket] Timeout waiting for Twilio start event');
+            logger.error('❌ [WebSocket] Timeout waiting for Twilio start event');
             ws.removeListener('message', tempMessageHandler);
             ws.close(1008, 'Start event timeout');
           }
@@ -2011,7 +2011,7 @@ When using a tool:
     } else {
       // For all other upgrade requests (like Vite HMR), do nothing
       // Let them pass through to other handlers
-      console.log(`📡 [Upgrade] Passing through: ${pathname}`);
+      logger.info(`📡 [Upgrade] Passing through: ${pathname}`);
     }
   });
 
@@ -2066,7 +2066,7 @@ When using a tool:
         }
       });
     } catch (error: any) {
-      console.error("Get user limits error:", error);
+      logger.error("Get user limits error:", error);
       res.status(500).json({ error: "Failed to get user limits" });
     }
   });
@@ -2078,7 +2078,7 @@ When using a tool:
       const notifications = await storage.getUserNotifications(req.userId!, limit);
       res.json(notifications);
     } catch (error: any) {
-      console.error("Get notifications error:", error);
+      logger.error("Get notifications error:", error);
       res.status(500).json({ error: "Failed to get notifications" });
     }
   });
@@ -2088,7 +2088,7 @@ When using a tool:
       const count = await storage.getUnreadNotificationCount(req.userId!);
       res.json({ count });
     } catch (error: any) {
-      console.error("Get unread count error:", error);
+      logger.error("Get unread count error:", error);
       res.status(500).json({ error: "Failed to get unread count" });
     }
   });
@@ -2103,7 +2103,7 @@ When using a tool:
       await storage.markNotificationAsRead(req.params.id);
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Mark notification as read error:", error);
+      logger.error("Mark notification as read error:", error);
       res.status(500).json({ error: "Failed to mark notification as read" });
     }
   });
@@ -2113,7 +2113,7 @@ When using a tool:
       await storage.markAllNotificationsAsRead(req.userId!);
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Mark all notifications as read error:", error);
+      logger.error("Mark all notifications as read error:", error);
       res.status(500).json({ error: "Failed to mark all notifications as read" });
     }
   });
@@ -2128,7 +2128,7 @@ When using a tool:
       await storage.deleteNotification(req.params.id);
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Delete notification error:", error);
+      logger.error("Delete notification error:", error);
       res.status(500).json({ error: "Failed to delete notification" });
     }
   });
@@ -2138,7 +2138,7 @@ When using a tool:
       const notifications = await storage.getBannerNotifications(req.userId!);
       res.json(notifications);
     } catch (error: any) {
-      console.error("Get banner notifications error:", error);
+      logger.error("Get banner notifications error:", error);
       res.status(500).json({ error: "Failed to get banner notifications" });
     }
   });
@@ -2153,7 +2153,7 @@ When using a tool:
       await storage.dismissNotification(req.params.id);
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Dismiss notification error:", error);
+      logger.error("Dismiss notification error:", error);
       res.status(500).json({ error: "Failed to dismiss notification" });
     }
   });
@@ -2223,7 +2223,7 @@ When using a tool:
         message: `Broadcast sent to ${notifications.length} users`
       });
     } catch (error: any) {
-      console.error("Broadcast notification error:", error);
+      logger.error("Broadcast notification error:", error);
       res.status(500).json({ error: "Failed to send broadcast notification" });
     }
   });
@@ -2264,7 +2264,7 @@ When using a tool:
 
       res.json(allTemplates);
     } catch (error: any) {
-      console.error("Get prompt templates error:", error);
+      logger.error("Get prompt templates error:", error);
       res.status(500).json({ error: "Failed to get prompt templates" });
     }
   });
@@ -2288,7 +2288,7 @@ When using a tool:
 
       res.json(template);
     } catch (error: any) {
-      console.error("Get prompt template error:", error);
+      logger.error("Get prompt template error:", error);
       res.status(500).json({ error: "Failed to get prompt template" });
     }
   });
@@ -2344,7 +2344,7 @@ When using a tool:
 
       res.json(template);
     } catch (error: any) {
-      console.error("Create prompt template error:", error);
+      logger.error("Create prompt template error:", error);
       res.status(500).json({ error: "Failed to create prompt template" });
     }
   });
@@ -2401,7 +2401,7 @@ When using a tool:
       const updated = await storage.getPromptTemplate(req.params.id);
       res.json(updated);
     } catch (error: any) {
-      console.error("Update prompt template error:", error);
+      logger.error("Update prompt template error:", error);
       res.status(500).json({ error: "Failed to update prompt template" });
     }
   });
@@ -2422,7 +2422,7 @@ When using a tool:
       await storage.deletePromptTemplate(req.params.id);
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Delete prompt template error:", error);
+      logger.error("Delete prompt template error:", error);
       res.status(500).json({ error: "Failed to delete prompt template" });
     }
   });
@@ -2474,7 +2474,7 @@ When using a tool:
         )
       });
     } catch (error: any) {
-      console.error("Use prompt template error:", error);
+      logger.error("Use prompt template error:", error);
       res.status(500).json({ error: "Failed to use prompt template" });
     }
   });
@@ -2513,7 +2513,7 @@ When using a tool:
 
       res.json(template);
     } catch (error: any) {
-      console.error("Create system prompt template error:", error);
+      logger.error("Create system prompt template error:", error);
       res.status(500).json({ error: "Failed to create system prompt template" });
     }
   });
@@ -2524,7 +2524,7 @@ When using a tool:
       const templates = await storage.getEmailTemplates();
       res.json(templates);
     } catch (error: any) {
-      console.error("Get email templates error:", error);
+      logger.error("Get email templates error:", error);
       res.status(500).json({ error: "Failed to get email templates" });
     }
   });
@@ -2537,7 +2537,7 @@ When using a tool:
       }
       res.json(template);
     } catch (error: any) {
-      console.error("Get email template error:", error);
+      logger.error("Get email template error:", error);
       res.status(500).json({ error: "Failed to get email template" });
     }
   });
@@ -2555,7 +2555,7 @@ When using a tool:
       });
       res.json({ success: true, message: "Email template updated successfully" });
     } catch (error: any) {
-      console.error("Update email template error:", error);
+      logger.error("Update email template error:", error);
       res.status(500).json({ error: "Failed to update email template" });
     }
   });
@@ -2585,7 +2585,7 @@ When using a tool:
 
       res.json(template);
     } catch (error: any) {
-      console.error("Create email template error:", error);
+      logger.error("Create email template error:", error);
       res.status(500).json({ error: "Failed to create email template" });
     }
   });
@@ -2653,7 +2653,7 @@ When using a tool:
 
       res.json({ batchJobs });
     } catch (error: any) {
-      console.error("Get batch jobs error:", error);
+      logger.error("Get batch jobs error:", error);
       res.status(500).json({ error: "Failed to fetch batch jobs" });
     }
   });
@@ -2686,7 +2686,7 @@ When using a tool:
         }
       });
     } catch (error: any) {
-      console.error("Get batch job detail error:", error);
+      logger.error("Get batch job detail error:", error);
       res.status(500).json({ error: "Failed to fetch batch job details" });
     }
   });
@@ -2752,7 +2752,7 @@ When using a tool:
   };
   // Flag COMMS_CAMPAIGNS_ENABLED: new, unfinished module, so it defaults OFF. Set it to 1 to mount.
   const commsCampaignsEnabled = featureEnabled("COMMS_CAMPAIGNS_ENABLED", false);
-  console.log(`[flags] COMMS_CAMPAIGNS_ENABLED=${commsCampaignsEnabled ? "on" : "off"} (default off)`);
+  logger.info(`[flags] COMMS_CAMPAIGNS_ENABLED=${commsCampaignsEnabled ? "on" : "off"} (default off)`);
   if (commsCampaignsEnabled) app.use(
     "/api/comms",
     authenticateToken as unknown as import('express').RequestHandler,
@@ -2787,7 +2787,7 @@ When using a tool:
 
       res.json({ ...campaign, owner: owner || null });
     } catch (error: any) {
-      console.error("Admin get campaign error:", error);
+      logger.error("Admin get campaign error:", error);
       res.status(500).json({ error: "Failed to get campaign" });
     }
   });
@@ -2803,7 +2803,7 @@ When using a tool:
 
       res.json(contactList);
     } catch (error: any) {
-      console.error("Admin get campaign contacts error:", error);
+      logger.error("Admin get campaign contacts error:", error);
       res.status(500).json({ error: "Failed to get campaign contacts" });
     }
   });
@@ -2818,7 +2818,7 @@ When using a tool:
       const callList = await storage.getCampaignCalls(campaign.id);
       res.json(callList);
     } catch (error: any) {
-      console.error("Admin get campaign calls error:", error);
+      logger.error("Admin get campaign calls error:", error);
       res.status(500).json({ error: "Failed to get campaign calls" });
     }
   });
@@ -2838,7 +2838,7 @@ When using a tool:
       const stats = BatchCallingService.getBatchStats(batchJob);
       res.json({ batchJob, stats });
     } catch (error: any) {
-      console.error("Admin get campaign batch error:", error);
+      logger.error("Admin get campaign batch error:", error);
       res.json({ batchJob: null, stats: null });
     }
   });
@@ -2848,7 +2848,7 @@ When using a tool:
   // Uses batched processing to handle any number of orphaned calls
   app.post("/api/admin/migrate-call-user-ids", authenticateToken, requireRole("admin"), async (req: AuthRequest, res: Response) => {
     try {
-      console.log(`📊 [Admin] Starting call userId migration`);
+      logger.info(`📊 [Admin] Starting call userId migration`);
 
       let totalProcessed = 0;
       let migrated = 0;
@@ -2878,11 +2878,11 @@ When using a tool:
           .limit(BATCH_SIZE);
 
         if (orphanedCalls.length === 0) {
-          console.log(`   No more orphaned calls to process`);
+          logger.info(`   No more orphaned calls to process`);
           break;
         }
 
-        console.log(`   Processing batch of ${orphanedCalls.length} orphaned calls`);
+        logger.info(`   Processing batch of ${orphanedCalls.length} orphaned calls`);
         totalProcessed += orphanedCalls.length;
 
         for (const call of orphanedCalls) {
@@ -2955,12 +2955,12 @@ When using a tool:
         // Safety check - if we've processed many calls without finding resolvable owners
         // and the same orphaned calls keep appearing, prevent infinite loop
         if (totalProcessed > 10000 && migrated === 0) {
-          console.warn(`   Breaking - processed ${totalProcessed} calls but none could be migrated`);
+          logger.warn(`   Breaking - processed ${totalProcessed} calls but none could be migrated`);
           break;
         }
       }
 
-      console.log(`✅ [Admin] Migration complete: ${migrated} migrated, ${failed} unresolvable, ${totalProcessed} total processed`);
+      logger.info(`✅ [Admin] Migration complete: ${migrated} migrated, ${failed} unresolvable, ${totalProcessed} total processed`);
 
       res.json({
         success: true,
@@ -2974,7 +2974,7 @@ When using a tool:
           : `Successfully migrated all ${migrated} calls`
       });
     } catch (error: any) {
-      console.error("Migration error:", error);
+      logger.error("Migration error:", error);
       res.status(500).json({ error: "Failed to migrate call user IDs" });
     }
   });

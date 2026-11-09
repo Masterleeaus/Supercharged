@@ -56,7 +56,7 @@ export async function placeFlowTestCall({
           eq(flowTestQueue.userId, userId),
           eq(flowTestQueue.status, 'processing')
         ));
-    } catch (e) { console.error('[Queue] Failed to mark completed:', e); }
+    } catch (e) { logger.error('[Queue] Failed to mark completed:', e); }
   };
   const failQueue = async (reason: string) => {
     if (!queueEntryId || queueProcessed) return;
@@ -69,7 +69,7 @@ export async function placeFlowTestCall({
           eq(flowTestQueue.userId, userId),
           eq(flowTestQueue.status, 'processing')
         ));
-    } catch (e) { console.error('[Queue] Failed to mark failed:', e); }
+    } catch (e) { logger.error('[Queue] Failed to mark failed:', e); }
   };
 
   try {
@@ -246,14 +246,14 @@ export async function placeFlowTestCall({
             }
             logger.info(`✅ [Flow Test] SIP phone re-imported, new ID: ${currentSipPhoneElevenLabsId}`);
           } else {
-            console.warn(`⚠️ [Flow Test] Cannot verify SIP phone on ElevenLabs (transient error): ${sipVerify.error}`);
+            logger.warn(`⚠️ [Flow Test] Cannot verify SIP phone on ElevenLabs (transient error): ${sipVerify.error}`);
           }
         } else {
           logger.info(`✅ [Flow Test] SIP phone exists on ElevenLabs`);
         }
       } catch (verifyError: any) {
         if (verifyError instanceof FlowTestHttpError) throw verifyError;
-        console.warn(`⚠️ [Flow Test] Cannot verify SIP phone on ElevenLabs (error): ${verifyError.message}`);
+        logger.warn(`⚠️ [Flow Test] Cannot verify SIP phone on ElevenLabs (error): ${verifyError.message}`);
       }
 
       try {
@@ -467,7 +467,7 @@ export async function placeFlowTestCall({
         };
 
       } catch (sipError: any) {
-        console.error(`❌ [Flow Test] ElevenLabs SIP call error:`, sipError);
+        logger.error(`❌ [Flow Test] ElevenLabs SIP call error:`, sipError);
         throw new FlowTestHttpError(400, {
           error: "SIP call initiation failed",
           message: "Failed to initiate call via ElevenLabs SIP Trunk",
@@ -885,7 +885,7 @@ export async function placeFlowTestCall({
             },
           });
         } catch (flowExecError: any) {
-          console.warn(`⚠️ [Flow Test] Error creating flow execution:`, flowExecError.message);
+          logger.warn(`⚠️ [Flow Test] Error creating flow execution:`, flowExecError.message);
         }
 
         const { importPlugin } = await import('../utils/plugin-import');
@@ -904,7 +904,7 @@ export async function placeFlowTestCall({
 
         // Register error handler to prevent uncaught exceptions
         esl.on('error', (err: any) => {
-          console.error('[ESL] Client error during flow test call:', err.message);
+          logger.error('[ESL] Client error during flow test call:', err.message);
         });
 
         await esl.connect();
@@ -990,7 +990,7 @@ export async function placeFlowTestCall({
         };
       } catch (cveError: any) {
         if (cveError instanceof FlowTestHttpError) throw cveError;
-        console.error(`❌ [Flow Test] Custom Voice Engine call error:`, cveError);
+        logger.error(`❌ [Flow Test] Custom Voice Engine call error:`, cveError);
         await failQueue("Failed to initiate call via Custom Voice Engine");
         throw new FlowTestHttpError(400, {
           error: "Call initiation failed",
@@ -1229,7 +1229,7 @@ export async function placeFlowTestCall({
           });
           logger.info(`🔀 [Flow Test] Created flow execution for Plivo test call`);
         } catch (flowExecError: any) {
-          console.warn(`⚠️ [Flow Test] Error creating flow execution:`, flowExecError.message);
+          logger.warn(`⚠️ [Flow Test] Error creating flow execution:`, flowExecError.message);
         }
 
         await completeQueue(plivoCall.id);
@@ -1248,7 +1248,7 @@ export async function placeFlowTestCall({
         };
 
       } catch (plivoError: any) {
-        console.error(`❌ [Flow Test] Plivo call error:`, plivoError);
+        logger.error(`❌ [Flow Test] Plivo call error:`, plivoError);
         throw new FlowTestHttpError(400, {
           error: "Call initiation failed",
           message: "Failed to initiate call via Plivo",
@@ -1281,7 +1281,7 @@ export async function placeFlowTestCall({
         });
 
         if (!callResult.success) {
-          console.error(`❌ [Flow Test] Twilio+OpenAI call initiation failed:`, callResult.error);
+          logger.error(`❌ [Flow Test] Twilio+OpenAI call initiation failed:`, callResult.error);
           throw new FlowTestHttpError(400, {
             error: "Call initiation failed",
             message: callResult.error || "Failed to initiate call via Twilio+OpenAI Realtime",
@@ -1319,7 +1319,7 @@ export async function placeFlowTestCall({
             });
             logger.info(`🔀 [Flow Test] Created flow execution for Twilio+OpenAI test call`);
           } catch (flowExecError: any) {
-            console.warn(`⚠️ [Flow Test] Error creating flow execution:`, flowExecError.message);
+            logger.warn(`⚠️ [Flow Test] Error creating flow execution:`, flowExecError.message);
           }
         }
 
@@ -1341,7 +1341,7 @@ export async function placeFlowTestCall({
 
       } catch (openaiError: any) {
         if (openaiError instanceof FlowTestHttpError) throw openaiError;
-        console.error(`❌ [Flow Test] Twilio+OpenAI call error:`, openaiError);
+        logger.error(`❌ [Flow Test] Twilio+OpenAI call error:`, openaiError);
         await failQueue("Failed to initiate call via Twilio+OpenAI");
         throw new FlowTestHttpError(400, {
           error: "Call initiation failed",
@@ -1356,7 +1356,7 @@ export async function placeFlowTestCall({
     // PROVIDER GUARD: Explicitly verify this is an ElevenLabs agent before proceeding
     // This prevents provider mismatch if earlier branches fail or fall through
     if (agent.telephonyProvider && ['plivo', 'twilio_openai', 'custom-voice-engine'].includes(agent.telephonyProvider)) {
-      console.error(`❌ [Flow Test] Provider mismatch - agent is ${agent.telephonyProvider} but reached ElevenLabs path`);
+      logger.error(`❌ [Flow Test] Provider mismatch - agent is ${agent.telephonyProvider} but reached ElevenLabs path`);
       throw new FlowTestHttpError(400, {
         error: "Provider mismatch",
         message: `This agent uses ${agent.telephonyProvider} but the test call routing failed. Please try again.`,
@@ -1384,7 +1384,7 @@ export async function placeFlowTestCall({
 
     const isSystemPoolNumber = fromPhone.isSystemPool === true && fromPhone.userId === null;
     if (!isSystemPoolNumber && fromPhone.userId !== userId) {
-      console.warn(`⚠️ [Flow Test] Phone ${fromPhone.id} does not belong to user ${userId}`);
+      logger.warn(`⚠️ [Flow Test] Phone [redacted] does not belong to user ${userId}`);
       throw new FlowTestHttpError(403, {
         error: "Phone number access denied",
         message: "You do not have access to this phone number.",
@@ -1415,7 +1415,7 @@ export async function placeFlowTestCall({
           }
           // Validate refreshed phone has expected credential after sync
           if (!fromPhone.elevenLabsCredentialId || !fromPhone.elevenLabsPhoneNumberId) {
-            console.error(`❌ [Flow Test] Phone sync returned success but DB state invalid`);
+            logger.error(`❌ [Flow Test] Phone sync returned success but DB state invalid`);
             throw new FlowTestHttpError(500, {
               error: "Phone sync inconsistent",
               message: "Phone sync reported success but database state is invalid. Please try again.",
@@ -1430,7 +1430,7 @@ export async function placeFlowTestCall({
         }
       } catch (syncError: any) {
         if (syncError instanceof FlowTestHttpError) throw syncError;
-        console.error(`❌ [Flow Test] Phone sync failed:`, syncError);
+        logger.error(`❌ [Flow Test] Phone sync failed:`, syncError);
         throw new FlowTestHttpError(400, {
           error: "Phone sync failed",
           message: "Failed to sync phone number with ElevenLabs. Please try again or purchase a new phone number.",
@@ -1448,7 +1448,7 @@ export async function placeFlowTestCall({
         );
 
         if (!migrationResult.success) {
-          console.error(`❌ [Flow Test] Phone migration failed:`, migrationResult.error);
+          logger.error(`❌ [Flow Test] Phone migration failed:`, migrationResult.error);
           throw new FlowTestHttpError(400, {
             error: "Phone number migration failed",
             message: "Could not migrate phone number to agent's credential",
@@ -1469,7 +1469,7 @@ export async function placeFlowTestCall({
 
       } catch (migrationError: any) {
         if (migrationError instanceof FlowTestHttpError) throw migrationError;
-        console.error(`❌ [Flow Test] Phone migration error:`, migrationError);
+        logger.error(`❌ [Flow Test] Phone migration error:`, migrationError);
         throw new FlowTestHttpError(500, {
           error: "Phone number migration failed",
           message: "Failed to migrate phone number to agent's credential",
@@ -1489,7 +1489,7 @@ export async function placeFlowTestCall({
     );
 
     if (!verifyResult.success) {
-      console.error(`❌ [Flow Test] Phone verification failed:`, verifyResult.error);
+      logger.error(`❌ [Flow Test] Phone verification failed:`, verifyResult.error);
       throw new FlowTestHttpError(400, {
         error: "Phone number not available on ElevenLabs",
         message: verifyResult.error || "Could not verify or re-import phone number. Please check your Twilio configuration.",
@@ -1725,7 +1725,7 @@ export async function placeFlowTestCall({
         );
         logger.info(`   ✅ Agent workflow updated on ElevenLabs (${Object.keys(testWorkflow.nodes).length} nodes, ${testWebhookTools.length} tools)`);
       } catch (updateError: any) {
-        console.error(`   ⚠️ Failed to update agent workflow (call may use stale workflow):`, updateError.message);
+        logger.error(`   ⚠️ Failed to update agent workflow (call may use stale workflow):`, updateError.message);
       }
 
       // Use OutboundCallService for ElevenLabs Twilio outbound calls
@@ -1763,7 +1763,7 @@ export async function placeFlowTestCall({
           `);
           logger.info(`   ✅ Call record ${callId} updated with ElevenLabs conversation ID: ${conversationId}`);
         } catch (dbError: any) {
-          console.error(`   ⚠️ Failed to update call record with conversation ID:`, dbError.message);
+          logger.error(`   ⚠️ Failed to update call record with conversation ID:`, dbError.message);
         }
       }
 
@@ -1798,7 +1798,7 @@ export async function placeFlowTestCall({
           });
           logger.info(`🔀 [Flow Test] Created flow execution for ElevenLabs test call`);
         } catch (flowExecError: any) {
-          console.warn(`⚠️ [Flow Test] Error creating flow execution:`, flowExecError.message);
+          logger.warn(`⚠️ [Flow Test] Error creating flow execution:`, flowExecError.message);
         }
       }
 
@@ -1820,7 +1820,7 @@ export async function placeFlowTestCall({
 
     } catch (elevenLabsError: any) {
       if (elevenLabsError instanceof FlowTestHttpError) throw elevenLabsError;
-      console.error(`❌ [Flow Test] ElevenLabs call initiation failed:`, elevenLabsError);
+      logger.error(`❌ [Flow Test] ElevenLabs call initiation failed:`, elevenLabsError);
 
       const failedMetadata = (callRecord.metadata ?? {}) as import('@shared/schema').CallMetadata;
       await db
@@ -1859,7 +1859,7 @@ export async function placeFlowTestCall({
     };
   } catch (error: any) {
     if (error instanceof FlowTestHttpError) throw error;
-    console.error("Error testing flow:", error);
+    logger.error("Error testing flow:", error);
     await failQueue(error?.message || "Test call failed");
     throw new FlowTestHttpError(500, { error: "Failed to test flow" });
   }
@@ -1906,7 +1906,7 @@ export function registerFlowTestCallRoutes(router: Router): void {
       if (err instanceof FlowTestHttpError) {
         return res.status(err.statusCode).json(err.body);
       }
-      console.error("Error testing flow:", err);
+      logger.error("Error testing flow:", err);
       return res.status(500).json({ error: "Failed to test flow" });
     }
   });

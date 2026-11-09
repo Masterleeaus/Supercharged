@@ -44,7 +44,7 @@ const ELEVENLABS_BATCH_LARGE_RECIPIENT_WARN = 25_000;
 
 function warnIfVeryLargeElevenLabsBatch(recipientCount: number, campaignName: string, campaignId: string): void {
   if (recipientCount >= ELEVENLABS_BATCH_LARGE_RECIPIENT_WARN) {
-    console.warn(
+    logger.warn(
       `⚠️ [Campaign Executor] Very large ElevenLabs batch: ${recipientCount} recipients for campaign "${campaignName}" (${campaignId}). ` +
       `If submission fails, split into multiple campaigns or confirm ElevenLabs batch limits for your plan.`
     );
@@ -375,10 +375,10 @@ export class CampaignExecutor {
               successfulCalls: result.completedCalls,
               failedCalls: result.failedCalls,
               timestamp: new Date().toISOString()
-            }).catch(err => console.error('Failed to trigger webhook:', err));
+            }).catch(err => logger.error('Failed to trigger webhook:', err));
           }
         }).catch((err: any) => {
-          console.error(`[Campaign Executor] Background Custom Voice Engine campaign error:`, err);
+          logger.error(`[Campaign Executor] Background Custom Voice Engine campaign error:`, err);
         });
 
         return {
@@ -520,18 +520,18 @@ export class CampaignExecutor {
                 status: c.status,
               })),
             }, campaignId).catch(err => {
-              console.error('❌ [Webhook] Error triggering campaign.completed event:', err);
+              logger.error('❌ [Webhook] Error triggering campaign.completed event:', err);
             });
 
             try {
               await emailService.sendCampaignCompleted(campaignId);
             } catch (emailError: any) {
-              console.error(`❌ [Campaign] Failed to send campaign completed email:`, emailError);
+              logger.error(`❌ [Campaign] Failed to send campaign completed email:`);
             }
           }
         }).catch((error: any) => {
           // The batch service already marks the campaign as 'failed' in its own catch block.
-          console.error(`❌ [Plivo Campaign] Background execution error for ${campaignId}:`, error);
+          logger.error(`❌ [Plivo Campaign] Background execution error for ${campaignId}:`, error);
         });
 
         // Return immediately — campaign is now running in the background
@@ -666,18 +666,18 @@ export class CampaignExecutor {
                 status: c.status,
               })),
             }, campaignId).catch(err => {
-              console.error('❌ [Webhook] Error triggering campaign.completed event:', err);
+              logger.error('❌ [Webhook] Error triggering campaign.completed event:', err);
             });
 
             try {
               await emailService.sendCampaignCompleted(campaignId);
             } catch (emailError: any) {
-              console.error(`❌ [Campaign] Failed to send campaign completed email:`, emailError);
+              logger.error(`❌ [Campaign] Failed to send campaign completed email:`);
             }
           }
         }).catch((error: any) => {
           // The batch service already marks the campaign as 'failed' in its own catch block.
-          console.error(`❌ [Twilio-OpenAI Campaign] Background execution error for ${campaignId}:`, error);
+          logger.error(`❌ [Twilio-OpenAI Campaign] Background execution error for ${campaignId}:`, error);
         });
 
         // Return immediately — campaign is now running in the background
@@ -808,10 +808,10 @@ export class CampaignExecutor {
                 currentSipPhoneElevenLabsId = freshResult.newElevenLabsPhoneId;
                 logger.info(`✅ [Campaign Executor] SIP credential refresh complete — new ID: ${currentSipPhoneElevenLabsId}`);
               } else if (!freshResult.success) {
-                console.warn(`⚠️ [Campaign Executor] SIP credential refresh failed (non-fatal, continuing): ${freshResult.error}`);
+                logger.warn(`⚠️ [Campaign Executor] SIP credential refresh failed (non-fatal, continuing): ${freshResult.error}`);
               }
             } catch (syncErr: any) {
-              console.warn(`⚠️ [Campaign Executor] SIP credential refresh error (non-fatal, continuing): ${syncErr?.message}`);
+              logger.warn(`⚠️ [Campaign Executor] SIP credential refresh error (non-fatal, continuing): ${syncErr?.message}`);
             }
           } else if (!needsSync) {
             logger.info(`✅ [Campaign Executor] SIP PRE-FLIGHT CHECK 3: Credentials fresh (last synced ${Math.round((now - lastSync) / 3600000)}h ago)`);
@@ -845,7 +845,7 @@ export class CampaignExecutor {
             await elevenLabsServiceForTools.refreshAgentPromptWithCurrentDate(agent.elevenLabsAgentId);
             logger.info(`✅ [Campaign Executor] SIP agent appointment tool and prompt refreshed with current date`);
           } catch (toolRefreshError: any) {
-            console.warn(`⚠️ [Campaign Executor] Failed to refresh SIP agent tools/prompt: ${toolRefreshError.message}`);
+            logger.warn(`⚠️ [Campaign Executor] Failed to refresh SIP agent tools/prompt: ${toolRefreshError.message}`);
             // Non-fatal - continue with campaign execution
           }
         }
@@ -1079,10 +1079,10 @@ export class CampaignExecutor {
                 currentPhoneElevenLabsId = refreshedPhone.elevenLabsPhoneNumberId;
               }
             } else {
-              console.warn(`⚠️ [Campaign Executor] Credential refresh failed (non-fatal, continuing): ${freshResult.error}`);
+              logger.warn(`⚠️ [Campaign Executor] Credential refresh failed (non-fatal, continuing): ${freshResult.error}`);
             }
           } catch (syncErr: any) {
-            console.warn(`⚠️ [Campaign Executor] Credential refresh error (non-fatal, continuing): ${syncErr?.message}`);
+            logger.warn(`⚠️ [Campaign Executor] Credential refresh error (non-fatal, continuing): ${syncErr?.message}`);
           }
         } else {
           logger.info(`✅ [Campaign Executor] PRE-FLIGHT CHECK 3: Credentials fresh (last synced ${Math.round((now - lastSync) / 3600000)}h ago)`);
@@ -1117,7 +1117,7 @@ export class CampaignExecutor {
           await elevenLabsService.refreshAgentPromptWithCurrentDate(agent.elevenLabsAgentId);
           logger.info(`✅ [Campaign Executor] Agent tools and prompt refreshed with current date context`);
         } catch (toolRefreshError: any) {
-          console.warn(`⚠️ [Campaign Executor] Failed to refresh agent tools/prompt: ${toolRefreshError.message}`);
+          logger.warn(`⚠️ [Campaign Executor] Failed to refresh agent tools/prompt: ${toolRefreshError.message}`);
           // Non-fatal - continue with campaign execution
         }
       }
@@ -1227,7 +1227,7 @@ export class CampaignExecutor {
       return { batchJob };
 
     } catch (error) {
-      console.error('Campaign execution failed:', error);
+      logger.error('Campaign execution failed:', error);
 
       // Check if this is a concurrency limit error from ElevenLabs
       if (isConcurrencyLimitError(error)) {
@@ -1305,7 +1305,7 @@ export class CampaignExecutor {
           .limit(1);
         failedCampaign = campaignForWebhook;
       } catch (e) {
-        console.warn('Could not fetch campaign for failure webhook:', e);
+        logger.warn('Could not fetch campaign for failure webhook:', e);
       }
 
       // Extract error details for storage and webhook
@@ -1323,7 +1323,7 @@ export class CampaignExecutor {
         })
         .where(eq(campaigns.id, campaignId));
 
-      console.error(`❌ [Campaign Executor] Campaign ${campaignId} failed with error: [${errorCode}] ${errorMessage}`);
+      logger.error(`❌ [Campaign Executor] Campaign ${campaignId} failed with error: [${errorCode}] ${errorMessage}`);
 
       // Trigger campaign.failed webhook
       if (failedCampaign?.userId) {
@@ -1343,10 +1343,10 @@ export class CampaignExecutor {
               details: null
             }
           }, campaignId).catch(err => {
-            console.error('❌ [Webhook] Error triggering campaign.failed event:', err);
+            logger.error('❌ [Webhook] Error triggering campaign.failed event:', err);
           });
         } catch (webhookErr) {
-          console.error('Error triggering campaign.failed webhook:', webhookErr);
+          logger.error('Error triggering campaign.failed webhook:', webhookErr);
         }
       }
 
@@ -1506,7 +1506,7 @@ export class CampaignExecutor {
 
       return batchJob;
     } catch (err: any) {
-      console.warn(`[BatchCalling] Could not fetch batch job status from ElevenLabs API (${err.message}), falling back to local synthesis`);
+      logger.warn(`[BatchCalling] Could not fetch batch job status from ElevenLabs API (${err.message}), falling back to local synthesis`);
       // Fallback: construct batch job response using local DB call records
       const campaignCalls = await db.select().from(calls).where(eq(calls.campaignId, campaignId));
       const completedCallsCount = campaignCalls.filter(c =>
@@ -1607,7 +1607,7 @@ export class CampaignExecutor {
           reason,
           engine: 'plivo',
         }, campaignId).catch(err => {
-          console.error('❌ [Webhook] Error triggering campaign.paused event:', err);
+          logger.error('❌ [Webhook] Error triggering campaign.paused event:', err);
         });
       }
 
@@ -1645,7 +1645,7 @@ export class CampaignExecutor {
           reason,
           engine: 'twilio_openai',
         }, campaignId).catch(err => {
-          console.error('❌ [Webhook] Error triggering campaign.paused event:', err);
+          logger.error('❌ [Webhook] Error triggering campaign.paused event:', err);
         });
       }
 
@@ -1730,13 +1730,13 @@ export class CampaignExecutor {
           reason,
           batchJobStatus: batchJob.status,
         }, campaignId).catch(err => {
-          console.error('❌ [Webhook] Error triggering campaign.paused event:', err);
+          logger.error('❌ [Webhook] Error triggering campaign.paused event:', err);
         });
       }
 
       return batchJob;
     } catch (error: any) {
-      console.error(`❌ [Campaign Executor] Failed to pause campaign ${campaignId}:`, error);
+      logger.error(`❌ [Campaign Executor] Failed to pause campaign ${campaignId}:`, error);
       throw error;
     }
   }
@@ -1816,7 +1816,7 @@ export class CampaignExecutor {
           cancelledAt: new Date().toISOString(),
           engine: 'plivo',
         }, campaignId).catch(err => {
-          console.error('❌ [Webhook] Error triggering campaign.cancelled event:', err);
+          logger.error('❌ [Webhook] Error triggering campaign.cancelled event:', err);
         });
       }
 
@@ -1872,7 +1872,7 @@ export class CampaignExecutor {
           cancelledAt: new Date().toISOString(),
           engine: 'twilio_openai',
         }, campaignId).catch(err => {
-          console.error('❌ [Webhook] Error triggering campaign.cancelled event:', err);
+          logger.error('❌ [Webhook] Error triggering campaign.cancelled event:', err);
         });
       }
 
@@ -2025,11 +2025,11 @@ export class CampaignExecutor {
             reason,
             engine: 'custom-voice-engine',
           }, campaignId).catch(err => {
-            console.error('❌ [Webhook] Error triggering campaign.resumed event:', err);
+            logger.error('❌ [Webhook] Error triggering campaign.resumed event:', err);
           });
         }
       }).catch((err: any) => {
-        console.error(`❌ [CVE Campaign] Background execution error for ${campaignId}:`, err);
+        logger.error(`❌ [CVE Campaign] Background execution error for ${campaignId}:`, err);
       });
 
       logger.info(`▶️ [Campaign Executor] Resumed CVE campaign ${campaignId} (reason: ${reason})`);
@@ -2085,11 +2085,11 @@ export class CampaignExecutor {
             reason,
             engine: 'plivo',
           }, campaignId).catch(err => {
-            console.error('❌ [Webhook] Error triggering campaign.resumed event:', err);
+            logger.error('❌ [Webhook] Error triggering campaign.resumed event:', err);
           });
         }
       }).catch(err => {
-        console.error(`❌ [Plivo Campaign] Background execution error for ${campaignId}:`, err);
+        logger.error(`❌ [Plivo Campaign] Background execution error for ${campaignId}:`, err);
       });
 
       logger.info(`▶️ [Campaign Executor] Resumed Plivo campaign ${campaignId} (reason: ${reason})`);
@@ -2139,11 +2139,11 @@ export class CampaignExecutor {
             reason,
             engine: 'twilio_openai',
           }, campaignId).catch(err => {
-            console.error('❌ [Webhook] Error triggering campaign.resumed event:', err);
+            logger.error('❌ [Webhook] Error triggering campaign.resumed event:', err);
           });
         }
       }).catch(err => {
-        console.error(`❌ [Twilio Campaign] Background execution error for ${campaignId}:`, err);
+        logger.error(`❌ [Twilio Campaign] Background execution error for ${campaignId}:`, err);
       });
 
       logger.info(`▶️ [Campaign Executor] Resumed Twilio-OpenAI campaign ${campaignId} (reason: ${reason})`);
@@ -2191,7 +2191,7 @@ export class CampaignExecutor {
 
       return batchJob;
     } catch (error: any) {
-      console.error(`❌ [Campaign Executor] Failed to resume campaign ${campaignId}:`, error);
+      logger.error(`❌ [Campaign Executor] Failed to resume campaign ${campaignId}:`, error);
       throw error;
     }
   }
@@ -2293,7 +2293,7 @@ export class CampaignExecutor {
             .where(eq(campaigns.id, campaignId));
         }
       }).catch((err: any) => {
-        console.error(`[Campaign Executor] Error executing CVE campaign ${campaignId}: ${err.message}`);
+        logger.error(`[Campaign Executor] Error executing CVE campaign ${campaignId}: ${err.message}`);
       });
 
       logger.info(`▶️ [Campaign Executor] Resumed CVE campaign with new batch: ${campaignId}`);
@@ -2343,7 +2343,7 @@ export class CampaignExecutor {
         .where(eq(campaigns.id, campaignId));
 
       plivoBatchService.executeCampaign(campaignId).catch(err => {
-        console.error(`❌ [Plivo Campaign] Background execution error for ${campaignId}:`, err);
+        logger.error(`❌ [Plivo Campaign] Background execution error for ${campaignId}:`, err);
       });
 
       logger.info(`▶️ [Campaign Executor] Resumed Plivo campaign with new batch: ${campaignId}`);
@@ -2393,7 +2393,7 @@ export class CampaignExecutor {
         .where(eq(campaigns.id, campaignId));
 
       twilioOpenAIBatchService.executeCampaign(campaignId).catch(err => {
-        console.error(`❌ [Twilio Campaign] Background execution error for ${campaignId}:`, err);
+        logger.error(`❌ [Twilio Campaign] Background execution error for ${campaignId}:`, err);
       });
 
       logger.info(`▶️ [Campaign Executor] Resumed Twilio-OpenAI campaign with new batch: ${campaignId}`);
@@ -2536,10 +2536,10 @@ export class CampaignExecutor {
               currentSipPhoneElevenLabsId = freshResult.newElevenLabsPhoneId;
               logger.info(`✅ [Campaign Executor Resume] SIP credential refresh complete — new ID: ${currentSipPhoneElevenLabsId}`);
             } else if (!freshResult.success) {
-              console.warn(`⚠️ [Campaign Executor Resume] SIP credential refresh failed (non-fatal): ${freshResult.error}`);
+              logger.warn(`⚠️ [Campaign Executor Resume] SIP credential refresh failed (non-fatal): ${freshResult.error}`);
             }
           } catch (syncErr: any) {
-            console.warn(`⚠️ [Campaign Executor Resume] SIP credential refresh error (non-fatal): ${syncErr?.message}`);
+            logger.warn(`⚠️ [Campaign Executor Resume] SIP credential refresh error (non-fatal): ${syncErr?.message}`);
           }
         } else if (!needsSync) {
           logger.info(`✅ [Campaign Executor Resume] SIP PRE-FLIGHT CHECK 3: Credentials fresh (last synced ${Math.round((now - lastSync) / 3600000)}h ago)`);
@@ -2616,7 +2616,7 @@ export class CampaignExecutor {
           await elevenLabsServiceForTools.refreshAgentPromptWithCurrentDate(agent.elevenLabsAgentId);
           logger.info(`✅ [Campaign Executor] SIP agent appointment tool and prompt refreshed with current date`);
         } catch (toolRefreshError: any) {
-          console.warn(`⚠️ [Campaign Executor] Failed to refresh SIP agent tools/prompt: ${toolRefreshError.message}`);
+          logger.warn(`⚠️ [Campaign Executor] Failed to refresh SIP agent tools/prompt: ${toolRefreshError.message}`);
           // Non-fatal - continue with campaign execution
         }
       }
@@ -3071,7 +3071,7 @@ export class CampaignExecutor {
         };
 
       } catch (callError: any) {
-        console.error(`❌ [Campaign Executor] ElevenLabs call initiation failed:`, callError);
+        logger.error(`❌ [Campaign Executor] ElevenLabs call initiation failed:`, callError);
 
         // Mark call as failed in database
         await db
@@ -3091,7 +3091,7 @@ export class CampaignExecutor {
       }
 
     } catch (error) {
-      console.error('Failed to make call:', error);
+      logger.error('Failed to make call:', error);
 
       return {
         callId: config.contactId,
@@ -3166,7 +3166,7 @@ export class CampaignExecutor {
       .limit(1);
 
     if (!campaign) {
-      console.error(`[Retry Pass] Campaign ${campaignId} not found`);
+      logger.error(`[Retry Pass] Campaign ${campaignId} not found`);
       return;
     }
 
@@ -3219,7 +3219,7 @@ export class CampaignExecutor {
       .limit(1);
 
     if (!agent) {
-      console.error(`[Retry Pass] Agent not found for campaign ${campaignId}`);
+      logger.error(`[Retry Pass] Agent not found for campaign ${campaignId}`);
       return;
     }
 
@@ -3251,7 +3251,7 @@ export class CampaignExecutor {
         .where(inArray(contacts.id, dueContactIds));
 
     } catch (err: any) {
-      console.error(`[Retry Pass] Failed for campaign "${campaign.name}": ${err.message}`);
+      logger.error(`[Retry Pass] Failed for campaign "${campaign.name}": ${err.message}`);
       // Do NOT update contacts — leave nextRetryAt intact so they can be retried again
     }
   }
@@ -3327,7 +3327,7 @@ export class CampaignExecutor {
     // Fire-and-forget via Plivo batch service
     const plivoBatchService = PlivoBatchCallingService.getInstance(`${campaign.id}-retry${pass}`);
     plivoBatchService.executeCampaign(campaign.id).catch((err: any) => {
-      console.error(`[Retry Pass Plivo] Error: ${err.message}`);
+      logger.error(`[Retry Pass Plivo] Error: ${err.message}`);
     });
 
     logger.info(`✅ [Retry Pass] Plivo retry pass ${pass} initiated for ${dueContacts.length} contacts`);
@@ -3401,7 +3401,7 @@ export class CampaignExecutor {
 
     const twilioOpenAIBatchService = TwilioOpenAIBatchCallingService.getInstance(`${campaign.id}-retry${pass}`);
     twilioOpenAIBatchService.executeCampaign(campaign.id).catch((err: any) => {
-      console.error(`[Retry Pass Twilio+OpenAI] Error: ${err.message}`);
+      logger.error(`[Retry Pass Twilio+OpenAI] Error: ${err.message}`);
     });
 
     logger.info(`✅ [Retry Pass] Twilio+OpenAI retry pass ${pass} initiated for ${dueContacts.length} contacts`);

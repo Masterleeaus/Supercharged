@@ -76,13 +76,13 @@ export async function resyncSipTrunkConfigs(): Promise<void> {
         logger.info(`   [SIP Config Resync] Updated [redacted] (media_encryption: ${phone.media_encryption})`);
       } catch (error: any) {
         failed++;
-        console.warn(`   [SIP Config Resync] Failed ${phone.phone_number}: ${error.message}`);
+        logger.warn(`   [SIP Config Resync] Failed [redacted]: ${error.message}`);
       }
     }
 
     logger.info(`[SIP Config Resync] Complete: ${updated} updated, ${failed} failed`);
   } catch (error: any) {
-    console.warn(`[SIP Config Resync] Failed: ${error.message}`);
+    logger.warn(`[SIP Config Resync] Failed: ${error.message}`);
   }
 }
 
@@ -111,7 +111,7 @@ export async function resyncSipAgentTransferTools(): Promise<void> {
       try {
         const credential = await ElevenLabsPoolService.getCredentialForAgent(agent.id);
         if (!credential) {
-          console.warn(`   ⚠️  No credential for agent ${agent.name} (${agent.id}), skipping`);
+          logger.warn(`   ⚠️  No credential for agent ${agent.name} (${agent.id}), skipping`);
           continue;
         }
 
@@ -145,13 +145,13 @@ export async function resyncSipAgentTransferTools(): Promise<void> {
           logger.info(`   ✅ Resynced agent tools: ${agent.name}`);
         }
       } catch (error: any) {
-        console.warn(`   ⚠️  Failed to resync agent ${agent.name}: ${error.message}`);
+        logger.warn(`   ⚠️  Failed to resync agent ${agent.name}: ${error.message}`);
       }
     }
 
     logger.info(`📞 [SIP Resync] Complete`);
   } catch (error: any) {
-    console.warn(`⚠️  [SIP Resync] Failed: ${error.message}`);
+    logger.warn(`⚠️  [SIP Resync] Failed: ${error.message}`);
   }
 }
 
@@ -187,7 +187,7 @@ export async function resyncAppointmentWebhookUrls(): Promise<void> {
       try {
         const credential = await ElevenLabsPoolService.getCredentialForAgent(agent.id);
         if (!credential) {
-          console.warn(`   ⚠️ No credential for agent ${agent.name} (${agent.id}), skipping`);
+          logger.warn(`   ⚠️ No credential for agent ${agent.name} (${agent.id}), skipping`);
           continue;
         }
 
@@ -197,13 +197,13 @@ export async function resyncAppointmentWebhookUrls(): Promise<void> {
         logger.info(`   ✅ Resynced appointment webhook URL: ${agent.name}`);
       } catch (error: any) {
         failed++;
-        console.warn(`   ⚠️ Failed to resync appointment for ${agent.name}: ${error.message}`);
+        logger.warn(`   ⚠️ Failed to resync appointment for ${agent.name}: ${error.message}`);
       }
     }
 
     logger.info(`📅 [Appointment Resync] Complete: ${updated} updated, ${failed} failed`);
   } catch (error: any) {
-    console.warn(`⚠️ [Appointment Resync] Failed: ${error.message}`);
+    logger.warn(`⚠️ [Appointment Resync] Failed: ${error.message}`);
   }
 }
 
@@ -272,7 +272,7 @@ export async function resyncFormWebhookUrls(): Promise<void> {
         // Build form tools
         const credential = await ElevenLabsPoolService.getCredentialForAgent(agent.id);
         if (!credential) {
-          console.warn(`   ⚠️ No credential for agent ${agent.name} (${agent.id}), skipping form resync`);
+          logger.warn(`   ⚠️ No credential for agent ${agent.name} (${agent.id}), skipping form resync`);
           skipped++;
           continue;
         }
@@ -297,7 +297,7 @@ export async function resyncFormWebhookUrls(): Promise<void> {
               .where(eq(forms.id, formId))
               .limit(1);
             if (!formRecord) {
-              console.warn(`   ⚠️ [Form Resync] Form ${formId} not found in DB, skipping node`);
+              logger.warn(`   ⚠️ [Form Resync] Form ${formId} not found in DB, skipping node`);
               continue;
             }
             formName = formRecord.name;
@@ -315,7 +315,7 @@ export async function resyncFormWebhookUrls(): Promise<void> {
               order: f.order ?? 0,
             }));
           } catch (fieldErr: any) {
-            console.warn(`   ⚠️ [Form Resync] Failed to load fields for form ${formId}: ${(fieldErr as any).message}, skipping node`);
+            logger.warn(`   ⚠️ [Form Resync] Failed to load fields for form ${formId}: ${(fieldErr as any).message}, skipping node`);
             continue;
           }
 
@@ -336,13 +336,13 @@ export async function resyncFormWebhookUrls(): Promise<void> {
         logger.info(`   ✅ Resynced form webhook URL(s) for: ${agent.name} (${newFormTools.length} form tool(s))`);
       } catch (error: any) {
         failed++;
-        console.warn(`   ⚠️ Failed to resync form webhooks for ${agent.name}: ${error.message}`);
+        logger.warn(`   ⚠️ Failed to resync form webhooks for ${agent.name}: ${error.message}`);
       }
     }
 
     logger.info(`📋 [Form Resync] Complete: ${updated} updated, ${skipped} skipped, ${failed} failed`);
   } catch (error: any) {
-    console.warn(`⚠️ [Form Resync] Failed: ${error.message}`);
+    logger.warn(`⚠️ [Form Resync] Failed: ${error.message}`);
   }
 }
 
@@ -444,12 +444,12 @@ export async function resyncMessagingWebhookUrls(): Promise<void> {
         logger.info(`   ✅ Resynced messaging webhook URLs for: ${agent.name}`);
       } catch (error: any) {
         failed++;
-        console.warn(`   ⚠️ Failed to resync messaging for ${agent.name}: ${error.message}`);
+        logger.warn(`   ⚠️ Failed to resync messaging for ${agent.name}: ${error.message}`);
       }
     }
 
     logger.info(`💬 [Messaging Resync] Complete: ${updated} updated, ${skipped} skipped, ${failed} failed`);
   } catch (error: any) {
-    console.warn(`⚠️ [Messaging Resync] Failed: ${error.message}`);
+    logger.warn(`⚠️ [Messaging Resync] Failed: ${error.message}`);
   }
 }

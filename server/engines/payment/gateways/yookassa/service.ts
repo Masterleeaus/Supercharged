@@ -94,7 +94,7 @@ export async function testYookassaConnection(): Promise<{ success: boolean; erro
     }
     return { success: false, error: `Connection check failed with status: ${response.status}` };
   } catch (error: any) {
-    console.error('❌ [YooKassa] Connection test failed:', error.message);
+    logger.error('❌ [YooKassa] Connection test failed:', error.message);
     return { success: false, error: error.response?.data?.description || error.message };
   }
 }
@@ -227,7 +227,7 @@ export async function processYookassaRefund(
 
     return { success: false, error: 'Refund failed' };
   } catch (error: any) {
-    console.error(`❌ [YooKassa] Refund failed:`, error.message);
+    logger.error(`❌ [YooKassa] Refund failed:`, error.message);
     return { success: false, error: error.response?.data?.description || error.message };
   }
 }

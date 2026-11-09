@@ -12,6 +12,7 @@ import { db } from "../db";
 import { eq } from "drizzle-orm";
 import { users } from "../../shared/schema";
 import { isCompanyId } from "../infrastructure/database/tenant-context";
+import { logger } from '../utils/logger.ts';
 
 export async function lookupParentCompanyId(parentUserId: string): Promise<string | undefined> {
   try {
@@ -23,7 +24,7 @@ export async function lookupParentCompanyId(parentUserId: string): Promise<strin
     const companyId: unknown = row?.companyId;
     return isCompanyId(companyId) ? companyId : undefined;
   } catch (error) {
-    console.error("[HybridAuth] Parent company lookup failed; companyId left unset:", error);
+    logger.error("[HybridAuth] Parent company lookup failed; companyId left unset:", error);
     return undefined;
   }
 }

@@ -126,7 +126,7 @@ export class VoiceSyncService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`❌ Failed to sync voice ${voiceId}: ${response.status} - ${errorText}`);
+        logger.error(`❌ Failed to sync voice ${voiceId}: ${response.status} - ${errorText}`);
         
         await db.insert(syncedVoices).values({
           credentialId: credential.id,
@@ -163,7 +163,7 @@ export class VoiceSyncService {
       logger.info(`✅ Voice ${voiceId} synced successfully to credential ${credential.id}`);
       return { success: true };
     } catch (error) {
-      console.error(`❌ Error syncing voice ${voiceId}:`, error);
+      logger.error(`❌ Error syncing voice ${voiceId}:`, error);
       return { success: false, error: String(error) };
     }
   }

@@ -19,6 +19,7 @@ import { getRedisConnection, closeRedisConnection, isRedisAvailable, getRedisHea
 import { closeAllQueues, getCampaignCallsQueue, getCampaignSchedulerQueue, getCampaignRecoveryQueue, addCampaignCallJobs, getQueueStats, QUEUE_NAMES, CampaignCallJob } from './queues';
 import { startCallWorker, stopCallWorker, getCallWorker } from './call-worker';
 import { startSchedulerWorker, startRecoveryWorker, setupRecurringJobs, stopSchedulerWorkers } from './scheduler-worker';
+import { logger } from '../../utils/logger.ts';
 
 let isInitialized = false;
 
@@ -28,24 +29,24 @@ export function isBullMQEnabled(): boolean {
 
 export async function initializeBullMQ(): Promise<boolean> {
   if (!isBullMQEnabled()) {
-    console.log('[BullMQ] Disabled (set ENABLE_BULLMQ=true and REDIS_URL to enable)');
+    logger.info('[BullMQ] Disabled (set ENABLE_BULLMQ=true and REDIS_URL to enable)');
     return false;
   }
   
   if (isInitialized) {
-    console.log('[BullMQ] Already initialized');
+    logger.info('[BullMQ] Already initialized');
     return true;
   }
   
   try {
-    console.log('[BullMQ] Initializing...');
+    logger.info('[BullMQ] Initializing...');
     
     getRedisConnection();
     
     await new Promise(resolve => setTimeout(resolve, 1000));
     
     if (!isRedisAvailable()) {
-      console.warn('[BullMQ] Redis not ready, initialization deferred');
+      logger.warn('[BullMQ] Redis not ready, initialization deferred');
       return false;
     }
     
@@ -56,11 +57,11 @@ export async function initializeBullMQ(): Promise<boolean> {
     await setupRecurringJobs();
     
     isInitialized = true;
-    console.log('[BullMQ] Initialization complete');
+    logger.info('[BullMQ] Initialization complete');
     return true;
     
   } catch (error: any) {
-    console.error('[BullMQ] Initialization failed:', error.message);
+    logger.error('[BullMQ] Initialization failed:', error.message);
     return false;
   }
 }
@@ -70,7 +71,7 @@ export async function shutdownBullMQ(): Promise<void> {
     return;
   }
   
-  console.log('[BullMQ] Shutting down...');
+  logger.info('[BullMQ] Shutting down...');
   
   try {
     await stopCallWorker();
@@ -79,9 +80,9 @@ export async function shutdownBullMQ(): Promise<void> {
     await closeRedisConnection();
     
     isInitialized = false;
-    console.log('[BullMQ] Shutdown complete');
+    logger.info('[BullMQ] Shutdown complete');
   } catch (error: any) {
-    console.error('[BullMQ] Shutdown error:', error.message);
+    logger.error('[BullMQ] Shutdown error:', error.message);
   }
 }
 

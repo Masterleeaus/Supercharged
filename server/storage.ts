@@ -500,7 +500,7 @@ export class DbStorage implements IStorage {
         } as Agent;
       }
     } catch (err) {
-      console.error("Error fetching agent from ve_voice_agents:", err);
+      logger.error("Error fetching agent from ve_voice_agents:", err);
     }
     return undefined;
   }
@@ -1267,7 +1267,7 @@ export class DbStorage implements IStorage {
         };
       }
     } catch (err) {
-      console.error("Error fetching from ve_sessions:", err);
+      logger.error("Error fetching from ve_sessions:", err);
     }
 
     return undefined;
@@ -1667,7 +1667,7 @@ export class DbStorage implements IStorage {
         agent: r.agent_id ? { id: r.agent_id, name: r.agent_name || 'Custom Voice Agent' } : null,
       }));
     } catch (err) {
-      console.error("Error fetching ve_sessions in getUserCallsWithDetails:", err);
+      logger.error("Error fetching ve_sessions in getUserCallsWithDetails:", err);
     }
 
     // Merge and sort by createdAt descending
@@ -1983,7 +1983,7 @@ export class DbStorage implements IStorage {
         contactId: r.contact_id,
       }));
     } catch (err) {
-      console.error("Error fetching veMeta in getUserCallsPaginated:", err);
+      logger.error("Error fetching veMeta in getUserCallsPaginated:", err);
     }
 
     // Drop pre-created `calls` placeholders when the real engine row exists (same campaign + contact).
@@ -2486,7 +2486,7 @@ export class DbStorage implements IStorage {
       `);
       logger.info(`✅ [Settings] Saved setting '${key}' successfully`);
     } catch (error: any) {
-      console.error(`❌ [Settings] Failed to save setting '${key}':`, error.message);
+      logger.error(`❌ [Settings] Failed to save setting '${key}':`, error.message);
       throw new Error(`Failed to save setting '${key}': ${error.message}`);
     }
   }

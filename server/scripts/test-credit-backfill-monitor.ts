@@ -27,6 +27,7 @@ import {
   executeBackfill,
   type UnbilledCall,
 } from "../services/credit-backfill-monitor";
+import { logger } from '../utils/logger.ts';
 
 interface Fixture {
   userId: string;
@@ -128,10 +129,10 @@ async function main(): Promise<void> {
       `dry-run must not write credit_transactions, got ${txns.length}`,
     );
 
-    console.log("✅ credit-backfill-monitor safety assertions passed");
+    logger.info("✅ credit-backfill-monitor safety assertions passed");
   } catch (err: any) {
     failed = 1;
-    console.error(err?.stack || err?.message || String(err));
+    logger.error(err?.stack || err?.message || String(err));
   } finally {
     await teardown(fx);
   }
@@ -139,6 +140,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((err) => {
-  console.error(err);
+  logger.error(err);
   process.exit(1);
 });

@@ -128,7 +128,7 @@ async function isPluginEnabled(pluginName: string): Promise<boolean> {
     // Default: enabled
     return true;
   } catch (error) {
-    console.warn(`[Plugin Loader] Could not check plugin status for ${pluginName}, defaulting to enabled`);
+    logger.warn(`[Plugin Loader] Could not check plugin status for ${pluginName}, defaulting to enabled`);
     return true;
   }
 }
@@ -141,7 +141,7 @@ export function discoverPlugins(): PluginManifest[] {
   const seenNames = new Set<string>();
   
   if (!fs.existsSync(pluginsDir)) {
-    console.log('[Plugin Loader] No plugins directory found');
+    logger.info('[Plugin Loader] No plugins directory found');
     return plugins;
   }
   
@@ -153,7 +153,7 @@ export function discoverPlugins(): PluginManifest[] {
     const manifestPath = path.join(pluginsDir, entry.name, 'plugin.json');
     
     if (!fs.existsSync(manifestPath)) {
-      console.log(`[Plugin Loader] Skipping ${entry.name}: no plugin.json found`);
+      logger.info(`[Plugin Loader] Skipping ${entry.name}: no plugin.json found`);
       continue;
     }
     
@@ -161,13 +161,13 @@ export function discoverPlugins(): PluginManifest[] {
       const manifestContent = fs.readFileSync(manifestPath, 'utf-8');
       const manifest = JSON.parse(manifestContent) as PluginManifest;
       if (seenNames.has(manifest.name)) {
-        console.warn(`[Plugin Loader] Skipping duplicate plugin '${manifest.name}' in directory '${entry.name}'`);
+        logger.warn(`[Plugin Loader] Skipping duplicate plugin '${manifest.name}' in directory '${entry.name}'`);
         continue;
       }
       seenNames.add(manifest.name);
       plugins.push(manifest);
     } catch (error) {
-      console.error(`[Plugin Loader] Error parsing ${manifestPath}:`, error);
+      logger.error(`[Plugin Loader] Error parsing ${manifestPath}:`, error);
     }
   }
   
@@ -181,7 +181,7 @@ export async function loadPlugins(app: Express, options: PluginLoaderOptions): P
   const manifests = discoverPlugins();
   const results: LoadedPlugin[] = [];
   
-  console.log(`[Plugin Loader] Found ${manifests.length} plugin(s)`);
+  logger.info(`[Plugin Loader] Found ${manifests.length} plugin(s)`);
   
   for (const manifest of manifests) {
     const pluginPath = path.join(pluginsDir, manifest.name);
@@ -195,7 +195,7 @@ export async function loadPlugins(app: Express, options: PluginLoaderOptions): P
     };
     
     if (!enabled) {
-      console.log(`[Plugin Loader] Plugin '${manifest.displayName}' is disabled`);
+      logger.info(`[Plugin Loader] Plugin '${manifest.displayName}' is disabled`);
       loadedPlugins.set(manifest.name, loadedPlugin);
       results.push(loadedPlugin);
       continue;
@@ -204,7 +204,7 @@ export async function loadPlugins(app: Express, options: PluginLoaderOptions): P
     // Skip if plugin was already registered externally (backward compatibility)
     if (externallyRegisteredPlugins.has(manifest.name)) {
       loadedPlugin.registered = true;
-      console.log(`[Plugin Loader] Plugin '${manifest.displayName}' already registered externally`);
+      logger.info(`[Plugin Loader] Plugin '${manifest.displayName}' already registered externally`);
       loadedPlugins.set(manifest.name, loadedPlugin);
       results.push(loadedPlugin);
       continue;
@@ -219,7 +219,7 @@ export async function loadPlugins(app: Express, options: PluginLoaderOptions): P
       if (manifest.entryPoint.endsWith('.ts')) {
         if (canTs) {
           if (fs.existsSync(entryPointPath)) {
-            console.log(`[Plugin Loader] ${runtimeLabel}: using TypeScript source for '${manifest.name}'`);
+            logger.info(`[Plugin Loader] ${runtimeLabel}: using TypeScript source for '${manifest.name}'`);
           } else {
             const baseName = manifest.entryPoint.replace(/\.ts$/, '');
             const jsEntryPointPath = path.join(pluginPath, baseName + '.js');
@@ -227,13 +227,13 @@ export async function loadPlugins(app: Express, options: PluginLoaderOptions): P
             const mjsEntryPointPath = path.join(pluginPath, baseName + '.mjs');
             if (fs.existsSync(jsEntryPointPath)) {
               entryPointPath = jsEntryPointPath;
-              console.log(`[Plugin Loader] ${runtimeLabel}: using compiled JS for '${manifest.name}' (.ts not found)`);
+              logger.info(`[Plugin Loader] ${runtimeLabel}: using compiled JS for '${manifest.name}' (.ts not found)`);
             } else if (fs.existsSync(cjsEntryPointPath)) {
               entryPointPath = cjsEntryPointPath;
-              console.log(`[Plugin Loader] ${runtimeLabel}: using compiled CJS for '${manifest.name}' (.ts not found)`);
+              logger.info(`[Plugin Loader] ${runtimeLabel}: using compiled CJS for '${manifest.name}' (.ts not found)`);
             } else if (fs.existsSync(mjsEntryPointPath)) {
               entryPointPath = mjsEntryPointPath;
-              console.log(`[Plugin Loader] ${runtimeLabel}: using compiled MJS for '${manifest.name}' (.ts not found)`);
+              logger.info(`[Plugin Loader] ${runtimeLabel}: using compiled MJS for '${manifest.name}' (.ts not found)`);
             }
           }
         } else {
@@ -243,15 +243,15 @@ export async function loadPlugins(app: Express, options: PluginLoaderOptions): P
           const mjsEntryPointPath = path.join(pluginPath, baseName + '.mjs');
           if (fs.existsSync(jsEntryPointPath)) {
             entryPointPath = jsEntryPointPath;
-            console.log(`[Plugin Loader] ${runtimeLabel}: using compiled JS for '${manifest.name}'`);
+            logger.info(`[Plugin Loader] ${runtimeLabel}: using compiled JS for '${manifest.name}'`);
           } else if (fs.existsSync(cjsEntryPointPath)) {
             entryPointPath = cjsEntryPointPath;
-            console.log(`[Plugin Loader] ${runtimeLabel}: using compiled CJS for '${manifest.name}'`);
+            logger.info(`[Plugin Loader] ${runtimeLabel}: using compiled CJS for '${manifest.name}'`);
           } else if (fs.existsSync(mjsEntryPointPath)) {
             entryPointPath = mjsEntryPointPath;
-            console.log(`[Plugin Loader] ${runtimeLabel}: using compiled MJS for '${manifest.name}'`);
+            logger.info(`[Plugin Loader] ${runtimeLabel}: using compiled MJS for '${manifest.name}'`);
           } else if (fs.existsSync(entryPointPath)) {
-            console.log(`[Plugin Loader] ${runtimeLabel}: WARNING - only .ts available for '${manifest.name}', import may fail`);
+            logger.info(`[Plugin Loader] ${runtimeLabel}: WARNING - only .ts available for '${manifest.name}', import may fail`);
           }
         }
       }
@@ -262,14 +262,14 @@ export async function loadPlugins(app: Express, options: PluginLoaderOptions): P
         pluginModule = await import(entryPointUrl);
       } catch (importErr: any) {
         if (entryPointPath.endsWith('.ts') && importErr?.code === 'ERR_UNKNOWN_FILE_EXTENSION') {
-          console.warn(`[Plugin Loader] TS import failed for '${manifest.name}' (ERR_UNKNOWN_FILE_EXTENSION), falling back to compiled JS`);
+          logger.warn(`[Plugin Loader] TS import failed for '${manifest.name}' (ERR_UNKNOWN_FILE_EXTENSION), falling back to compiled JS`);
           resetCanImportTypeScript();
           const basePath = entryPointPath.replace(/\.ts$/, '');
           let fallbackLoaded = false;
           for (const ext of ['.js', '.cjs', '.mjs']) {
             const fallbackPath = basePath + ext;
             if (fs.existsSync(fallbackPath)) {
-              console.log(`[Plugin Loader] Using fallback: ${path.basename(fallbackPath)} for '${manifest.name}'`);
+              logger.info(`[Plugin Loader] Using fallback: ${path.basename(fallbackPath)} for '${manifest.name}'`);
               pluginModule = await import(pathToFileURL(fallbackPath).href);
               fallbackLoaded = true;
               break;
@@ -319,9 +319,9 @@ export async function loadPlugins(app: Express, options: PluginLoaderOptions): P
               TwilioOpenAICallService: TwilioOpenAICallServiceRef,
             },
           };
-          console.log(`[Plugin Loader] Injected call services for '${manifest.name}'`);
+          logger.info(`[Plugin Loader] Injected call services for '${manifest.name}'`);
         } catch (err: any) {
-          console.warn(`[Plugin Loader] Could not inject call services for '${manifest.name}': ${err.message}`);
+          logger.warn(`[Plugin Loader] Could not inject call services for '${manifest.name}': ${err.message}`);
         }
       }
 
@@ -333,7 +333,7 @@ export async function loadPlugins(app: Express, options: PluginLoaderOptions): P
       }
 
       loadedPlugin.registered = true;
-      console.log(`[Plugin Loader] Registered plugin '${manifest.displayName}' v${manifest.version}`);
+      logger.info(`[Plugin Loader] Registered plugin '${manifest.displayName}' v${manifest.version}`);
       
       // Check for required database tables and auto-migrate if missing
       const requiredTables = manifest.database?.tables || [];
@@ -374,14 +374,14 @@ export async function loadPlugins(app: Express, options: PluginLoaderOptions): P
 
           if (missingTables.length > 0 || unappliedMigrations.length > 0) {
             if (missingTables.length > 0) {
-              console.log(`[Plugin Loader] Plugin '${manifest.name}' has missing tables: ${missingTables.join(', ')}`);
+              logger.info(`[Plugin Loader] Plugin '${manifest.name}' has missing tables: ${missingTables.join(', ')}`);
             }
             if (unappliedMigrations.length > 0) {
-              console.log(`[Plugin Loader] Plugin '${manifest.name}' has unapplied migrations: ${unappliedMigrations.join(', ')}`);
+              logger.info(`[Plugin Loader] Plugin '${manifest.name}' has unapplied migrations: ${unappliedMigrations.join(', ')}`);
             }
             
             if (migrations.length > 0) {
-              console.log(`[Plugin Loader] Running auto-migration for '${manifest.name}'...`);
+              logger.info(`[Plugin Loader] Running auto-migration for '${manifest.name}'...`);
               let migrationSuccess = true;
               
               for (const migrationFile of migrations) {
@@ -391,30 +391,30 @@ export async function loadPlugins(app: Express, options: PluginLoaderOptions): P
                 }
 
                 if (migrationFile.includes('..') || path.isAbsolute(migrationFile) || !migrationFile.endsWith('.sql')) {
-                  console.warn(`[Plugin Loader] Skipping unsafe migration path: ${migrationFile}`);
+                  logger.warn(`[Plugin Loader] Skipping unsafe migration path: ${migrationFile}`);
                   continue;
                 }
                 const migrationPath = path.join(pluginPath, migrationFile);
                 const resolvedMigPath = path.resolve(migrationPath);
                 if (!resolvedMigPath.startsWith(pluginPath + path.sep)) {
-                  console.warn(`[Plugin Loader] Migration path escapes plugin directory: ${migrationFile}`);
+                  logger.warn(`[Plugin Loader] Migration path escapes plugin directory: ${migrationFile}`);
                   continue;
                 }
                 if (fs.existsSync(migrationPath)) {
                   try {
                     const stat = fs.lstatSync(migrationPath);
                     if (stat.isSymbolicLink()) {
-                      console.warn(`[Plugin Loader] Skipping symlinked migration: ${migrationFile}`);
+                      logger.warn(`[Plugin Loader] Skipping symlinked migration: ${migrationFile}`);
                       continue;
                     }
                     const realMigPath = fs.realpathSync(migrationPath);
                     const realPluginPath = fs.realpathSync(pluginPath);
                     if (!realMigPath.startsWith(realPluginPath + path.sep)) {
-                      console.warn(`[Plugin Loader] Migration real path escapes plugin directory: ${migrationFile}`);
+                      logger.warn(`[Plugin Loader] Migration real path escapes plugin directory: ${migrationFile}`);
                       continue;
                     }
                   } catch {
-                    console.warn(`[Plugin Loader] Could not verify migration path safety: ${migrationFile}`);
+                    logger.warn(`[Plugin Loader] Could not verify migration path safety: ${migrationFile}`);
                     continue;
                   }
                   try {
@@ -428,25 +428,25 @@ export async function loadPlugins(app: Express, options: PluginLoaderOptions): P
                       ON CONFLICT (plugin_name, migration_file) DO NOTHING
                     `);
                     
-                    console.log(`[Plugin Loader] ✅ Migration applied: ${migrationFile}`);
+                    logger.info(`[Plugin Loader] ✅ Migration applied: ${migrationFile}`);
                   } catch (migErr: any) {
-                    console.error(`[Plugin Loader] ❌ Migration failed for ${migrationFile}:`, migErr.message);
+                    logger.error(`[Plugin Loader] ❌ Migration failed for ${migrationFile}:`, migErr.message);
                     migrationSuccess = false;
                   }
                 } else {
-                  console.warn(`[Plugin Loader] ⚠️  Migration file not found: ${migrationPath}`);
+                  logger.warn(`[Plugin Loader] ⚠️  Migration file not found: ${migrationPath}`);
                 }
               }
               
               if (migrationSuccess) {
-                console.log(`[Plugin Loader] ✅ Auto-migration complete for '${manifest.name}'`);
+                logger.info(`[Plugin Loader] ✅ Auto-migration complete for '${manifest.name}'`);
               } else {
-                console.warn(`[Plugin Loader] ⚠️  Some migrations failed for '${manifest.name}'. Check logs above.`);
-                console.warn(`   Manual fix: psql $DATABASE_URL -f plugins/${manifest.name}/migrations/*.sql`);
+                logger.warn(`[Plugin Loader] ⚠️  Some migrations failed for '${manifest.name}'. Check logs above.`);
+                logger.warn(`   Manual fix: psql $DATABASE_URL -f plugins/${manifest.name}/migrations/*.sql`);
               }
             } else {
-              console.warn(`[Plugin Loader] ⚠️  No migration files defined for '${manifest.name}'`);
-              console.warn(`   Missing tables: ${missingTables.join(', ')}`);
+              logger.warn(`[Plugin Loader] ⚠️  No migration files defined for '${manifest.name}'`);
+              logger.warn(`   Missing tables: ${missingTables.join(', ')}`);
             }
           }
         } catch (err) {
@@ -456,7 +456,7 @@ export async function loadPlugins(app: Express, options: PluginLoaderOptions): P
       
     } catch (error: any) {
       loadedPlugin.error = error.message;
-      console.error(`[Plugin Loader] Failed to load plugin '${manifest.name}':`, error);
+      logger.error(`[Plugin Loader] Failed to load plugin '${manifest.name}':`, error);
     }
     
     loadedPlugins.set(manifest.name, loadedPlugin);
@@ -535,9 +535,9 @@ export async function setPluginEnabled(pluginName: string, enabled: boolean): Pr
       plugin.enabled = enabled;
     }
     
-    console.log(`[Plugin Loader] Plugin '${pluginName}' ${enabled ? 'enabled' : 'disabled'}`);
+    logger.info(`[Plugin Loader] Plugin '${pluginName}' ${enabled ? 'enabled' : 'disabled'}`);
   } catch (error) {
-    console.error(`[Plugin Loader] Failed to set plugin status:`, error);
+    logger.error(`[Plugin Loader] Failed to set plugin status:`, error);
     throw error;
   }
 }

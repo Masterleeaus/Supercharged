@@ -20,6 +20,7 @@ import { REMINDER_CHANNELS } from "../bookings/types.ts";
 import type { HttpClient, ReminderSendResult, ReminderSender } from "../contracts/index.ts";
 import { REMINDER_LEAD_MAX_MINUTES, REMINDER_LEAD_MIN_MINUTES, type ReminderLedgerStore } from "./types.ts";
 import { MINUTE_MS } from "./util.ts";
+import { logger } from '../../../utils/logger.ts';
 
 export interface ReminderConfig {
   /** Channels to send on. Each booking gets one reminder per channel. */
@@ -188,7 +189,7 @@ export function createReminderDispatcher(deps: ReminderDispatcherDeps): Reminder
                 try {
                   await deps.onSent({ companyId: scope, appointmentId: appointment.id, channel, sentAt: now() });
                 } catch (hookError) {
-                  console.error("[reminders] onSent hook failed", hookError instanceof Error ? hookError.message : "unknown");
+                  logger.error("[reminders] onSent hook failed", hookError instanceof Error ? hookError.message : "unknown");
                 }
               }
             } else if (result.retryable) {
