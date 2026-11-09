@@ -5,7 +5,7 @@ import { type AuthRequest } from "../../middleware/auth";
 import { flows } from "@shared/schema";
 import { eq, and, or, sql, isNull } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { flowTemplates } from "../../services/flow-templates";
+import { flowTemplates, templateNodesForStorage } from "../../services/flow-templates";
 import { storage } from "../../storage";
 import { companyForRead } from "./shared";
 
@@ -64,7 +64,6 @@ export function registerFlowTemplateRoutes(router: Router): void {
 
       const newFlowId = nanoid();
       const now = new Date();
-      // TODO: Drizzle type inference - template nodes/edges are typed but Drizzle insert expects exact match
       const [newFlow] = await db
         .insert(flows)
         .values({
@@ -73,13 +72,13 @@ export function registerFlowTemplateRoutes(router: Router): void {
           companyId,
           name: name || template.name,
           description: template.description || null,
-          nodes: template.nodes,
+          nodes: templateNodesForStorage(template.nodes),
           edges: template.edges,
           isActive: false,
           isTemplate: false,
           createdAt: now,
           updatedAt: now,
-        } as typeof flows.$inferInsert)
+        })
         .returning();
 
       res.json(newFlow);
