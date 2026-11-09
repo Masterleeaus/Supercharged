@@ -25,3 +25,11 @@ test('PostgreSQL: restricted role cannot read other-tenant rows through direct S
   }finally{client.release();}
  }finally{await f.close();}
 });
+
+test('PostgreSQL: independently bound approval runners cannot write across companies',{skip:!enabled},async()=>{
+ const f=fixture();try{
+  const {inboxTransactionsFor}=await import('../../server/modules/inbox/sql-transaction-runner.ts');
+  const forCompany=inboxTransactionsFor(f.pool);
+  await assert.rejects(forCompany(A).runInTransaction(tx=>tx.updateThread(B,'foreign',{status:'closed'})),/different company/);
+ }finally{await f.close();}
+});

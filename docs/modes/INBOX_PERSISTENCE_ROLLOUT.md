@@ -13,3 +13,7 @@ The `inbox-postgres` GitHub Actions job runs the original `0010a_inbox.sql` foll
 ## Pass 16: activation gates
 
 Pass 15's disposable PostgreSQL suite passed. Pass 16 adds a read-only live-schema readiness verifier plus an explicit SQL Inbox service constructor. The constructor requires approval and atomic transaction ports, but neither enables provider transport nor changes `COMMS_INBOX_ENABLED`. Before enabling routes, configure approval transactions per authenticated company and verify actual deployment role membership and audit events.
+
+## Pass 17: approved-send transaction isolation
+
+The existing Inbox SQL store and approval-write code are reused. The newly exported `inboxTransactionsFor(pool)` binds one transaction runner per request company; its whole callback uses one restricted PostgreSQL connection and rejects foreign company arguments. The production constructor now uses that factory automatically. This does not yet connect a production approval policy or provider dispatcher, so Inbox remains off.

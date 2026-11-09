@@ -471,3 +471,18 @@ test('verified Inbox constructor refuses missing RLS and approvals rather than s
  const {createVerifiedInboxService}=await import('../../server/modules/inbox/production-service.ts');
  await assert.rejects(createVerifiedInboxService({pool:{connect:async()=>({})}}),/approval port/);
 });
+
+test('approval decisions resolve the transaction runner using the request company',async()=>{
+ const store=new InMemoryInboxStore(),approvals=new InMemoryApprovalPort();
+ const base=createInMemoryTransactionRunner(store,approvals),companies=[];
+ let sequence=0;
+ const service=createInboxService({store,approvals,transactionsFor:companyId=>{companies.push(companyId);return base;},newId:()=>`factory-id-${++sequence}`});
+ const input={channel:'sms',address:'+61400000001',body:'Hello',externalId:'factory-inbound'};
+ const result=await service.recordInbound(CO_B,input);
+ await service.assignThread(CO_B,AGENT,result.thread.id,{kind:'agent',id:AGENT.id});
+ const draft=await service.createDraft(CO_B,AGENT,result.thread.id,'Approved reply');
+ const awaiting=await service.requestSend(CO_B,AGENT,draft.id);
+ approvals.decide(awaiting.approvalId,'approved');
+ assert.equal((await service.applyApprovalDecision(CO_B,draft.id)).status,'queued');
+ assert.deepEqual(companies,[CO_B]);
+});

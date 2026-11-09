@@ -17,3 +17,11 @@ test('failed database work rolls back and releases a checked-out client',async()
  await assert.rejects(createSqlInboxStore(pool).findMessage(A,'broken'),/db failure/);
  assert.ok(commands.includes('ROLLBACK'));assert.equal(releases,1);
 });
+
+test('company-bound approval transaction runner checks out one connection',async()=>{
+ const {inboxTransactionsFor}=await import('../../server/modules/inbox/sql-transaction-runner.ts');
+ let connected=0,released=0;
+ const pool={async connect(){connected++;return{query:async()=>({rows:[]}),release(){released++;}};}};
+ await inboxTransactionsFor(pool)(A).runInTransaction(async()=>null);
+ assert.equal(connected,1);assert.equal(released,1);
+});

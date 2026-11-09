@@ -5,3 +5,7 @@
 `createVerifiedInboxService` requires an explicit PostgreSQL pool, schema inspector, approval port and atomic transaction runner. It refuses missing security and never substitutes in-memory persistence. The constructor is opt-in and does not mount Inbox or enable sends.
 
 The approval port and transaction runner remain an integration boundary requiring tenant-correct per-request composition for multi-company traffic. No production route is activated in this pass. The PostgreSQL CI job verifies catalog readiness and inbound-service deduplication on a disposable database.
+
+## Pass 17: company-scoped approval runner
+
+The verified production constructor now derives per-company atomic approval runners from the injected PostgreSQL pool. No caller may supply a fixed-company runner for a shared production service. The approved-send path selects the transaction from the validated company ID before attempting the approval claim; wrong-company updates fail and roll back.
