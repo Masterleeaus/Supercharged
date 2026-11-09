@@ -53,12 +53,8 @@ const { Pool } = pg;
 //   required: true  - a missing file exits 1 before any database work.
 //   required: false - a missing file prints a loud warning and is skipped.
 //
-// 008 and 009 are OPTIONAL. Their files are not in this repository (not in git
-// history and not in the Desk archives, checked 2026-11-09). The schema they
-// create (ve_session_id, ve_sessions, voice engine tables) is referenced by
-// shared/schema.ts but is NOT created by any committed migration. The owner must
-// supply that SQL. Do not invent it. Until then, a database built only from this
-// runner will lack those tables.
+// 008 and 009 are REQUIRED. They create the Custom Voice Engine (ve_*) tables and the
+// leads / ve_sessions / ve_voice_agents columns those tables use. Both files are committed.
 const MIGRATIONS = [
   { file: '0001_add_missing_columns.sql', required: true },
   { file: '0002_add_google_sheets_credentials.sql', required: true },
@@ -67,10 +63,8 @@ const MIGRATIONS = [
   { file: '0005_add_missing_agent_messaging_columns.sql', required: true },
   { file: '0006_add_default_campaign_type.sql', required: true },
   { file: '0007_add_external_fonoster_phone_id.sql', required: true },
-  // OPTIONAL: file not in repo. Schema must be supplied by the owner.
-  { file: '008_add_ve_session_id_and_voice_engine_tables.sql', required: false },
-  // OPTIONAL: file not in repo. Schema must be supplied by the owner.
-  { file: '009_fix_ve_session_id_and_all_missing_columns.sql', required: false },
+  { file: '008_add_ve_session_id_and_voice_engine_tables.sql', required: true },
+  { file: '009_fix_ve_session_id_and_all_missing_columns.sql', required: true },
   { file: '0010_add_yookassa_columns.sql', required: true },
   { file: '0010a_inbox.sql', required: true },
   { file: '0011_inbox_channels_and_providers.sql', required: true },
