@@ -6,6 +6,7 @@ import { createInboxRouterForProduction } from '../../modules/inbox/production-r
 import { createMarketingRouterForProduction } from '../../modules/marketing/production-router.ts';
 import type { InboxService } from '../../modules/inbox/inbox-service.ts';
 import type { MarketingService } from '../../modules/marketing/marketing-service.ts';
+import { assertServiceContract } from '../../modules/desk-modes/service-contracts.ts';
 export interface OptionalCommsMountDeps {
  authenticate:RequestHandler; requireCompanyScope:RequestHandler;
  requireRole:(...roles:string[])=>RequestHandler; inbox?:InboxService; marketing?:MarketingService;
@@ -17,6 +18,9 @@ export function registerOptionalCommsRoutes(app:Pick<Express,'use'>,deps:Optiona
  const inboxEnabled=env.COMMS_INBOX_ENABLED==='true', marketingEnabled=env.COMMS_MARKETING_ENABLED==='true';
  if(inboxEnabled&&!deps.inbox) throw new Error('COMMS_INBOX_ENABLED requires durable InboxService');
  if(marketingEnabled&&!deps.marketing) throw new Error('COMMS_MARKETING_ENABLED requires durable MarketingService');
+ // Validate all enabled service operations before mounting either surface.
+ if(inboxEnabled) assertServiceContract('inbox',deps.inbox);
+ if(marketingEnabled) assertServiceContract('marketing',deps.marketing);
  const common:RequestHandler[]=[
   deskModeMiddleware(DEFAULT_DESK_MODE_CONFIG) as RequestHandler,
   deps.authenticate, deps.requireCompanyScope,

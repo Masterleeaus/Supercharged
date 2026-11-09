@@ -11,3 +11,7 @@ Tests: `tests/modules/comms-router.test.mjs`, `tests/security/comms-scope-bounda
 ## Express production bridge
 
 The shared Express adapter explicitly copies `res.locals` (set by verified session middleware) into the request view used by the existing comms service routers. It never reads tenant IDs or actor IDs from HTTP parameters. Mounting requires authentication, company-scope validation, and module/role checks. The new HTTP integration test exercises the actual Express request chain with two companies and an unknown Host.
+
+## No inherited authentication scope
+
+The Express adapter requires both `companyId` and `actor` to be **own properties** of verified response locals. Values inherited from request-context prototypes or app-level locals do not become authenticated tenancy. Tests should exercise absent locals, prototype pollution, invalid company UUIDs, and actor forgery.

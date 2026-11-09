@@ -43,3 +43,19 @@ test('marketing listing uses the same authenticated company and mode boundary',a
   assert.deepEqual(s.calls.map(c=>c.args[0]),[B]);
  }finally{await s.close();}
 });
+
+test('two different companies cannot select each other via URL parameters',async()=>{
+ const s=await serverFor();try{
+  const a=await s.request('/api/comms/marketing/content?companyId='+B,'syncedat.work');
+  const b=await s.request('/api/comms/marketing/content?companyId='+A,'syncedat.work',{'x-company':'b'});
+  assert.equal(a.status,200);assert.equal(b.status,200);
+  assert.deepEqual(s.calls.filter(c=>c.name==='listContent').map(c=>c.args[0]),[A,B]);
+ }finally{await s.close();}
+});
+test('unknown hosts are rejected before either mode service is invoked',async()=>{
+ const s=await serverFor();try{
+  const paths=['/api/comms/inbox/threads','/api/comms/marketing/pages'];
+  for(const path of paths){const r=await s.request(path,'untrusted.example',{'x-forwarded-host':'syncedat.work'});assert.equal(r.status,404);}
+  assert.equal(s.calls.length,0);
+ }finally{await s.close();}
+});
