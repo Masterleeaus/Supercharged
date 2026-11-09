@@ -1,7 +1,7 @@
 /** Server-verified Central decision only. Do not accept raw browser fields.
  * No implicit user/email matching and no automatic tenant provisioning.
  */
-import {isCompanyId} from '../database/tenant-context';
+import {isCompanyId} from '../database/tenant-context.ts';
 export type VerifiedDeskCentralSelection={issuer:string;subject:string;companyId:string;
  audience:'supercharged';authority:'central-verified';verifiedAt:string};
 export function isVerifiedDeskCentralSelection(input:unknown,now=Date.now()):input is VerifiedDeskCentralSelection{
