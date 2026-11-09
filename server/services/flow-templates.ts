@@ -14,10 +14,21 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
-// Predefined flow templates that users can clone
-// Each template has proper node structure with data.type, data.label, and data.config
+import type { FlowEdge, FlowNode } from "@shared/schema";
 
-export const flowTemplates = [
+export interface FlowTemplate {
+  id: string;
+  name: string;
+  description: string;
+  isTemplate: boolean;
+  nodes: FlowNode[];
+  edges: FlowEdge[];
+}
+
+// Predefined flow templates that users can clone
+// Each node has a type (node.type) and data.label and data.config. data.type is added when a template is cloned, see templateNodesForStorage.
+
+export const flowTemplates: FlowTemplate[] = [
   // ============================================
   // Template 1: Lead Qualification
   // ============================================
@@ -32,7 +43,6 @@ export const flowTemplates = [
         type: "message",
         position: { x: 250, y: 50 },
         data: {
-          type: "message",
           label: "Greeting",
           config: {
             type: "message",
@@ -46,7 +56,6 @@ export const flowTemplates = [
         type: "question",
         position: { x: 250, y: 170 },
         data: {
-          type: "question",
           label: "Company Name",
           config: {
             type: "question",
@@ -61,7 +70,6 @@ export const flowTemplates = [
         type: "question",
         position: { x: 250, y: 290 },
         data: {
-          type: "question",
           label: "Role/Position",
           config: {
             type: "question",
@@ -76,7 +84,6 @@ export const flowTemplates = [
         type: "question",
         position: { x: 250, y: 410 },
         data: {
-          type: "question",
           label: "Budget Range",
           config: {
             type: "question",
@@ -91,7 +98,6 @@ export const flowTemplates = [
         type: "question",
         position: { x: 250, y: 530 },
         data: {
-          type: "question",
           label: "Timeline",
           config: {
             type: "question",
@@ -106,7 +112,6 @@ export const flowTemplates = [
         type: "question",
         position: { x: 250, y: 650 },
         data: {
-          type: "question",
           label: "Decision Authority",
           config: {
             type: "question",
@@ -121,11 +126,10 @@ export const flowTemplates = [
         type: "condition",
         position: { x: 250, y: 770 },
         data: {
-          type: "condition",
           label: "Check Qualification",
           config: {
             type: "condition",
-            condition: "The lead has a budget above $5000 and timeline within 3 months",
+            conditions: [],
           },
         },
       },
@@ -134,7 +138,6 @@ export const flowTemplates = [
         type: "webhook",
         position: { x: 450, y: 890 },
         data: {
-          type: "webhook",
           label: "Send to CRM",
           config: {
             type: "webhook",
@@ -142,7 +145,6 @@ export const flowTemplates = [
             method: "POST",
             headers: { "Content-Type": "application/json" },
             payload: { status: "qualified", priority: "high" },
-            description: "Send qualified lead to CRM for immediate follow-up",
           },
         },
       },
@@ -151,11 +153,10 @@ export const flowTemplates = [
         type: "end",
         position: { x: 450, y: 1010 },
         data: {
-          type: "end",
           label: "Qualified Goodbye",
           config: {
             type: "end",
-            endMessage: "Wonderful! Based on what you've shared, I think we have some great options for you. Our sales team will reach out within 24 hours to schedule a detailed demo. Thank you for your time!",
+            message: "Wonderful! Based on what you've shared, I think we have some great options for you. Our sales team will reach out within 24 hours to schedule a detailed demo. Thank you for your time!",
           },
         },
       },
@@ -164,7 +165,6 @@ export const flowTemplates = [
         type: "webhook",
         position: { x: 50, y: 890 },
         data: {
-          type: "webhook",
           label: "Add to Nurture",
           config: {
             type: "webhook",
@@ -172,7 +172,6 @@ export const flowTemplates = [
             method: "POST",
             headers: { "Content-Type": "application/json" },
             payload: { status: "nurture", priority: "normal" },
-            description: "Add lead to nurture campaign for future follow-up",
           },
         },
       },
@@ -181,11 +180,10 @@ export const flowTemplates = [
         type: "end",
         position: { x: 50, y: 1010 },
         data: {
-          type: "end",
           label: "Nurture Goodbye",
           config: {
             type: "end",
-            endMessage: "Thank you for your time today. We'll keep you on our list and reach out when we have updates that might interest you. Have a great day!",
+            message: "Thank you for your time today. We'll keep you on our list and reach out when we have updates that might interest you. Have a great day!",
           },
         },
       },
@@ -218,7 +216,6 @@ export const flowTemplates = [
         type: "message",
         position: { x: 250, y: 50 },
         data: {
-          type: "message",
           label: "Welcome",
           config: {
             type: "message",
@@ -232,7 +229,6 @@ export const flowTemplates = [
         type: "question",
         position: { x: 250, y: 170 },
         data: {
-          type: "question",
           label: "Full Name",
           config: {
             type: "question",
@@ -247,7 +243,6 @@ export const flowTemplates = [
         type: "question",
         position: { x: 250, y: 290 },
         data: {
-          type: "question",
           label: "Phone Number",
           config: {
             type: "question",
@@ -262,7 +257,6 @@ export const flowTemplates = [
         type: "question",
         position: { x: 250, y: 410 },
         data: {
-          type: "question",
           label: "Service Type",
           config: {
             type: "question",
@@ -277,11 +271,12 @@ export const flowTemplates = [
         type: "appointment",
         position: { x: 250, y: 530 },
         data: {
-          type: "appointment",
           label: "Book Appointment",
           config: {
             type: "appointment",
-            appointmentType: "General Appointment",
+            serviceName: "General Appointment",
+            confirmMessage: "",
+            duration: 30,
             waitForResponse: true,
           },
         },
@@ -291,7 +286,6 @@ export const flowTemplates = [
         type: "message",
         position: { x: 250, y: 650 },
         data: {
-          type: "message",
           label: "Confirmation",
           config: {
             type: "message",
@@ -305,7 +299,6 @@ export const flowTemplates = [
         type: "webhook",
         position: { x: 250, y: 770 },
         data: {
-          type: "webhook",
           label: "Notify Team",
           config: {
             type: "webhook",
@@ -313,7 +306,6 @@ export const flowTemplates = [
             method: "POST",
             headers: { "Content-Type": "application/json" },
             payload: { event: "appointment_booked" },
-            description: "Notify team about new appointment",
           },
         },
       },
@@ -322,11 +314,10 @@ export const flowTemplates = [
         type: "end",
         position: { x: 250, y: 890 },
         data: {
-          type: "end",
           label: "Goodbye",
           config: {
             type: "end",
-            endMessage: "Thank you for scheduling with us! We look forward to seeing you. Is there anything else I can help you with today? If not, have a wonderful day!",
+            message: "Thank you for scheduling with us! We look forward to seeing you. Is there anything else I can help you with today? If not, have a wonderful day!",
           },
         },
       },
@@ -356,7 +347,6 @@ export const flowTemplates = [
         type: "message",
         position: { x: 250, y: 50 },
         data: {
-          type: "message",
           label: "Introduction",
           config: {
             type: "message",
@@ -370,7 +360,6 @@ export const flowTemplates = [
         type: "question",
         position: { x: 250, y: 170 },
         data: {
-          type: "question",
           label: "NPS Score",
           config: {
             type: "question",
@@ -385,7 +374,6 @@ export const flowTemplates = [
         type: "question",
         position: { x: 250, y: 290 },
         data: {
-          type: "question",
           label: "Reason",
           config: {
             type: "question",
@@ -400,11 +388,10 @@ export const flowTemplates = [
         type: "condition",
         position: { x: 250, y: 410 },
         data: {
-          type: "condition",
           label: "Check Score",
           config: {
             type: "condition",
-            condition: "The NPS score is 9 or 10 (promoter)",
+            conditions: [],
           },
         },
       },
@@ -413,7 +400,6 @@ export const flowTemplates = [
         type: "question",
         position: { x: 450, y: 530 },
         data: {
-          type: "question",
           label: "Request Testimonial",
           config: {
             type: "question",
@@ -428,7 +414,6 @@ export const flowTemplates = [
         type: "webhook",
         position: { x: 450, y: 650 },
         data: {
-          type: "webhook",
           label: "Log Promoter",
           config: {
             type: "webhook",
@@ -436,7 +421,6 @@ export const flowTemplates = [
             method: "POST",
             headers: { "Content-Type": "application/json" },
             payload: { category: "promoter", request_testimonial: true },
-            description: "Log promoter feedback and testimonial request",
           },
         },
       },
@@ -445,7 +429,6 @@ export const flowTemplates = [
         type: "question",
         position: { x: 50, y: 530 },
         data: {
-          type: "question",
           label: "Improvement Ideas",
           config: {
             type: "question",
@@ -460,7 +443,6 @@ export const flowTemplates = [
         type: "question",
         position: { x: 50, y: 650 },
         data: {
-          type: "question",
           label: "Offer Callback",
           config: {
             type: "question",
@@ -475,7 +457,6 @@ export const flowTemplates = [
         type: "webhook",
         position: { x: 50, y: 770 },
         data: {
-          type: "webhook",
           label: "Log Detractor",
           config: {
             type: "webhook",
@@ -483,7 +464,6 @@ export const flowTemplates = [
             method: "POST",
             headers: { "Content-Type": "application/json" },
             payload: { category: "detractor", priority: "high" },
-            description: "Log detractor feedback for follow-up",
           },
         },
       },
@@ -492,11 +472,10 @@ export const flowTemplates = [
         type: "end",
         position: { x: 450, y: 770 },
         data: {
-          type: "end",
           label: "Thank Promoter",
           config: {
             type: "end",
-            endMessage: "Thank you so much for your kind feedback and support! We truly appreciate customers like you. Have a wonderful day!",
+            message: "Thank you so much for your kind feedback and support! We truly appreciate customers like you. Have a wonderful day!",
           },
         },
       },
@@ -505,11 +484,10 @@ export const flowTemplates = [
         type: "end",
         position: { x: 50, y: 890 },
         data: {
-          type: "end",
           label: "Thank Detractor",
           config: {
             type: "end",
-            endMessage: "Thank you for taking the time to share your feedback. We're committed to improving and will work on addressing your concerns. Have a great day!",
+            message: "Thank you for taking the time to share your feedback. We're committed to improving and will work on addressing your concerns. Have a great day!",
           },
         },
       },
@@ -542,7 +520,6 @@ export const flowTemplates = [
         type: "message",
         position: { x: 250, y: 50 },
         data: {
-          type: "message",
           label: "Welcome",
           config: {
             type: "message",
@@ -556,7 +533,6 @@ export const flowTemplates = [
         type: "question",
         position: { x: 250, y: 170 },
         data: {
-          type: "question",
           label: "Product Name",
           config: {
             type: "question",
@@ -571,7 +547,6 @@ export const flowTemplates = [
         type: "question",
         position: { x: 250, y: 290 },
         data: {
-          type: "question",
           label: "Quantity",
           config: {
             type: "question",
@@ -586,7 +561,6 @@ export const flowTemplates = [
         type: "question",
         position: { x: 250, y: 410 },
         data: {
-          type: "question",
           label: "Delivery Address",
           config: {
             type: "question",
@@ -601,7 +575,6 @@ export const flowTemplates = [
         type: "question",
         position: { x: 250, y: 530 },
         data: {
-          type: "question",
           label: "Email Address",
           config: {
             type: "question",
@@ -616,7 +589,6 @@ export const flowTemplates = [
         type: "message",
         position: { x: 250, y: 650 },
         data: {
-          type: "message",
           label: "Processing",
           config: {
             type: "message",
@@ -630,7 +602,6 @@ export const flowTemplates = [
         type: "webhook",
         position: { x: 250, y: 770 },
         data: {
-          type: "webhook",
           label: "Submit Order",
           config: {
             type: "webhook",
@@ -638,7 +609,6 @@ export const flowTemplates = [
             method: "POST",
             headers: { "Content-Type": "application/json", "X-API-Key": "your-api-key" },
             payload: { source: "phone_order" },
-            description: "Submit order to backend. Automatically includes caller_phone, product, quantity, address, email, and conversation data.",
           },
         },
       },
@@ -647,7 +617,6 @@ export const flowTemplates = [
         type: "message",
         position: { x: 250, y: 890 },
         data: {
-          type: "message",
           label: "Confirmation",
           config: {
             type: "message",
@@ -661,11 +630,10 @@ export const flowTemplates = [
         type: "end",
         position: { x: 250, y: 1010 },
         data: {
-          type: "end",
           label: "Goodbye",
           config: {
             type: "end",
-            endMessage: "Thank you for your order! Is there anything else I can help you with today? If not, have a wonderful day!",
+            message: "Thank you for your order! Is there anything else I can help you with today? If not, have a wonderful day!",
           },
         },
       },
@@ -696,7 +664,6 @@ export const flowTemplates = [
         type: "message",
         position: { x: 250, y: 50 },
         data: {
-          type: "message",
           label: "Reception Greeting",
           config: {
             type: "message",
@@ -710,7 +677,6 @@ export const flowTemplates = [
         type: "question",
         position: { x: 250, y: 170 },
         data: {
-          type: "question",
           label: "Department",
           config: {
             type: "question",
@@ -725,11 +691,10 @@ export const flowTemplates = [
         type: "condition",
         position: { x: 250, y: 290 },
         data: {
-          type: "condition",
           label: "Is Sales?",
           config: {
             type: "condition",
-            condition: "The caller wants to reach Sales or is asking about purchasing, pricing, or products",
+            conditions: [],
           },
         },
       },
@@ -738,7 +703,6 @@ export const flowTemplates = [
         type: "transfer",
         position: { x: 50, y: 410 },
         data: {
-          type: "transfer",
           label: "Transfer to Sales",
           config: {
             type: "transfer",
@@ -752,11 +716,10 @@ export const flowTemplates = [
         type: "condition",
         position: { x: 450, y: 410 },
         data: {
-          type: "condition",
           label: "Is Support?",
           config: {
             type: "condition",
-            condition: "The caller wants to reach Support or is asking for help with a technical issue",
+            conditions: [],
           },
         },
       },
@@ -765,7 +728,6 @@ export const flowTemplates = [
         type: "transfer",
         position: { x: 300, y: 530 },
         data: {
-          type: "transfer",
           label: "Transfer to Support",
           config: {
             type: "transfer",
@@ -779,11 +741,10 @@ export const flowTemplates = [
         type: "condition",
         position: { x: 600, y: 530 },
         data: {
-          type: "condition",
           label: "Is Billing?",
           config: {
             type: "condition",
-            condition: "The caller wants to reach Billing or is asking about invoices, payments, or accounts",
+            conditions: [],
           },
         },
       },
@@ -792,7 +753,6 @@ export const flowTemplates = [
         type: "transfer",
         position: { x: 500, y: 650 },
         data: {
-          type: "transfer",
           label: "Transfer to Billing",
           config: {
             type: "transfer",
@@ -806,7 +766,6 @@ export const flowTemplates = [
         type: "question",
         position: { x: 700, y: 650 },
         data: {
-          type: "question",
           label: "Take Message",
           config: {
             type: "question",
@@ -821,7 +780,6 @@ export const flowTemplates = [
         type: "webhook",
         position: { x: 700, y: 770 },
         data: {
-          type: "webhook",
           label: "Log Message",
           config: {
             type: "webhook",
@@ -829,7 +787,6 @@ export const flowTemplates = [
             method: "POST",
             headers: { "Content-Type": "application/json" },
             payload: { type: "callback_request" },
-            description: "Log callback message request",
           },
         },
       },
@@ -838,11 +795,10 @@ export const flowTemplates = [
         type: "end",
         position: { x: 175, y: 530 },
         data: {
-          type: "end",
           label: "Transfer Complete",
           config: {
             type: "end",
-            endMessage: "Thank you for calling. Your call is being transferred now.",
+            message: "Thank you for calling. Your call is being transferred now.",
           },
         },
       },
@@ -851,11 +807,10 @@ export const flowTemplates = [
         type: "end",
         position: { x: 700, y: 890 },
         data: {
-          type: "end",
           label: "Message Taken",
           config: {
             type: "end",
-            endMessage: "Thank you! We've recorded your message and someone will get back to you within 24 hours. Have a great day!",
+            message: "Thank you! We've recorded your message and someone will get back to you within 24 hours. Have a great day!",
           },
         },
       },
@@ -891,7 +846,6 @@ export const flowTemplates = [
         type: "message",
         position: { x: 250, y: 50 },
         data: {
-          type: "message",
           label: "Event Welcome",
           config: {
             type: "message",
@@ -905,7 +859,6 @@ export const flowTemplates = [
         type: "question",
         position: { x: 250, y: 170 },
         data: {
-          type: "question",
           label: "Full Name",
           config: {
             type: "question",
@@ -920,7 +873,6 @@ export const flowTemplates = [
         type: "question",
         position: { x: 250, y: 290 },
         data: {
-          type: "question",
           label: "Email",
           config: {
             type: "question",
@@ -935,7 +887,6 @@ export const flowTemplates = [
         type: "question",
         position: { x: 250, y: 410 },
         data: {
-          type: "question",
           label: "Company",
           config: {
             type: "question",
@@ -950,7 +901,6 @@ export const flowTemplates = [
         type: "question",
         position: { x: 250, y: 530 },
         data: {
-          type: "question",
           label: "Dietary Preferences",
           config: {
             type: "question",
@@ -965,7 +915,6 @@ export const flowTemplates = [
         type: "question",
         position: { x: 250, y: 650 },
         data: {
-          type: "question",
           label: "Accessibility Needs",
           config: {
             type: "question",
@@ -980,7 +929,6 @@ export const flowTemplates = [
         type: "webhook",
         position: { x: 250, y: 770 },
         data: {
-          type: "webhook",
           label: "Register Attendee",
           config: {
             type: "webhook",
@@ -988,7 +936,6 @@ export const flowTemplates = [
             method: "POST",
             headers: { "Content-Type": "application/json" },
             payload: { event_id: "your-event-id", source: "phone" },
-            description: "Register attendee in event system",
           },
         },
       },
@@ -997,7 +944,6 @@ export const flowTemplates = [
         type: "message",
         position: { x: 250, y: 890 },
         data: {
-          type: "message",
           label: "Confirmation",
           config: {
             type: "message",
@@ -1011,11 +957,10 @@ export const flowTemplates = [
         type: "end",
         position: { x: 250, y: 1010 },
         data: {
-          type: "end",
           label: "Goodbye",
           config: {
             type: "end",
-            endMessage: "Thank you for registering! We look forward to seeing you at the event. Have a great day!",
+            message: "Thank you for registering! We look forward to seeing you at the event. Have a great day!",
           },
         },
       },
@@ -1046,7 +991,6 @@ export const flowTemplates = [
         type: "message",
         position: { x: 250, y: 50 },
         data: {
-          type: "message",
           label: "Introduction",
           config: {
             type: "message",
@@ -1060,7 +1004,6 @@ export const flowTemplates = [
         type: "question",
         position: { x: 250, y: 170 },
         data: {
-          type: "question",
           label: "Verify Identity",
           config: {
             type: "question",
@@ -1075,7 +1018,6 @@ export const flowTemplates = [
         type: "message",
         position: { x: 250, y: 290 },
         data: {
-          type: "message",
           label: "Balance Info",
           config: {
             type: "message",
@@ -1089,7 +1031,6 @@ export const flowTemplates = [
         type: "question",
         position: { x: 250, y: 410 },
         data: {
-          type: "question",
           label: "Payment Decision",
           config: {
             type: "question",
@@ -1104,11 +1045,10 @@ export const flowTemplates = [
         type: "condition",
         position: { x: 250, y: 530 },
         data: {
-          type: "condition",
           label: "Full Payment?",
           config: {
             type: "condition",
-            condition: "The customer wants to pay the full balance today",
+            conditions: [],
           },
         },
       },
@@ -1117,7 +1057,6 @@ export const flowTemplates = [
         type: "message",
         position: { x: 50, y: 650 },
         data: {
-          type: "message",
           label: "Payment Link",
           config: {
             type: "message",
@@ -1131,7 +1070,6 @@ export const flowTemplates = [
         type: "webhook",
         position: { x: 50, y: 770 },
         data: {
-          type: "webhook",
           label: "Send Payment Link",
           config: {
             type: "webhook",
@@ -1139,7 +1077,6 @@ export const flowTemplates = [
             method: "POST",
             headers: { "Content-Type": "application/json" },
             payload: { action: "send_payment_link" },
-            description: "Send secure payment link to customer",
           },
         },
       },
@@ -1148,11 +1085,10 @@ export const flowTemplates = [
         type: "condition",
         position: { x: 450, y: 650 },
         data: {
-          type: "condition",
           label: "Payment Plan?",
           config: {
             type: "condition",
-            condition: "The customer wants to set up a payment plan",
+            conditions: [],
           },
         },
       },
@@ -1161,7 +1097,6 @@ export const flowTemplates = [
         type: "question",
         position: { x: 300, y: 770 },
         data: {
-          type: "question",
           label: "Plan Preference",
           config: {
             type: "question",
@@ -1176,7 +1111,6 @@ export const flowTemplates = [
         type: "webhook",
         position: { x: 300, y: 890 },
         data: {
-          type: "webhook",
           label: "Create Plan",
           config: {
             type: "webhook",
@@ -1184,7 +1118,6 @@ export const flowTemplates = [
             method: "POST",
             headers: { "Content-Type": "application/json" },
             payload: { action: "create_payment_plan" },
-            description: "Create payment plan in billing system",
           },
         },
       },
@@ -1193,7 +1126,6 @@ export const flowTemplates = [
         type: "transfer",
         position: { x: 550, y: 770 },
         data: {
-          type: "transfer",
           label: "Transfer to Billing",
           config: {
             type: "transfer",
@@ -1207,11 +1139,10 @@ export const flowTemplates = [
         type: "end",
         position: { x: 50, y: 890 },
         data: {
-          type: "end",
           label: "Payment Link Sent",
           config: {
             type: "end",
-            endMessage: "The payment link has been sent to your phone. Thank you for taking care of this. Have a great day!",
+            message: "The payment link has been sent to your phone. Thank you for taking care of this. Have a great day!",
           },
         },
       },
@@ -1220,11 +1151,10 @@ export const flowTemplates = [
         type: "end",
         position: { x: 300, y: 1010 },
         data: {
-          type: "end",
           label: "Plan Created",
           config: {
             type: "end",
-            endMessage: "Your payment plan has been set up. You'll receive confirmation details via email. Thank you for working with us!",
+            message: "Your payment plan has been set up. You'll receive confirmation details via email. Thank you for working with us!",
           },
         },
       },
@@ -1233,11 +1163,10 @@ export const flowTemplates = [
         type: "end",
         position: { x: 550, y: 890 },
         data: {
-          type: "end",
           label: "Transfer Complete",
           config: {
             type: "end",
-            endMessage: "Transferring you now. Thank you for your patience.",
+            message: "Transferring you now. Thank you for your patience.",
           },
         },
       },
@@ -1273,7 +1202,6 @@ export const flowTemplates = [
         type: "message",
         position: { x: 250, y: 50 },
         data: {
-          type: "message",
           label: "Welcome",
           config: {
             type: "message",
@@ -1287,11 +1215,10 @@ export const flowTemplates = [
         type: "form",
         position: { x: 250, y: 170 },
         data: {
-          type: "form",
           label: "Collect Information",
           config: {
             type: "form",
-            formId: null,
+            formId: "",
             message: "I'll ask you a few questions now. Please answer each one clearly.",
             waitForResponse: true,
           },
@@ -1302,7 +1229,6 @@ export const flowTemplates = [
         type: "message",
         position: { x: 250, y: 290 },
         data: {
-          type: "message",
           label: "Review Info",
           config: {
             type: "message",
@@ -1316,7 +1242,6 @@ export const flowTemplates = [
         type: "webhook",
         position: { x: 250, y: 410 },
         data: {
-          type: "webhook",
           label: "Submit Data",
           config: {
             type: "webhook",
@@ -1324,7 +1249,6 @@ export const flowTemplates = [
             method: "POST",
             headers: { "Content-Type": "application/json" },
             payload: { source: "phone_form" },
-            description: "Submit collected form data to backend",
           },
         },
       },
@@ -1333,7 +1257,6 @@ export const flowTemplates = [
         type: "message",
         position: { x: 250, y: 530 },
         data: {
-          type: "message",
           label: "Confirmation",
           config: {
             type: "message",
@@ -1347,11 +1270,10 @@ export const flowTemplates = [
         type: "end",
         position: { x: 250, y: 650 },
         data: {
-          type: "end",
           label: "Goodbye",
           config: {
             type: "end",
-            endMessage: "Thank you for your time today. Is there anything else I can help you with? If not, have a wonderful day!",
+            message: "Thank you for your time today. Is there anything else I can help you with? If not, have a wonderful day!",
           },
         },
       },
@@ -1380,7 +1302,6 @@ export const flowTemplates = [
         type: "message",
         position: { x: 250, y: 50 },
         data: {
-          type: "message",
           label: "Welcome",
           config: {
             type: "message",
@@ -1394,11 +1315,11 @@ export const flowTemplates = [
         type: "appointment",
         position: { x: 250, y: 200 },
         data: {
-          type: "appointment",
           label: "Book Appointment",
           config: {
             type: "appointment",
-            message: "Great! Let me collect some details to book your appointment.",
+            confirmMessage: "Great! Let me collect some details to book your appointment.",
+            duration: 30,
             serviceName: "Consultation",
             waitForResponse: true,
           },
@@ -1409,7 +1330,6 @@ export const flowTemplates = [
         type: "send_email",
         position: { x: 250, y: 350 },
         data: {
-          type: "send_email",
           label: "Send Confirmation Email",
           config: {
             type: "send_email",
@@ -1424,7 +1344,6 @@ export const flowTemplates = [
         type: "send_whatsapp",
         position: { x: 250, y: 500 },
         data: {
-          type: "send_whatsapp",
           label: "Send WhatsApp Confirmation",
           config: {
             type: "send_whatsapp",
@@ -1440,11 +1359,10 @@ export const flowTemplates = [
         type: "end",
         position: { x: 250, y: 650 },
         data: {
-          type: "end",
           label: "Goodbye",
           config: {
             type: "end",
-            endMessage: "Your appointment is confirmed and all confirmations have been sent. Thank you for choosing our service. Have a wonderful day!",
+            message: "Your appointment is confirmed and all confirmations have been sent. Thank you for choosing our service. Have a wonderful day!",
           },
         },
       },
@@ -1457,3 +1375,11 @@ export const flowTemplates = [
     ],
   },
 ];
+
+/**
+ * Template nodes in the shape the flow builder stores. The builder reads data.type to render and save a node,
+ * so a clone copies node.type into data.type. Template data itself carries no data.type.
+ */
+export function templateNodesForStorage(nodes: FlowNode[]) {
+  return nodes.map((node) => ({ ...node, data: { ...node.data, type: node.type } }));
+}
