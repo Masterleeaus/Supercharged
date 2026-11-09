@@ -168,7 +168,7 @@ googleSheetsRouter.post("/exchange", async (req: Request, res: Response) => {
 
     if (!tokenResp.ok) {
       const errText = await tokenResp.text();
-      console.error("[GoogleSheets OAuth] Token exchange failed:", errText);
+      logger.error("[GoogleSheets OAuth] Token exchange failed:", errText);
       res.status(502).json({ errorCode: "token_exchange_failed", error: "Failed to exchange authorization code with Google." });
       return;
     }
@@ -190,7 +190,7 @@ googleSheetsRouter.post("/exchange", async (req: Request, res: Response) => {
     }
 
     if (!refreshToken) {
-      console.warn("[GoogleSheets OAuth] No refresh token available for user:", userId);
+      logger.warn("[GoogleSheets OAuth] No refresh token available for user:", userId);
       res.status(400).json({ errorCode: "no_refresh_token", error: "No refresh token received. Please revoke access in your Google account and try again." });
       return;
     }
@@ -227,7 +227,7 @@ googleSheetsRouter.post("/exchange", async (req: Request, res: Response) => {
 
     res.json({ success: true, email: userInfo.email || "Unknown" });
   } catch (err: any) {
-    console.error("[GoogleSheets OAuth] Exchange error:", err.message);
+    logger.error("[GoogleSheets OAuth] Exchange error:", err.message);
     res.status(500).json({ errorCode: "server_error", error: "An unexpected error occurred during token exchange." });
   }
 });

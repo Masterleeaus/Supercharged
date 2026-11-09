@@ -10,6 +10,7 @@ import type { Request, Response, Router, RequestHandler } from 'express';
 import { isEngineEnabled, PROVIDER_ID, ENGINE_FLAG } from '../../config';
 import { registerGateway } from '../../registry';
 import { create__PROVIDER_PASCAL__Adapter } from './service';
+import { logger } from '../../../../utils/logger.ts';
 
 const BASE = '/api/__ENGINE_NAME__/__PROVIDER_NAME__';
 const CURRENCY_RE = /^[A-Z]{3}$/;
@@ -64,7 +65,7 @@ export function registerProviderRoutes(
       });
       res.status(result.ok ? 200 : 502).json(result);
     } catch (error) {
-      console.error(`[${PROVIDER_ID}] create failed`, error);
+      logger.error(`[${PROVIDER_ID}] create failed`, error);
       res.status(500).json({ error: 'create_failed' });
     }
   });
@@ -87,7 +88,7 @@ export function registerProviderRoutes(
         }
         res.status(200).json({ received: true });
       } catch (error) {
-        console.error(`[${PROVIDER_ID}] webhook failed`, error);
+        logger.error(`[${PROVIDER_ID}] webhook failed`, error);
         res.status(500).json({ received: false });
       }
     }

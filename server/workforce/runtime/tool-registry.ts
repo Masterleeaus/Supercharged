@@ -141,7 +141,10 @@ export interface ToolDefinition {
    * refused and nothing is staged. Returns null when the params cannot be staged.
    */
   stage?: (params: Record<string, unknown>) => { category: ShadowCategory; change: PredictiveStageParams } | null;
-  /** Per-tool timeout in milliseconds (positive integer). Declared on the definition; the registry-wide timeout still applies until it is enforced per call. */
+  /**
+   * Per-tool timeout in milliseconds, a positive integer. When set, it applies to every call of this tool. When not
+   * set, the registry-wide timeout (ToolRegistryOptions.timeoutMs) applies. Rejected at register() if not a positive integer.
+   */
   timeoutMs?: number;
   handler: (params: Record<string, unknown>, context: ToolHandlerContext) => unknown | Promise<unknown>;
 }
@@ -192,6 +195,7 @@ export interface ToolRegistryOptions {
   redact: Redactor;
   audit: AuditSink;
   maxOutputBytes?: number;
+  /** Fallback timeout for a call whose tool declares no timeoutMs of its own. */
   timeoutMs?: number;
   approvalTtlMs?: number;
   /**
@@ -673,7 +677,7 @@ export function createToolRegistry(options: ToolRegistryOptions): ToolRegistry {
       const executor = new ToolExecutor({
         manifest: { [toolId]: { handler, input_schema: {} } },
         allowedTools: [toolId],
-        timeoutMs,
+        timeoutMs: definition.timeoutMs ?? timeoutMs,
       });
       result = await executor.execute(toolId, params, { companyId });
       if (result.ok) break;
@@ -859,6 +863,9 @@ export function createToolRegistry(options: ToolRegistryOptions): ToolRegistry {
       }
       if (!isRiskTier(definition.risk)) throw new AiRuntimeError('config_invalid', `tool ${definition.id} needs a risk tier (${RISK_TIERS.join(', ')})`);
       if (typeof definition.handler !== 'function') throw new AiRuntimeError('config_invalid', `tool ${definition.id} needs a handler`);
+      if (definition.timeoutMs !== undefined && (!Number.isInteger(definition.timeoutMs) || definition.timeoutMs < 1)) {
+        throw new AiRuntimeError('config_invalid', `tool ${definition.id} timeoutMs must be a positive integer`);
+      }
       if (!isValidSchema(definition.schema)) throw new AiRuntimeError('config_invalid', `tool ${definition.id} has an invalid schema`);
       if (definition.category !== undefined && !TOOL_CATEGORIES.includes(definition.category)) {
         throw new AiRuntimeError('config_invalid', `tool ${definition.id} has an unknown category (${TOOL_CATEGORIES.join(', ')})`);

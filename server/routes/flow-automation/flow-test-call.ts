@@ -49,7 +49,7 @@ export async function placeFlowTestCall({
           eq(flowTestQueue.userId, userId),
           eq(flowTestQueue.status, 'processing')
         ));
-    } catch (e) { console.error('[Queue] Failed to mark completed:', e); }
+    } catch (e) { logger.error('[Queue] Failed to mark completed:', e); }
   };
   const failQueue = async (reason: string) => {
     if (!queueEntryId || queueProcessed) return;
@@ -62,7 +62,7 @@ export async function placeFlowTestCall({
           eq(flowTestQueue.userId, userId),
           eq(flowTestQueue.status, 'processing')
         ));
-    } catch (e) { console.error('[Queue] Failed to mark failed:', e); }
+    } catch (e) { logger.error('[Queue] Failed to mark failed:', e); }
   };
 
   try {
@@ -239,14 +239,14 @@ export async function placeFlowTestCall({
             }
             logger.info(`✅ [Flow Test] SIP phone re-imported, new ID: ${currentSipPhoneElevenLabsId}`);
           } else {
-            console.warn(`⚠️ [Flow Test] Cannot verify SIP phone on ElevenLabs (transient error): ${sipVerify.error}`);
+            logger.warn(`⚠️ [Flow Test] Cannot verify SIP phone on ElevenLabs (transient error): ${sipVerify.error}`);
           }
         } else {
           logger.info(`✅ [Flow Test] SIP phone exists on ElevenLabs`);
         }
       } catch (verifyError: any) {
         if (verifyError instanceof FlowTestHttpError) throw verifyError;
-        console.warn(`⚠️ [Flow Test] Cannot verify SIP phone on ElevenLabs (error): ${verifyError.message}`);
+        logger.warn(`⚠️ [Flow Test] Cannot verify SIP phone on ElevenLabs (error): ${verifyError.message}`);
       }
 
       try {
@@ -460,7 +460,7 @@ export async function placeFlowTestCall({
         };
 
       } catch (sipError: any) {
-        console.error(`❌ [Flow Test] ElevenLabs SIP call error:`, sipError);
+        logger.error(`❌ [Flow Test] ElevenLabs SIP call error:`, sipError);
         throw new FlowTestHttpError(400, {
           error: "SIP call initiation failed",
           message: "Failed to initiate call via ElevenLabs SIP Trunk",
@@ -608,7 +608,7 @@ export async function placeFlowTestCall({
     // PROVIDER GUARD: Explicitly verify this is an ElevenLabs agent before proceeding
     // This prevents provider mismatch if earlier branches fail or fall through
     if (agent.telephonyProvider && ['plivo', 'twilio_openai', 'custom-voice-engine'].includes(agent.telephonyProvider)) {
-      console.error(`❌ [Flow Test] Provider mismatch - agent is ${agent.telephonyProvider} but reached ElevenLabs path`);
+      logger.error(`❌ [Flow Test] Provider mismatch - agent is ${agent.telephonyProvider} but reached ElevenLabs path`);
       throw new FlowTestHttpError(400, {
         error: "Provider mismatch",
         message: `This agent uses ${agent.telephonyProvider} but the test call routing failed. Please try again.`,
@@ -641,7 +641,7 @@ export async function placeFlowTestCall({
     };
   } catch (error: any) {
     if (error instanceof FlowTestHttpError) throw error;
-    console.error("Error testing flow:", error);
+    logger.error("Error testing flow:", error);
     await failQueue(error?.message || "Test call failed");
     throw new FlowTestHttpError(500, { error: "Failed to test flow" });
   }
@@ -688,7 +688,7 @@ export function registerFlowTestCallRoutes(router: Router): void {
       if (err instanceof FlowTestHttpError) {
         return res.status(err.statusCode).json(err.body);
       }
-      console.error("Error testing flow:", err);
+      logger.error("Error testing flow:", err);
       return res.status(500).json({ error: "Failed to test flow" });
     }
   });

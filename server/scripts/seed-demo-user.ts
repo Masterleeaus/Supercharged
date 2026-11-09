@@ -3,6 +3,7 @@ import { db } from "../db";
 import { users } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcrypt";
+import { logger } from '../utils/logger.ts';
 
 async function main() {
   const password = "Demo@123";
@@ -30,7 +31,7 @@ async function main() {
       .limit(1);
 
     if (existingUser) {
-      console.log(`User ${demoUser.email} already exists. Updating password and role...`);
+      logger.info(`User [redacted] already exists. Updating password and role...`);
       await db
         .update(users)
         .set({
@@ -39,9 +40,9 @@ async function main() {
           isActive: true
         })
         .where(eq(users.id, existingUser.id));
-      console.log(`Updated user ${demoUser.email} successfully.`);
+      logger.info(`Updated user [redacted] successfully.`);
     } else {
-      console.log(`Creating user ${demoUser.email}...`);
+      logger.info(`Creating user [redacted]...`);
       await db.insert(users).values({
         email: demoUser.email,
         password: hashedPassword,
@@ -50,7 +51,7 @@ async function main() {
         isActive: true,
         credits: 1000, // Give them initial credits to use the application
       });
-      console.log(`Created user ${demoUser.email} successfully.`);
+      logger.info(`Created user [redacted] successfully.`);
     }
   }
 
@@ -58,6 +59,6 @@ async function main() {
 }
 
 main().catch(err => {
-  console.error("Failed to seed demo users:", err);
+  logger.error("Failed to seed demo users:", err);
   process.exit(1);
 });

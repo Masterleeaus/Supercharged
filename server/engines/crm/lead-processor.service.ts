@@ -354,7 +354,7 @@ export class CRMLeadProcessor {
           } as any,
         });
       } catch (activityError) {
-        console.error(`${this.LOG_PREFIX} Failed to create activity:`, activityError);
+        logger.error(`${this.LOG_PREFIX} Failed to create activity:`, activityError);
       }
 
       // Trigger form.lead_created webhook event
@@ -390,12 +390,12 @@ export class CRMLeadProcessor {
         
         logger.info(`${this.LOG_PREFIX} Triggered form.lead_created webhook event for lead ${lead.id}`);
       } catch (webhookError: any) {
-        console.error(`${this.LOG_PREFIX} Failed to trigger form.lead_created webhook:`, webhookError.message);
+        logger.error(`${this.LOG_PREFIX} Failed to trigger form.lead_created webhook:`, webhookError.message);
       }
 
       return { leadId: lead.id, qualification };
     } catch (error) {
-      console.error(`${this.LOG_PREFIX} Error processing call ${callData.id}:`, error);
+      logger.error(`${this.LOG_PREFIX} Error processing call ${callData.id}:`, error);
       throw error;
     }
   }
@@ -668,7 +668,7 @@ export class CRMLeadProcessor {
             return formatAppt(byConversationId[0], `conversationId(${conversationId})`);
           }
         } catch (convErr: any) {
-          console.warn(`${this.LOG_PREFIX} Conversation ID appointment lookup failed: ${convErr.message}`);
+          logger.warn(`${this.LOG_PREFIX} Conversation ID appointment lookup failed: ${convErr.message}`);
         }
       }
 
@@ -695,7 +695,7 @@ export class CRMLeadProcessor {
 
       return null;
     } catch (error: any) {
-      console.warn(`${this.LOG_PREFIX} Appointment DB check failed for call ${callData.id}: ${error.message}`);
+      logger.warn(`${this.LOG_PREFIX} Appointment DB check failed for call ${callData.id}: ${error.message}`);
       return null;
     }
   }
@@ -1329,7 +1329,7 @@ Return ONLY the JSON object. No explanation, no markdown formatting.`;
             }
           }
         } catch (err: any) {
-          console.error('💼 [CRM Lead Processor] Error analyzing transcript with OpenAI:', err.message);
+          logger.error('💼 [CRM Lead Processor] Error analyzing transcript with OpenAI:', err.message);
         }
       }
 
@@ -1345,7 +1345,7 @@ Return ONLY the JSON object. No explanation, no markdown formatting.`;
             WHERE id = ${sessionId}
           `);
         } catch (updateErr: any) {
-          console.error('💼 [CRM Lead Processor] Failed to update ve_sessions with AI analysis:', updateErr.message);
+          logger.error('💼 [CRM Lead Processor] Failed to update ve_sessions with AI analysis:', updateErr.message);
         }
       }
 
@@ -1380,7 +1380,7 @@ Return ONLY the JSON object. No explanation, no markdown formatting.`;
 
       return this.processCall(callData);
     } catch (error: any) {
-      console.error(`${this.LOG_PREFIX} Error processing Custom Voice Engine session ${sessionId}:`, error.message);
+      logger.error(`${this.LOG_PREFIX} Error processing Custom Voice Engine session ${sessionId}:`, error.message);
       return null;
     }
   }
@@ -1438,7 +1438,7 @@ Return ONLY the JSON object. No explanation, no markdown formatting.`;
         `);
       }
     } catch (error) {
-      console.error(`[CRM Lead Processor] Failed to update call classification for call ${callId}:`, error);
+      logger.error(`[CRM Lead Processor] Failed to update call classification for call ${callId}:`, error);
     }
   }
 }

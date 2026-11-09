@@ -11,6 +11,7 @@ import { platformLanguages } from '@shared/schema';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
+import { logger } from './utils/logger.ts';
 
 interface LanguageConfig {
   code: string;
@@ -45,7 +46,7 @@ function loadTranslations(code: string): Record<string, unknown> {
     const content = fs.readFileSync(filePath, 'utf-8');
     return JSON.parse(content);
   } catch (error) {
-    console.error(`Failed to load translations for ${code}:`, error);
+    logger.error(`Failed to load translations for ${code}:`, error);
     return {};
   }
 }
@@ -62,16 +63,16 @@ export async function seedPlatformLanguages(force: boolean = false): Promise<{ s
     }
 
     if (force && existing.length > 0) {
-      console.log('Force mode: Deleting existing languages...');
+      logger.info('Force mode: Deleting existing languages...');
       await db.delete(platformLanguages);
     }
 
-    console.log('Seeding platform UI languages...');
+    logger.info('Seeding platform UI languages...');
 
     for (const lang of PLATFORM_LANGUAGES) {
       const translations = loadTranslations(lang.code);
 
-      console.log(`  Seeding ${lang.name} (${lang.code})...`);
+      logger.info(`  Seeding ${lang.name} (${lang.code})...`);
 
       await db.insert(platformLanguages).values({
         code: lang.code,
@@ -88,13 +89,13 @@ export async function seedPlatformLanguages(force: boolean = false): Promise<{ s
       });
     }
 
-    console.log(`\nSuccessfully seeded ${PLATFORM_LANGUAGES.length} languages.`);
+    logger.info(`\nSuccessfully seeded ${PLATFORM_LANGUAGES.length} languages.`);
     return {
       success: true,
       message: `Seeded ${PLATFORM_LANGUAGES.length} languages successfully`
     };
   } catch (error) {
-    console.error('Error seeding languages:', error);
+    logger.error('Error seeding languages:', error);
     return {
       success: false,
       message: `Failed to seed languages: ${error}`
@@ -110,22 +111,22 @@ const isMainModule = process.argv[1]?.includes('seed-platform-languages') &&
 if (isMainModule) {
   const force = process.argv.includes('--force');
 
-  console.log('========================================');
-  console.log('Platform Language Seeder');
-  console.log('========================================');
+  logger.info('========================================');
+  logger.info('Platform Language Seeder');
+  logger.info('========================================');
   if (force) {
-    console.log('Running in FORCE mode - will overwrite existing languages');
+    logger.info('Running in FORCE mode - will overwrite existing languages');
   }
-  console.log('');
+  logger.info('');
 
   seedPlatformLanguages(force)
     .then((result) => {
-      console.log('');
-      console.log(result.message);
+      logger.info('');
+      logger.info(result.message);
       process.exit(result.success ? 0 : 1);
     })
     .catch((error) => {
-      console.error('Seed failed:', error);
+      logger.error('Seed failed:', error);
       process.exit(1);
     });
 }

@@ -42,6 +42,7 @@ import {
   registerSystemUpdateRoutes,
   registerCreditBackfillRoutes,
 } from './admin/index';
+import { logger } from '../utils/logger.ts';
 
 const router = Router();
 
@@ -73,7 +74,7 @@ async function getStripeClient(): Promise<Stripe | null> {
     
     return new Stripe(secretKey, { apiVersion: '2025-10-29.clover' });
   } catch (error) {
-    console.error('Error initializing Stripe client:', error);
+    logger.error('Error initializing Stripe client:', error);
     return null;
   }
 }
@@ -83,7 +84,7 @@ async function getDefaultCurrency(): Promise<string> {
     const currencyConfig = await getStripeCurrency();
     return currencyConfig.currency;
   } catch (error) {
-    console.error('Error getting default currency:', error);
+    logger.error('Error getting default currency:', error);
     return 'USD';
   }
 }
@@ -94,7 +95,7 @@ router.get('/analytics', async (req: AdminRequest, res: Response) => {
     const analytics = await storage.getGlobalAnalytics(timeRange as string);
     res.json(analytics);
   } catch (error) {
-    console.error('Error fetching analytics:', error);
+    logger.error('Error fetching analytics:', error);
     res.status(500).json({ error: 'Failed to fetch analytics' });
   }
 });
@@ -163,7 +164,7 @@ router.get('/contacts', async (req: AdminRequest, res: Response) => {
       }
     });
   } catch (error) {
-    console.error('Error fetching admin contacts:', error);
+    logger.error('Error fetching admin contacts:', error);
     res.status(500).json({ error: 'Failed to fetch contacts' });
   }
 });

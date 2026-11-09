@@ -199,7 +199,7 @@ export class CRMLeadService {
       logger.info(`[CRM] Created new lead ${leadId} for [redacted] from ${callData.sourceType}`);
       return { leadId };
     } catch (error: any) {
-      console.error('[CRM] Error creating lead from call:', error.message);
+      logger.error('[CRM] Error creating lead from call:', error.message);
       return null;
     }
   }
@@ -275,7 +275,7 @@ export class CRMLeadService {
         logger.info(`[CRM] Updated lead ${leadId} with score ${scoreResult.score} -> ${matchedStageName}`);
       }
     } catch (error: any) {
-      console.error('[CRM] Error updating lead score:', error.message);
+      logger.error('[CRM] Error updating lead score:', error.message);
     }
   }
 
@@ -328,7 +328,7 @@ Return ONLY valid JSON:`;
         suggestedNextAction: result.suggestedNextAction,
       };
     } catch (error: any) {
-      console.error('[CRM] Error analyzing transcript:', error.message);
+      logger.error('[CRM] Error analyzing transcript:', error.message);
       return null;
     }
   }
@@ -361,7 +361,7 @@ Return ONLY valid JSON:`;
 
       logger.info(`[CRM] Tracked tool execution: ${toolName} for lead ${leadId}`);
     } catch (error: any) {
-      console.error('[CRM] Error tracking tool:', error.message);
+      logger.error('[CRM] Error tracking tool:', error.message);
     }
   }
 }

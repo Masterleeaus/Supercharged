@@ -5,6 +5,7 @@ import { AdminRequest, requireAdminPermission } from '../../middleware/admin-aut
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import { logger } from '../../utils/logger.ts';
 
 const uploadsDir = path.join(process.cwd(), 'client', 'public', 'uploads');
 if (!fs.existsSync(uploadsDir)) {
@@ -65,7 +66,7 @@ export function registerSeoRoutes(router: Router) {
       
       res.json(mappedSettings);
     } catch (error) {
-      console.error('Error fetching SEO settings:', error);
+      logger.error('Error fetching SEO settings:', error);
       res.status(500).json({ error: 'Failed to fetch SEO settings' });
     }
   });
@@ -110,7 +111,7 @@ export function registerSeoRoutes(router: Router) {
       
       res.json({ success: true });
     } catch (error) {
-      console.error('Error updating SEO settings:', error);
+      logger.error('Error updating SEO settings:', error);
       res.status(500).json({ error: 'Failed to update SEO settings' });
     }
   });
@@ -166,7 +167,7 @@ export function registerSeoRoutes(router: Router) {
       
       res.json({ success: true, urls: existingUrls });
     } catch (error) {
-      console.error('Error adding sitemap URLs:', error);
+      logger.error('Error adding sitemap URLs:', error);
       res.status(500).json({ error: 'Failed to add sitemap URLs' });
     }
   });
@@ -210,7 +211,7 @@ export function registerSeoRoutes(router: Router) {
       
       res.json({ success: true, urls: newUrls });
     } catch (error) {
-      console.error('Error removing sitemap URLs:', error);
+      logger.error('Error removing sitemap URLs:', error);
       res.status(500).json({ error: 'Failed to remove sitemap URLs' });
     }
   });
@@ -313,7 +314,7 @@ export function registerSeoRoutes(router: Router) {
       
       res.json({ success: true, message: 'Sitemap generated successfully', urlCount: allUrls.length });
     } catch (error) {
-      console.error('Error generating sitemap:', error);
+      logger.error('Error generating sitemap:', error);
       res.status(500).json({ error: 'Failed to generate sitemap' });
     }
   });
@@ -370,7 +371,7 @@ export function registerSeoRoutes(router: Router) {
       
       res.json({ success: true, message: 'Sitemap rebuilt successfully', urlCount: allUrls.length });
     } catch (error) {
-      console.error('Error rebuilding sitemap:', error);
+      logger.error('Error rebuilding sitemap:', error);
       res.status(500).json({ error: 'Failed to rebuild sitemap' });
     }
   });
@@ -420,7 +421,7 @@ export function registerSeoRoutes(router: Router) {
       
       return res.status(400).json({ error: 'No valid image data provided' });
     } catch (error) {
-      console.error('Error uploading SEO image:', error);
+      logger.error('Error uploading SEO image:', error);
       res.status(500).json({ error: 'Failed to upload SEO image' });
     }
   });
@@ -441,7 +442,7 @@ export function registerSeoRoutes(router: Router) {
       
       res.json({ success: true, url: imageUrl });
     } catch (error) {
-      console.error('Error uploading SEO image:', error);
+      logger.error('Error uploading SEO image:', error);
       res.status(500).json({ error: 'Failed to upload SEO image' });
     }
   });
@@ -451,7 +452,7 @@ export function registerSeoRoutes(router: Router) {
       const scripts = await storage.getAllAnalyticsScripts();
       res.json(scripts);
     } catch (error) {
-      console.error('Error fetching analytics scripts:', error);
+      logger.error('Error fetching analytics scripts:', error);
       res.status(500).json({ error: 'Failed to fetch analytics scripts' });
     }
   });
@@ -492,7 +493,7 @@ export function registerSeoRoutes(router: Router) {
       
       res.json(newScript);
     } catch (error) {
-      console.error('Error creating analytics script:', error);
+      logger.error('Error creating analytics script:', error);
       res.status(500).json({ error: 'Failed to create analytics script' });
     }
   });
@@ -533,7 +534,7 @@ export function registerSeoRoutes(router: Router) {
       
       res.json({ success: true });
     } catch (error) {
-      console.error('Error updating analytics script:', error);
+      logger.error('Error updating analytics script:', error);
       res.status(500).json({ error: 'Failed to update analytics script' });
     }
   });
@@ -544,7 +545,7 @@ export function registerSeoRoutes(router: Router) {
       await storage.deleteAnalyticsScript(id);
       res.json({ success: true });
     } catch (error) {
-      console.error('Error deleting analytics script:', error);
+      logger.error('Error deleting analytics script:', error);
       res.status(500).json({ error: 'Failed to delete analytics script' });
     }
   });

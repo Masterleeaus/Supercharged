@@ -71,7 +71,7 @@ export async function processPhoneReleaseRetryQueue(): Promise<void> {
       } catch (err: unknown) {
         const errMsg = (err instanceof Error ? err.message : String(err)).slice(0, 500);
         if (attempts >= MAX_ATTEMPTS) {
-          console.error(`❌ [Release Retry] Giving up on ${row.providerSid} after ${attempts} attempts: ${errMsg}`);
+          logger.error(`❌ [Release Retry] Giving up on ${row.providerSid} after ${attempts} attempts: ${errMsg}`);
           await db.delete(phoneReleaseRetryQueue).where(eq(phoneReleaseRetryQueue.id, row.id));
         } else {
           const next = new Date(Date.now() + backoffFor(attempts));
@@ -79,13 +79,13 @@ export async function processPhoneReleaseRetryQueue(): Promise<void> {
             .update(phoneReleaseRetryQueue)
             .set({ attempts, lastError: errMsg, nextRetryAt: next, updatedAt: new Date() })
             .where(eq(phoneReleaseRetryQueue.id, row.id));
-          console.warn(`⚠️ [Release Retry] Retry ${attempts}/${MAX_ATTEMPTS} failed for ${row.providerSid}: ${errMsg}`);
+          logger.warn(`⚠️ [Release Retry] Retry ${attempts}/${MAX_ATTEMPTS} failed for ${row.providerSid}: ${errMsg}`);
         }
       }
     }
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error(`❌ [Release Retry] Worker tick failed:`, msg);
+    logger.error(`❌ [Release Retry] Worker tick failed:`, msg);
   }
 }
 

@@ -84,6 +84,7 @@ import { createTelegramWebhookRouter } from "../channels/telegram/router.ts";
 import { createWhatsappWebhookRouter } from "../channels/whatsapp/router.ts";
 import { createMessengerWebhookRouter } from "../channels/messenger/router.ts";
 import { createInstagramWebhookRouter } from "../channels/instagram/router.ts";
+import { logger } from '../../../utils/logger.ts';
 
 /** Flags owned by this mount. Read here, not in the factories. */
 export const WIRING_FLAGS = {
@@ -201,7 +202,7 @@ export function resolveHasHumanAgents(deps: Pick<ChatbotWiringDeps, "db" | "hasH
   return createHasHumanAgents({
     lookup: createDrizzleActiveAgentLookup(deps.db),
     onError: () => {
-      console.error("chatbot.agent.has_human_agents_lookup_failed");
+      logger.error("chatbot.agent.has_human_agents_lookup_failed");
     },
   });
 }

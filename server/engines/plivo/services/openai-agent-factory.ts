@@ -66,7 +66,7 @@ export class OpenAIAgentFactory {
   static validateVoice(voice: string): OpenAIVoice {
     const validVoice = OPENAI_VOICES.find(v => v.id === voice);
     if (!validVoice) {
-      console.warn(`[Agent Factory] Invalid voice "${voice}", falling back to "alloy"`);
+      logger.warn(`[Agent Factory] Invalid voice "${voice}", falling back to "alloy"`);
       return 'alloy';
     }
     return voice as OpenAIVoice;
@@ -79,7 +79,7 @@ export class OpenAIAgentFactory {
     const allowedModels = this.getAvailableModels(tier);
     if (!allowedModels.includes(model as OpenAIRealtimeModel)) {
       const safeFallback = MODEL_TIER_CONFIG[tier].safeFallback;
-      console.warn(`[Agent Factory] Model "${model}" not allowed or unrecognized for tier "${tier}". Using explicitly defined safe fallback: "${safeFallback}"`);
+      logger.warn(`[Agent Factory] Model "${model}" not allowed or unrecognized for tier "${tier}". Using explicitly defined safe fallback: "${safeFallback}"`);
       return safeFallback;
     }
     return model as OpenAIRealtimeModel;
@@ -182,7 +182,7 @@ export class OpenAIAgentFactory {
             information: formattedResponse 
           };
         } catch (error: any) {
-          console.error(`[KB Tool] Error:`, error.message);
+          logger.error(`[KB Tool] Error:`, error.message);
           return { 
             found: false, 
             message: 'Unable to search knowledge base at this time.' 
@@ -435,7 +435,7 @@ export class OpenAIAgentFactory {
           // Company comes from the owning agent record (tool calls carry no session). Fail closed.
           const companyId: string | null = agent?.companyId ?? null;
           if (!companyId) {
-            console.warn(`[Appointment Tool] Refusing insert: agent ${agentId} has no company_id`);
+            logger.warn(`[Appointment Tool] Refusing insert: agent ${agentId} has no company_id`);
             return {
               success: false,
               message: 'Unable to book appointment at this time. Please try again.'
@@ -472,7 +472,7 @@ export class OpenAIAgentFactory {
             message: `Appointment booked for ${params.contactName} on ${params.appointmentDate} at ${params.appointmentTime}` 
           };
         } catch (error: any) {
-          console.error(`[Appointment Tool] Error:`, error.message, error.stack);
+          logger.error(`[Appointment Tool] Error:`, [error.message, error.stack]);
           return { 
             success: false, 
             message: 'Unable to book appointment at this time. Please try again.' 
@@ -585,7 +585,7 @@ export class OpenAIAgentFactory {
             .limit(1);
           const companyId: string | null = ownerForm?.companyId ?? null;
           if (!companyId) {
-            console.warn(`[Form Tool] Refusing insert: form ${formId} has no company_id`);
+            logger.warn(`[Form Tool] Refusing insert: form ${formId} has no company_id`);
             return {
               success: false,
               message: 'Unable to save information at this time. Please try again.'
@@ -614,7 +614,7 @@ export class OpenAIAgentFactory {
             message: 'Your information has been saved successfully.' 
           };
         } catch (error: any) {
-          console.error(`[Form Tool] Error:`, error.message);
+          logger.error(`[Form Tool] Error:`, error.message);
           return { 
             success: false, 
             message: 'Unable to save information at this time. Please try again.' 
@@ -1054,7 +1054,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
           logger.info(`[Webhook Tool] Response received`);
           return data;
         } catch (error: any) {
-          console.error(`[Webhook Tool] Error:`, error.message);
+          logger.error(`[Webhook Tool] Error:`, error.message);
           return { success: false, error: error.message };
         }
       },
@@ -1148,7 +1148,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
               
               return { found: true, information: formattedResponse };
             } catch (error: any) {
-              console.error(`[KB Tool] Error:`, error.message);
+              logger.error(`[KB Tool] Error:`, error.message);
               return { found: false, message: 'Unable to search knowledge base.' };
             }
           };
@@ -1170,7 +1170,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
               // Company comes from the hydrate context (the owning agent's company, set by the caller). Fail closed.
               const companyId: string | null = context.companyId || null;
               if (!companyId) {
-                console.warn(`[Appointment Tool] Refusing hydrated insert: agent ${context.agentId} has no company_id`);
+                logger.warn(`[Appointment Tool] Refusing hydrated insert: agent ${context.agentId} has no company_id`);
                 return { success: false, message: 'Unable to book appointment at this time.' };
               }
 
@@ -1197,7 +1197,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
               logger.info(`[Appointment Tool] Created appointment ${appointmentId}`);
               return { success: true, appointmentId, message: 'Appointment booked successfully.' };
             } catch (error: any) {
-              console.error(`[Appointment Tool] Error:`, error.message);
+              logger.error(`[Appointment Tool] Error:`, error.message);
               return { success: false, message: 'Unable to book appointment at this time.' };
             }
           };
@@ -1246,7 +1246,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
                   .limit(1);
                 const companyId: string | null = ownerForm?.companyId ?? null;
                 if (!companyId) {
-                  console.warn(`[Form Tool Hydrated] Refusing insert: form ${formId} has no company_id`);
+                  logger.warn(`[Form Tool Hydrated] Refusing insert: form ${formId} has no company_id`);
                   return { success: false, message: 'Unable to save information at this time.' };
                 }
 
@@ -1284,7 +1284,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
                   });
                   logger.info(`[Form Tool Hydrated] Triggered form.submitted webhook event`);
                 } catch (webhookError: any) {
-                  console.error(`[Form Tool Hydrated] Failed to trigger webhook:`, webhookError.message);
+                  logger.error(`[Form Tool Hydrated] Failed to trigger webhook:`, webhookError.message);
                 }
                 
                 return { 
@@ -1293,7 +1293,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
                   message: 'Your information has been saved successfully.' 
                 };
               } catch (error: any) {
-                console.error(`[Form Tool Hydrated] Error:`, error.message);
+                logger.error(`[Form Tool Hydrated] Error:`, error.message);
                 return { 
                   success: false, 
                   message: 'Unable to save information at this time.' 
@@ -1360,13 +1360,13 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
                   logger.info(`[Webhook Tool Hydrated] Response received`);
                   return { success: true, data };
                 } catch (error: any) {
-                  console.error(`[Webhook Tool Hydrated] Error:`, error.message);
+                  logger.error(`[Webhook Tool Hydrated] Error:`, error.message);
                   return { success: false, error: error.message };
                 }
               };
             } else {
               // No webhook URL in metadata, fallback to generic handler
-              console.warn(`[Hydrate] Webhook tool ${toolName} missing URL in metadata, using generic handler`);
+              logger.warn(`[Hydrate] Webhook tool ${toolName} missing URL in metadata, using generic handler`);
               handler = async (params: Record<string, unknown>) => {
                 logger.info(`[Generic Tool] ${toolName} called`);
                 return { success: true, toolName, params };
@@ -1511,7 +1511,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
 
           return { success: true, data };
         } catch (error: any) {
-          console.error(`[API Call Tool] Error:`, error.message);
+          logger.error(`[API Call Tool] Error:`, error.message);
           return { success: false, error: error.message };
         }
       },
@@ -1802,7 +1802,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
                 );
                 logger.info(`[Agent Factory] Added form tool for form ${formId} with ${formFieldsData.length} fields`);
               } else {
-                console.warn(`[Agent Factory] Form ${formId} has no fields, skipping form tool`);
+                logger.warn(`[Agent Factory] Form ${formId} has no fields, skipping form tool`);
               }
             }
           }
@@ -2149,7 +2149,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
     if (agent.knowledgeBaseIds && agent.knowledgeBaseIds.length > 0) {
       if (!agent.companyId) {
         // Fail closed: no company, no knowledge tool.
-        console.warn(`[Agent Factory] Agent ${agent.id} has no company scope, knowledge tool not added`);
+        logger.warn(`[Agent Factory] Agent ${agent.id} has no company scope, knowledge tool not added`);
       } else {
         config = this.addKnowledgeBaseTool(config, agent.knowledgeBaseIds, agent.userId, agent.companyId);
       }

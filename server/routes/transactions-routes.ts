@@ -85,7 +85,7 @@ router.get("/", authenticateToken, requireRole("admin"), async (req: AuthRequest
 
     res.json({ transactions: enrichedTransactions });
   } catch (error: any) {
-    console.error("Error fetching transactions:", error);
+    logger.error("Error fetching transactions:", error);
     res.status(500).json({ message: "Failed to fetch transactions" });
   }
 });
@@ -127,7 +127,7 @@ router.get("/analytics", authenticateToken, requireRole("admin"), async (req: Au
     
     res.json(analytics);
   } catch (error: any) {
-    console.error("Error fetching analytics:", error);
+    logger.error("Error fetching analytics:", error);
     res.status(500).json({ message: "Failed to fetch analytics" });
   }
 });
@@ -193,7 +193,7 @@ router.get("/history", authenticateToken, async (req: AuthRequest, res: Response
       }
     });
   } catch (error: any) {
-    console.error("Error fetching user transactions:", error);
+    logger.error("Error fetching user transactions:", error);
     res.status(500).json({ message: "Failed to fetch transactions" });
   }
 });
@@ -226,7 +226,7 @@ router.get("/:id", authenticateToken, requireRole("admin"), async (req: AuthRequ
       invoice: invoice || null,
     });
   } catch (error: any) {
-    console.error("Error fetching transaction:", error);
+    logger.error("Error fetching transaction:", error);
     res.status(500).json({ message: "Failed to fetch transaction" });
   }
 });
@@ -270,7 +270,7 @@ router.get("/user/history", authenticateToken, async (req: AuthRequest, res: Res
 
     res.json(enrichedTransactions);
   } catch (error: any) {
-    console.error("Error fetching user transactions:", error);
+    logger.error("Error fetching user transactions:", error);
     res.status(500).json({ message: "Failed to fetch transactions" });
   }
 });
@@ -306,7 +306,7 @@ router.get("/refunds/all", authenticateToken, requireRole("admin"), async (req: 
 
     res.json(enrichedRefunds);
   } catch (error: any) {
-    console.error("Error fetching refunds:", error);
+    logger.error("Error fetching refunds:", error);
     res.status(500).json({ message: "Failed to fetch refunds" });
   }
 });
@@ -330,7 +330,7 @@ router.get("/invoices/all", authenticateToken, requireRole("admin"), async (req:
 
     res.json({ invoices: enrichedInvoices });
   } catch (error: any) {
-    console.error("Error fetching invoices:", error);
+    logger.error("Error fetching invoices:", error);
     res.status(500).json({ message: "Failed to fetch invoices" });
   }
 });
@@ -342,7 +342,7 @@ router.get("/user/invoices", authenticateToken, async (req: AuthRequest, res: Re
     const userInvoices = await storage.getUserInvoices(userId);
     res.json(userInvoices);
   } catch (error: any) {
-    console.error("Error fetching user invoices:", error);
+    logger.error("Error fetching user invoices:", error);
     res.status(500).json({ message: "Failed to fetch invoices" });
   }
 });
@@ -364,7 +364,7 @@ router.get("/invoice/:id", authenticateToken, async (req: AuthRequest, res: Resp
 
     res.json(invoice);
   } catch (error: any) {
-    console.error("Error fetching invoice:", error);
+    logger.error("Error fetching invoice:", error);
     res.status(500).json({ message: "Failed to fetch invoice" });
   }
 });
@@ -384,7 +384,7 @@ router.get("/webhooks/queue", authenticateToken, requireRole("admin"), async (re
       retryableItems: retryable.slice(0, 20),
     });
   } catch (error: any) {
-    console.error("Error fetching webhook queue:", error);
+    logger.error("Error fetching webhook queue:", error);
     res.status(500).json({ message: "Failed to fetch webhook queue" });
   }
 });
@@ -472,7 +472,7 @@ router.get("/export/zip", authenticateToken, requireRole("admin"), async (req: A
     res.setHeader('Content-Disposition', `attachment; filename="${zipFileName}"`);
     
     archive.on('error', (err) => {
-      console.error("Archive error:", err);
+      logger.error("Archive error:", err);
       if (!res.headersSent) {
         res.status(500).json({ message: "Failed to create ZIP archive" });
       }
@@ -483,7 +483,7 @@ router.get("/export/zip", authenticateToken, requireRole("admin"), async (req: A
     
     logger.info(`📦 [Export] Created ZIP with ${filesAdded.length} files: ${zipFileName}`);
   } catch (error: any) {
-    console.error("Error exporting documents:", error);
+    logger.error("Error exporting documents:", error);
     if (!res.headersSent) {
       res.status(500).json({ message: "Failed to export documents" });
     }

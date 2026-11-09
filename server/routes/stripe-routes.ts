@@ -102,7 +102,7 @@ router.get('/config', async (_req: Request, res: Response) => {
       supportedCurrencies: currencies,
     });
   } catch (error: any) {
-    console.error('Error fetching Stripe config:', error);
+    logger.error('Error fetching Stripe config:', error);
     res.status(500).json({ error: 'Failed to fetch Stripe configuration' });
   }
 });
@@ -177,7 +177,7 @@ router.post('/create-payment-intent', authenticateToken, async (req: AuthRequest
       currencySymbol: currencyConfig.symbol,
     });
   } catch (error: any) {
-    console.error('Create payment intent error:', error);
+    logger.error('Create payment intent error:', error);
     res.status(500).json({ error: 'Failed to create payment intent' });
   }
 });
@@ -236,7 +236,7 @@ router.post('/confirm-payment', authenticateToken, async (req: AuthRequest, res:
       }
     }
   } catch (error: any) {
-    console.error('Confirm payment error:', error);
+    logger.error('Confirm payment error:', error);
     res.status(500).json({ error: 'Failed to confirm payment' });
   }
 });
@@ -358,7 +358,7 @@ router.post('/create-checkout-session', authenticateToken, async (req: AuthReque
 
     res.json({ url: session.url });
   } catch (error: any) {
-    console.error('Stripe checkout session error:', error);
+    logger.error('Stripe checkout session error:', error);
     res.status(500).json({ error: 'Failed to create checkout session' });
   }
 });
@@ -447,7 +447,7 @@ router.post('/change-plan', authenticateToken, async (req: AuthRequest, res: Res
       currentPeriodEnd: new Date((updatedSubscription as any).current_period_end * 1000),
     });
   } catch (error: any) {
-    console.error('Change plan error:', error);
+    logger.error('Change plan error:', error);
     res.status(500).json({ error: 'Failed to change plan' });
   }
 });
@@ -489,7 +489,7 @@ router.post('/reactivate-subscription', authenticateToken, async (req: AuthReque
       message: 'Subscription has been reactivated. You will continue to be billed normally.',
     });
   } catch (error: any) {
-    console.error('Reactivate subscription error:', error);
+    logger.error('Reactivate subscription error:', error);
     res.status(500).json({ error: 'Failed to reactivate subscription' });
   }
 });
@@ -525,7 +525,7 @@ router.post('/cancel-subscription', authenticateToken, async (req: AuthRequest, 
       currentPeriodEnd: subscription.currentPeriodEnd 
     });
   } catch (error: any) {
-    console.error('Cancel subscription error:', error);
+    logger.error('Cancel subscription error:', error);
     res.status(500).json({ error: 'Failed to cancel subscription' });
   }
 });
@@ -546,7 +546,7 @@ router.post('/webhook', webhookRateLimiter, async (req, res) => {
   }
 
   if (!webhookSecret) {
-    console.error('[Stripe Webhook] STRIPE_WEBHOOK_SECRET not configured; refusing webhook');
+    logger.error('[Stripe Webhook] STRIPE_WEBHOOK_SECRET not configured; refusing webhook');
     return res.status(403).send('Stripe webhook secret not configured');
   }
 
@@ -557,7 +557,7 @@ router.post('/webhook', webhookRateLimiter, async (req, res) => {
     const rawBody = rawReq.rawBody || Buffer.from(JSON.stringify(req.body));
     event = stripe.webhooks.constructEvent(rawBody, sig as string, webhookSecret);
   } catch (err: any) {
-    console.error('Webhook signature verification failed:', err.message);
+    logger.error('Webhook signature verification failed:', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
@@ -570,7 +570,7 @@ router.post('/webhook', webhookRateLimiter, async (req, res) => {
     timestampMs: Number.isFinite(signedAtSeconds) ? signedAtSeconds * 1000 : null,
   });
   if (!replay.accepted) {
-    console.warn(`[Stripe Webhook] Rejected ${event.id}: ${replay.reason}`);
+    logger.warn(`[Stripe Webhook] Rejected ${event.id}: ${replay.reason}`);
     if (replay.reason === 'capacity') {
       // Guard is full: ask Stripe to retry later. The body is generic.
       return res.status(503).json({ error: 'Webhook temporarily unavailable' });
@@ -585,7 +585,7 @@ router.post('/webhook', webhookRateLimiter, async (req, res) => {
         const metadata = session.metadata;
         
         if (!metadata || !metadata.userId) {
-          console.error('No userId in session metadata');
+          logger.error('No userId in session metadata');
           break;
         }
 
@@ -659,10 +659,10 @@ router.post('/webhook', webhookRateLimiter, async (req, res) => {
                 await emailService.sendPurchaseConfirmation(newTransaction.id);
                 logger.info(`✅ [Stripe] Purchase confirmation email sent for transaction ${newTransaction.id}`);
               } catch (emailError: any) {
-                console.error(`❌ [Stripe] Failed to send purchase confirmation email:`, emailError);
+                logger.error(`❌ [Stripe] Failed to send purchase confirmation email:`);
               }
             } catch (txError: any) {
-              console.error('Failed to log payment transaction:', txError);
+              logger.error('Failed to log payment transaction:', txError);
             }
           }
         } else if (metadata.type === 'credits') {
@@ -709,10 +709,10 @@ router.post('/webhook', webhookRateLimiter, async (req, res) => {
                     await emailService.sendPurchaseConfirmation(creditTransaction.id);
                     logger.info(`✅ [Stripe] Purchase confirmation email sent for credits transaction ${creditTransaction.id}`);
                   } catch (emailError: any) {
-                    console.error(`❌ [Stripe] Failed to send credits purchase confirmation email:`, emailError);
+                    logger.error(`❌ [Stripe] Failed to send credits purchase confirmation email:`);
                   }
                 } catch (txError: any) {
-                  console.error('Failed to log payment transaction:', txError);
+                  logger.error('Failed to log payment transaction:', txError);
                 }
               }
             } catch (error: any) {
@@ -825,7 +825,7 @@ router.post('/webhook', webhookRateLimiter, async (req, res) => {
                   .limit(1);
                 
                 if (activeFreeModels.length === 0) {
-                  console.error(`CRITICAL: No active free-tier LLM models available for user ${userId} downgrade. Cannot update ${agentsToUpdate.length} agent(s).`);
+                  logger.error(`CRITICAL: No active free-tier LLM models available for user ${userId} downgrade. Cannot update ${agentsToUpdate.length} agent(s).`);
                   // Send notification to admins about this critical issue
                   await NotificationService.notifyAdmins(
                     'No Active Free LLM Models',
@@ -859,7 +859,7 @@ router.post('/webhook', webhookRateLimiter, async (req, res) => {
                 }
               }
             } catch (error) {
-              console.error('Error updating agents on plan downgrade:', error);
+              logger.error('Error updating agents on plan downgrade:', error);
               // Don't throw - subscription cancellation should still complete
             }
 
@@ -931,10 +931,10 @@ router.post('/webhook', webhookRateLimiter, async (req, res) => {
                     await emailService.sendPurchaseConfirmation(renewalTransaction.id);
                     logger.info(`✅ [Stripe] Renewal confirmation email sent for transaction ${renewalTransaction.id}`);
                   } catch (emailError: any) {
-                    console.error(`❌ [Stripe] Failed to send renewal confirmation email:`, emailError);
+                    logger.error(`❌ [Stripe] Failed to send renewal confirmation email:`);
                   }
                 } catch (txError: any) {
-                  console.error('Failed to log payment transaction:', txError);
+                  logger.error('Failed to log payment transaction:', txError);
                 }
               }
             }
@@ -950,7 +950,7 @@ router.post('/webhook', webhookRateLimiter, async (req, res) => {
           ? invoiceData.subscription 
           : invoiceData.subscription?.id;
         
-        console.error(`❌ Invoice payment failed: ${invoice.id}`);
+        logger.error(`❌ Invoice payment failed: ${invoice.id}`);
         
         // Handle failed subscription payment - mark as past_due and notify user
         if (subscriptionId) {
@@ -975,14 +975,14 @@ router.post('/webhook', webhookRateLimiter, async (req, res) => {
                   await emailService.sendPaymentFailed(userId, failedAmount, 'Subscription renewal payment failed');
                   logger.info(`✅ [Stripe] Payment failed email sent to user ${userId}`);
                 } catch (emailError: any) {
-                  console.error(`❌ [Stripe] Failed to send payment failed email:`, emailError);
+                  logger.error(`❌ [Stripe] Failed to send payment failed email:`);
                 }
                 
                 logger.warn(`⚠️ User ${userId} subscription marked as past_due due to payment failure`);
               }
             }
           } catch (error) {
-            console.error('Error handling payment failure:', error);
+            logger.error('Error handling payment failure:', error);
           }
         }
         break;
@@ -1056,15 +1056,15 @@ router.post('/webhook', webhookRateLimiter, async (req, res) => {
                 await emailService.sendAccountSuspended(userId, `Chargeback dispute: ${dispute.reason || 'Unknown reason'}`);
                 logger.info(`✅ [Stripe] Account suspended email sent to user ${userId}`);
               } catch (emailError: any) {
-                console.error(`❌ [Stripe] Failed to send account suspended email:`, emailError);
+                logger.error(`❌ [Stripe] Failed to send account suspended email:`);
               }
               
               logger.warn(`⛔ [Stripe] User ${userId} suspended due to chargeback. Dispute ID: ${dispute.id}, Reason: ${dispute.reason}`);
             } else {
-              console.warn(`⚠️ [Stripe] No transaction found for charge ${chargeId}`);
+              logger.warn(`⚠️ [Stripe] No transaction found for charge ${chargeId}`);
             }
           } catch (error: any) {
-            console.error('Error processing chargeback:', error);
+            logger.error('Error processing chargeback:', error);
           }
         }
         break;
@@ -1140,7 +1140,7 @@ router.post('/webhook', webhookRateLimiter, async (req, res) => {
               logger.info(`✅ [Stripe] External refund processed for user ${userId}. Charge: ${charge.id}`);
             }
           } catch (error: any) {
-            console.error('Error processing external refund:', error);
+            logger.error('Error processing external refund:', error);
           }
         }
         break;
@@ -1152,7 +1152,7 @@ router.post('/webhook', webhookRateLimiter, async (req, res) => {
 
     res.json({ received: true });
   } catch (error: any) {
-    console.error('Webhook processing error:', error);
+    logger.error('Webhook processing error:', error);
 
     // Processing failed, so let Stripe's retry of this event through the replay guard.
     stripeReplayGuard.forget({ provider: 'stripe', eventId: event.id });

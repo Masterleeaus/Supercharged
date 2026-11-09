@@ -43,7 +43,7 @@ export async function prepareElevenLabsTestPhone({
 
   const isSystemPoolNumber = fromPhone.isSystemPool === true && fromPhone.userId === null;
   if (!isSystemPoolNumber && fromPhone.userId !== userId) {
-    console.warn(`⚠️ [Flow Test] Phone ${fromPhone.id} does not belong to user ${userId}`);
+    logger.warn(`⚠️ [Flow Test] Phone ${fromPhone.id} does not belong to user ${userId}`);
     throw new FlowTestHttpError(403, {
       error: "Phone number access denied",
       message: "You do not have access to this phone number.",
@@ -74,7 +74,7 @@ export async function prepareElevenLabsTestPhone({
         }
         // Validate refreshed phone has expected credential after sync
         if (!fromPhone.elevenLabsCredentialId || !fromPhone.elevenLabsPhoneNumberId) {
-          console.error(`❌ [Flow Test] Phone sync returned success but DB state invalid`);
+          logger.error(`❌ [Flow Test] Phone sync returned success but DB state invalid`);
           throw new FlowTestHttpError(500, {
             error: "Phone sync inconsistent",
             message: "Phone sync reported success but database state is invalid. Please try again.",
@@ -89,7 +89,7 @@ export async function prepareElevenLabsTestPhone({
       }
     } catch (syncError: any) {
       if (syncError instanceof FlowTestHttpError) throw syncError;
-      console.error(`❌ [Flow Test] Phone sync failed:`, syncError);
+      logger.error(`❌ [Flow Test] Phone sync failed:`, syncError);
       throw new FlowTestHttpError(400, {
         error: "Phone sync failed",
         message: "Failed to sync phone number with ElevenLabs. Please try again or purchase a new phone number.",
@@ -107,7 +107,7 @@ export async function prepareElevenLabsTestPhone({
       );
 
       if (!migrationResult.success) {
-        console.error(`❌ [Flow Test] Phone migration failed:`, migrationResult.error);
+        logger.error(`❌ [Flow Test] Phone migration failed:`, migrationResult.error);
         throw new FlowTestHttpError(400, {
           error: "Phone number migration failed",
           message: "Could not migrate phone number to agent's credential",
@@ -128,7 +128,7 @@ export async function prepareElevenLabsTestPhone({
 
     } catch (migrationError: any) {
       if (migrationError instanceof FlowTestHttpError) throw migrationError;
-      console.error(`❌ [Flow Test] Phone migration error:`, migrationError);
+      logger.error(`❌ [Flow Test] Phone migration error:`, migrationError);
       throw new FlowTestHttpError(500, {
         error: "Phone number migration failed",
         message: "Failed to migrate phone number to agent's credential",
@@ -148,7 +148,7 @@ export async function prepareElevenLabsTestPhone({
   );
 
   if (!verifyResult.success) {
-    console.error(`❌ [Flow Test] Phone verification failed:`, verifyResult.error);
+    logger.error(`❌ [Flow Test] Phone verification failed:`, verifyResult.error);
     throw new FlowTestHttpError(400, {
       error: "Phone number not available on ElevenLabs",
       message: verifyResult.error || "Could not verify or re-import phone number. Please check your Twilio configuration.",
@@ -405,7 +405,7 @@ export async function placeElevenLabsTestCall({
       );
       logger.info(`   ✅ Agent workflow updated on ElevenLabs (${Object.keys(testWorkflow.nodes).length} nodes, ${testWebhookTools.length} tools)`);
     } catch (updateError: any) {
-      console.error(`   ⚠️ Failed to update agent workflow (call may use stale workflow):`, updateError.message);
+      logger.error(`   ⚠️ Failed to update agent workflow (call may use stale workflow):`, updateError.message);
     }
 
     // Use OutboundCallService for ElevenLabs Twilio outbound calls
@@ -443,7 +443,7 @@ export async function placeElevenLabsTestCall({
         `);
         logger.info(`   ✅ Call record ${callId} updated with ElevenLabs conversation ID: ${conversationId}`);
       } catch (dbError: any) {
-        console.error(`   ⚠️ Failed to update call record with conversation ID:`, dbError.message);
+        logger.error(`   ⚠️ Failed to update call record with conversation ID:`, dbError.message);
       }
     }
 
@@ -478,7 +478,7 @@ export async function placeElevenLabsTestCall({
         });
         logger.info(`🔀 [Flow Test] Created flow execution for ElevenLabs test call`);
       } catch (flowExecError: any) {
-        console.warn(`⚠️ [Flow Test] Error creating flow execution:`, flowExecError.message);
+        logger.warn(`⚠️ [Flow Test] Error creating flow execution:`, flowExecError.message);
       }
     }
 
@@ -500,7 +500,7 @@ export async function placeElevenLabsTestCall({
 
   } catch (elevenLabsError: any) {
     if (elevenLabsError instanceof FlowTestHttpError) throw elevenLabsError;
-    console.error(`❌ [Flow Test] ElevenLabs call initiation failed:`, elevenLabsError);
+    logger.error(`❌ [Flow Test] ElevenLabs call initiation failed:`, elevenLabsError);
 
     const failedMetadata = (callRecord.metadata ?? {}) as import('@shared/schema').CallMetadata;
     await db

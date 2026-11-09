@@ -70,7 +70,7 @@ async function processStripeRefund(
     logger.info(`✅ [Stripe] Created refund ${refund.id} for payment intent ${gatewayTransactionId}`);
     return { success: true, gatewayRefundId: refund.id };
   } catch (error: any) {
-    console.error(`❌ [Stripe] Refund failed:`, error.message);
+    logger.error(`❌ [Stripe] Refund failed:`, error.message);
     return { success: false, error: error.message };
   }
 }
@@ -95,7 +95,7 @@ async function processRazorpayRefund(
     logger.info(`✅ [Razorpay] Created refund ${refund.id} for payment ${gatewayTransactionId}`);
     return { success: true, gatewayRefundId: refund.id };
   } catch (error: any) {
-    console.error(`❌ [Razorpay] Refund failed:`, error.message);
+    logger.error(`❌ [Razorpay] Refund failed:`, error.message);
     return { success: false, error: error.message };
   }
 }
@@ -121,7 +121,7 @@ async function processPayPalRefund(
     logger.info(`✅ [PayPal] Created refund ${response.data.id} for capture ${gatewayTransactionId}`);
     return { success: true, gatewayRefundId: response.data.id };
   } catch (error: any) {
-    console.error(`❌ [PayPal] Refund failed:`, error.message);
+    logger.error(`❌ [PayPal] Refund failed:`, error.message);
     return { success: false, error: error.response?.data?.message || error.message };
   }
 }
@@ -165,7 +165,7 @@ async function processPaystackRefund(
     logger.info(`✅ [Paystack] Created refund for transaction ${gatewayTransactionId}`);
     return { success: true, gatewayRefundId: response.data.data?.id?.toString() };
   } catch (error: any) {
-    console.error(`❌ [Paystack] Refund failed:`, error.message);
+    logger.error(`❌ [Paystack] Refund failed:`, error.message);
     return { success: false, error: error.response?.data?.message || error.message };
   }
 }
@@ -192,7 +192,7 @@ async function processMercadoPagoRefund(
     logger.info(`✅ [MercadoPago] Created refund ${response.id} for payment ${gatewayTransactionId}`);
     return { success: true, gatewayRefundId: response.id?.toString() };
   } catch (error: any) {
-    console.error(`❌ [MercadoPago] Refund failed:`, error.message);
+    logger.error(`❌ [MercadoPago] Refund failed:`, error.message);
     return { success: false, error: error.message };
   }
 }
@@ -351,7 +351,7 @@ router.post("/:transactionId", authenticateToken, requireRole("admin"), async (r
           creditsReversed = refundResult.creditsReversed;
           logger.info(`✅ [Refund] Reversed ${creditsReversed} credits from user ${user.id}. New balance: ${refundResult.newBalance}. Transaction logged.`);
         } else {
-          console.error(`❌ [Refund] Failed to reverse credits: ${refundResult.error}`);
+          logger.error(`❌ [Refund] Failed to reverse credits: ${refundResult.error}`);
         }
       }
     }
@@ -389,12 +389,12 @@ router.post("/:transactionId", authenticateToken, requireRole("admin"), async (r
         const updatedRefund = await generateRefundNoteForRefund(refund.id);
         logger.info(`📄 [Refund] Generated refund note: ${updatedRefund.refundNoteNumber}`);
       } catch (pdfError: any) {
-        console.error(`⚠️ [Refund] Failed to generate refund note PDF:`, pdfError.message);
+        logger.error(`⚠️ [Refund] Failed to generate refund note PDF:`, pdfError.message);
       }
     }
 
     if (!gatewayResult.success) {
-      console.error(`❌ [Refund] Failed to process refund:`, gatewayResult.error);
+      logger.error(`❌ [Refund] Failed to process refund:`, gatewayResult.error);
       return res.status(500).json({ 
         message: "Gateway refund failed", 
         error: gatewayResult.error,
@@ -418,7 +418,7 @@ router.post("/:transactionId", authenticateToken, requireRole("admin"), async (r
       creditsReversed,
     });
   } catch (error: any) {
-    console.error("Error processing refund:", error);
+    logger.error("Error processing refund:", error);
     res.status(500).json({ message: "Failed to process refund" });
   }
 });
@@ -466,7 +466,7 @@ router.get("/:id/download", authenticateToken, async (req: AuthRequest, res: Res
     res.setHeader('Content-Length', pdfBuffer.length);
     res.send(pdfBuffer);
   } catch (error: any) {
-    console.error("Error downloading refund note:", error);
+    logger.error("Error downloading refund note:", error);
     res.status(500).json({ message: "Failed to download refund note" });
   }
 });
@@ -501,7 +501,7 @@ router.get("/:id", authenticateToken, requireRole("admin"), async (req: AuthRequ
       adminUser,
     });
   } catch (error: any) {
-    console.error("Error fetching refund:", error);
+    logger.error("Error fetching refund:", error);
     res.status(500).json({ message: "Failed to fetch refund" });
   }
 });
@@ -535,7 +535,7 @@ router.get("/", authenticateToken, requireRole("admin"), async (req: AuthRequest
 
     res.json(enrichedRefunds);
   } catch (error: any) {
-    console.error("Error fetching refunds:", error);
+    logger.error("Error fetching refunds:", error);
     res.status(500).json({ message: "Failed to fetch refunds" });
   }
 });
@@ -562,7 +562,7 @@ router.get("/user/my-refunds", authenticateToken, async (req: AuthRequest, res: 
 
     res.json(enrichedRefunds);
   } catch (error: any) {
-    console.error("Error fetching user refunds:", error);
+    logger.error("Error fetching user refunds:", error);
     res.status(500).json({ message: "Failed to fetch refunds" });
   }
 });
@@ -602,7 +602,7 @@ router.get("/admin/:id/download", authenticateToken, requireRole("admin"), async
     const fileStream = fs.createReadStream(refund.pdfUrl);
     fileStream.pipe(res);
   } catch (error: any) {
-    console.error("Error downloading refund note:", error);
+    logger.error("Error downloading refund note:", error);
     res.status(500).json({ message: "Failed to download refund note" });
   }
 });
@@ -639,7 +639,7 @@ router.get("/user/:id/download", authenticateToken, async (req: AuthRequest, res
     const fileStream = fs.createReadStream(refund.pdfUrl);
     fileStream.pipe(res);
   } catch (error: any) {
-    console.error("Error downloading refund note:", error);
+    logger.error("Error downloading refund note:", error);
     res.status(500).json({ message: "Failed to download refund note" });
   }
 });

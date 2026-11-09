@@ -6,6 +6,7 @@ import { userAddresses } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 import { TwilioService } from "../services/twilio";
 import { z } from "zod";
+import { logger } from '../utils/logger.ts';
 
 const createAddressSchema = z.object({
   customerName: z.string().min(1, "Name is required"),
@@ -31,7 +32,7 @@ export function createUserAddressRoutes(ctx: RouteContext): Router {
       
       res.json(addresses);
     } catch (error: any) {
-      console.error("[User Addresses] Error fetching addresses:", error);
+      logger.error("[User Addresses] Error fetching addresses:", error);
       res.status(500).json({ error: "Failed to fetch addresses" });
     }
   });
@@ -82,7 +83,7 @@ export function createUserAddressRoutes(ctx: RouteContext): Router {
       
       res.status(201).json(address);
     } catch (error: any) {
-      console.error("[User Addresses] Error creating address:", error);
+      logger.error("[User Addresses] Error creating address:", error);
       res.status(500).json({ error: "Failed to create address" });
     }
   });
@@ -169,7 +170,7 @@ export function createUserAddressRoutes(ctx: RouteContext): Router {
       
       res.json(updated);
     } catch (error: any) {
-      console.error("[User Addresses] Error refreshing address:", error);
+      logger.error("[User Addresses] Error refreshing address:", error);
       res.status(500).json({ error: "Failed to refresh address status" });
     }
   });
@@ -194,7 +195,7 @@ export function createUserAddressRoutes(ctx: RouteContext): Router {
         try {
           await twilioService.deleteAddress(address.twilioAddressSid);
         } catch (twilioError: any) {
-          console.error("[User Addresses] Failed to delete from Twilio:", twilioError);
+          logger.error("[User Addresses] Failed to delete from Twilio:", twilioError);
         }
       }
       
@@ -203,7 +204,7 @@ export function createUserAddressRoutes(ctx: RouteContext): Router {
       
       res.json({ success: true });
     } catch (error: any) {
-      console.error("[User Addresses] Error deleting address:", error);
+      logger.error("[User Addresses] Error deleting address:", error);
       res.status(500).json({ error: "Failed to delete address" });
     }
   });

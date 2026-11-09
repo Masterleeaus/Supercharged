@@ -51,7 +51,7 @@ async function queuedJob(ctx) {
 
 test('company quiet hours set in the company settings store hold a send inside the window and requeue it under default wiring', async () => {
   const companySettings = createCompanySettingsStore();
-  const set = companySettings.setQuietHours(CO_A, { startHour: 0, endHour: 6, timezone: 'UTC' });
+  const set = await companySettings.setQuietHours(CO_A, { startHour: 0, endHour: 6, timezone: 'UTC' });
   assert.equal(set.ok, true);
 
   const ctx = setupDefaultWiring();

@@ -32,7 +32,7 @@ export async function getGoogleCredentials(): Promise<{ clientId: string; client
     const clientSecret = (dbClientSecret?.value as string | undefined)?.trim() || process.env.GOOGLE_CLIENT_SECRET;
     if (clientId && clientSecret) return { clientId, clientSecret };
   } catch (err: any) {
-    console.error("[GoogleSheets] Failed to read credentials from DB, falling back to env:", err.message);
+    logger.error("[GoogleSheets] Failed to read credentials from DB, falling back to env:", err.message);
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
     if (clientId && clientSecret) return { clientId, clientSecret };
@@ -56,7 +56,7 @@ async function refreshAccessToken(userId: string, force = false): Promise<string
 
   const creds = await getGoogleCredentials();
   if (!creds) {
-    console.error("[GoogleSheets] Google OAuth credentials not configured (DB or env)");
+    logger.error("[GoogleSheets] Google OAuth credentials not configured (DB or env)");
     return null;
   }
   const { clientId, clientSecret } = creds;
@@ -74,7 +74,7 @@ async function refreshAccessToken(userId: string, force = false): Promise<string
     });
 
     if (!resp.ok) {
-      console.error("[GoogleSheets] Token refresh failed:", await resp.text());
+      logger.error("[GoogleSheets] Token refresh failed:", await resp.text());
       return null;
     }
 
@@ -92,7 +92,7 @@ async function refreshAccessToken(userId: string, force = false): Promise<string
 
     return data.access_token;
   } catch (err: any) {
-    console.error("[GoogleSheets] Token refresh error:", err.message);
+    logger.error("[GoogleSheets] Token refresh error:", err.message);
     return null;
   }
 }
@@ -113,19 +113,19 @@ export async function listUserSheets(userId: string): Promise<GoogleSheet[]> {
   try {
     let resp = await doFetch(token);
     if (resp.status === 401) {
-      console.warn("[GoogleSheets] Got 401 on listUserSheets, forcing token refresh...");
+      logger.warn("[GoogleSheets] Got 401 on listUserSheets, forcing token refresh...");
       const fresh = await refreshAccessToken(userId, true);
       if (!fresh) return [];
       resp = await doFetch(fresh);
     }
     if (!resp.ok) {
-      console.error("[GoogleSheets] List sheets failed:", await resp.text());
+      logger.error("[GoogleSheets] List sheets failed:", await resp.text());
       return [];
     }
     const data = await resp.json() as { files: Array<{ id: string; name: string }> };
     return (data.files || []).map((f) => ({ id: f.id, name: f.name }));
   } catch (err: any) {
-    console.error("[GoogleSheets] List sheets error:", err.message);
+    logger.error("[GoogleSheets] List sheets error:", err.message);
     return [];
   }
 }
@@ -142,13 +142,13 @@ export async function listSheetTabs(userId: string, spreadsheetId: string): Prom
   try {
     let resp = await doFetch(token);
     if (resp.status === 401) {
-      console.warn("[GoogleSheets] Got 401 on listSheetTabs, forcing token refresh...");
+      logger.warn("[GoogleSheets] Got 401 on listSheetTabs, forcing token refresh...");
       const fresh = await refreshAccessToken(userId, true);
       if (!fresh) return [];
       resp = await doFetch(fresh);
     }
     if (!resp.ok) {
-      console.error("[GoogleSheets] List tabs failed:", await resp.text());
+      logger.error("[GoogleSheets] List tabs failed:", await resp.text());
       return [];
     }
     const data = await resp.json() as { sheets: Array<{ properties: { title: string; sheetId: number } }> };
@@ -157,7 +157,7 @@ export async function listSheetTabs(userId: string, spreadsheetId: string): Prom
       sheetId: s.properties.sheetId,
     }));
   } catch (err: any) {
-    console.error("[GoogleSheets] List tabs error:", err.message);
+    logger.error("[GoogleSheets] List tabs error:", err.message);
     return [];
   }
 }
@@ -179,13 +179,13 @@ async function readSheetRow1(
     const resp = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
     if (resp.status === 401) return null; // distinguish auth failure from empty sheet
     if (!resp.ok) {
-      console.warn(`[GoogleSheets] readSheetRow1 failed (${resp.status}) for sheet ${spreadsheetId}`);
+      logger.warn(`[GoogleSheets] readSheetRow1 failed (${resp.status}) for sheet ${spreadsheetId}`);
       return null;
     }
     const data = await resp.json() as { values?: string[][] };
     return (data.values?.[0]) ?? [];
   } catch (err: any) {
-    console.warn("[GoogleSheets] readSheetRow1 error:", err.message);
+    logger.warn("[GoogleSheets] readSheetRow1 error:", err.message);
     return null;
   }
 }
@@ -203,7 +203,7 @@ export async function ensureSheetHeaders(
 ): Promise<boolean> {
   let token = await refreshAccessToken(userId);
   if (!token) {
-    console.warn("[GoogleSheets] ensureSheetHeaders: no valid token for user:", userId);
+    logger.warn("[GoogleSheets] ensureSheetHeaders: no valid token for user:", userId);
     return false;
   }
 
@@ -214,13 +214,13 @@ export async function ensureSheetHeaders(
 
     // null = read failed — attempt a forced token refresh and one retry read
     if (existing === null) {
-      console.warn(`[GoogleSheets] readSheetRow1 returned null for sheet ${spreadsheetId} tab "${sheetName}" — forcing token refresh`);
+      logger.warn(`[GoogleSheets] readSheetRow1 returned null for sheet ${spreadsheetId} tab "${sheetName}" — forcing token refresh`);
       const freshToken = await refreshAccessToken(userId, true);
       if (!freshToken) return false;
       token = freshToken;
       existing = await readSheetRow1(freshToken, spreadsheetId, sheetName);
       if (existing === null) {
-        console.error(`[GoogleSheets] readSheetRow1 still failed after token refresh for sheet ${spreadsheetId}`);
+        logger.error(`[GoogleSheets] readSheetRow1 still failed after token refresh for sheet ${spreadsheetId}`);
         return false;
       }
     }
@@ -252,14 +252,14 @@ export async function ensureSheetHeaders(
 
     if (!resp.ok) {
       const errText = await resp.text();
-      console.error(`[GoogleSheets] ensureSheetHeaders write failed for sheet ${spreadsheetId} tab "${sheetName}":`, errText);
+      logger.error(`[GoogleSheets] ensureSheetHeaders write failed for sheet ${spreadsheetId} tab "${sheetName}":`, errText);
       return false;
     }
 
     logger.info(`[GoogleSheets] Header row written to "${sheetName}" (${spreadsheetId}): [${headerRow.join(', ')}]`);
     return true;
   } catch (err: any) {
-    console.error("[GoogleSheets] ensureSheetHeaders error:", err.message);
+    logger.error("[GoogleSheets] ensureSheetHeaders error:", err.message);
     return false;
   }
 }
@@ -272,7 +272,7 @@ export async function appendRowToSheet(
 ): Promise<boolean> {
   const token = await refreshAccessToken(userId);
   if (!token) {
-    console.error("[GoogleSheets] No valid token for user:", userId);
+    logger.error("[GoogleSheets] No valid token for user:", userId);
     return false;
   }
 
@@ -291,10 +291,10 @@ export async function appendRowToSheet(
 
     // One-time retry on 401/invalid token (handles clock skew or revocation)
     if (resp.status === 401) {
-      console.warn("[GoogleSheets] Got 401, forcing token refresh and retrying append...");
+      logger.warn("[GoogleSheets] Got 401, forcing token refresh and retrying append...");
       const freshToken = await refreshAccessToken(userId, true);
       if (!freshToken) {
-        console.error("[GoogleSheets] Force refresh failed — cannot append row");
+        logger.error("[GoogleSheets] Force refresh failed — cannot append row");
         return false;
       }
       resp = await doAppend(freshToken);
@@ -302,13 +302,13 @@ export async function appendRowToSheet(
 
     if (!resp.ok) {
       const errText = await resp.text();
-      console.error("[GoogleSheets] Append row failed:", errText);
+      logger.error("[GoogleSheets] Append row failed:", errText);
       return false;
     }
 
     return true;
   } catch (err: any) {
-    console.error("[GoogleSheets] Append row error:", err.message);
+    logger.error("[GoogleSheets] Append row error:", err.message);
     return false;
   }
 }

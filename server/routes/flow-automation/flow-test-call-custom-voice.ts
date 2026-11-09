@@ -92,7 +92,7 @@ export async function placeCustomVoiceEngineFlowTestCall({
         },
       });
     } catch (flowExecError: any) {
-      console.warn(`⚠️ [Flow Test] Error creating flow execution:`, flowExecError.message);
+      logger.warn(`⚠️ [Flow Test] Error creating flow execution:`, flowExecError.message);
     }
 
     const { importPlugin } = await import('../utils/plugin-import');
@@ -111,7 +111,7 @@ export async function placeCustomVoiceEngineFlowTestCall({
 
     // Register error handler to prevent uncaught exceptions
     esl.on('error', (err: any) => {
-      console.error('[ESL] Client error during flow test call:', err.message);
+      logger.error('[ESL] Client error during flow test call:', err.message);
     });
 
     await esl.connect();
@@ -197,7 +197,7 @@ export async function placeCustomVoiceEngineFlowTestCall({
     };
   } catch (cveError: any) {
     if (cveError instanceof FlowTestHttpError) throw cveError;
-    console.error(`❌ [Flow Test] Custom Voice Engine call error:`, cveError);
+    logger.error(`❌ [Flow Test] Custom Voice Engine call error:`, cveError);
     await failQueue("Failed to initiate call via Custom Voice Engine");
     throw new FlowTestHttpError(400, {
       error: "Call initiation failed",

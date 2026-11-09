@@ -217,7 +217,9 @@ test("default human-agent rule fails closed on a lookup error and reports only t
   } finally {
     console.error = original;
   }
-  assert.deepEqual(logged, [["chatbot.agent.has_human_agents_lookup_failed"]]);
+  // The shared logger adds a timestamp and level prefix, so match the event name, not the exact args.
+  assert.equal(logged.length, 1);
+  assert.match(String(logged[0][0]), /\[ERROR\] chatbot\.agent\.has_human_agents_lookup_failed$/);
   assert.ok(!JSON.stringify(logged).includes("hunter2"));
 });
 

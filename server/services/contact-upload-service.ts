@@ -19,6 +19,7 @@ import Papa from "papaparse";
 import { storage } from "../storage";
 import type { Contact, InsertContact } from "@shared/schema";
 import { batchInsertContacts, CONTACT_INSERT_RETAIN_RESULTS_THRESHOLD } from "../utils/batch-utils";
+import { logger } from '../utils/logger.ts';
 
 /**
  * Represents a contact parsed from a CSV file before database insertion.
@@ -110,7 +111,7 @@ export class ContactUploadService {
 
     if (parsed.errors?.length) {
       const sample = parsed.errors.slice(0, 5).map((e) => e.message).join("; ");
-      console.warn(
+      logger.warn(
         `[Contact Upload] CSV parse reported ${parsed.errors.length} issue(s). First: ${sample}`
       );
     }
@@ -287,7 +288,7 @@ export class ContactUploadService {
     });
 
     if (!batchResult.success) {
-      console.warn(`[Contact Upload] ⚠️ Some contacts failed to insert: ${batchResult.failed} failed`);
+      logger.warn(`[Contact Upload] ⚠️ Some contacts failed to insert: ${batchResult.failed} failed`);
     }
 
     await storage.updateCampaign(campaignId, {

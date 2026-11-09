@@ -51,7 +51,7 @@ export class CallSummarizationService {
         .limit(1);
 
       if (!call) {
-        console.error(`[Call Summarization] Call not found: ${callId}`);
+        logger.error(`[Call Summarization] Call not found: ${callId}`);
         return null;
       }
 
@@ -120,7 +120,7 @@ export class CallSummarizationService {
       }
 
       if (!apiKey) {
-        console.error(`[Call Summarization] No OpenAI API key available`);
+        logger.error(`[Call Summarization] No OpenAI API key available`);
         return null;
       }
 
@@ -164,7 +164,7 @@ export class CallSummarizationService {
       };
 
     } catch (error: any) {
-      console.error(`[Call Summarization] Error for call ${callId}:`, error.message);
+      logger.error(`[Call Summarization] Error for call ${callId}:`, error.message);
       return null;
     }
   }
@@ -233,7 +233,7 @@ Sentiment Guidelines:
       };
 
     } catch (error: any) {
-      console.error(`[Call Summarization] OpenAI analysis failed:`, error.message);
+      logger.error(`[Call Summarization] OpenAI analysis failed:`, error.message);
       return {
         summary: 'Analysis failed - please review transcript manually',
         leadQualityScore: 0,

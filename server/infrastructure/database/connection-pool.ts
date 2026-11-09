@@ -3,6 +3,7 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { eq } from "drizzle-orm";
 import { db } from "../../db";
 import { globalSettings } from "@shared/schema";
+import { logger } from '../../utils/logger.ts';
 
 interface PoolSettings {
   minConnections: number;
@@ -27,21 +28,21 @@ export class DatabasePoolManager {
 
   async initialize(): Promise<void> {
     if (this.isInitialized) {
-      console.log("[DB Pool] Already initialized, skipping");
+      logger.info("[DB Pool] Already initialized, skipping");
       return;
     }
 
-    console.log("[DB Pool] Initializing connection pool...");
+    logger.info("[DB Pool] Initializing connection pool...");
     
     await this.loadSettings();
     await this.createPool();
     
     this.isInitialized = true;
-    console.log("[DB Pool] Initialization complete");
+    logger.info("[DB Pool] Initialization complete");
   }
 
   private async loadSettings(): Promise<void> {
-    console.log("[DB Pool] Loading settings from globalSettings table...");
+    logger.info("[DB Pool] Loading settings from globalSettings table...");
     
     try {
       const settings = await db
@@ -75,9 +76,9 @@ export class DatabasePoolManager {
         this.settings.idleTimeoutMs = Number(idleTimeoutResult[0].value);
       }
 
-      console.log(`[DB Pool] Settings loaded: min=${this.settings.minConnections}, max=${this.settings.maxConnections}, idleTimeout=${this.settings.idleTimeoutMs}ms`);
+      logger.info(`[DB Pool] Settings loaded: min=${this.settings.minConnections}, max=${this.settings.maxConnections}, idleTimeout=${this.settings.idleTimeoutMs}ms`);
     } catch (error) {
-      console.log(`[DB Pool] Failed to load settings, using defaults: ${error instanceof Error ? error.message : String(error)}`);
+      logger.info(`[DB Pool] Failed to load settings, using defaults: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -86,7 +87,7 @@ export class DatabasePoolManager {
       throw new Error("[DB Pool] DATABASE_URL environment variable is not set");
     }
 
-    console.log("[DB Pool] Creating pool with dynamic configuration...");
+    logger.info("[DB Pool] Creating pool with dynamic configuration...");
 
     this.pool = new Pool({
       connectionString: process.env.DATABASE_URL,
@@ -97,29 +98,29 @@ export class DatabasePoolManager {
 
     this.setupEventListeners();
     
-    console.log("[DB Pool] Pool created successfully");
+    logger.info("[DB Pool] Pool created successfully");
   }
 
   private setupEventListeners(): void {
     if (!this.pool) return;
 
     this.pool.on("connect", (client) => {
-      console.log("[DB Pool] New client connected");
+      logger.info("[DB Pool] New client connected");
     });
 
     this.pool.on("acquire", (client) => {
-      console.log("[DB Pool] Client acquired from pool");
+      logger.info("[DB Pool] Client acquired from pool");
     });
 
     this.pool.on("remove", (client) => {
-      console.log("[DB Pool] Client removed from pool");
+      logger.info("[DB Pool] Client removed from pool");
     });
 
     this.pool.on("error", (err, client) => {
-      console.log(`[DB Pool] Error on idle client: ${err.message}`);
+      logger.info(`[DB Pool] Error on idle client: ${err.message}`);
     });
 
-    console.log("[DB Pool] Event listeners configured");
+    logger.info("[DB Pool] Event listeners configured");
   }
 
   async healthCheck(): Promise<{ healthy: boolean; message: string; stats?: PoolStats }> {
@@ -137,7 +138,7 @@ export class DatabasePoolManager {
 
       if (result.rows[0]?.health_check === 1) {
         const stats = this.getStats();
-        console.log("[DB Pool] Health check passed");
+        logger.info("[DB Pool] Health check passed");
         return {
           healthy: true,
           message: "Database connection is healthy",
@@ -151,7 +152,7 @@ export class DatabasePoolManager {
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.log(`[DB Pool] Health check failed: ${message}`);
+      logger.info(`[DB Pool] Health check failed: ${message}`);
       return {
         healthy: false,
         message: `Health check failed: ${message}`,
@@ -177,20 +178,20 @@ export class DatabasePoolManager {
 
   async shutdown(): Promise<void> {
     if (!this.pool) {
-      console.log("[DB Pool] No pool to shut down");
+      logger.info("[DB Pool] No pool to shut down");
       return;
     }
 
-    console.log("[DB Pool] Initiating graceful shutdown...");
+    logger.info("[DB Pool] Initiating graceful shutdown...");
     
     try {
       await this.pool.end();
       this.pool = null;
       this.isInitialized = false;
-      console.log("[DB Pool] Graceful shutdown complete");
+      logger.info("[DB Pool] Graceful shutdown complete");
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.log(`[DB Pool] Shutdown error: ${message}`);
+      logger.info(`[DB Pool] Shutdown error: ${message}`);
       throw error;
     }
   }

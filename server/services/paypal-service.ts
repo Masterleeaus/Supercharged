@@ -131,7 +131,7 @@ export async function testPayPalConnection(): Promise<{ success: boolean; error?
     await getAccessToken();
     return { success: true };
   } catch (error: any) {
-    console.error('❌ [PayPal] Connection test failed:', error.message);
+    logger.error('❌ [PayPal] Connection test failed:', error.message);
     return { success: false, error: error.message };
   }
 }
@@ -411,7 +411,7 @@ export async function verifyPayPalWebhookSignature(
   try {
     const webhookId = await getSetting('paypal_webhook_id');
     if (!webhookId) {
-      console.warn('[PayPal] Webhook ID not configured - rejecting webhook');
+      logger.warn('[PayPal] Webhook ID not configured - rejecting webhook');
       return false;
     }
 
@@ -422,7 +422,7 @@ export async function verifyPayPalWebhookSignature(
     const authAlgo = headers['paypal-auth-algo'] as string;
 
     if (!transmissionId || !transmissionTime || !transmissionSig || !certUrl || !authAlgo) {
-      console.warn('[PayPal] Missing webhook verification headers');
+      logger.warn('[PayPal] Missing webhook verification headers');
       return false;
     }
 
@@ -445,11 +445,11 @@ export async function verifyPayPalWebhookSignature(
     if (verified) {
       logger.info('✅ [PayPal] Webhook signature verified');
     } else {
-      console.warn('⚠️ [PayPal] Webhook signature verification failed');
+      logger.warn('⚠️ [PayPal] Webhook signature verification failed');
     }
     return verified;
   } catch (error: any) {
-    console.error('[PayPal] Webhook signature verification error:', error.message);
+    logger.error('[PayPal] Webhook signature verification error:', error.message);
     return false;
   }
 }

@@ -38,7 +38,7 @@ export async function canAssignSipAgent(userId: string): Promise<{ allowed: bool
       threshold: SIP_CREDIT_THRESHOLD,
     };
   } catch (error: any) {
-    console.error(`[SIP Credit Guard] Error checking credits for user ${userId}: ${error.message}`);
+    logger.error(`[SIP Credit Guard] Error checking credits for user ${userId}: ${error.message}`);
     return { allowed: true, balance: 0, threshold: SIP_CREDIT_THRESHOLD };
   }
 }
@@ -105,19 +105,19 @@ export async function checkAndDisconnectIfLowCredits(userId: string): Promise<vo
             );
             logger.info(`   ✅ [SIP Credit Guard] Disconnected agent ${previousAgentId} from [redacted] (ElevenLabs)`);
           } catch (elError: any) {
-            console.warn(`   ⚠️ [SIP Credit Guard] ElevenLabs disconnect failed for ${phone.phone_number}: ${elError.message}`);
+            logger.warn(`   ⚠️ [SIP Credit Guard] ElevenLabs disconnect failed for [redacted]: ${elError.message}`);
           }
         } else {
           logger.info(`   ✅ [SIP Credit Guard] Disconnected agent ${previousAgentId} from [redacted] (DB only)`);
         }
       } catch (phoneError: any) {
-        console.error(`   ❌ [SIP Credit Guard] Failed to disconnect ${phone.phone_number}: ${phoneError.message}`);
+        logger.error(`   ❌ [SIP Credit Guard] Failed to disconnect [redacted]: [redacted]`);
       }
     }
 
     logger.info(`✅ [SIP Credit Guard] Disconnected ${sipPhones.rows.length} SIP phone(s) for user ${userId}`);
   } catch (error: any) {
-    console.error(`❌ [SIP Credit Guard] Error in checkAndDisconnectIfLowCredits: ${error.message}`);
+    logger.error(`❌ [SIP Credit Guard] Error in checkAndDisconnectIfLowCredits: ${error.message}`);
   }
 }
 
@@ -183,7 +183,7 @@ export async function reconnectAfterRecharge(userId: string): Promise<void> {
             );
             logger.info(`   ✅ [SIP Credit Guard] Reconnected agent ${d.agent_id} to [redacted] (ElevenLabs)`);
           } catch (elError: any) {
-            console.warn(`   ⚠️ [SIP Credit Guard] ElevenLabs reconnect failed for ${d.phone_number}: ${elError.message}`);
+            logger.warn(`   ⚠️ [SIP Credit Guard] ElevenLabs reconnect failed for [redacted]: ${elError.message}`);
           }
         } else {
           logger.info(`   ✅ [SIP Credit Guard] Reconnected agent ${d.agent_id} to [redacted] (DB only)`);
@@ -193,13 +193,13 @@ export async function reconnectAfterRecharge(userId: string): Promise<void> {
           UPDATE sip_credit_guard_disconnects SET reconnected_at = NOW() WHERE id = ${d.id}
         `);
       } catch (phoneError: any) {
-        console.error(`   ❌ [SIP Credit Guard] Failed to reconnect ${d.phone_number}: ${phoneError.message}`);
+        logger.error(`   ❌ [SIP Credit Guard] Failed to reconnect [redacted]: [redacted]`);
       }
     }
 
     logger.info(`✅ [SIP Credit Guard] Reconnection complete for user ${userId}`);
   } catch (error: any) {
-    console.error(`❌ [SIP Credit Guard] Error in reconnectAfterRecharge: ${error.message}`);
+    logger.error(`❌ [SIP Credit Guard] Error in reconnectAfterRecharge: ${error.message}`);
   }
 }
 
@@ -261,7 +261,7 @@ export async function runStartupCreditGuardScan(): Promise<void> {
           elClearedCount++;
           logger.info(`   ✅ [SIP Credit Guard] Cleared ElevenLabs agent from [redacted] (user ${phone.user_id}, ${phone.credits} credits)`);
         } catch (elError: any) {
-          console.warn(`   ⚠️ [SIP Credit Guard] Failed to clear ElevenLabs agent from ${phone.phone_number}: ${elError.message}`);
+          logger.warn(`   ⚠️ [SIP Credit Guard] Failed to clear ElevenLabs agent from [redacted]: ${elError.message}`);
         }
       }
     }
@@ -269,7 +269,7 @@ export async function runStartupCreditGuardScan(): Promise<void> {
     const totalUsers = (usersWithSipAgents.rows?.length || 0);
     logger.info(`✅ [SIP Credit Guard] Startup scan complete: ${totalUsers} user(s) with agents checked, ${disconnectedCount} disconnected, ${elClearedCount} ElevenLabs-side cleared`);
   } catch (error: any) {
-    console.error(`❌ [SIP Credit Guard] Startup scan error: ${error.message}`);
+    logger.error(`❌ [SIP Credit Guard] Startup scan error: ${error.message}`);
   }
 }
 

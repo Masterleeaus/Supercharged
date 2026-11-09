@@ -62,22 +62,22 @@ export class CampaignScheduler {
     
     // Run immediately on start
     this.checkScheduledCampaigns().catch(err => {
-      console.error('[Campaign Scheduler] Initial check failed:', err);
+      logger.error('[Campaign Scheduler] Initial check failed:', err);
     });
     this.pollRunningBatchJobs().catch(err => {
-      console.error('[Campaign Scheduler] Initial batch poll failed:', err);
+      logger.error('[Campaign Scheduler] Initial batch poll failed:', err);
     });
 
     // Then run every 30 seconds for faster campaign status sync
     this.intervalId = setInterval(() => {
       this.checkScheduledCampaigns().catch(err => {
-        console.error('[Campaign Scheduler] Scheduled check failed:', err);
+        logger.error('[Campaign Scheduler] Scheduled check failed:', err);
       });
       this.pollRunningBatchJobs().catch(err => {
-        console.error('[Campaign Scheduler] Batch poll failed:', err);
+        logger.error('[Campaign Scheduler] Batch poll failed:', err);
       });
       CampaignScheduler.checkPendingRetryPasses().catch(err => {
-        console.error('[Campaign Scheduler] Retry pass check failed:', err);
+        logger.error('[Campaign Scheduler] Retry pass check failed:', err);
       });
     }, 30 * 1000);
   }
@@ -134,7 +134,7 @@ export class CampaignScheduler {
           try {
             await campaignExecutor.pauseCampaign(campaign.id, 'scheduled');
           } catch (err: any) {
-            console.error(`   Failed to pause: ${err.message}`);
+            logger.error(`   Failed to pause: ${err.message}`);
           }
         }
       }
@@ -165,13 +165,13 @@ export class CampaignScheduler {
           try {
             await campaignExecutor.resumeCampaign(campaign.id, 'scheduled');
           } catch (err: any) {
-            console.error(`   Failed to resume: ${err.message}`);
+            logger.error(`   Failed to resume: ${err.message}`);
           }
         }
       }
 
     } catch (error) {
-      console.error('[Campaign Scheduler] Error checking campaigns:', error);
+      logger.error('[Campaign Scheduler] Error checking campaigns:', error);
     } finally {
       this.isRunning = false;
     }
@@ -213,7 +213,7 @@ export class CampaignScheduler {
         await campaignExecutor.executeCampaign(campaign.id);
         logger.info(`[Campaign Scheduler] Started scheduled campaign ${campaign.id}`);
       } catch (error: any) {
-        console.error(`[Campaign Scheduler] Failed to start campaign ${campaign.id}:`, error.message);
+        logger.error(`[Campaign Scheduler] Failed to start campaign ${campaign.id}:`, error.message);
         
         await db.update(campaigns)
           .set({ 
@@ -422,7 +422,7 @@ export class CampaignScheduler {
             }
 
             if (batchJob.status === 'failed' || batchJob.status === 'cancelled') {
-              console.warn(`⚠️ [Campaign Scheduler] Batch job status is ${batchJob.status} for "${campaign.name}" (${campaign.batchJobId}) — terminating campaign`);
+              logger.warn(`⚠️ [Campaign Scheduler] Batch job status is ${batchJob.status} for "${campaign.name}" (${campaign.batchJobId}) — terminating campaign`);
               await this.terminateBatchCampaign(campaign.id, campaign.name, batchJob.status);
               continue;
             }
@@ -453,15 +453,15 @@ export class CampaignScheduler {
             /not found/i.test(err.message);
 
           if (is404) {
-            console.warn(`⚠️ [Campaign Scheduler] Batch job not found on ElevenLabs for "${campaign.name}" (${campaign.batchJobId}) — marking expired`);
+            logger.warn(`⚠️ [Campaign Scheduler] Batch job not found on ElevenLabs for "${campaign.name}" (${campaign.batchJobId}) — marking expired`);
             await this.expireBatchCampaign(campaign.id, campaign.name);
           } else {
-            console.error(`   Error polling batch for "${campaign.name}": ${err.message}`);
+            logger.error(`   Error polling batch for "${campaign.name}": ${err.message}`);
           }
         }
       }
     } catch (error) {
-      console.error('[Campaign Scheduler] Error polling batch jobs:', error);
+      logger.error('[Campaign Scheduler] Error polling batch jobs:', error);
     }
   }
 
@@ -492,7 +492,7 @@ export class CampaignScheduler {
       // Now that all calls are in a final state, complete the campaign
       await this.checkCampaignCompletion(campaignId);
     } catch (expireErr: any) {
-      console.error(`   Failed to expire campaign "${campaignName}": ${expireErr.message}`);
+      logger.error(`   Failed to expire campaign "${campaignName}": ${expireErr.message}`);
     }
   }
 
@@ -541,7 +541,7 @@ export class CampaignScheduler {
         logger.info(`   [Campaign Scheduler] Marked ${updatedCalls.length} remaining pending call(s) as failed for completed campaign`);
       }
     } catch (err: any) {
-      console.error(`   Failed to expire remaining pending calls for campaign ${campaignId}: ${err.message}`);
+      logger.error(`   Failed to expire remaining pending calls for campaign ${campaignId}: ${err.message}`);
     }
   }
 
@@ -615,7 +615,7 @@ export class CampaignScheduler {
         }, campaignId);
       }
     } catch (err: any) {
-      console.error(`   Failed to terminate campaign "${campaignName}": ${err.message}`);
+      logger.error(`   Failed to terminate campaign "${campaignName}": ${err.message}`);
     }
   }
 
@@ -787,10 +787,10 @@ export class CampaignScheduler {
         const { callSyncService } = await import('./call-sync');
         // Run in background (don't await) to avoid blocking the scheduler loop
         callSyncService.syncCall(callId).catch(err => {
-          console.error(`❌ [Campaign Scheduler] Background sync failed for call ${callId}:`, err.message);
+          logger.error(`❌ [Campaign Scheduler] Background sync failed for call ${callId}:`, err.message);
         });
       } catch (importErr) {
-        console.error(`❌ [Campaign Scheduler] Failed to import callSyncService:`, importErr);
+        logger.error(`❌ [Campaign Scheduler] Failed to import callSyncService:`, importErr);
       }
     }
   }
@@ -870,7 +870,7 @@ export class CampaignScheduler {
       await emailService.sendCampaignCompleted(campaignId);
       logger.info(`   ✅ Campaign completion email sent for "${campaign.name}"`);
     } catch (emailError: any) {
-      console.error(`   ❌ Failed to send campaign completion email: ${emailError.message}`);
+      logger.error(`   ❌ Failed to send campaign completion email: [redacted]`);
     }
 
     try {
@@ -951,7 +951,7 @@ export class CampaignScheduler {
         logger.info(`   ✅ Webhook triggered for campaign.completed`);
       }
     } catch (webhookError: any) {
-      console.error(`   ❌ Failed to trigger campaign.completed webhook: ${webhookError.message}`);
+      logger.error(`   ❌ Failed to trigger campaign.completed webhook: ${webhookError.message}`);
     }
   }
 
@@ -1089,11 +1089,11 @@ export class CampaignScheduler {
         try {
           await campaignExecutor.executeRetryPass(campaign.id);
         } catch (err: any) {
-          console.error(`   Failed to execute retry pass for campaign ${campaign.id}: ${err.message}`);
+          logger.error(`   Failed to execute retry pass for campaign ${campaign.id}: ${err.message}`);
         }
       }
     } catch (error) {
-      console.error('[Campaign Scheduler] Error checking retry passes:', error);
+      logger.error('[Campaign Scheduler] Error checking retry passes:', error);
     }
   }
 }

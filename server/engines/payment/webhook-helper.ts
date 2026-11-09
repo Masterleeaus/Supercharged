@@ -6,6 +6,7 @@
 
 import { storage } from '../../storage';
 import { PaymentGateway, WebhookConfig, GLOBAL_SETTINGS_KEYS } from './types';
+import { logger } from '../../utils/logger.ts';
 
 function stripProtocol(url: string): string {
   return url.replace(/^https?:\/\//, '');
@@ -23,7 +24,7 @@ function getValidatedFrontendUrl(): string {
       return process.env.APP_URL;
     }
     // Log error but don't crash - fallback for backwards compatibility
-    console.error('[CONFIG ERROR] Production requires APP_DOMAIN or APP_URL to be set');
+    logger.error('[CONFIG ERROR] Production requires APP_DOMAIN or APP_URL to be set');
     return 'http://localhost:5000'; // Will fail gracefully
   }
 

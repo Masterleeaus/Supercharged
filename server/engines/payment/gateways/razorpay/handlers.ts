@@ -145,7 +145,7 @@ export async function handleSubscriptionActivated(
       await generateInvoiceForTransaction(newTransaction.id);
       await emailService.sendPurchaseConfirmation(newTransaction.id);
     } catch (emailError: any) {
-      console.error(`❌ [Razorpay] Failed to send purchase confirmation email:`, emailError);
+      logger.error(`❌ [Razorpay] Failed to send purchase confirmation email:`);
     }
 
     return {
@@ -243,7 +243,7 @@ export async function handleSubscriptionCharged(
       await generateInvoiceForTransaction(renewalTransaction.id);
       await emailService.sendPurchaseConfirmation(renewalTransaction.id);
     } catch (emailError: any) {
-      console.error(`❌ [Razorpay] Failed to send renewal confirmation email:`, emailError);
+      logger.error(`❌ [Razorpay] Failed to send renewal confirmation email:`);
     }
 
     return {
@@ -319,7 +319,7 @@ export async function handleSubscriptionHalted(
     try {
       await emailService.sendPaymentFailed(userId, '0', 'Subscription payment halted');
     } catch (emailError: any) {
-      console.error(`❌ [Razorpay] Failed to send payment failed email:`, emailError);
+      logger.error(`❌ [Razorpay] Failed to send payment failed email:`);
     }
   }
 
@@ -439,7 +439,7 @@ export async function handlePaymentCaptured(
       await generateInvoiceForTransaction(creditTransaction.id);
       await emailService.sendPurchaseConfirmation(creditTransaction.id);
     } catch (emailError: any) {
-      console.error(`❌ [Razorpay] Failed to send credits purchase confirmation email:`, emailError);
+      logger.error(`❌ [Razorpay] Failed to send credits purchase confirmation email:`);
     }
 
     return {
@@ -477,7 +477,7 @@ export async function handlePaymentFailed(
     const amount = (payment.amount / 100).toFixed(2);
     await emailService.sendPaymentFailed(userId, amount, payment.error_description || 'Payment failed');
   } catch (emailError: any) {
-    console.error(`❌ [Razorpay] Failed to send payment failed email:`, emailError);
+    logger.error(`❌ [Razorpay] Failed to send payment failed email:`);
   }
 
   return { success: true, action: 'payment_failed', userId };
@@ -609,7 +609,7 @@ export async function handleDispute(
   try {
     await emailService.sendAccountSuspended(userId, `Chargeback dispute: ${dispute.reason_code || 'Unknown reason'}`);
   } catch (emailError: any) {
-    console.error(`❌ [Razorpay] Failed to send account suspended email:`, emailError);
+    logger.error(`❌ [Razorpay] Failed to send account suspended email:`);
   }
 
   return {

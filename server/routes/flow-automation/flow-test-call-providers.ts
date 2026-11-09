@@ -150,7 +150,7 @@ export async function placePlivoFlowTestCall({
       });
       logger.info(`🔀 [Flow Test] Created flow execution for Plivo test call`);
     } catch (flowExecError: any) {
-      console.warn(`⚠️ [Flow Test] Error creating flow execution:`, flowExecError.message);
+      logger.warn(`⚠️ [Flow Test] Error creating flow execution:`, flowExecError.message);
     }
 
     await completeQueue(plivoCall.id);
@@ -169,7 +169,7 @@ export async function placePlivoFlowTestCall({
     };
 
   } catch (plivoError: any) {
-    console.error(`❌ [Flow Test] Plivo call error:`, plivoError);
+    logger.error(`❌ [Flow Test] Plivo call error:`, plivoError);
     throw new FlowTestHttpError(400, {
       error: "Call initiation failed",
       message: "Failed to initiate call via Plivo",
@@ -222,7 +222,7 @@ export async function placeTwilioOpenAIFlowTestCall({
     });
 
     if (!callResult.success) {
-      console.error(`❌ [Flow Test] Twilio+OpenAI call initiation failed:`, callResult.error);
+      logger.error(`❌ [Flow Test] Twilio+OpenAI call initiation failed:`, callResult.error);
       throw new FlowTestHttpError(400, {
         error: "Call initiation failed",
         message: callResult.error || "Failed to initiate call via Twilio+OpenAI Realtime",
@@ -260,7 +260,7 @@ export async function placeTwilioOpenAIFlowTestCall({
         });
         logger.info(`🔀 [Flow Test] Created flow execution for Twilio+OpenAI test call`);
       } catch (flowExecError: any) {
-        console.warn(`⚠️ [Flow Test] Error creating flow execution:`, flowExecError.message);
+        logger.warn(`⚠️ [Flow Test] Error creating flow execution:`, flowExecError.message);
       }
     }
 
@@ -282,7 +282,7 @@ export async function placeTwilioOpenAIFlowTestCall({
 
   } catch (openaiError: any) {
     if (openaiError instanceof FlowTestHttpError) throw openaiError;
-    console.error(`❌ [Flow Test] Twilio+OpenAI call error:`, openaiError);
+    logger.error(`❌ [Flow Test] Twilio+OpenAI call error:`, openaiError);
     await failQueue("Failed to initiate call via Twilio+OpenAI");
     throw new FlowTestHttpError(400, {
       error: "Call initiation failed",

@@ -63,7 +63,7 @@ async function loadWebhookSettings(): Promise<void> {
     }
     settingsCacheTime = now;
   } catch (error) {
-    console.error('[WebhookRetry] Failed to load settings from database, using defaults:', error);
+    logger.error('[WebhookRetry] Failed to load settings from database, using defaults:', error);
   }
 }
 
@@ -217,12 +217,12 @@ export class WebhookRetryService {
     
     this.schedulerInterval = setInterval(() => {
       this.processRetryableWebhooks().catch(err => {
-        console.error('❌ [WebhookRetry] Error in scheduled processing:', err);
+        logger.error('❌ [WebhookRetry] Error in scheduled processing:', err);
       });
     }, SCHEDULER_INTERVAL_MS);
 
     this.processRetryableWebhooks().catch(err => {
-      console.error('❌ [WebhookRetry] Error in initial processing:', err);
+      logger.error('❌ [WebhookRetry] Error in initial processing:', err);
     });
   }
 
@@ -261,13 +261,13 @@ export class WebhookRetryService {
         try {
           await this.processWebhook(webhook);
         } catch (error: any) {
-          console.error(`❌ [WebhookRetry] Error processing webhook ${webhook.id}:`, error);
+          logger.error(`❌ [WebhookRetry] Error processing webhook ${webhook.id}:`, error);
         }
       }
 
       logger.info(`✅ [WebhookRetry] Finished processing ${webhooks.length} webhook(s)`);
     } catch (error: any) {
-      console.error('❌ [WebhookRetry] Error in processRetryableWebhooks:', error);
+      logger.error('❌ [WebhookRetry] Error in processRetryableWebhooks:', error);
     } finally {
       this.isProcessing = false;
     }
@@ -420,7 +420,7 @@ export class WebhookRetryService {
         });
       }
     } catch (error: any) {
-      console.error('❌ [WebhookRetry] Error marking expired webhooks:', error);
+      logger.error('❌ [WebhookRetry] Error marking expired webhooks:', error);
     }
   }
 
@@ -491,7 +491,7 @@ export async function queueFailedWebhook(
     await storage.createWebhookQueueItem(queueItem);
     logger.info(`📥 [WebhookRetry] Queued failed ${gateway} webhook: ${eventType} (${eventId})`);
   } catch (queueError: any) {
-    console.error(`❌ [WebhookRetry] Failed to queue webhook:`, queueError);
+    logger.error(`❌ [WebhookRetry] Failed to queue webhook:`, queueError);
   }
 }
 

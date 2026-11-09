@@ -77,7 +77,7 @@ export async function testMercadoPagoConnection(): Promise<{ success: boolean; e
     await preference.search({ options: { limit: 1 } });
     return { success: true };
   } catch (error: any) {
-    console.error('❌ [MercadoPago] Connection test failed:', error.message);
+    logger.error('❌ [MercadoPago] Connection test failed:', error.message);
     return { success: false, error: error.message };
   }
 }
@@ -328,12 +328,12 @@ export async function verifyMercadoPagoWebhookSignature(
 ): Promise<boolean> {
   const webhookSecret = await getSetting('mercadopago_webhook_secret');
   if (!webhookSecret) {
-    console.warn('⚠️ [MercadoPago] Webhook secret not configured - rejecting');
+    logger.warn('⚠️ [MercadoPago] Webhook secret not configured - rejecting');
     return false;
   }
   
   if (!xSignature || !xRequestId) {
-    console.warn('⚠️ [MercadoPago] Missing webhook signature headers');
+    logger.warn('⚠️ [MercadoPago] Missing webhook signature headers');
     return false;
   }
   
@@ -356,7 +356,7 @@ export async function verifyMercadoPagoWebhookSignature(
     
     return calculatedHash === hash;
   } catch (error) {
-    console.error('❌ [MercadoPago] Webhook signature verification failed:', error);
+    logger.error('❌ [MercadoPago] Webhook signature verification failed:', error);
     return false;
   }
 }
