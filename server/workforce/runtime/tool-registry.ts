@@ -142,8 +142,8 @@ export interface ToolDefinition {
    */
   stage?: (params: Record<string, unknown>) => { category: ShadowCategory; change: PredictiveStageParams } | null;
   /**
-   * Per-tool timeout in milliseconds, a positive integer. Declared on the definition; the registry-wide timeout
-   * (ToolRegistryOptions.timeoutMs) is still the one applied to every call.
+   * Per-tool timeout in milliseconds, a positive integer. When set, it applies to every call of this tool. When not
+   * set, the registry-wide timeout (ToolRegistryOptions.timeoutMs) applies. Rejected at register() if not a positive integer.
    */
   timeoutMs?: number;
   handler: (params: Record<string, unknown>, context: ToolHandlerContext) => unknown | Promise<unknown>;
@@ -195,6 +195,7 @@ export interface ToolRegistryOptions {
   redact: Redactor;
   audit: AuditSink;
   maxOutputBytes?: number;
+  /** Fallback timeout for a call whose tool declares no timeoutMs of its own. */
   timeoutMs?: number;
   approvalTtlMs?: number;
   /**
