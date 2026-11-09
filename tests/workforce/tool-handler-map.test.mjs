@@ -24,10 +24,12 @@ const { createGroup04ToolDefinitions, GROUP04_NOT_IMPLEMENTED } = await import('
 
 // Recorded on 2026-11-04: 100 distinct declared IDs across 125 role files, 5 bound to a handler, 95 unmapped.
 // Counted here: a tool is bound only when it has a real handler. not_implemented tools do not count.
-// Arithmetic: 100 declared - 77 bound = 23 unmapped. The 77 bound are 5 read handlers + 13 group 00 (18 ids, 5
+// Arithmetic: 100 declared - 76 bound = 24 unmapped. The 76 bound are 5 read handlers + 12 group 00 (18 ids, 6
 // not_implemented) + 12 group 01 (18 ids, 6 not_implemented) + 15 group 02 (20 ids, 5 not_implemented) + 13 group 03
-// (18 ids, 5 not_implemented) + 19 group 04 (20 ids, 1 not_implemented). 5 + 13 + 12 + 15 + 13 + 19 = 77.
-const UNMAPPED_COUNT_RECORDED = 23;
+// (18 ids, 5 not_implemented) + 19 group 04 (20 ids, 1 not_implemented). 5 + 12 + 12 + 15 + 13 + 19 = 76.
+// Updated 2026-11-09: booking_requests.update became not_implemented (live appointments has no company_id), so it
+// left the bound set. Group 00 went from 13 to 12 bound.
+const UNMAPPED_COUNT_RECORDED = 24;
 
 const ROLES_DIR = fileURLToPath(new URL('../../server/workforce/catalogue/roles', import.meta.url));
 
