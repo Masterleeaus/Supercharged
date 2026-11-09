@@ -45,3 +45,7 @@ New module for Desk comms mode. Not mounted. No migration run.
 - `applyApprovalDecision` marks the approval executed, then updates the message. Status as of 2026-11-08: the service now takes an optional `transactions` runner, and runs both writes in one transaction when Desk supplies it. Without it (the default), the two writes still run one after another. Desk must supply the runner before real use.
 - Inbound dedupe: the unique index on `(company_id, channel, external_id)` is in `DRAFT_inbox.sql` (`inbox_messages_external_uidx`), and the Drizzle store takes a transaction-scoped advisory lock per company, channel and address. The retry-on-conflict path still needs a test before real use.
 - No transport. Queued messages wait for a worker that is not in this module.
+
+## Pass 14: durable PostgreSQL InboxStore
+
+The existing numbered `0010a_inbox.sql` schema is now supported by the opt-in `createSqlInboxStore(pool)` implementation. All 15 store methods use scoped SQL and parameterized predicates; advisory-locked inbound ingestion reuses its pinned tenant client. The earlier Drizzle placeholder remains unchanged for compatibility and the default production mount stays disabled. Tenant RLS and approval infrastructure must be validated before activation.

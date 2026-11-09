@@ -460,3 +460,9 @@ test('drizzle placeholder: every method throws until the migration is promoted',
   await assert.rejects(store.insertMessage({ companyId: CO_A }), /DRAFT_inbox\.sql/);
   await assert.rejects(createInboxService({ store, approvals: new InMemoryApprovalPort() }).listThreads(CO_A), /DRAFT_inbox\.sql/);
 });
+
+test('PostgreSQL InboxStore factory is exported without activating the legacy placeholder',async()=>{
+ const {createSqlInboxStore}=await import('../../server/modules/inbox/index.ts');
+ assert.equal(typeof createSqlInboxStore,'function');
+ assert.throws(()=>createSqlInboxStore(null),/PostgreSQL pool/);
+});

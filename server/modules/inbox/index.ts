@@ -12,3 +12,6 @@ export * from './types.ts';
 export { createInboxRouter, type InboxRouterDeps } from './inbox-router.ts';
 export { createInboxRouterForProduction, type InboxProductionRouterDeps } from './production-router.ts';
 // Production routers verify all required InboxService operations before accepting the dependency.
+
+export { createSqlInboxStore } from './sql-store.ts';
+export { runInboundLocked, lockedInboxClient } from './sql-lock.ts';
