@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {postgresPolicyRoles,tenantPredicate,inspectMarketingPolicies} from '../../server/modules/marketing/policy-inspection.ts';
+const pred="(company_id = (NULLIF(current_setting('app.company_id'::text, true), ''::text))::uuid)";
+const p=(name='landing_pages')=>({tablename:name,policyname:name+'_tenant_boundary',roles:'{desk_app}',cmd:'ALL',permissive:'PERMISSIVE',qual:pred,with_check:pred});
+test('PostgreSQL name-array literals parse exactly',()=>{assert.deepEqual(postgresPolicyRoles('{desk_app}'),['desk_app']);assert.deepEqual(postgresPolicyRoles('{desk_app,other_role}'),['desk_app','other_role']);assert.deepEqual(postgresPolicyRoles('{desk_app_admin}'),['desk_app_admin']);assert.deepEqual(postgresPolicyRoles('{PUBLIC}'),['public']);assert.deepEqual(postgresPolicyRoles('{desk_app,malicious name}'),[]);});
+test('PostgreSQL-rendered canonical company predicate passes',()=>{assert.equal(tenantPredicate(pred),true);assert.equal(tenantPredicate("company_id = nullif(current_setting('app.company_id', true),'')::uuid"),true);});
+test('broader predicates cannot masquerade as tenant isolation',()=>{for(const bad of ['true',"company_id = company_id",pred+' OR true',pred.replace('app.company_id','app.other_company'),null])assert.equal(tenantPredicate(bad),false);});
+test('only the constrained tenant policy passes',()=>assert.deepEqual(inspectMarketingPolicies('landing_pages',[p()]),[]));
+test('public permissive policy fails closed',()=>{const extra={tablename:'landing_pages',policyname:'open_to_public',roles:'{public}',cmd:'SELECT',permissive:'PERMISSIVE',qual:'true'};assert.ok(inspectMarketingPolicies('landing_pages',[p(),extra]).length);});
+test('an unrelated role permissive policy also fails closed',()=>{const extra={tablename:'landing_pages',policyname:'other_role',roles:'{other_role}',cmd:'SELECT',permissive:'PERMISSIVE',qual:'true'};assert.ok(inspectMarketingPolicies('landing_pages',[p(),extra]).length);});
+test('additional restrictive policy can only narrow access',()=>{const extra={tablename:'landing_pages',policyname:'limit_more',roles:'{desk_app}',cmd:'ALL',permissive:'RESTRICTIVE',qual:'false',with_check:'false'};assert.deepEqual(inspectMarketingPolicies('landing_pages',[p(),extra]),[]);});

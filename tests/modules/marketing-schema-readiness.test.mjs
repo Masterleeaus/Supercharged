@@ -5,7 +5,7 @@ export function probe(overrides={}) {
  const tables=['landing_pages','content_items'];
  const role={rolname:'desk_app',rolsuper:false,rolbypassrls:false};
  const tab=table=>({relname:table,relrowsecurity:true,relforcerowsecurity:true,can_select:true,can_insert:true,can_update:true});
- const policy=table=>({tablename:table,policyname:table+'_tenant_boundary',roles:['desk_app'],cmd:'ALL',qual:"company_id = nullif(current_setting('app.company_id', true), '')::uuid",with_check:"company_id = nullif(current_setting('app.company_id', true), '')::uuid"});
+ const policy=table=>({tablename:table,policyname:table+'_tenant_boundary',roles:['desk_app'],cmd:'ALL',permissive:'PERMISSIVE',qual:"company_id = nullif(current_setting('app.company_id', true), '')::uuid",with_check:"company_id = nullif(current_setting('app.company_id', true), '')::uuid"});
  return {async query(sql){if(sql.includes('FROM pg_roles')) return {rows:overrides.roles??[role]};if(sql.includes('FROM pg_class')) return {rows:overrides.tables??tables.map(tab)};if(sql.includes('FROM pg_policies'))return {rows:overrides.policies??tables.map(policy)};throw Error('unexpected query');}};
 }
 test('a complete, restricted RLS schema passes',async()=>{assert.deepEqual(await verifyMarketingSchema(probe()),{ready:true,issues:[]});await requireMarketingSchema(probe());});

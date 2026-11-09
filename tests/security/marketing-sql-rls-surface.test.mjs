@@ -22,3 +22,10 @@ test('both policies rely on transaction-local authenticated tenant context',()=>
  for(const table of ['landing_pages','content_items']) assert.match(sql,new RegExp('CREATE POLICY '+table+'_tenant_boundary'));
  assert.match(sql,/current_setting\('app.company_id',true\)/);
 });
+
+test('an additional permissive public policy is rejected by the runtime inspector',async()=>{
+ const {inspectMarketingPolicies}=await import('../../server/modules/marketing/policy-inspection.ts');
+ const rule={tablename:'landing_pages',policyname:'landing_pages_tenant_boundary',roles:['desk_app'],cmd:'ALL',permissive:'PERMISSIVE',qual:"company_id = nullif(current_setting('app.company_id',true),'')::uuid",with_check:"company_id = nullif(current_setting('app.company_id',true),'')::uuid"};
+ const bypass={tablename:'landing_pages',policyname:'world_read',roles:['public'],cmd:'SELECT',permissive:'PERMISSIVE',qual:'true'};
+ assert.ok(inspectMarketingPolicies('landing_pages',[rule,bypass]).length>0);
+});

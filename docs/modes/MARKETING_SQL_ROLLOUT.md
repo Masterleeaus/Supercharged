@@ -20,3 +20,7 @@ The dedicated `marketing-postgres` workflow uses an ephemeral PostgreSQL service
 ## Pass 11: deployment readiness gate
 
 Even with passing PostgreSQL CI, the production database must be inspected before a SQL-backed Marketing service is constructed. Call `createVerifiedMarketingService` with the tenant pool, a PostgreSQL catalog probe, and real campaign/chatbot reference ports. Its read-only readiness check verifies FORCE RLS, role restrictions, table privileges and company-bound policies. An absent schema or unavailable reference port aborts construction. The production flag remains disabled until the verified instance is integrated with auth and route registration.
+
+## Row-level security review check
+
+Before enabling Marketing, run the read-only schema verifier against the target database and audit **every** RLS policy affecting desk_app and PUBLIC. The required policy alone is insufficient if an additional permissive policy broadens access. Pass 12 introduces strict predicate and policy combination validation. Keep the feature disabled until passing production-equivalent checks.

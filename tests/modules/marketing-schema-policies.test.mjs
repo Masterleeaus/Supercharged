@@ -12,3 +12,10 @@ test('missing restricted-role update rights prevent deployment',async()=>{
  const p=base(),original=p.query;p.query=async sql=>sql.includes('FROM pg_class')?{rows:['landing_pages','content_items'].map(t=>({...table(t),can_update:false}))}:original(sql);
  const r=await verifyMarketingSchema(p);assert.ok(r.issues.some(x=>x.includes('permissions')));
 });
+
+test('query for policy metadata includes permissive flag so OR policies are auditable',async()=>{
+ const statements=[];const p=base(),original=p.query;
+ p.query=async sql=>{statements.push(sql);return original(sql);};
+ await verifyMarketingSchema(p);
+ assert.ok(statements.some(sql=>sql.includes('SELECT tablename,policyname,roles,cmd,permissive,qual,with_check')));
+});

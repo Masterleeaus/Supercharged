@@ -22,3 +22,11 @@ test('PostgreSQL: both tenant policies have read and write company predicates', 
   }
  }finally{await f.close();}
 });
+
+test('PostgreSQL: no additional permissive role policies bypass company RLS',{skip:!enabled},async()=>{
+ const f=createFixture();try{
+  const {inspectMarketingPolicies}=await import('../../server/modules/marketing/policy-inspection.ts');
+  const rows=(await f.pool.query("SELECT tablename,policyname,roles,cmd,permissive,qual,with_check FROM pg_policies WHERE tablename IN ('landing_pages','content_items')")).rows;
+  for(const table of ['landing_pages','content_items'])assert.deepEqual(inspectMarketingPolicies(table,rows),[]);
+ }finally{await f.close();}
+});

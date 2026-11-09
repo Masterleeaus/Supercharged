@@ -9,3 +9,7 @@ Test coverage: restricted database role, enabled and forced RLS, actual two-tena
 ## Pass 11: environment-specific validation
 
 Passing disposable PostgreSQL tests is necessary but not enough for production. A new read-only schema verifier queries `pg_roles`, `pg_class` and `pg_policies` against the database that will serve the application. Runtime service construction fails closed when role privileges, FORCE RLS, or tenant policies are absent or invalid. The catalog-checking connection must have sufficient metadata visibility; it must not be used for tenant data operations.
+
+## Pass 12: real PostgreSQL policy introspection
+
+The CI suite now inspects actual `pg_policies` metadata, including permissive policy status and canonical expressions returned by PostgreSQL. It rejects alternate permissive access paths and validates exact tenant boundaries. No production migration or flag changes are performed.

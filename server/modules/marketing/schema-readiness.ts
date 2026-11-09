@@ -10,6 +10,7 @@ export interface MarketingReadiness {
   ready: boolean;
   issues: string[];
 }
+import { inspectMarketingPolicies } from './policy-inspection.ts';
 const TABLES = ['landing_pages','content_items'] as const;
 export async function verifyMarketingSchema(probe: MarketingSchemaProbe): Promise<MarketingReadiness> {
   if (!probe || typeof probe.query !== 'function') throw new Error('marketing: schema probe is required');
@@ -26,9 +27,9 @@ export async function verifyMarketingSchema(probe: MarketingSchemaProbe): Promis
   }
   const tables = await probe.query(
     `SELECT c.relname,c.relrowsecurity,c.relforcerowsecurity,
-            has_table_privilege('desk_app',c.oid,'SELECT') AS can_select,
-            has_table_privilege('desk_app',c.oid,'INSERT') AS can_insert,
-            has_table_privilege('desk_app',c.oid,'UPDATE') AS can_update
+            CASE WHEN EXISTS(SELECT 1 FROM pg_roles WHERE rolname='desk_app') THEN has_table_privilege('desk_app',c.oid,'SELECT') ELSE false END AS can_select,
+            CASE WHEN EXISTS(SELECT 1 FROM pg_roles WHERE rolname='desk_app') THEN has_table_privilege('desk_app',c.oid,'INSERT') ELSE false END AS can_insert,
+            CASE WHEN EXISTS(SELECT 1 FROM pg_roles WHERE rolname='desk_app') THEN has_table_privilege('desk_app',c.oid,'UPDATE') ELSE false END AS can_update
        FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
       WHERE n.nspname='public' AND c.relkind='r' AND c.relname = ANY($1::text[])`,
     [TABLES],
@@ -40,24 +41,11 @@ export async function verifyMarketingSchema(probe: MarketingSchemaProbe): Promis
     if (app && (row.can_select !== true || row.can_insert !== true || row.can_update !== true)) issues.push(table + ' missing restricted role permissions');
   }
   const policies = await probe.query(
-    `SELECT tablename,policyname,roles,cmd,qual,with_check FROM pg_policies
+    `SELECT tablename,policyname,roles,cmd,permissive,qual,with_check FROM pg_policies
        WHERE schemaname='public' AND tablename = ANY($1::text[])`,
     [TABLES],
   );
-  for (const table of TABLES) {
-    const policy = policies.rows.find(r => r.tablename === table && r.policyname === table + '_tenant_boundary');
-    if (!policy) { issues.push(table + ' tenant policy missing'); continue; }
-    // PostgreSQL's name[] column may be returned as a Postgres array literal
-    // (e.g. '{desk_app}') by pg, rather than a JavaScript array.
-    const roles = Array.isArray(policy.roles) ? policy.roles :
-      typeof policy.roles === 'string' && /^\{[a-z_, ]+\}$/.test(policy.roles)
-        ? policy.roles.slice(1, -1).split(',').map(name => name.trim()) : [];
-    if (!roles.includes('desk_app') ||
-        !String(policy.qual ?? '').includes('app.company_id') ||
-        !String(policy.with_check ?? '').includes('app.company_id')) {
-      issues.push(table + ' tenant policy does not constrain both reads and writes');
-    }
-  }
+  for (const table of TABLES) issues.push(...inspectMarketingPolicies(table, policies.rows));
   return { ready: issues.length === 0, issues };
 }
 export async function requireMarketingSchema(probe: MarketingSchemaProbe): Promise<void> {

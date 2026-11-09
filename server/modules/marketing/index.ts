@@ -9,6 +9,7 @@ export { InMemoryMarketingStore, InMemoryRefs } from './memory-adapter.ts';
 export { createDrizzleMarketingStore } from './drizzle-adapter.ts';
 export { createSqlMarketingStore, type MarketingSqlOptions } from './sql-store.ts';
 export { verifyMarketingSchema, requireMarketingSchema, type MarketingReadiness, type MarketingSchemaProbe } from './schema-readiness.ts';
+export { postgresPolicyRoles, tenantPredicate, inspectMarketingPolicies, type MarketingPolicyRow } from './policy-inspection.ts';
 export { createVerifiedMarketingService, type MarketingProductionServiceDeps } from './production-service.ts';
 export type { MarketingStore, CampaignRefs, ChatbotRefs } from './ports.ts';
 export * from './types.ts';

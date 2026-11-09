@@ -47,3 +47,11 @@ test('PostgreSQL: no transaction-local company setting means zero readable Marke
   }finally{client.release();}
  }finally{await f.close();}
 });
+
+test('PostgreSQL: actual tenant policy enforces both SELECT and INSERT constraints',{skip:!enabled},async()=>{
+ const f=createFixture();try{
+  const {tenantPredicate}=await import('../../server/modules/marketing/policy-inspection.ts');
+  const rows=(await f.pool.query("SELECT tablename,qual,with_check FROM pg_policies WHERE tablename IN ('landing_pages','content_items')")).rows;
+  for(const row of rows){assert.equal(tenantPredicate(row.qual),true);assert.equal(tenantPredicate(row.with_check),true);}
+ }finally{await f.close();}
+});
