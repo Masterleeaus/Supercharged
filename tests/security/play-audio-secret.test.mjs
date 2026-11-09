@@ -6,7 +6,7 @@ import fs from 'node:fs';
 
 const read = (rel) => fs.readFileSync(new URL('../../' + rel, import.meta.url), 'utf8');
 
-const ROUTES = 'server/routes.ts';
+const ROUTES = 'server/routes/core/provider-webhook-routes.ts';
 const PLAY_AUDIO = 'server/services/play-audio-elevenlabs-tool.ts';
 const ROUTE_DECL = 'app.post("/api/elevenlabs/tools/play-audio/:token/:agentId"';
 
@@ -22,9 +22,9 @@ test('play-audio route carries a :token segment and validates it', () => {
   assert.match(handler, /res\.status\(401\)/, 'invalid token must return 401');
 });
 
-test('routes.ts imports validateAppointmentWebhookToken from the appointment tool service', () => {
+test('the provider webhook module imports validateAppointmentWebhookToken from the appointment tool service', () => {
   assert.match(read(ROUTES),
-    /import\s*\{\s*validateAppointmentWebhookToken\s*\}\s*from\s*"\.\/services\/appointment-elevenlabs-tool"/);
+    /import\s*\{\s*validateAppointmentWebhookToken\s*\}\s*from\s*"\.\.\/\.\.\/services\/appointment-elevenlabs-tool"/);
 });
 
 test('play-audio tool builds its URL from getAppointmentWebhookSecret with encodeURIComponent', () => {
