@@ -103,3 +103,12 @@ test('repeated Host values are rejected rather than selecting the first', () => 
     assert.equal(nextCalled,false);
   }
 });
+
+test('middleware clears a stale mode before rejecting a newly invalid host', () => {
+  const req = { headers: { host: 'unknown.example' }, deskMode: 'comms', deskHost: 'syncedat.work' };
+  const result = run(deskModeMiddleware(config),req);
+  assert.equal(result.res.statusCode,404);
+  assert.equal(result.nextCalled,false);
+  assert.equal(req.deskMode,undefined);
+  assert.equal(req.deskHost,undefined);
+});

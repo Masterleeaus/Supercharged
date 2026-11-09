@@ -26,7 +26,11 @@ export function normaliseHost(raw: string | undefined | null): string | null {
   let host = raw.trim().toLowerCase();
   if (host === '') return null;
   const portMatch = /^(.*):(\d{1,5})$/.exec(host);
-  if (portMatch && !host.startsWith('[')) host = portMatch[1];
+  if (portMatch && !host.startsWith('[')) {
+    const port = Number(portMatch[2]);
+    if (!Number.isInteger(port) || port < 1 || port > 65535) return null;
+    host = portMatch[1];
+  }
   if (host.endsWith('.')) host = host.slice(0, -1);
   if (host.length === 0 || host.length > 253) return null;
   if (!HOST_PATTERN.test(host)) return null;

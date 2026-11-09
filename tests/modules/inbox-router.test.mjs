@@ -177,3 +177,11 @@ test('real in-memory service: the router returns only the session company thread
   assert.equal(theirs.status, 200);
   assert.equal(theirs.body.length, 0);
 });
+
+test('an invalid session tenant cannot list inbox threads', async () => {
+  const { stack, calls } = build();
+  const session = { ...HUMAN_SESSION, companyId: 'not-a-company' };
+  const result = await stack.dispatch('GET','/threads',{host:COMMS_HOST,session});
+  assert.equal(result.status,401);
+  assert.equal(calls.length,0);
+});

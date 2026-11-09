@@ -112,3 +112,11 @@ test('no module name appears twice within a mode', () => {
     assert.equal(new Set(list).size, list.length, mode);
   }
 });
+
+test('illegal numeric host ports are refused rather than silently stripped', () => {
+  for (const host of ['syncedat.work:0','syncedat.work:65536','syncedat.work:99999']) {
+    assert.equal(normaliseHost(host),null);
+    assert.equal(resolveDeskMode(host,config).reason,'malformed_host');
+  }
+  assert.equal(resolveDeskMode('syncedat.work:65535',config).mode,'comms');
+});

@@ -140,3 +140,11 @@ test('real in-memory service: a page from one company is invisible to another', 
   const list = await fake.dispatch('GET', '/pages', { host: COMMS_HOST, session: OTHER_COMPANY_SESSION });
   assert.equal(list.body.length, 0);
 });
+
+test('an invalid authenticated company cannot read marketing pages', async () => {
+  const { stack, calls } = build();
+  const session = { ...HUMAN_SESSION, companyId: 'not-a-company' };
+  const result = await stack.dispatch('GET','/pages',{host:COMMS_HOST,session});
+  assert.equal(result.status,401);
+  assert.equal(calls.length,0);
+});
