@@ -11,7 +11,7 @@ test('incomplete production dependencies are refused before schema queries',asyn
  await assert.rejects(createVerifiedInboxService({pool,approvals}),/schema probe/);
 });
 test('unverified schema prevents constructing a durable Inbox service',async()=>{
- await assert.rejects(createVerifiedInboxService({pool,approvals,transactions,schemaProbe:{query:async()=>({rows:[]})}}),/database security not ready/);
+ await assert.rejects(createVerifiedInboxService({pool,approvals,schemaProbe:{query:async()=>({rows:[]})}}),/database security not ready/);
 });
 test('verified schema and explicit durable dependencies construct Inbox service',async()=>{
  const s=await createVerifiedInboxService({pool,approvals,schemaProbe:fixture()});
