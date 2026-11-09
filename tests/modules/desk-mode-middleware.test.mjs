@@ -112,3 +112,11 @@ test('middleware clears a stale mode before rejecting a newly invalid host', () 
   assert.equal(req.deskMode,undefined);
   assert.equal(req.deskHost,undefined);
 });
+
+test('oversized or malformed DNS label never selects a workspace',()=>{
+ const mw=deskModeMiddleware(config);
+ for(const host of ['-syncedat.work','syncedat-.work','a'.repeat(64)+'.work']){
+  const {res,nextCalled}=run(mw,{headers:{host}});
+  assert.equal(res.statusCode,404);assert.equal(nextCalled,false);
+ }
+});

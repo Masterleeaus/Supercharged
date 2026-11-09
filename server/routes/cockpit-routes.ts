@@ -132,6 +132,7 @@ export function createCockpitRouter(deps: CockpitDeps, guards: CockpitGuards): R
   router.get(DESK_MODE_PATH, modeFromHost, ...chain, (req: Request, res: Response) => {
     const result = sessionDeskMode(req.headers.host, modeConfig);
     res.setHeader('Cache-Control', 'private, no-store');
+    res.setHeader('Vary', 'Host, Cookie, Authorization');
     res.json(result);
   });
 

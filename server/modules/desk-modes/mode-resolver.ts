@@ -34,6 +34,7 @@ export function normaliseHost(raw: string | undefined | null): string | null {
   if (host.endsWith('.')) host = host.slice(0, -1);
   if (host.length === 0 || host.length > 253) return null;
   if (!HOST_PATTERN.test(host)) return null;
+  if (host.split('.').some((part) => part.length > 63 || part.startsWith('-') || part.endsWith('-'))) return null;
   return host;
 }
 

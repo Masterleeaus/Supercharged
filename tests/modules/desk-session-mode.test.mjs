@@ -87,3 +87,7 @@ test('invalid ports never establish a verified session mode', () => {
     assert.deepEqual(sessionDeskMode(host,config),{mode:'workforce',source:'default'});
   }
 });
+
+test('invalid DNS labels cannot yield a host-verified session',()=>{
+ for(const host of ['-syncedat.work','syncedat-.work','a'.repeat(64)+'.work']) assert.equal(sessionDeskMode(host,config).source,'default');
+});

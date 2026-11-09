@@ -17,6 +17,7 @@ import { createInboxRouter } from '../../server/modules/inbox/inbox-router.ts';
 import { createMarketingRouter } from '../../server/modules/marketing/marketing-router.ts';
 
 const STAFF = ['admin', 'manager'];
+// Exercise validated session tenancy, not the deprecated c1 pseudo-ID.
 const COMPANY = '11111111-1111-4111-8111-111111111111';
 
 // Staff-only routes. Each must have a role guard for STAFF ahead of its service call.

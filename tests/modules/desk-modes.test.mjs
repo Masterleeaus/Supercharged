@@ -120,3 +120,8 @@ test('illegal numeric host ports are refused rather than silently stripped', () 
   }
   assert.equal(resolveDeskMode('syncedat.work:65535',config).mode,'comms');
 });
+
+test('DNS labels respect length and hyphen boundaries',()=>{
+  for(const bad of ['-bad.test','bad-.test','a'.repeat(64)+'.test']) assert.equal(normaliseHost(bad),null,bad);
+  assert.equal(normaliseHost('a'.repeat(63)+'.test'),'a'.repeat(63)+'.test');
+});

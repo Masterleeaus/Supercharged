@@ -16,3 +16,9 @@ test('fallback response is never sufficient to authorize client mode',()=>{
  assert.equal(verifiedServerMode(server),null);
  for(const target of ['inbox','marketing']) assert.equal(modeAvailability(target,verifiedServerMode(server),flags).available,false);
 });
+
+test('a browser-supplied mode without server host attestation cannot select inbox',()=>{
+ const forged={mode:'comms'};
+ assert.equal(verifiedServerMode(forged),null);
+ assert.equal(modeAvailability('inbox',verifiedServerMode(forged),flags).available,false);
+});

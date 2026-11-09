@@ -286,3 +286,13 @@ test('the cockpit router is mounted in server/routes/core/workforce-comms-routes
   assert.match(source, /import \{[^}]*\bcreateCockpitRouter\b[^}]*\} from "\.\.\/\.\.\/routes\/cockpit-routes";/);
   assert.match(source, /app\.use\(createCockpitRouter\(\{\}, \{ authenticate: authenticateToken as unknown as import\('express'\)\.RequestHandler, requireCompanyScope: requireCompanyScope\(\), requireApprover: requireRole\("admin", "manager"\) as unknown as import\('express'\)\.RequestHandler \}\)\);/);
 });
+
+test('authenticated mode discovery distinguishes a configured host from an unknown host',async()=>{
+  const srv=await start({loadApprovals:()=>[]});
+  try{
+    const valid=await srv.call({path:DESK_MODE_PATH,user:USER_A,host:COMMS_HOST});
+    assert.deepEqual(valid.body,{mode:'comms',source:'host'});
+    const denied=await srv.call({path:DESK_MODE_PATH,user:USER_A,host:UNKNOWN_HOST});
+    assert.equal(denied.status,404);
+  }finally{await srv.close();}
+});

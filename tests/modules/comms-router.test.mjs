@@ -2,6 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  queryString,
   prepareCommsRouter,
   bodyOf,
   sendServiceError,
@@ -158,4 +159,10 @@ test('domain codes inherited from Object.prototype cannot become HTTP statuses',
     assert.equal(res.statusCode,500);
     assert.deepEqual(res.body,{error:'internal_error'});
   }
+});
+
+test('queryString refuses whitespace-only filters and repeated query values',()=>{
+  assert.equal(queryString({query:{status:'   '}},'status'),undefined);
+  assert.equal(queryString({query:{status:['open','closed']}},'status'),undefined);
+  assert.equal(queryString({query:{status:'open'}},'status'),'open');
 });

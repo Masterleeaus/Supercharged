@@ -104,7 +104,7 @@ export function bodyOf(req: HttpRequest): Record<string, unknown> {
 /** First non-empty string value of a query parameter, or undefined. */
 export function queryString(req: HttpRequest, key: string): string | undefined {
   const value = req.query[key];
-  return typeof value === 'string' && value !== '' ? value : undefined;
+  return typeof value === 'string' && value.trim() !== '' ? value : undefined;
 }
 
 export function sendServiceError(res: HttpResponse, err: unknown): void {

@@ -20,3 +20,8 @@ test('queryString accepts only one non-empty string value',()=>{
   assert.equal(queryString({query:{status:['open','closed']}},'status'),undefined);
   assert.equal(queryString({query:{status:''}},'status'),undefined);
 });
+
+test('query strings with only whitespace do not activate filters',()=>{
+ assert.equal(queryString({query:{status:'   '}},'status'),undefined);
+ assert.equal(queryString({query:{status:'open'}},'status'),'open');
+});
