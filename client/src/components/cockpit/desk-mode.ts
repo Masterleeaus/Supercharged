@@ -1,19 +1,15 @@
 /**
- * Desk mode for the dashboard cockpit.
- *
- * GET /api/desk-mode returns { mode }, where mode is "workforce" (SuperchargedAt.Work)
- * or "syncedat" (SyncedAt.Work). The server decides the mode from the request host.
- * When the request fails or returns no valid mode, the cockpit uses DEFAULT_DESK_MODE
- * and shows a notice (see resolveDeskMode in cockpit-logic.ts).
+ * The authenticated server returns "workforce" or "comms". Older deployments
+ * used "syncedat" on the client; accept it as a compatibility alias only.
  */
-export type DeskMode = "workforce" | "syncedat";
+export type DeskMode = "workforce" | "comms";
 
-export const DESK_MODES: readonly DeskMode[] = ["workforce", "syncedat"];
+export const DESK_MODES: readonly DeskMode[] = ["workforce", "comms"];
 
 export const DEFAULT_DESK_MODE: DeskMode = "workforce";
 
-/** Returns the mode when the value is a known mode name, otherwise null. */
 export function parseDeskMode(value: unknown): DeskMode | null {
-  if (typeof value !== "string") return null;
-  return (DESK_MODES as readonly string[]).includes(value) ? (value as DeskMode) : null;
+  if (value === "syncedat") return "comms";
+  if (value === "workforce" || value === "comms") return value;
+  return null;
 }
