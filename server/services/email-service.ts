@@ -1150,7 +1150,7 @@ export class EmailService {
       logger.error('SMTP connection test failed', error, SOURCE);
       return { 
         success: false, 
-        error: error.message || 'Connection test failed' 
+        error: (error instanceof Error && error.message) || 'Connection test failed' 
       };
     }
   }

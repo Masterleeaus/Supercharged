@@ -154,11 +154,11 @@ export class WebhookDeliveryService {
         responseBody,
         responseTime,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       const responseTime = Date.now() - startTime;
-      const errorMessage = error.name === 'TimeoutError' 
+      const errorMessage = error instanceof Error && error.name === 'TimeoutError'
         ? 'Request timed out after 30 seconds'
-        : error.message || 'Unknown error';
+        : (error instanceof Error && error.message) || 'Unknown error';
 
       logger.error(`❌ [Webhook] Delivery failed: ${errorMessage}`);
 
@@ -208,7 +208,7 @@ export class WebhookDeliveryService {
       const logData: WebhookLogInsertRow & { companyId: string | null } = {
         webhookId: webhook.id,
         event: payload.event,
-        payload: payload as any,
+        payload: payload,
         success: result.success,
         httpStatus: result.httpStatus || null,
         responseBody: result.responseBody || null,
@@ -240,9 +240,11 @@ export class WebhookDeliveryService {
         } else {
           logger.warn(`ℹ️ [Webhook] Skipping log - webhook ${webhook.id} was deleted`);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         // Handle foreign key constraint violations gracefully (webhook was deleted)
-        if (err.code === '23503' || err.message?.includes('foreign key constraint')) {
+        const errCode = typeof err === 'object' && err !== null && 'code' in err ? err.code : undefined;
+        const errMessage = err instanceof Error ? err.message : '';
+        if (errCode === '23503' || errMessage.includes('foreign key constraint')) {
           logger.warn(`ℹ️ [Webhook] Skipping log - webhook ${webhook.id} no longer exists`);
         } else {
           logger.error(`❌ [Webhook] Failed to log delivery:`, err);
@@ -410,7 +412,7 @@ export class WebhookDeliveryService {
     const payload: WebhookPayload = {
       event: log.event,
       timestamp: new Date().toISOString(),
-      data: (log.payload as any)?.data || log.payload as any
+      data: (log.payload as { data?: WebhookPayload['data'] } | null)?.data || (log.payload as WebhookPayload['data'])
     };
 
     const attempt = 1;
@@ -428,7 +430,7 @@ export class WebhookDeliveryService {
     const logData: WebhookLogInsertRow & { companyId: string | null } = {
       webhookId: webhook.id,
       event: log.event,
-      payload: log.payload as any,
+      payload: log.payload,
       success: result.success,
       httpStatus: result.httpStatus || null,
       responseBody: result.responseBody || null,
