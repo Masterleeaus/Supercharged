@@ -200,3 +200,10 @@ test('a comms session with a missing actor cannot read inbox threads',async()=>{
  const result=await stack.dispatch('GET','/threads',{host:COMMS_HOST,session:{...HUMAN_SESSION,actor:undefined}});
  assert.equal(result.status,401);assert.equal(calls.length,0);
 });
+
+test('inbox lists company B threads using only its verified session',async()=>{
+ const {stack,calls}=build({listThreads:async()=>[]});
+ const result=await stack.dispatch('GET','/threads',{host:COMMS_HOST,session:OTHER_COMPANY_SESSION,query:{companyId:HUMAN_SESSION.companyId}});
+ assert.equal(result.status,200);
+ assert.equal(calls[0].args[0],OTHER_COMPANY_SESSION.companyId);
+});

@@ -163,3 +163,10 @@ test('a marketing page cannot be created with an unverified tenant identifier',a
  const result=await stack.dispatch('POST','/pages',{host:COMMS_HOST,session:{...HUMAN_SESSION,companyId:'c1'},body:{slug:'example',title:'Page'}});
  assert.equal(result.status,401);assert.equal(calls.length,0);
 });
+
+test('marketing lists content for company B and never accepts caller-supplied company A',async()=>{
+ const {stack,calls}=build({listContent:async()=>[]});
+ const result=await stack.dispatch('GET','/content',{host:COMMS_HOST,session:OTHER_COMPANY_SESSION,query:{companyId:HUMAN_SESSION.companyId}});
+ assert.equal(result.status,200);
+ assert.equal(calls[0].args[0],OTHER_COMPANY_SESSION.companyId);
+});

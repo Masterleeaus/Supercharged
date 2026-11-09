@@ -4,7 +4,9 @@ import type { HttpHandler, HttpRequest, HttpResponse, RouterLike, RouteScope } f
 import { isCompanyId } from '../../infrastructure/database/tenant-context.ts';
 export function commsScopeFromLocals(req: HttpRequest): RouteScope | null {
   const locals = (req as HttpRequest & { locals?: Record<string, unknown> }).locals;
-  if (!locals || !isCompanyId(locals.companyId)) return null;
+  // Never accept a company inherited through a prototype or injected app-level locals.
+  if (!locals || !Object.prototype.hasOwnProperty.call(locals, 'companyId') ||
+      !Object.prototype.hasOwnProperty.call(locals, 'actor') || !isCompanyId(locals.companyId)) return null;
   const a = locals.actor as Record<string, unknown> | undefined;
   if (!a || (a.kind !== 'human' && a.kind !== 'agent') || typeof a.id !== 'string' || a.id.trim() === '') return null;
   const actor: RouteScope['actor'] = { kind: a.kind, id: a.id };

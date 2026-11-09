@@ -218,3 +218,10 @@ test('the campaigns router builds its guard with exactly admin and manager', () 
   assert.ok(roleCalls.length >= 1);
   for (const roles of roleCalls) assert.deepEqual(roles, STAFF);
 });
+
+test('authenticated role enforcement cannot be bypassed by adding admin to the body',async()=>{
+ const row=GUARDED.find(x=>x.router==='campaigns'&&x.path==='/campaigns/:id/activation');
+ const calls=[];const fr=build(row.router,[],calls);const res=fakeResponse();
+ await dispatch(handlersFor(fr,row).all,requestFor(row,'member',{role:'admin',userRole:'admin'}),res);
+ assert.equal(res.statusCode,403);assert.equal(calls.length,0);
+});
