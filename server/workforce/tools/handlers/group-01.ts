@@ -60,6 +60,16 @@ export const GROUP01_TOOL_IDS = [
   'job_photos.list',
   'job_photos.request_from_customer',
 ] as const;
+/** Ids whose handler returns { status: 'not_implemented' } and sends or escalates nothing (no provider or table in this build). */
+export const GROUP01_NOT_IMPLEMENTED_IDS: ReadonlySet<string> = new Set([
+  'customer_messages.send',
+  'feedback_surveys.send',
+  'job_photos.request_from_customer',
+  'escalations.create',
+  'human_escalation.create',
+  'identity.verify_request',
+]);
+
 export type Group01ToolId = (typeof GROUP01_TOOL_IDS)[number];
 
 export class Group01InputError extends Error {
