@@ -24,7 +24,7 @@ export function registerElevenLabsVoiceRoutes(app: Express): void {
       const poolService = new ElevenLabsService(credential.apiKey);
       const { voices } = await poolService.listVoices();
       res.json(voices);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Get ElevenLabs voices error:", error);
       res.status(500).json({ error: safeErrorMessage(error, "Failed to get voices") });
     }
@@ -63,7 +63,7 @@ export function registerElevenLabsVoiceRoutes(app: Express): void {
         tier: subscription.tier ?? 'unknown',
       };
       res.json(response);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Get voice limit error:", error);
       // Fallback to reasonable defaults if subscription fetch fails
       res.json({
@@ -104,7 +104,7 @@ export function registerElevenLabsVoiceRoutes(app: Express): void {
       });
 
       res.json(result);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Get ElevenLabs shared voices error:", error);
       res.status(500).json({ error: safeErrorMessage(error, "Failed to get shared voices") });
     }
@@ -142,7 +142,7 @@ export function registerElevenLabsVoiceRoutes(app: Express): void {
       };
 
       res.json(pricingWithMargin);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Get LLM pricing error:", error);
       res.status(500).json({ error: safeErrorMessage(error, "Failed to get LLM pricing") });
     }
