@@ -2,7 +2,7 @@
  * Caller MUST verify local user active status and current company scope.
  * This gate does not enable SSO or bypass existing native login.
  */
-import type{DeskAccount} from './account-resolver';
+import type{DeskAccount} from './account-resolver.ts';
 export function createDeskCentralSessionGate({
  resolve,issueNativeToken
 }:{
