@@ -61,3 +61,7 @@ The opt-in `createVerifiedInboxService` now validates the actual PostgreSQL cata
 ## Pass 17: per-company approval execution
 
 An InboxService shared by multiple authenticated companies no longer depends on a single fixed company transaction. Production composition derives a company-bound transaction runner from its PostgreSQL pool on each approved decision using `inboxTransactionsFor`. Existing `sqlInboxWriteTx` approval-claim and message-update code is reused; any wrong-company call throws and rolls back. No provider, approval policy, or routes are automatically enabled.
+
+## Pass 18: canonical approval integration boundary
+
+The `createInboxApprovalPort` adapter reuses the canonical ApprovalService for gate decisions, company-scoped reads and execution audit. It uses the conditional SQL claim from the existing Inbox transaction runner rather than passing a partial row into ApprovalService.markExecuted. Production construction can now accept `approvalService` directly, or an explicit approved custom port for existing integration tests; specifying both is an error. No routes or providers are enabled.

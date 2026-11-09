@@ -1,0 +1,5 @@
+# Inbox ↔ canonical approval bridge — Pass 18
+
+`createInboxApprovalPort` adapts the existing tenant-scoped ApprovalService API for Inbox. The canonical service owns approval policy, reads and audit; the Inbox transaction runner owns the SQL claim plus message/thread state updates. The SQL claim returns a marker, while canonical ApprovalService expects a complete row for its own `markExecuted` implementation; the bridge deliberately pre-reads the canonical approval within the verified company, then uses the pinned conditional transaction claim and returns a safe snapshot only on success. This avoids calling the canonical `markExecuted` method with the wrong transaction-row shape.
+
+The adapter forbids non-transactional execution, refuses unsupported/missing approval states, prevents cross-tenant claims and writes post-commit audit through the canonical service using a fresh canonical record. No in-memory approval fallback or provider message delivery is enabled. Production route activation and full end-to-end approval testing remain required.

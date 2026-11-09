@@ -9,3 +9,7 @@ The approval port and transaction runner remain an integration boundary requirin
 ## Pass 17: company-scoped approval runner
 
 The verified production constructor now derives per-company atomic approval runners from the injected PostgreSQL pool. No caller may supply a fixed-company runner for a shared production service. The approved-send path selects the transaction from the validated company ID before attempting the approval claim; wrong-company updates fail and roll back.
+
+## Pass 18: ApprovalService composition
+
+The verified Inbox service constructor accepts `approvalService`, converting the existing canonical approval engine into an Inbox approval port. The adapter insists on company-scoped reads, transactional claim and post-commit execution audit. Forbid supplying both `approvals` and `approvalService`, which would create ambiguous policy ownership. This does not activate Inbox transport or its routes.

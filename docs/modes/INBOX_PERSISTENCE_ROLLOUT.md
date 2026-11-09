@@ -17,3 +17,7 @@ Pass 15's disposable PostgreSQL suite passed. Pass 16 adds a read-only live-sche
 ## Pass 17: approved-send transaction isolation
 
 The existing Inbox SQL store and approval-write code are reused. The newly exported `inboxTransactionsFor(pool)` binds one transaction runner per request company; its whole callback uses one restricted PostgreSQL connection and rejects foreign company arguments. The production constructor now uses that factory automatically. This does not yet connect a production approval policy or provider dispatcher, so Inbox remains off.
+
+## Pass 18: approval policy integration
+
+Production Inbox composition can now reuse the canonical ApprovalService as `approvalService`, so Inbox no longer needs a separate approval engine. A claim takes place atomically through the existing per-company SQL runner. Before feature activation, verify the target approval schema, role grants, real approval audit pipeline and outbound provider delivery, and run complete authenticated HTTP tests. Flags remain unchanged.

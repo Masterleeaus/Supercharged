@@ -24,3 +24,6 @@ export {createVerifiedInboxService} from './production-service.ts';
 export type {VerifiedInboxDependencies} from './production-service.ts';
 
 export {createInboxSqlTransactionRunner,inboxTransactionsFor} from './sql-transaction-runner.ts';
+
+export {createInboxApprovalPort} from './approval-port.ts';
+export type {CanonicalApprovalPortSource} from './approval-port.ts';

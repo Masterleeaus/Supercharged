@@ -11,3 +11,8 @@ test('verified service derives company-aware transaction runners from the pool',
  assert.equal(typeof service.listThreads,'function');
  assert.equal(typeof service.applyApprovalDecision,'function');
 });
+
+test('canonical approval source is validated before running database schema inspection',async()=>{
+ const incomplete={gateAction:async()=>({})};
+ await assert.rejects(createVerifiedInboxService({pool,schemaProbe:fixture(),approvalService:incomplete}),/canonical approval service/);
+});

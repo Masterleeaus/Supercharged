@@ -17,3 +17,13 @@ test('verified schema and explicit durable dependencies construct Inbox service'
  const s=await createVerifiedInboxService({pool,approvals,schemaProbe:fixture()});
  for(const name of ['recordInbound','getThread','listThreads','listMessages','createDraft','requestSend','applyApprovalDecision'])assert.equal(typeof s[name],'function');
 });
+
+test('canonical ApprovalService integration constructs a verified service without a shadow approval engine',async()=>{
+ const canonical={gateAction:async()=>({status:'pending',approval:{id:'ap'},decision:'route_to_human',policyId:null}),getApproval:async()=>null,recordExecuted:async()=>{}};
+ const s=await createVerifiedInboxService({pool,schemaProbe:fixture(),approvalService:canonical});
+ assert.equal(typeof s.applyApprovalDecision,'function');
+});
+test('ambiguous dual approval integration is rejected',async()=>{
+ const canonical={gateAction:async()=>({}),getApproval:async()=>null,recordExecuted:async()=>{}};
+ await assert.rejects(createVerifiedInboxService({pool,schemaProbe:fixture(),approvals,approvalService:canonical}),/one approval integration/);
+});

@@ -486,3 +486,9 @@ test('approval decisions resolve the transaction runner using the request compan
  assert.equal((await service.applyApprovalDecision(CO_B,draft.id)).status,'queued');
  assert.deepEqual(companies,[CO_B]);
 });
+
+test('canonical approval adapter is exported for verified Inbox composition',async()=>{
+ const {createInboxApprovalPort}=await import('../../server/modules/inbox/index.ts');
+ assert.equal(typeof createInboxApprovalPort,'function');
+ assert.throws(()=>createInboxApprovalPort(null),/canonical approval/);
+});
