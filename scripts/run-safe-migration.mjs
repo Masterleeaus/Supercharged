@@ -77,6 +77,8 @@ const MIGRATIONS = [
   { file: '0010b_approvals.sql', required: true },
   { file: '0013_approvals_revoked_status.sql', required: true },
   { file: '0010c_chatbot.sql', required: true },
+  { file: '0014_workforce_tool_tables.sql', required: true },
+  { file: '0015_company_quiet_hours.sql', required: true },
 ];
 
 const migrationPath = (file) => resolve(rootDir, 'migrations', file);
