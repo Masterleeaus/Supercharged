@@ -48,7 +48,91 @@
       "idx": 6,
       "version": "7",
       "when": 1785909278100,
-      "tag": "0006_cultured_purifiers",
+      "tag": "0006_add_default_campaign_type",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794153543000,
+      "tag": "0007_add_external_fonoster_phone_id",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794184713000,
+      "tag": "008_add_ve_session_id_and_voice_engine_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794184717000,
+      "tag": "009_fix_ve_session_id_and_all_missing_columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794153543000,
+      "tag": "0010_add_yookassa_columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1794161813000,
+      "tag": "0010a_inbox",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1794161813000,
+      "tag": "0011_inbox_channels_and_providers",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1794161813000,
+      "tag": "0010b_approvals",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1794161813000,
+      "tag": "0013_approvals_revoked_status",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1794161813000,
+      "tag": "0010c_chatbot",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1794171207000,
+      "tag": "0014_workforce_tool_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1794153543000,
+      "tag": "0015_company_quiet_hours",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1794185130000,
+      "tag": "0016_chatbot_reminder_pipeline",
       "breakpoints": true
     }
   ]
