@@ -18,6 +18,7 @@ import { featureEnabled } from "../../lib/feature-flags";
 import { requireCompanyScope } from "../../middleware/company-scope";
 import { createCockpitRouter, DEFAULT_MODE_CONFIG } from "../../routes/cockpit-routes";
 import type { CommsAuditSink } from "./shared";
+import { logger } from "../../utils/logger";
 
 export async function registerWorkforceCommsRoutes(app: Express, deps: { commsAudit: CommsAuditSink }): Promise<void> {
   const { commsAudit } = deps;
@@ -83,7 +84,7 @@ export async function registerWorkforceCommsRoutes(app: Express, deps: { commsAu
   };
   // Flag COMMS_CAMPAIGNS_ENABLED: new, unfinished module, so it defaults OFF. Set it to 1 to mount.
   const commsCampaignsEnabled = featureEnabled("COMMS_CAMPAIGNS_ENABLED", false);
-  console.log(`[flags] COMMS_CAMPAIGNS_ENABLED=${commsCampaignsEnabled ? "on" : "off"} (default off)`);
+  logger.info(`[flags] COMMS_CAMPAIGNS_ENABLED=${commsCampaignsEnabled ? "on" : "off"} (default off)`);
   if (commsCampaignsEnabled) app.use(
     "/api/comms",
     authenticateToken as unknown as import('express').RequestHandler,

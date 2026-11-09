@@ -5,6 +5,7 @@ import { phoneNumbers, knowledgeBase } from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
 import { authenticateToken, type AuthRequest } from "../../middleware/auth";
 import { flows } from "@shared/schema";
+import { logger } from "../../utils/logger";
 
 export function registerUserLimitsRoutes(app: Express): void {
   // ============================================
@@ -58,7 +59,7 @@ export function registerUserLimitsRoutes(app: Express): void {
         }
       });
     } catch (error: any) {
-      console.error("Get user limits error:", error);
+      logger.error("Get user limits error:", error);
       res.status(500).json({ error: "Failed to get user limits" });
     }
   });

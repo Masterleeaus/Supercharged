@@ -2,6 +2,7 @@ import type { Express, Response } from "express";
 import { storage } from "../../storage";
 import { contacts } from "@shared/schema";
 import { authenticateToken, type AuthRequest } from "../../middleware/auth";
+import { logger } from "../../utils/logger";
 
 export function registerContactsToolsRoutes(app: Express): void {
   // Contacts routes
@@ -36,7 +37,7 @@ export function registerContactsToolsRoutes(app: Express): void {
         res.json(allContacts);
       }
     } catch (error: any) {
-      console.error("Get all contacts error:", error);
+      logger.error("Get all contacts error:", error);
       res.status(500).json({ error: "Failed to get contacts" });
     }
   });
@@ -46,7 +47,7 @@ export function registerContactsToolsRoutes(app: Express): void {
       const contacts = await storage.getUserContactsDeduplicated(req.userId!);
       res.json(contacts);
     } catch (error: any) {
-      console.error("Get deduplicated contacts error:", error);
+      logger.error("Get deduplicated contacts error:", error);
       res.status(500).json({ error: "Failed to get deduplicated contacts" });
     }
   });
@@ -67,7 +68,7 @@ export function registerContactsToolsRoutes(app: Express): void {
       await storage.deleteContact(req.params.id);
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Delete contact error:", error);
+      logger.error("Delete contact error:", error);
       res.status(500).json({ error: "Failed to delete contact" });
     }
   });
@@ -78,7 +79,7 @@ export function registerContactsToolsRoutes(app: Express): void {
       const tools = await storage.getUserTools(req.userId!);
       res.json(tools);
     } catch (error: any) {
-      console.error("Get tools error:", error);
+      logger.error("Get tools error:", error);
       res.status(500).json({ error: "Failed to get tools" });
     }
   });

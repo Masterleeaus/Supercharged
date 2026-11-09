@@ -2,6 +2,7 @@ import type { Express, Response } from "express";
 import { storage } from "../../storage";
 import { users } from "@shared/schema";
 import { authenticateToken, type AuthRequest } from "../../middleware/auth";
+import { logger } from "../../utils/logger";
 
 export function registerNotificationAdminRoutes(app: Express): void {
   // Notifications
@@ -11,7 +12,7 @@ export function registerNotificationAdminRoutes(app: Express): void {
       const notifications = await storage.getUserNotifications(req.userId!, limit);
       res.json(notifications);
     } catch (error: any) {
-      console.error("Get notifications error:", error);
+      logger.error("Get notifications error:", error);
       res.status(500).json({ error: "Failed to get notifications" });
     }
   });
@@ -21,7 +22,7 @@ export function registerNotificationAdminRoutes(app: Express): void {
       const count = await storage.getUnreadNotificationCount(req.userId!);
       res.json({ count });
     } catch (error: any) {
-      console.error("Get unread count error:", error);
+      logger.error("Get unread count error:", error);
       res.status(500).json({ error: "Failed to get unread count" });
     }
   });
@@ -36,7 +37,7 @@ export function registerNotificationAdminRoutes(app: Express): void {
       await storage.markNotificationAsRead(req.params.id);
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Mark notification as read error:", error);
+      logger.error("Mark notification as read error:", error);
       res.status(500).json({ error: "Failed to mark notification as read" });
     }
   });
@@ -46,7 +47,7 @@ export function registerNotificationAdminRoutes(app: Express): void {
       await storage.markAllNotificationsAsRead(req.userId!);
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Mark all notifications as read error:", error);
+      logger.error("Mark all notifications as read error:", error);
       res.status(500).json({ error: "Failed to mark all notifications as read" });
     }
   });
@@ -61,7 +62,7 @@ export function registerNotificationAdminRoutes(app: Express): void {
       await storage.deleteNotification(req.params.id);
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Delete notification error:", error);
+      logger.error("Delete notification error:", error);
       res.status(500).json({ error: "Failed to delete notification" });
     }
   });
@@ -71,7 +72,7 @@ export function registerNotificationAdminRoutes(app: Express): void {
       const notifications = await storage.getBannerNotifications(req.userId!);
       res.json(notifications);
     } catch (error: any) {
-      console.error("Get banner notifications error:", error);
+      logger.error("Get banner notifications error:", error);
       res.status(500).json({ error: "Failed to get banner notifications" });
     }
   });
@@ -86,7 +87,7 @@ export function registerNotificationAdminRoutes(app: Express): void {
       await storage.dismissNotification(req.params.id);
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Dismiss notification error:", error);
+      logger.error("Dismiss notification error:", error);
       res.status(500).json({ error: "Failed to dismiss notification" });
     }
   });
@@ -156,7 +157,7 @@ export function registerNotificationAdminRoutes(app: Express): void {
         message: `Broadcast sent to ${notifications.length} users`
       });
     } catch (error: any) {
-      console.error("Broadcast notification error:", error);
+      logger.error("Broadcast notification error:", error);
       res.status(500).json({ error: "Failed to send broadcast notification" });
     }
   });

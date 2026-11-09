@@ -27,9 +27,9 @@ export async function registerPluginEngineRoutes(app: Express): Promise<void> {
       },
     });
     markPluginAsRegistered('sip-engine');
-    console.log('✅ SIP Engine Plugin initialized with service injection');
+    logger.info('✅ SIP Engine Plugin initialized with service injection');
   } catch (err: any) {
-    console.log('[SIP Engine Plugin] Not installed - skipping direct registration');
+    logger.info('[SIP Engine Plugin] Not installed - skipping direct registration');
   }
 
   // Register REST API Plugin dynamically (only if plugin directory exists)
@@ -61,8 +61,8 @@ export async function registerPluginEngineRoutes(app: Express): Promise<void> {
       },
     });
     markPluginAsRegistered('rest-api');
-    console.log('✅ REST API Plugin initialized');
+    logger.info('✅ REST API Plugin initialized');
   } catch (err: any) {
-    console.log('[REST API Plugin] Not installed - skipping direct registration');
+    logger.info('[REST API Plugin] Not installed - skipping direct registration');
   }
 }

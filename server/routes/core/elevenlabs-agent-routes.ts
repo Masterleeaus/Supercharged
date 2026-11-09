@@ -19,7 +19,7 @@ export function registerElevenLabsAgentRoutes(app: Express): void {
       const agents = await storage.getUserAgents(req.userId!);
       res.json(agents);
     } catch (error: any) {
-      console.error("Get agents error:", error);
+      logger.error("Get agents error:", error);
       res.status(500).json({ error: "Failed to get agents" });
     }
   });
@@ -122,7 +122,7 @@ export function registerElevenLabsAgentRoutes(app: Express): void {
               elevenLabsDocId: item!.elevenLabsDocId!
             }));
 
-          console.log(`📚 Filtered ${knowledgeBases.length} valid knowledge base items from ${knowledgeBaseIds.length} selected`);
+          logger.info(`📚 Filtered ${knowledgeBases.length} valid knowledge base items from ${knowledgeBaseIds.length} selected`);
         }
 
         // Create agent in ElevenLabs
@@ -152,7 +152,7 @@ export function registerElevenLabsAgentRoutes(app: Express): void {
         const credentialService = new ElevenLabsService(credential.apiKey);
 
         // Flow Agent: Compile flow and create ElevenLabs agent with workflow
-        console.log(`🔄 Creating Flow Agent with flowId: ${flowId}`);
+        logger.info(`🔄 Creating Flow Agent with flowId: ${flowId}`);
 
         // Fetch the flow from database
         const [flow] = await db
@@ -164,7 +164,7 @@ export function registerElevenLabsAgentRoutes(app: Express): void {
           return res.status(404).json({ error: "Flow not found or access denied" });
         }
 
-        console.log(`📋 Found flow: ${flow.name} with ${(flow.nodes as FlowNode[]).length} nodes`);
+        logger.info(`📋 Found flow: ${flow.name} with ${(flow.nodes as FlowNode[]).length} nodes`);
 
         // Compile the flow to ElevenLabs workflow format
         const compiler = new ElevenLabsFlowCompiler(
@@ -178,12 +178,12 @@ export function registerElevenLabsAgentRoutes(app: Express): void {
         // Validate the compiled workflow
         const validation = compiler.validate();
         if (!validation.valid) {
-          console.warn(`⚠️ Flow validation warnings:`, validation.errors);
+          logger.warn(`⚠️ Flow validation warnings:`, validation.errors);
         }
 
-        console.log(`✅ Compiled workflow: ${Object.keys(compiledWorkflow.nodes).length} nodes, ${Object.keys(compiledWorkflow.edges).length} edges`);
+        logger.info(`✅ Compiled workflow: ${Object.keys(compiledWorkflow.nodes).length} nodes, ${Object.keys(compiledWorkflow.edges).length} edges`);
         if (flowFirstMessage) {
-          console.log(`📝 First message from flow: "${flowFirstMessage.substring(0, 50)}..."`);
+          logger.info(`📝 First message from flow: "${flowFirstMessage.substring(0, 50)}..."`);
         }
 
         // For Flow agents: Flow's extracted first message takes PRIORITY over request's firstMessage
@@ -204,30 +204,30 @@ export function registerElevenLabsAgentRoutes(app: Express): void {
         // Fetch KB objects with full details (ElevenLabs requires type, id, and name)
         const flowKnowledgeBases: Array<{ type: string; name: string; id: string }> = [];
         if (knowledgeBaseIds && Array.isArray(knowledgeBaseIds) && knowledgeBaseIds.length > 0) {
-          console.log(`📚 [Flow] Preparing ${knowledgeBaseIds.length} knowledge base(s)`);
+          logger.info(`📚 [Flow] Preparing ${knowledgeBaseIds.length} knowledge base(s)`);
 
           for (const kbId of knowledgeBaseIds) {
             try {
               const kbItem = await storage.getKnowledgeBaseItem(kbId);
 
               if (!kbItem) {
-                console.warn(`⚠️  Knowledge base item ${kbId} not found, skipping`);
+                logger.warn(`⚠️  Knowledge base item ${kbId} not found, skipping`);
                 continue;
               }
 
               if (!kbItem.elevenLabsDocId) {
-                console.warn(`⚠️  Knowledge base item ${kbId} has no ElevenLabs doc ID, skipping`);
+                logger.warn(`⚠️  Knowledge base item ${kbId} has no ElevenLabs doc ID, skipping`);
                 continue;
               }
 
-              console.log(`   Adding KB "${kbItem.title}" (${kbItem.elevenLabsDocId})`);
+              logger.info(`   Adding KB "${kbItem.title}" (${kbItem.elevenLabsDocId})`);
               flowKnowledgeBases.push({
                 type: kbItem.type === 'text' ? 'text' : 'file',
                 name: kbItem.title,
                 id: kbItem.elevenLabsDocId
               });
             } catch (error: any) {
-              console.error(`   ❌ Failed to fetch KB ${kbId}:`, error.message);
+              logger.error(`   ❌ Failed to fetch KB ${kbId}:`, error.message);
             }
           }
         }
@@ -252,7 +252,7 @@ export function registerElevenLabsAgentRoutes(app: Express): void {
         elevenLabsAgentId = elevenLabsAgent.agent_id;
         agentLink = `https://elevenlabs.io/app/conversational-ai/call/${elevenLabsAgent.agent_id}`;
 
-        console.log(`✅ Flow Agent created in ElevenLabs: ${elevenLabsAgentId}`);
+        logger.info(`✅ Flow Agent created in ElevenLabs: ${elevenLabsAgentId}`);
       }
 
       // Store in database - save all fields for both agent types
@@ -294,7 +294,7 @@ export function registerElevenLabsAgentRoutes(app: Express): void {
 
       res.json(agent);
     } catch (error: any) {
-      console.error("Create agent error:", error);
+      logger.error("Create agent error:", error);
       res.status(500).json({ error: safeErrorMessage(error, "Failed to create agent") });
     }
   });
@@ -346,7 +346,7 @@ export function registerElevenLabsAgentRoutes(app: Express): void {
             .filter(item => item && item.userId === req.userId && item.elevenLabsDocId)
             .map(item => item!.elevenLabsDocId!);
 
-          console.log(`📚 Filtered ${elevenLabsKbIds.length} valid knowledge base items from ${knowledgeBaseIds.length} selected`);
+          logger.info(`📚 Filtered ${elevenLabsKbIds.length} valid knowledge base items from ${knowledgeBaseIds.length} selected`);
         } else {
           elevenLabsKbIds = [];
         }
@@ -413,7 +413,7 @@ export function registerElevenLabsAgentRoutes(app: Express): void {
 
           resolvedModelId = modelRecord.length > 0 ? modelRecord[0].modelId : model;
           resolvedModelId = sanitizeLlmModel(resolvedModelId);
-          console.log(`📝 Natural agent ElevenLabs sync - LLM model: ${resolvedModelId}`);
+          logger.info(`📝 Natural agent ElevenLabs sync - LLM model: ${resolvedModelId}`);
         }
 
         // Build update payload - no double spreading
@@ -447,20 +447,20 @@ export function registerElevenLabsAgentRoutes(app: Express): void {
         for (let attempt = 0; attempt < maxRetries; attempt++) {
           try {
             if (attempt > 0) {
-              console.log(`🔄 Retry attempt ${attempt + 1}/${maxRetries} for ElevenLabs sync...`);
+              logger.info(`🔄 Retry attempt ${attempt + 1}/${maxRetries} for ElevenLabs sync...`);
               await new Promise(resolve => setTimeout(resolve, delays[attempt]));
             }
 
             await elevenLabsService.updateAgent(agent.elevenLabsAgentId!, updatePayload);
-            console.log("✅ ElevenLabs agent synced successfully");
+            logger.info("✅ ElevenLabs agent synced successfully");
             break; // Success - exit retry loop
           } catch (error: any) {
             lastError = error;
-            console.warn(`⚠️ Attempt ${attempt + 1}/${maxRetries} failed:`, error.message);
+            logger.warn(`⚠️ Attempt ${attempt + 1}/${maxRetries} failed:`, error.message);
 
             // If this was the last attempt, return with warning
             if (attempt === maxRetries - 1) {
-              console.error("❌ All retry attempts failed. Changes saved locally only.");
+              logger.error("❌ All retry attempts failed. Changes saved locally only.");
               return res.json({
                 success: true,
                 warning: "Agent updated locally. ElevenLabs sync failed after 3 attempts. Please try editing again later."
@@ -470,7 +470,7 @@ export function registerElevenLabsAgentRoutes(app: Express): void {
         }
       } else if (agentType === 'flow' && agent.elevenLabsAgentId && (flowId !== undefined || maxDurationSeconds !== undefined || detectLanguageEnabled !== undefined || elevenLabsVoiceId || name || language || model || temperature !== undefined)) {
         // Flow Agent: Sync workflow when flowId, maxDuration, language detection, voice, or other settings change
-        console.log(`🔄 Syncing Flow Agent: ${agent.elevenLabsAgentId}`);
+        logger.info(`🔄 Syncing Flow Agent: ${agent.elevenLabsAgentId}`);
 
         // Get the flow to compile (use new flowId if provided, otherwise use existing)
         const flowToUse = flowId || agent.flowId;
@@ -493,9 +493,9 @@ export function registerElevenLabsAgentRoutes(app: Express): void {
               const compiledWorkflow = compileResult.workflow;
               const flowFirstMessage = compileResult.firstMessage;
 
-              console.log(`📋 Recompiled flow: ${flow.name} with ${Object.keys(compiledWorkflow.nodes).length} nodes`);
+              logger.info(`📋 Recompiled flow: ${flow.name} with ${Object.keys(compiledWorkflow.nodes).length} nodes`);
               if (flowFirstMessage) {
-                console.log(`📝 First message from flow: "${flowFirstMessage.substring(0, 50)}..."`);
+                logger.info(`📝 First message from flow: "${flowFirstMessage.substring(0, 50)}..."`);
               }
 
               // For Flow agents, prioritize the flow's extracted first message over agent's stored value
@@ -527,7 +527,7 @@ export function registerElevenLabsAgentRoutes(app: Express): void {
                 // Sanitize the model ID for ElevenLabs compatibility
                 effectiveLlmModel5 = sanitizeLlmModel(effectiveLlmModel5);
 
-                console.log(`📝 Flow agent ElevenLabs sync - LLM model: ${effectiveLlmModel5}`);
+                logger.info(`📝 Flow agent ElevenLabs sync - LLM model: ${effectiveLlmModel5}`);
               }
 
               const strictWorkflowPrompt5 = `You are a call agent that must strictly follow a predefined workflow.
@@ -569,12 +569,12 @@ When using a tool:
                 { basePrompt: basePrompt5 }
               );
 
-              console.log("✅ Flow Agent workflow synced successfully");
+              logger.info("✅ Flow Agent workflow synced successfully");
             } else {
-              console.warn(`⚠️ Flow not found for sync: ${flowToUse}`);
+              logger.warn(`⚠️ Flow not found for sync: ${flowToUse}`);
             }
           } catch (error: any) {
-            console.error("❌ Flow Agent sync failed:", error.message);
+            logger.error("❌ Flow Agent sync failed:", error.message);
             return res.json({
               success: true,
               warning: "Agent updated locally. ElevenLabs workflow sync failed. Please try editing again later."
@@ -585,7 +585,7 @@ When using a tool:
 
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Update agent error:", error);
+      logger.error("Update agent error:", error);
       res.status(500).json({ error: safeErrorMessage(error, "Failed to update agent") });
     }
   });
@@ -602,7 +602,7 @@ When using a tool:
         try {
           await elevenLabsService.deleteAgent(agent.elevenLabsAgentId);
         } catch (error) {
-          console.error("Failed to delete from ElevenLabs:", error);
+          logger.error("Failed to delete from ElevenLabs:", error);
         }
       }
 
@@ -610,9 +610,9 @@ When using a tool:
       if (agent.elevenLabsCredentialId) {
         try {
           await ElevenLabsPoolService.updateAssignmentCount(agent.elevenLabsCredentialId, false);
-          console.log(`📊 [Agent Delete] Decremented agent count for credential ${agent.elevenLabsCredentialId}`);
+          logger.info(`📊 [Agent Delete] Decremented agent count for credential [redacted]`);
         } catch (countError) {
-          console.warn("Failed to update credential agent count:", countError);
+          logger.warn("Failed to update credential agent count:", countError);
         }
       }
 
@@ -620,7 +620,7 @@ When using a tool:
       await storage.deleteAgent(req.params.id);
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Delete agent error:", error);
+      logger.error("Delete agent error:", error);
       res.status(500).json({ error: "Failed to delete agent" });
     }
   });
@@ -653,7 +653,7 @@ When using a tool:
         if (await isAgentOnSipPhoneNumber(req.params.id)) {
           transferTypeForRules = "sip_refer";
           sipTrunkAddress = await getSipTrunkOutboundAddress(req.params.id);
-          console.log(`   📞 [Transfer Config] SIP agent detected - using sip_refer transfer type (trunk: ${sipTrunkAddress})`);
+          logger.info(`   📞 [Transfer Config] SIP agent detected - using sip_refer transfer type (trunk: ${sipTrunkAddress})`);
         }
       } catch (err: any) { logger.warn('SIP trunk check failed during transfer config; using conference transfer', { agentId: req.params.id, error: err?.message }, 'Routes'); }
 
@@ -663,7 +663,7 @@ When using a tool:
         numberType = "sip_uri";
         const phoneNum = transferNumber.startsWith('+') ? transferNumber : `+${transferNumber}`;
         destination = `sip:${phoneNum}@${sipTrunkAddress}`;
-        console.log(`   📞 [Transfer Config] SIP REFER: ${phoneNum} → ${destination}`);
+        logger.info(`   📞 [Transfer Config] SIP REFER: [redacted] → ${destination}`);
       }
 
       const transferRules = [{
@@ -684,7 +684,7 @@ When using a tool:
       // Update in ElevenLabs
       if (agent.elevenLabsAgentId) {
         await elevenLabsService.updateAgent(agent.elevenLabsAgentId, { tools });
-        console.log(`✅ Call transfer configured for agent ${agent.name} (${agent.elevenLabsAgentId})`);
+        logger.info(`✅ Call transfer configured for agent ${agent.name} (${agent.elevenLabsAgentId})`);
       }
 
       // Update in database
@@ -701,7 +701,7 @@ When using a tool:
         message: `Call transfer configured successfully. The AI will now transfer calls to ${transferNumber} when appropriate.`
       });
     } catch (error: any) {
-      console.error("Configure transfer error:", error);
+      logger.error("Configure transfer error:", error);
       res.status(500).json({ error: safeErrorMessage(error, "Failed to configure call transfer") });
     }
   });

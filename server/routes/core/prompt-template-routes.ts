@@ -2,6 +2,7 @@ import type { Express, Response } from "express";
 import { storage } from "../../storage";
 import { authenticateToken, requireRole, type AuthRequest } from "../../middleware/auth";
 import { insertPromptTemplateSchema, promptTemplates } from "@shared/schema";
+import { logger } from "../../utils/logger";
 
 // Table insert shape for createPromptTemplate; the drizzle-zod insert type resolves to {}.
 type PromptTemplateInsertRow = typeof promptTemplates.$inferInsert & { companyId?: string };
@@ -43,7 +44,7 @@ export function registerPromptTemplateRoutes(app: Express): void {
 
       res.json(allTemplates);
     } catch (error: any) {
-      console.error("Get prompt templates error:", error);
+      logger.error("Get prompt templates error:", error);
       res.status(500).json({ error: "Failed to get prompt templates" });
     }
   });
@@ -67,7 +68,7 @@ export function registerPromptTemplateRoutes(app: Express): void {
 
       res.json(template);
     } catch (error: any) {
-      console.error("Get prompt template error:", error);
+      logger.error("Get prompt template error:", error);
       res.status(500).json({ error: "Failed to get prompt template" });
     }
   });
@@ -123,7 +124,7 @@ export function registerPromptTemplateRoutes(app: Express): void {
 
       res.json(template);
     } catch (error: any) {
-      console.error("Create prompt template error:", error);
+      logger.error("Create prompt template error:", error);
       res.status(500).json({ error: "Failed to create prompt template" });
     }
   });
@@ -180,7 +181,7 @@ export function registerPromptTemplateRoutes(app: Express): void {
       const updated = await storage.getPromptTemplate(req.params.id);
       res.json(updated);
     } catch (error: any) {
-      console.error("Update prompt template error:", error);
+      logger.error("Update prompt template error:", error);
       res.status(500).json({ error: "Failed to update prompt template" });
     }
   });
@@ -201,7 +202,7 @@ export function registerPromptTemplateRoutes(app: Express): void {
       await storage.deletePromptTemplate(req.params.id);
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Delete prompt template error:", error);
+      logger.error("Delete prompt template error:", error);
       res.status(500).json({ error: "Failed to delete prompt template" });
     }
   });
@@ -253,7 +254,7 @@ export function registerPromptTemplateRoutes(app: Express): void {
         )
       });
     } catch (error: any) {
-      console.error("Use prompt template error:", error);
+      logger.error("Use prompt template error:", error);
       res.status(500).json({ error: "Failed to use prompt template" });
     }
   });
@@ -292,7 +293,7 @@ export function registerPromptTemplateRoutes(app: Express): void {
 
       res.json(template);
     } catch (error: any) {
-      console.error("Create system prompt template error:", error);
+      logger.error("Create system prompt template error:", error);
       res.status(500).json({ error: "Failed to create system prompt template" });
     }
   });

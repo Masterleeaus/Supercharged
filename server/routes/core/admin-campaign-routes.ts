@@ -6,6 +6,7 @@ import { eq, and, isNull, sql } from "drizzle-orm";
 import { authenticateToken, requireRole, type AuthRequest } from "../../middleware/auth";
 import { campaignExecutor } from "../../services/campaign-executor";
 import { BatchCallingService } from "../../services/batch-calling";
+import { logger } from "../../utils/logger";
 
 export function registerAdminCampaignRoutes(app: Express): void {
   // Admin Campaign View Routes (allows admins to view any user's campaign)
@@ -25,7 +26,7 @@ export function registerAdminCampaignRoutes(app: Express): void {
 
       res.json({ ...campaign, owner: owner || null });
     } catch (error: any) {
-      console.error("Admin get campaign error:", error);
+      logger.error("Admin get campaign error:", error);
       res.status(500).json({ error: "Failed to get campaign" });
     }
   });
@@ -41,7 +42,7 @@ export function registerAdminCampaignRoutes(app: Express): void {
 
       res.json(contactList);
     } catch (error: any) {
-      console.error("Admin get campaign contacts error:", error);
+      logger.error("Admin get campaign contacts error:", error);
       res.status(500).json({ error: "Failed to get campaign contacts" });
     }
   });
@@ -56,7 +57,7 @@ export function registerAdminCampaignRoutes(app: Express): void {
       const callList = await storage.getCampaignCalls(campaign.id);
       res.json(callList);
     } catch (error: any) {
-      console.error("Admin get campaign calls error:", error);
+      logger.error("Admin get campaign calls error:", error);
       res.status(500).json({ error: "Failed to get campaign calls" });
     }
   });
@@ -76,7 +77,7 @@ export function registerAdminCampaignRoutes(app: Express): void {
       const stats = BatchCallingService.getBatchStats(batchJob);
       res.json({ batchJob, stats });
     } catch (error: any) {
-      console.error("Admin get campaign batch error:", error);
+      logger.error("Admin get campaign batch error:", error);
       res.json({ batchJob: null, stats: null });
     }
   });
@@ -86,7 +87,7 @@ export function registerAdminCampaignRoutes(app: Express): void {
   // Uses batched processing to handle any number of orphaned calls
   app.post("/api/admin/migrate-call-user-ids", authenticateToken, requireRole("admin"), async (req: AuthRequest, res: Response) => {
     try {
-      console.log(`📊 [Admin] Starting call userId migration`);
+      logger.info(`📊 [Admin] Starting call userId migration`);
 
       let totalProcessed = 0;
       let migrated = 0;
@@ -116,11 +117,11 @@ export function registerAdminCampaignRoutes(app: Express): void {
           .limit(BATCH_SIZE);
 
         if (orphanedCalls.length === 0) {
-          console.log(`   No more orphaned calls to process`);
+          logger.info(`   No more orphaned calls to process`);
           break;
         }
 
-        console.log(`   Processing batch of ${orphanedCalls.length} orphaned calls`);
+        logger.info(`   Processing batch of ${orphanedCalls.length} orphaned calls`);
         totalProcessed += orphanedCalls.length;
 
         for (const call of orphanedCalls) {
@@ -193,12 +194,12 @@ export function registerAdminCampaignRoutes(app: Express): void {
         // Safety check - if we've processed many calls without finding resolvable owners
         // and the same orphaned calls keep appearing, prevent infinite loop
         if (totalProcessed > 10000 && migrated === 0) {
-          console.warn(`   Breaking - processed ${totalProcessed} calls but none could be migrated`);
+          logger.warn(`   Breaking - processed ${totalProcessed} calls but none could be migrated`);
           break;
         }
       }
 
-      console.log(`✅ [Admin] Migration complete: ${migrated} migrated, ${failed} unresolvable, ${totalProcessed} total processed`);
+      logger.info(`✅ [Admin] Migration complete: ${migrated} migrated, ${failed} unresolvable, ${totalProcessed} total processed`);
 
       res.json({
         success: true,
@@ -212,7 +213,7 @@ export function registerAdminCampaignRoutes(app: Express): void {
           : `Successfully migrated all ${migrated} calls`
       });
     } catch (error: any) {
-      console.error("Migration error:", error);
+      logger.error("Migration error:", error);
       res.status(500).json({ error: "Failed to migrate call user IDs" });
     }
   });

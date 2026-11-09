@@ -3,6 +3,7 @@ import { type Server } from "http";
 import { hybridGateUnlessExempt } from "../../middleware/hybrid-gate-exemptions";
 import { widgetRoutes } from "../../modules/widget";
 import type { RouteContext } from "./shared";
+import { logger } from "../../utils/logger";
 
 export function registerStreamWidgetRoutes(app: Express, deps: { httpServer: Server; routeContext: RouteContext }): void {
   const { httpServer, routeContext } = deps;
@@ -25,7 +26,7 @@ export function registerStreamWidgetRoutes(app: Express, deps: { httpServer: Ser
       if (req.headers.upgrade?.toLowerCase() === 'websocket') {
         return;
       }
-      console.log(`🔌 [Stream Proxy Fix] Reverse proxy stripped WebSocket headers for ${req.url}, restoring and re-emitting upgrade`);
+      logger.info(`🔌 [Stream Proxy Fix] Reverse proxy stripped WebSocket headers for ${req.url}, restoring and re-emitting upgrade`);
       const socket = req.socket;
       if (!socket || socket.destroyed) {
         return res.status(400).json({ error: 'WebSocket connection required — socket unavailable' });

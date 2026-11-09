@@ -6,6 +6,7 @@ import { eq, and, sql } from "drizzle-orm";
 import { authenticateToken, requireRole, type AuthRequest } from "../../middleware/auth";
 import { flows } from "@shared/schema";
 import { safeErrorMessage } from "../../utils/safe-error";
+import { logger } from "../../utils/logger";
 
 export function registerAdminUserRoutes(app: Express): void {
   // LLM Models - Get available models for current user (filtered by plan tier)
@@ -36,7 +37,7 @@ export function registerAdminUserRoutes(app: Express): void {
       const freeModels = allModels.filter(model => model.tier === 'free');
       res.json(freeModels);
     } catch (error: any) {
-      console.error("Get available LLM models error:", error);
+      logger.error("Get available LLM models error:", error);
       res.status(500).json({ error: "Failed to get available LLM models" });
     }
   });
@@ -68,7 +69,7 @@ export function registerAdminUserRoutes(app: Express): void {
 
       res.json({ success: true, newCredits });
     } catch (error: any) {
-      console.error("Update user credits error:", error);
+      logger.error("Update user credits error:", error);
       res.status(500).json({ error: "Failed to update user credits" });
     }
   });
@@ -118,7 +119,7 @@ export function registerAdminUserRoutes(app: Express): void {
         }
       });
     } catch (error: any) {
-      console.error("Get user limits error:", error);
+      logger.error("Get user limits error:", error);
       res.status(500).json({ error: "Failed to get user limits" });
     }
   });
@@ -185,7 +186,7 @@ export function registerAdminUserRoutes(app: Express): void {
       const newLimits = await storage.getUserEffectiveLimits(req.params.id);
       res.json({ success: true, effectiveLimits: newLimits });
     } catch (error: any) {
-      console.error("Update user limits error:", error);
+      logger.error("Update user limits error:", error);
       res.status(500).json({ error: safeErrorMessage(error, "Failed to update user limits") });
     }
   });
@@ -216,7 +217,7 @@ export function registerAdminUserRoutes(app: Express): void {
       const newLimits = await storage.getUserEffectiveLimits(req.params.id);
       res.json({ success: true, effectiveLimits: newLimits, message: "User limits reset to plan defaults" });
     } catch (error: any) {
-      console.error("Reset user limits error:", error);
+      logger.error("Reset user limits error:", error);
       res.status(500).json({ error: "Failed to reset user limits" });
     }
   });
