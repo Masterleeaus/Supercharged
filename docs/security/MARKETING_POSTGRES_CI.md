@@ -1,0 +1,7 @@
+# Real PostgreSQL CI integration (Pass 10)
+
+The `marketing-postgres` GitHub Actions job starts a disposable Postgres 16 service. It expressly opts into `MARKETING_PG_DISPOSABLE=true`, creates a restricted **NOLOGIN** test role, applies the Marketing migration candidate to that ephemeral instance, and runs the `tests/postgres/marketing-postgres-*.test.mjs` suite.
+
+Test coverage: restricted database role, enabled and forced RLS, actual two-tenant reads and writes, direct cross-company SQL denial, the company-bound unique slug constraint, and database-backed publication/approval transitions.
+
+**Safety:** The fixture never runs without both the disposable opt-in and an integration database URL. The production migration list and production database remain unchanged. This is a CI-only candidate proof, not authorization to deploy the schema. Run this job successfully before changing production flags.

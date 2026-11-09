@@ -25,3 +25,12 @@ test('a cross-company content update stays scoped even after a publication trans
  assert.deepEqual(update.values.slice(0,2),[B,'company-a-item']);
  assert.match(update.sql,/status = 'approved'/);
 });
+
+test('every Marketing record read includes a bound company predicate',async()=>{
+ const h=recordingPool(),s=createSqlMarketingStore({pool:h.pool});
+ await s.findPage(A,'p');await s.findPageBySlug(B,'slug');await s.listPages(A,{});
+ await s.findContent(B,'c');await s.listContent(A,{});
+ for(const q of h.calls.filter(x=>x.sql.startsWith('SELECT id'))){
+  assert.match(q.sql,/company_id = \$1/);assert.ok(q.values[0]===A||q.values[0]===B);
+ }
+});

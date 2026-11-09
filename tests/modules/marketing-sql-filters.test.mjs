@@ -28,3 +28,10 @@ test('filter values resembling SQL do not alter the query structure',async()=>{
  const q=r.seen.find(x=>x.sql.includes('FROM content_items'));
  assert.ok(!q.sql.includes(value));assert.deepEqual(q.values,[A,value,value]);
 });
+
+test('sequential tenants do not share company-scoped transaction settings',async()=>{
+ const B='22222222-2222-4222-8222-222222222222';
+ const r=recorder(),s=createSqlMarketingStore({pool:r.pool});
+ await s.listPages(A,{});await s.listPages(B,{});
+ assert.deepEqual(r.seen.filter(q=>q.sql.includes('set_config')).map(q=>q.values[1]),[A,B]);
+});

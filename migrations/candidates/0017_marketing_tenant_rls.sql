@@ -2,6 +2,8 @@
 -- Prerequisite: an existing restricted desk_app role (NO BYPASSRLS, not table owner).
 -- This candidate promotes the archived Marketing schema and adds forced tenant RLS.
 -- The application login must already be authorised to SET LOCAL ROLE desk_app.
+-- This file never creates roles or passwords; the CI fixture uses a NOLOGIN role.
+-- Never use a superuser as the production application login.
 DO $guard$
 BEGIN
  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='desk_app'

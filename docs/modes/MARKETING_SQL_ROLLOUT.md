@@ -12,3 +12,7 @@ Pass 8 prepares an adapter, **not** a promoted migration, verified RLS policy or
 ## Proposed reviewed migration
 
 A candidate that includes both table definitions and restricted-role RLS is in `migrations/candidates/0017_marketing_tenant_rls.sql`. Verify it against a disposable PostgreSQL database before promoting it into the automatic migration manifest. Run `node scripts/check-marketing-migration.mjs` as a static preflight; this is not a database integration test. No runtime flags were changed in Pass 9.
+
+## PostgreSQL integration gate
+
+The dedicated `marketing-postgres` workflow uses an ephemeral PostgreSQL service to exercise direct RLS policies and actual SQL store writes. Even a green result is not production deployment: the candidate remains excluded from `scripts/run-safe-migration.mjs`, pending review and target-environment verification.

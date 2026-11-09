@@ -33,3 +33,11 @@ test('invalid company IDs do not enter the connection pool for any write',()=>{
  assert.throws(()=>s.updateContent('not-a-uuid','id',{body:'x',updatedAt:new Date()}),/companyId/);
  assert.equal(h.releases,0);assert.deepEqual(h.queries,[]);
 });
+
+test('tenant-bound UPDATE never interpolates adversarial record identifiers',async()=>{
+ const h=harness(),s=createSqlMarketingStore({pool:h.pool});
+ await s.updatePage(A,"id' OR company_id <> '",{title:'Value',updatedAt:new Date()});
+ const q=h.queries.find(x=>x.sql.startsWith('UPDATE landing_pages'));
+ assert.equal(q.values[0],A);assert.equal(q.values[1],"id' OR company_id <> '");
+ assert.ok(!q.sql.includes("OR company_id <>"));
+});
