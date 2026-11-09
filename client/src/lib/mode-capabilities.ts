@@ -17,7 +17,7 @@ export function modeAvailability(
   return { available: true };
 }
 export const MODE_UNAVAILABLE_TEXT: Record<Exclude<ModeAvailability, {available: true}>["reason"], string> = {
-  mode_unknown: "The authenticated server mode could not be verified. No mode-specific tools are available.",
+  mode_unknown: "The authenticated server mode and host could not be verified. No mode-specific tools are available.",
   mode_unavailable: "This workspace is served from the workforce host. Open your authorized communications workspace to access this mode.",
   feature_disabled: "This capability is disabled in this deployment. Ask an administrator to enable its server routes and matching client flag.",
 };

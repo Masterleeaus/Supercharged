@@ -95,3 +95,11 @@ test('requireModule blocks a request with no mode set', () => {
   assert.equal(called, false);
   assert.equal(res.statusCode, 404);
 });
+
+test('repeated Host values are rejected rather than selecting the first', () => {
+  for (const host of [['syncedat.work'], ['syncedat.work','supercharged.at.work']]) {
+    const {res,nextCalled} = run(deskModeMiddleware(config), {headers:{host}});
+    assert.equal(res.statusCode,404);
+    assert.equal(nextCalled,false);
+  }
+});

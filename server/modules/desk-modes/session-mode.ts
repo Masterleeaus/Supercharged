@@ -17,6 +17,7 @@ export const DEFAULT_DESK_MODE_CONFIG: DeskModeConfig = buildModeConfig({
 
 export const WORKFORCE_DEFAULT_MODE: DeskMode = 'workforce';
 
+/** Only source=host confirms a configured host. */
 export interface SessionDeskMode {
   mode: DeskMode;
   source: 'host' | 'default';

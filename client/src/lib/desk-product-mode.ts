@@ -21,3 +21,10 @@ export function productModeForPath(pathname: string): ProductMode | null {
 export function isCommsHostMode(mode: ServerDeskMode | null): boolean {
   return mode === "comms";
 }
+
+/** Accept only a mode returned for a verified configured host. */
+export function verifiedServerMode(value: unknown): ServerDeskMode | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const result = value as Record<string, unknown>;
+  return result.source === "host" ? parseServerDeskMode(result.mode) : null;
+}

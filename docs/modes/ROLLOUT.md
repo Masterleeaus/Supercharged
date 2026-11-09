@@ -8,3 +8,6 @@
 6. Roll back by disabling `VITE_ENABLE_CHATBOT_INBOX` and redeploying the client; leave existing server guards in place.
 
 The implementation does not enable unverified providers, change central identity, or change tenant keys.
+
+7. Test unknown hosts and repeated Host values: /api/desk-mode must return 404, regardless of X-Forwarded-Host.
+8. Require `source: "host"` in the client before treating a mode as available.

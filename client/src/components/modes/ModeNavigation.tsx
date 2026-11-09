@@ -15,7 +15,7 @@ function ModeLink({ mode, label, href }: { mode: ProductMode; label: string; hre
     className="flex items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-accent aria-[current=page]:bg-accent">
     <Icon className="h-4 w-4 shrink-0" />
     <span>{label}</span>
-    {unavailable && <span className="ml-auto text-xs text-muted-foreground" aria-label="Unavailable">Setup</span>}
+    {unavailable && <span className="ml-auto text-xs text-muted-foreground" aria-label="Unavailable">Unavailable</span>}
   </Link>;
 }
 export function ModeNavigation() {

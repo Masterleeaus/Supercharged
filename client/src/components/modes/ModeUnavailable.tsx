@@ -9,7 +9,7 @@ export function ModeUnavailable({ mode, reason }: {
   reason: Exclude<ModeAvailability, { available: true }>["reason"];
 }) {
   const destination = destinationForMode(mode);
-  return <section role="status" className="mx-auto max-w-xl space-y-3 rounded-lg border p-6">
+  return <section role="alert" data-testid={`mode-unavailable-${reason}`} className="mx-auto max-w-xl space-y-3 rounded-lg border p-6">
     <div className="flex items-center gap-2 font-semibold"><AlertCircle className="h-5 w-5" />{destination.label} unavailable</div>
     <p className="text-sm text-muted-foreground">{MODE_UNAVAILABLE_TEXT[reason]}</p>
     <Link href="/app/settings" className="text-sm underline">Workspace settings</Link>

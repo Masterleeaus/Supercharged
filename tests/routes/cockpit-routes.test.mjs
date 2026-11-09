@@ -138,12 +138,12 @@ test('desk-mode returns the comms mode from the Host header on the comms host, w
   }
 });
 
-test('desk-mode falls back to the workforce default for an unrecognised host', async () => {
+test('desk-mode refuses unrecognised hosts', async () => {
   const srv = await start({ loadApprovals: () => [] });
   try {
     const res = await srv.call({ path: DESK_MODE_PATH, user: USER_A, host: UNKNOWN_HOST });
-    assert.equal(res.status, 200);
-    assert.deepEqual(res.body, { mode: 'workforce', source: 'default' });
+    assert.equal(res.status, 404);
+    assert.deepEqual(res.body, { error: 'not_found' });
   } finally {
     await srv.close();
   }

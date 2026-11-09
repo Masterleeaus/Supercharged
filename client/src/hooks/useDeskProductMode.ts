@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { parseServerDeskMode } from "@/lib/desk-product-mode";
+import { verifiedServerMode } from "@/lib/desk-product-mode";
 import { modeAvailability, type ModeFlags } from "@/lib/mode-capabilities";
 import type { ProductMode } from "@/lib/desk-product-mode";
 
@@ -20,9 +20,7 @@ export function useDeskProductMode(selected: ProductMode) {
     retry: false,
   });
   const value = query.data;
-  const mode = typeof value === "object" && value !== null && "mode" in value
-    ? parseServerDeskMode(value.mode)
-    : null;
+  const mode = verifiedServerMode(value);
   return {
     loading: query.isPending,
     availability: modeAvailability(selected, query.isError ? null : mode, FLAGS),
