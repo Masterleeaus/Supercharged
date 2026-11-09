@@ -52,7 +52,6 @@ const READS = [
   'crew_rosters.list',
 ];
 const WRITES = [
-  'booking_requests.update',
   'client_merge_suggestions.create',
   'clients.create',
   'collection_notes.create',
@@ -62,6 +61,7 @@ const NOT_IMPLEMENTED = [
   'after_hours.page_on_call',
   'agreements.renewal_draft',
   'booking_requests.create',
+  'booking_requests.update',
   'campaign_messages.create',
   'compliance_reminders.send',
 ];
@@ -155,7 +155,7 @@ test('every group 00 id has a definition, and the list matches the expected 18',
   assert.deepEqual([...defById.keys()].sort(), EXPECTED_IDS);
 });
 
-test('the not_implemented set is exactly the five ids with no table or safe path', () => {
+test('the not_implemented set is exactly the six ids with no table, no company scope, or no safe path', () => {
   assert.deepEqual([...GROUP00_NOT_IMPLEMENTED_IDS].sort(), [...NOT_IMPLEMENTED].sort());
 });
 
@@ -237,6 +237,15 @@ test('each company-scoped read queries with company_id = $1 and returns only the
     assert.ok(!serialised.includes('other-b-row'), `${id} returned another company's row`);
     assert.ok(!serialised.includes('secret-location'), `${id} returned a storage location`);
   }
+});
+
+test('booking_requests.update is refused as not_implemented because appointments has no live company_id', async () => {
+  const calls = [];
+  const db = forbiddenDb(calls);
+  const result = await defsFor(db).get('booking_requests.update').handler({ id: 'appt-1', status: 'confirmed' }, context(CO_A, db));
+  assert.equal(result.status, 'not_implemented');
+  assert.match(result.reason, /company_id/);
+  assert.equal(calls.length, 0, 'booking_requests.update ran a query');
 });
 
 test('clients.get does not return another company row', async () => {

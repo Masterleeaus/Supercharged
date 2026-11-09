@@ -1,6 +1,5 @@
 /**
  * Group 00 tool handlers: 18 workforce tool ids, bound to the workforce tables (migrations/0014_workforce_tool_tables.sql)
- * and, for booking_requests.update, to the existing appointments table that the booking_requests reads already use.
  *
  * Rules every handler follows:
  *   - companyId comes only from the authenticated context (ToolHandlerContext.companyId), checked by requireCompanyId.
@@ -533,33 +532,6 @@ const complaintsCreate: Run = async (input, context) => {
   return { created: rows.length === 1, id: rows[0]?.id ?? null, status: rows[0]?.status ?? null };
 };
 
-const bookingRequestsUpdate: Run = async (input, context) => {
-  const companyId = companyOf(context);
-  const args = parse(schemas['booking_requests.update'], input);
-  // Column names below are fixed in this file. Only the values come from the caller, as $n parameters.
-  const values: unknown[] = [companyId, args.id];
-  const sets: string[] = [];
-  const set = (column: string, value: unknown, cast = '') => {
-    values.push(value);
-    sets.push(`${column} = $${values.length}${cast}`);
-  };
-  if (args.appointmentDate !== undefined) set('appointment_date', args.appointmentDate, '::date');
-  if (args.appointmentTime !== undefined) set('appointment_time', args.appointmentTime, '::time');
-  if (args.duration !== undefined) set('duration', args.duration);
-  if (args.status !== undefined) set('status', args.status);
-  if (args.statusReason !== undefined) set('status_reason', args.statusReason);
-  if (args.notes !== undefined) set('notes', args.notes);
-  sets.push('updated_at = now()');
-  const rows = await rowsOf(
-    writeDb(context),
-    `UPDATE appointments SET ${sets.join(', ')}
-      WHERE company_id = $1 AND id = $2
-      RETURNING id`,
-    values,
-  );
-  return { updated: rows.length === 1, id: rows[0]?.id ?? null };
-};
-
 // ---- Registry specs ----------------------------------------------------------------------------------------------------
 
 interface Spec {
@@ -600,7 +572,15 @@ const GROUP00_SPECS: readonly Spec[] = [
       'The appointments table needs an owning user_id (NOT NULL), and the tool context carries no acting user. No booking_requests table exists. Nothing was written.',
     ),
   },
-  { id: 'booking_requests.update', access: 'write', risk: 'medium', run: bookingRequestsUpdate },
+  {
+    id: 'booking_requests.update',
+    access: 'write',
+    risk: 'medium',
+    run: notImplemented(
+      'booking_requests.update',
+      'The live appointments table has no company_id column (only the archived DRAFT migration adds it), so the update cannot be scoped to the caller company. Nothing was written.',
+    ),
+  },
   {
     id: 'campaign_messages.create',
     access: 'write',
@@ -641,6 +621,7 @@ export const GROUP00_NOT_IMPLEMENTED_IDS: ReadonlySet<Group00Id> = new Set<Group
   'after_hours.page_on_call',
   'agreements.renewal_draft',
   'booking_requests.create',
+  'booking_requests.update',
   'campaign_messages.create',
   'compliance_reminders.send',
 ]);
