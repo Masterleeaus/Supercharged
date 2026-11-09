@@ -69,3 +69,7 @@ The `createInboxApprovalPort` adapter reuses the canonical ApprovalService for g
 ## Pass 19: verified production Inbox route composition
 
 When explicitly enabled, the main verified comms registrar now composes Inbox with original SQL storage, the verified schema and canonical ApprovalService connected through the injected tenant pool. Both enabled modules verify before either route mounts. Defaults are unchanged and production provider sends remain unimplemented.
+
+## Pass 20: durable outbound outbox (no provider enabled)
+
+A review-only `0019_inbox_outbox.sql` candidate adds a tenant-RLS protected outbox table linked to the existing Inbox message. The new `createSqlOutbox` handles deduplicated queue enrollment, worker leases with SKIP LOCKED, safe acknowledgments and retry/dead-letter transitions. `createOutboxDispatcher` requires an explicitly injected provider implementing stable idempotency keys. No default provider, background scheduler, migrations or outbound sending are enabled.

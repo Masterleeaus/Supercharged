@@ -29,3 +29,7 @@ export {createInboxApprovalPort} from './approval-port.ts';
 export type {CanonicalApprovalPortSource} from './approval-port.ts';
 
 export {createCanonicalInboxApprovalService} from './canonical-production-approval.ts';
+
+export {createSqlOutbox} from './sql-outbox.ts';
+export {createOutboxDispatcher} from './outbox-dispatcher.ts';
+export type {OutboxJob,OutboxRepository,OutboxTransport,OutboxStatus} from './outbox-types.ts';

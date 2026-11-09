@@ -25,3 +25,7 @@ Production Inbox composition can now reuse the canonical ApprovalService as `app
 ## Pass 19: verified Inbox route mounting
 
 The actual Workforce/Comms registrar no longer needs a manually injected Inbox service. When `COMMS_INBOX_ENABLED=true`, startup constructs the existing SQL-backed Inbox service and canonical approval engine only after the database security gate succeeds. With the flag off, no Inbox schema query is performed. The RLS candidate is not promoted and no provider transport is enabled.
+
+## Pass 20: opt-in persistent delivery queue
+
+An additional review-only outbox candidate supports unique queued message enrollment and tenant-bound worker leases. The disposable CI database applies this table after Inbox's existing schema and RLS, with real tests for duplicate enrollment, cross-company denial, token-protected acknowledgement and retry. The dispatcher has no provider configured or scheduler; production sending remains disabled until migration review, provider idempotency, signed callbacks and delivery reconciliation are complete.
