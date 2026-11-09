@@ -15,6 +15,7 @@
  * ============================================================
  */
 import { logger } from '../utils/logger';
+import type { ElevenLabsWorkflow } from './enhanced-flow-compiler';
 /**
  * Outbound Call Service
  * 
@@ -31,7 +32,7 @@ export interface OutboundCallParams {
   toNumber: string;
   firstMessage?: string;
   dynamicData?: Record<string, string>;
-  workflow?: any;
+  workflow?: ElevenLabsWorkflow;
   webhookTools?: any[];
   conversationInitiationClientData?: {
     conversationConfigOverride?: {
@@ -42,7 +43,7 @@ export interface OutboundCallParams {
         first_message?: string;
         conversation_config?: any;
       };
-      workflow?: any;
+      workflow?: ElevenLabsWorkflow;
     };
     webhook_tools?: any[];
     dynamic_variables?: Record<string, string>;

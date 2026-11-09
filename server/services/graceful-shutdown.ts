@@ -96,8 +96,9 @@ export async function gracefulShutdown(signal: string, exitCode: number = 0): Pr
     try {
       await pool.end();
       logger.info('   ✓ Database pool closed');
-    } catch (dbError: any) {
-      logger.warn(`   ⚠️ Database close warning: ${dbError.message}`);
+    } catch (dbError: unknown) {
+      const dbMessage = dbError instanceof Error ? dbError.message : String(dbError);
+      logger.warn(`   ⚠️ Database close warning: ${dbMessage}`);
     }
 
     const shutdownDuration = Date.now() - shutdownStart;
@@ -106,7 +107,7 @@ export async function gracefulShutdown(signal: string, exitCode: number = 0): Pr
     // Signal PM2 that we're ready to die
     process.exit(exitCode);
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error(`❌ [Shutdown] Error during graceful shutdown:`, error);
     process.exit(1);
   }
@@ -124,7 +125,7 @@ export function setupGlobalHandlers(): void {
   });
 
   // Handle unhandled promise rejections
-  process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
+  process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
     logger.error('💥 [FATAL] Unhandled Promise Rejection:', reason);
     if (reason instanceof Error) {
       logger.error(reason.stack ?? reason.message);
