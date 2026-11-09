@@ -1299,6 +1299,8 @@ export type FlowNodeType =
   | "transfer"     // Transfer call
   | "delay"        // Pause conversation
   | "play_audio"   // Play audio file
+  | "send_email"   // Send email from the call
+  | "send_whatsapp" // Send WhatsApp message from the call
   | "end";         // End call
 
 export interface FlowNode {
@@ -1331,6 +1333,8 @@ export type NodeConfig =
   | TransferNodeConfig
   | DelayNodeConfig
   | PlayAudioNodeConfig
+  | SendEmailNodeConfig
+  | SendWhatsAppNodeConfig
   | EndNodeConfig;
 
 export interface MessageNodeConfig {
@@ -1372,6 +1376,7 @@ export interface AppointmentNodeConfig {
 export interface FormNodeConfig {
   type: "form";
   formId: string;
+  message?: string;          // Spoken before the form opens (runtime reads this key)
   waitForResponse?: boolean; // Default: true - wait for form data collection to complete
   googleSheetId?: string;   // Spreadsheet ID — used at runtime for row appends
   googleSheetName?: string; // Tab/sheet name — used at runtime for row appends
@@ -1404,6 +1409,21 @@ export interface PlayAudioNodeConfig {
   audioFileName?: string;     // Original filename for display
   interruptible?: boolean;    // Allow user to interrupt playback (default: false)
   waitForComplete?: boolean;  // Wait for audio to finish before continuing (default: true)
+}
+
+export interface SendEmailNodeConfig {
+  type: "send_email";
+  message: string;
+  templateName: string;
+  recipientEmail: string;
+}
+
+export interface SendWhatsAppNodeConfig {
+  type: "send_whatsapp";
+  message: string;
+  templateName: string;
+  language: string;
+  templateVariables: { position: number; value: string }[];
 }
 
 export interface EndNodeConfig {
