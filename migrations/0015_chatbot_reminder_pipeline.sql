@@ -3,7 +3,8 @@
 --
 -- Matches the Drizzle definitions in server/modules/chatbot/db/events.ts (chatbot_event_outbox,
 -- chatbot_webhook_subscriptions, chatbot_webhook_deliveries) and server/modules/chatbot/booking-providers/db.ts
--- (chatbot_booking_reminder_sends). None of these four tables was in migrations/ before this file.
+-- (chatbot_booking_reminder_sends and chatbot_booking_reminder_attempts). None of these tables was in migrations/
+-- before this file.
 --
 -- Scope: every row is keyed by company_id. A subscription belongs to a company, not to a user, so the outbox
 -- drain delivers a company's events to that company's subscriptions.
@@ -16,6 +17,7 @@
 --
 -- Rollback (manual, in this order, only if no data must be kept):
 --   DROP TABLE IF EXISTS chatbot_webhook_deliveries;
+--   DROP TABLE IF EXISTS chatbot_booking_reminder_attempts;
 --   DROP TABLE IF EXISTS chatbot_booking_reminder_sends;
 --   DROP TABLE IF EXISTS chatbot_webhook_subscriptions;
 --   DROP TABLE IF EXISTS chatbot_event_outbox;
@@ -105,3 +107,23 @@ CREATE TABLE IF NOT EXISTS chatbot_booking_reminder_sends (
 
 CREATE UNIQUE INDEX IF NOT EXISTS chatbot_booking_reminder_sends_once_uidx
   ON chatbot_booking_reminder_sends (company_id, appointment_id, channel);
+
+-- One row per send attempt, including retryable failures. The ledger row above keeps only the claim and the final
+-- outcome, so this table keeps the attempt history. Written by the reminder sender wrapper, never read by a send.
+CREATE TABLE IF NOT EXISTS chatbot_booking_reminder_attempts (
+  id                  varchar PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  company_id          uuid NOT NULL,
+  appointment_id      varchar NOT NULL,
+  channel             varchar(16) NOT NULL,
+  attempt_no          integer NOT NULL,
+  status              varchar(16) NOT NULL,
+  idempotency_key     varchar(255) NOT NULL,
+  external_message_id varchar(255),
+  reason              varchar(255),
+  attempted_at        timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT chatbot_booking_reminder_attempts_status_chk
+    CHECK (status IN ('sent', 'failed', 'error'))
+);
+
+CREATE INDEX IF NOT EXISTS chatbot_booking_reminder_attempts_company_appt_idx
+  ON chatbot_booking_reminder_attempts (company_id, appointment_id, channel);
