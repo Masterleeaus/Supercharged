@@ -57,3 +57,7 @@ A separate review-only candidate at `migrations/candidates/0018_inbox_tenant_rls
 ## Pass 16: fail-closed database readiness
 
 The opt-in `createVerifiedInboxService` now validates the actual PostgreSQL catalog before constructing a persistent service, including restricted desk_app permissions and all four tables' ENABLE/FORCE RLS policies. A durable approval port and atomic transaction runner are mandatory. No automatic Inbox activation; request-specific approval transaction composition remains necessary before mounting multi-tenant routes.
+
+## Pass 17: per-company approval execution
+
+An InboxService shared by multiple authenticated companies no longer depends on a single fixed company transaction. Production composition derives a company-bound transaction runner from its PostgreSQL pool on each approved decision using `inboxTransactionsFor`. Existing `sqlInboxWriteTx` approval-claim and message-update code is reused; any wrong-company call throws and rolls back. No provider, approval policy, or routes are automatically enabled.

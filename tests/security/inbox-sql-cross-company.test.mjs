@@ -26,3 +26,12 @@ test('runtime schema verifier requires all four tenant-owned Inbox tables',async
  assert.equal(result.ready,false);assert.ok(INBOX_TABLES.every(t=>result.issues.includes(t+' missing')));
  assert.ok(INBOX_TABLES.every(t=>inspected.includes(t)));
 });
+
+test('cross-company claim attempt fails before any UPDATE approvals SQL runs',async()=>{
+ const {createInboxSqlTransactionRunner}=await import('../../server/modules/inbox/sql-transaction-runner.ts');
+ const B='22222222-2222-4222-8222-222222222222',queries=[];
+ const pool={async connect(){return{query:async sql=>{queries.push(sql);return{rows:[]}},release(){}};}};
+ await assert.rejects(createInboxSqlTransactionRunner(pool,A).runInTransaction(tx=>tx.markApprovalExecuted(B,'approval')),/different company/);
+ assert.ok(!queries.some(sql=>sql.startsWith('UPDATE approvals')));
+ assert.ok(queries.includes('ROLLBACK'));
+});

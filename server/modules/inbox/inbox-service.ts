@@ -54,6 +54,8 @@ export interface InboxServiceDeps {
    * Without it, the writes run one after another (see applyApprovalDecision).
    */
   transactions?: InboxTransactionRunner;
+  /** Production: resolve an atomic runner for each verified company, never a global tenant. */
+  transactionsFor?: (companyId: string) => InboxTransactionRunner;
   now?: () => Date;
   newId?: () => string;
   /** How long an agent's send request stays open for a decision. Default 15 minutes. */
@@ -406,10 +408,11 @@ export function createInboxService(deps: InboxServiceDeps): InboxService {
       if (!matches) throw new InboxError('Approval does not match this message', 'conflict');
 
       const at = now();
-      if (deps.transactions) {
+      const transactionRunner = deps.transactionsFor?.(co) ?? deps.transactions;
+      if (transactionRunner) {
         // One transaction: the claim, the thread touch and the message status commit together.
         // Any throw (including the 'already executed' conflict) rolls back all three.
-        const committed = await deps.transactions.runInTransaction(async (tx) => {
+        const committed = await transactionRunner.runInTransaction(async (tx) => {
           // The claim runs on the transaction handle. The approvals port returns null when nothing
           // was claimed. The wrapper returns a non-null marker because the handle only reports a boolean.
           const claim = await approvals.markExecuted(co, approval.id, null, {

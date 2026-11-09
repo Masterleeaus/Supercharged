@@ -16,3 +16,11 @@ test('message approval update is scoped and uses bound parameters',async()=>{
  assert.match(q.sql,/company_id = \$1 AND id = \$2/);
  assert.ok(!q.sql.includes('approvalId'));assert.deepEqual(q.args.slice(0,2),[A,'message']);
 });
+
+test('bound transaction runner cannot update another tenant thread',async()=>{
+ const {createInboxSqlTransactionRunner}=await import('../../server/modules/inbox/sql-transaction-runner.ts');
+ const B='22222222-2222-4222-8222-222222222222',seen=[];
+ const pool={async connect(){return{query:async sql=>{seen.push(sql);return{rows:[]}},release(){}};}};
+ await assert.rejects(createInboxSqlTransactionRunner(pool,A).runInTransaction(tx=>tx.updateThread(B,'foreign',{status:'closed'})),/different company/);
+ assert.ok(seen.includes('ROLLBACK'));assert.ok(!seen.some(sql=>sql.startsWith('UPDATE inbox_threads')));
+});

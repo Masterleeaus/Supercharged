@@ -22,3 +22,5 @@ export {verifyInboxSchema,requireInboxSchema,INBOX_TABLES} from './schema-readin
 export type {InboxReadiness,InboxSchemaProbe} from './schema-readiness.ts';
 export {createVerifiedInboxService} from './production-service.ts';
 export type {VerifiedInboxDependencies} from './production-service.ts';
+
+export {createInboxSqlTransactionRunner,inboxTransactionsFor} from './sql-transaction-runner.ts';
