@@ -350,26 +350,54 @@ test('side-effect and no-table tools return not_implemented with a reason and to
   assert.equal(db.calls.length, 0, 'no SQL for not_implemented tools');
 });
 
-test('an assignee is refused on project_visits.bulk: no user-to-company link exists, so nothing is written', async () => {
-  const journal = recordingDb([{ id: 'v-new' }]);
-  await assert.rejects(
-    () => defs(undefined).get('project_visits.bulk').handler(
-      { projectId: A, visits: [{ scheduledStart: '2026-11-10T09:00:00Z', scheduledEnd: '2026-11-10T11:00:00Z', assignedUserId: B }] },
-      ctx(journal, CO_A),
-    ),
-    /assignee cannot be verified as a member of this company/,
-  );
-  assert.equal(journal.calls.length, 0, 'an assignee refusal ran SQL');
+/** Membership rows answer the company_memberships query (filtered by company and user, like the real table); other queries return writeRows. */
+function membershipDb(memberRows, writeRows = []) {
+  const calls = [];
+  return {
+    calls,
+    async query(text, values) {
+      calls.push({ text, values });
+      if (/company_memberships/.test(text)) {
+        const rows = memberRows.filter((r) => r.company_id === values[0] && r.user_id === values[1]);
+        return { rows, rowCount: rows.length };
+      }
+      return { rows: writeRows, rowCount: writeRows.length };
+    },
+  };
+}
+
+const ASSIGNED_VISIT = { projectId: A, visits: [{ scheduledStart: '2026-11-10T09:00:00Z', scheduledEnd: '2026-11-10T11:00:00Z', assignedUserId: B }] };
+
+test('project_visits.bulk refuses an assignee who is not a member of the caller company, and writes nothing', async () => {
+  const db = membershipDb([]);
+  await assert.rejects(() => defs(undefined).get('project_visits.bulk').handler(ASSIGNED_VISIT, ctx(db, CO_A)), /not a member of this company/);
+  assert.equal(db.calls.length, 1, 'only the membership check runs');
+  assert.match(db.calls[0].text, /company_memberships WHERE company_id = \$1/);
+  assert.deepEqual(db.calls[0].values, [CO_A, B]);
 });
 
-test('an assignee on a revised visit is refused before the update runs', async () => {
-  const journal = recordingDb([{ id: B }]);
+test('project_visits.bulk does not accept a membership in another company', async () => {
+  const db = membershipDb([{ company_id: CO_B, user_id: B }]);
+  await assert.rejects(() => defs(undefined).get('project_visits.bulk').handler(ASSIGNED_VISIT, ctx(db, CO_A)), /not a member of this company/);
+  assert.equal(db.calls.length, 1, 'no write after a refused membership check');
+});
+
+test('project_visits.bulk writes when the assignee is a member of the caller company', async () => {
+  const db = membershipDb([{ company_id: CO_A, user_id: B }], [{ id: 'v-new' }]);
+  const out = await defs(undefined).get('project_visits.bulk').handler(ASSIGNED_VISIT, ctx(db, CO_A));
+  assert.deepEqual(out.created, ['v-new']);
+  assert.match(db.calls[0].text, /company_memberships/);
+  assert.match(db.calls[1].text, /INSERT INTO visits/);
+});
+
+test('project_visits.bulk checks the assignee on a revised visit before the update runs', async () => {
+  const db = membershipDb([]);
   await assert.rejects(
     () => defs(undefined).get('project_visits.bulk').handler(
       { projectId: A, visits: [{ id: B, scheduledStart: '2026-11-10T09:00:00Z', scheduledEnd: '2026-11-10T11:00:00Z', assignedUserId: A }] },
-      ctx(journal, CO_A),
+      ctx(db, CO_A),
     ),
-    /assignee cannot be verified/,
+    /not a member of this company/,
   );
-  assert.equal(journal.calls.length, 0, 'an assignee refusal ran SQL');
+  assert.equal(db.calls.filter((c) => /UPDATE visits/.test(c.text)).length, 0, 'the update ran for a non-member');
 });

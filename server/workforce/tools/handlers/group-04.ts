@@ -18,6 +18,7 @@ import { z } from 'zod';
 import { requireCompanyId } from '../../../services/ai-runtime/company.ts';
 import type { CompanyId } from '../../../services/ai-runtime/types.ts';
 import type { SqlExecutor } from '../../runtime/pg-store.ts';
+import { assertAssigneeInCompany } from './assignee-membership.ts';
 import type { RiskTier, ToolDefinition, ToolHandlerContext, ToolSchema } from '../../runtime/tool-registry.ts';
 
 export const GROUP04_MAX_ROWS = 50;
@@ -412,7 +413,7 @@ const SPECS: ReadonlyArray<Spec<z.ZodTypeAny>> = [
       const woRef = p.add(a.workOrderId);
       const startRef = p.add(a.scheduledStart);
       const endRef = p.add(a.scheduledEnd);
-      refuseUnverifiedAssignee(a.assignedUserId);
+      await assertAssigneeInCompany(db(), companyId, a.assignedUserId);
       const assignRef = p.add(a.assignedUserId ?? null);
       const result = await db().query(
         `INSERT INTO visits (company_id, work_order_id, assigned_user_id, status, scheduled_start, scheduled_end)
@@ -435,7 +436,7 @@ const SPECS: ReadonlyArray<Spec<z.ZodTypeAny>> = [
     input: schemas['service_visits.reschedule'],
     run: async (db, companyId, a) => {
       // Only a visit that is still scheduled can move. Started or closed visits are left alone.
-      refuseUnverifiedAssignee(a.assignedUserId);
+      await assertAssigneeInCompany(db(), companyId, a.assignedUserId);
       const result = await db().query(
         `UPDATE visits SET scheduled_start = $3, scheduled_end = $4, assigned_user_id = COALESCE($5, assigned_user_id), updated_at = now()
          WHERE company_id = $1 AND id = $2 AND status = 'scheduled'
@@ -613,7 +614,7 @@ const SPECS: ReadonlyArray<Spec<z.ZodTypeAny>> = [
     input: schemas['visits.update'],
     run: async (db, companyId, a) => {
       // Fields not given keep their stored value (COALESCE). Closed visits are not changed.
-      refuseUnverifiedAssignee(a.assignedUserId);
+      await assertAssigneeInCompany(db(), companyId, a.assignedUserId);
       const result = await db().query(
         `UPDATE visits SET
            scheduled_start = COALESCE($3, scheduled_start),
@@ -732,15 +733,6 @@ const SPECS: ReadonlyArray<Spec<z.ZodTypeAny>> = [
   }),
 ];
 
-/**
- * Refuses an assignee id. The live schema has no user-to-company link (no migration gives users a company_id), so a
- * user id cannot be checked against the caller's company with a scoped query. Nothing is written.
- */
-function refuseUnverifiedAssignee(userId: unknown): void {
-  if (userId === undefined || userId === null) return;
-  throw new Error('assignee cannot be verified as a member of this company (no user-to-company link in the live schema); nothing was written');
-}
-
 /** Inserts a staff or technician task. The composite foreign keys keep work_order_id and visit_id inside the company. */
 async function insertTask(
   db: SqlExecutor,
@@ -748,7 +740,7 @@ async function insertTask(
   kind: 'staff' | 'technician',
   a: z.output<typeof taskInput>,
 ): Promise<{ created: true; id: unknown; status: unknown; priority: unknown }> {
-  refuseUnverifiedAssignee(a.assigneeUserId);
+  await assertAssigneeInCompany(db, companyId, a.assigneeUserId);
   const result = await db.query(
     `INSERT INTO staff_tasks (company_id, kind, title, description, assignee_user_id, work_order_id, visit_id, status, priority, due_at)
      VALUES ($1, $2, $3, $4, $5, $6, $7, 'open', $8, $9)

@@ -19,6 +19,7 @@ import { z } from 'zod';
 import { requireCompanyId } from '../../../services/ai-runtime/company.ts';
 import type { CompanyId } from '../../../services/ai-runtime/types.ts';
 import type { SqlExecutor } from '../../runtime/pg-store.ts';
+import { assertAssigneeInCompany } from './assignee-membership.ts';
 import type { ToolDefinition, ToolHandlerContext, ToolSchema } from '../../runtime/tool-registry.ts';
 
 export const GROUP_02_READ_TIMEOUT_MS = 10_000;
@@ -46,15 +47,6 @@ function requireExecutor(db: SqlExecutor | undefined): SqlExecutor {
 function journalExecutor(context: ToolHandlerContext): SqlExecutor {
   if (!context.db) throw new Error('write tools need the action journal executor; nothing was written');
   return context.db;
-}
-
-/**
- * Refuses an assignee id. The live schema has no user-to-company link (no migration gives users a company_id), so a
- * user id cannot be checked against the caller's company with a scoped query. Nothing is written.
- */
-function refuseUnverifiedAssignee(userId: unknown): void {
-  if (userId === undefined || userId === null) return;
-  throw new Error('assignee cannot be verified as a member of this company (no user-to-company link in the live schema); nothing was written');
 }
 
 // ---- Input schemas (strict: unknown keys, companyId included, are rejected) ----------------------------------------
@@ -512,7 +504,7 @@ async function projectVisitsBulk(a: z.infer<typeof projectVisitsBulkInput>, env:
   const db = journalExecutor(env.context);
   const created: unknown[] = [];
   const updated: unknown[] = [];
-  for (const item of a.visits) refuseUnverifiedAssignee(item.assignedUserId);
+  for (const item of a.visits) await assertAssigneeInCompany(db, env.companyId, item.assignedUserId);
   for (const item of a.visits) {
     if (item.id) {
       const result = await db.query(

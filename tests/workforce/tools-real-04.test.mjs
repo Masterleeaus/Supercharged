@@ -378,18 +378,36 @@ test('the registry refuses a per-tool timeoutMs that is not a positive integer',
   assert.throws(() => registry.register({ ...base, timeoutMs: 1.5 }), /timeoutMs must be a positive integer/);
 });
 
-test('an assignee is refused on every group 04 write that sets one, before any SQL runs', async () => {
-  const cases = [
-    ['service_visits.schedule', { workOrderId: W_A, scheduledStart: '2026-11-10T09:00:00Z', scheduledEnd: '2026-11-10T10:00:00Z', assignedUserId: V_A }],
-    ['service_visits.reschedule', { visitId: V_A, scheduledStart: '2026-11-11T09:00:00Z', scheduledEnd: '2026-11-11T10:00:00Z', assignedUserId: V_A }],
-    ['visits.update', { id: V_A, assignedUserId: V_A }],
-    ['staff_tasks.create', { title: 'Check gate', assigneeUserId: V_A }],
-    ['technician_tasks.create', { title: 'Fit lock', visitId: V_A, assigneeUserId: V_A }],
-  ];
-  for (const [id, input] of cases) {
-    const db = fakeDb();
-    await assert.rejects(defs(db)[id].handler(input, ctx(CO_A, { db })), /assignee cannot be verified/, id);
-    assert.equal(db.calls.length, 0, `${id} ran SQL for an unverified assignee`);
+const ASSIGNEE_CASES = [
+  ['service_visits.schedule', { workOrderId: W_A, scheduledStart: '2026-11-10T09:00:00Z', scheduledEnd: '2026-11-10T10:00:00Z', assignedUserId: V_A }],
+  ['service_visits.reschedule', { visitId: V_A, scheduledStart: '2026-11-11T09:00:00Z', scheduledEnd: '2026-11-11T10:00:00Z', assignedUserId: V_A }],
+  ['visits.update', { id: V_A, assignedUserId: V_A }],
+  ['staff_tasks.create', { title: 'Check gate', assigneeUserId: V_A }],
+  ['technician_tasks.create', { title: 'Fit lock', visitId: V_A, assigneeUserId: V_A }],
+];
+
+/** Answers the company_memberships check with memberRows (none means not a member); other queries use the seeded tables. */
+const membership = (memberRows) => (text, values) => {
+  if (!/company_memberships/.test(text)) return undefined;
+  return memberRows.filter((r) => r.company_id === values[0] && r.user_id === values[1]);
+};
+
+test('every group 04 write that sets an assignee refuses a non-member before its write runs', async () => {
+  for (const [id, input] of ASSIGNEE_CASES) {
+    const db = fakeDb({ respond: membership([]) });
+    await assert.rejects(defs(db)[id].handler(input, ctx(CO_A, { db })), /not a member of this company/, id);
+    assert.equal(db.calls.length, 1, `${id} ran more than the membership check`);
+    assert.match(db.calls[0].text, /company_memberships/, id);
+    assert.deepEqual(db.calls[0].values.slice(0, 2), [CO_A, V_A], `${id} membership check is not company-scoped`);
+  }
+});
+
+test('every group 04 write that sets an assignee runs when the assignee is a member of the caller company', async () => {
+  for (const [id, input] of ASSIGNEE_CASES) {
+    const db = fakeDb({ respond: membership([{ company_id: CO_A, user_id: V_A }]) });
+    await defs(db)[id].handler(input, ctx(CO_A, { db }));
+    assert.match(db.calls[0].text, /company_memberships/, id);
+    assert.ok(db.calls.length >= 2, `${id} did not write after the membership check`);
   }
 });
 
