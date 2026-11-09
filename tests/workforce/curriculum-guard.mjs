@@ -1,6 +1,17 @@
 // Shared check for the course suites. They need the Titan Academy LMS curriculum folder and the
 // owner's lesson level file, neither of which is in this repo. When either is missing the suites
 // are skipped with a message instead of failing at import time.
+//
+// Where the suites run:
+// - The bodies are in course-knowledge.suite.mjs, course-roles.suite.mjs and courses.suite.mjs.
+//   Their names do not contain ".test.", so the `npm test` glob (find tests -name '*.test.*')
+//   never picks them up directly.
+// - The three *.test.mjs wrappers are the only entry point. Each one imports its suite only when
+//   curriculumSkipReason() returns null, so a wrapper runs its suite when the curriculum root and
+//   level file exist (set ACADEMY_CURRICULUM_ROOT and ACADEMY_LEVELS_CSV, or place them at the
+//   default paths below).
+// - CI (.github/workflows/pr-checks.yml) does not have the curriculum, so in CI the wrappers skip.
+//   The course suites are not covered by CI. Run them locally on a machine with the curriculum.
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
