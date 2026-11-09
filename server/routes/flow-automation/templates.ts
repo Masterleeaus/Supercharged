@@ -65,9 +65,9 @@ export function registerFlowTemplateRoutes(router: Router): void {
       const newFlowId = nanoid();
       const now = new Date();
       // TODO: Drizzle type inference - the cast is kept only on nodes and edges. The template data in
-      // services/flow-templates.ts does not match FlowNode/FlowEdge: nodes put `type` at the top level
-      // (FlowNode has it under data) and some config keys (e.g. endMessage, description) are not in
-      // NodeConfig. Fixing that means changing the template data, so the cast stays.
+      // services/flow-templates.ts does not match FlowNode/FlowEdge: each node sets `data.type`, which
+      // FlowNode.data does not have, and some config keys (e.g. endMessage, description, condition)
+      // are not in NodeConfig. Fixing that means changing the template data, so the cast stays.
       const [newFlow] = await db
         .insert(flows)
         .values({
