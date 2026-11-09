@@ -133,8 +133,8 @@ async function _resyncSinglePhoneCredentialsImpl(phoneDbId: string): Promise<{
     await _resyncOnePhone(phone, twilioAccountSid, twilioAuthToken);
     logger.info(`[ElevenLabs Resync] ✅ Targeted resync complete for [redacted]`);
     return { success: true };
-  } catch (err: any) {
-    const msg = err?.message ?? String(err);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
     logger.error(`[ElevenLabs Resync] ❌ Targeted resync failed for [redacted]: ${msg}`);
     return { success: false, error: msg };
   }
@@ -172,8 +172,8 @@ async function _resyncOnePhone(
   logger.info(`[ElevenLabs Resync] Deleting old registration ${oldId} for [redacted] (cred: ${credential.id})`);
   try {
     await elevenLabsService.deletePhoneNumber(oldId);
-  } catch (deleteErr: any) {
-    logger.warn(`[ElevenLabs Resync] Delete failed (continuing): ${deleteErr.message}`);
+  } catch (deleteErr: unknown) {
+    logger.warn(`[ElevenLabs Resync] Delete failed (continuing): ${deleteErr instanceof Error ? deleteErr.message : String(deleteErr)}`);
   }
 
   logger.info(`[ElevenLabs Resync] Re-registering [redacted] with fresh Twilio credentials`);
@@ -301,8 +301,8 @@ export async function resyncSipPhoneCredentials(
       if (!delResponse.ok && delResponse.status !== 404) {
         logger.warn(`[ElevenLabs SIP Resync] Delete returned ${delResponse.status} (continuing)`);
       }
-    } catch (delErr: any) {
-      logger.warn(`[ElevenLabs SIP Resync] Delete failed (continuing): ${delErr.message}`);
+    } catch (delErr: unknown) {
+      logger.warn(`[ElevenLabs SIP Resync] Delete failed (continuing): ${delErr instanceof Error ? delErr.message : String(delErr)}`);
     }
 
     const outboundTransport = trunk.transport === 'tls' ? 'tls' : 'tcp';
@@ -400,8 +400,8 @@ export async function resyncSipPhoneCredentials(
 
     logger.info(`[ElevenLabs SIP Resync] ✅ [redacted] -> new id ${newPhoneId} (cred: ${credential.id})`);
     return { success: true, newElevenLabsPhoneId: newPhoneId };
-  } catch (err: any) {
-    const msg = err?.message ?? String(err);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
     logger.error(`[ElevenLabs SIP Resync] ❌ Failed for [redacted]: ${msg}`);
     return { success: false, error: msg };
   }
@@ -418,7 +418,7 @@ export async function resyncSipPhoneCredentials(
 export async function verifySipPhoneExists(
   elevenLabsPhoneId: string,
   apiKey: string
-): Promise<{ exists: boolean; notFound?: boolean; details?: any; error?: string }> {
+): Promise<{ exists: boolean; notFound?: boolean; details?: unknown; error?: string }> {
   try {
     const response = await fetch(`${ELEVENLABS_API_BASE}/convai/phone-numbers/${elevenLabsPhoneId}`, {
       method: 'GET',
@@ -437,8 +437,8 @@ export async function verifySipPhoneExists(
     }
     const details = await response.json();
     return { exists: true, details };
-  } catch (err: any) {
-    logger.warn(`[ElevenLabs SIP Verify] Network error checking [redacted]: ${err.message}`);
-    return { exists: false, notFound: false, error: err.message };
+  } catch (err: unknown) {
+    logger.warn(`[ElevenLabs SIP Verify] Network error checking [redacted]: ${err instanceof Error ? err.message : String(err)}`);
+    return { exists: false, notFound: false, error: err instanceof Error ? err.message : String(err) };
   }
 }
