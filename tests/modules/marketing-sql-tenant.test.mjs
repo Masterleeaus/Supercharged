@@ -15,8 +15,8 @@ test('page and content reads enforce company_id inside a restricted tenant trans
 });
 test('invalid company IDs fail without checking out a database connection',async()=>{
  const h=harness(),s=createSqlMarketingStore({pool:h.pool});
- await assert.rejects(s.findPage('not-a-uuid','a'),/companyId/);
- await assert.rejects(s.listContent('',{}),/companyId/);
+ assert.throws(()=>s.findPage('not-a-uuid','a'),/companyId/);
+ assert.throws(()=>s.listContent('',{}),/companyId/);
  assert.deepEqual(h.queries,[]);assert.equal(h.releases,0);
 });
 test('every tenant transaction installs a company-local setting',async()=>{
