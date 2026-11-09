@@ -31,6 +31,7 @@ SET search_path=pg_catalog,public AS $$
  JOIN users u ON u.id::text=l.user_id AND u.company_id=l.company_id
  WHERE l.issuer=p_issuer AND l.subject=p_subject AND l.company_id=p_company_id
  AND l.status='verified' AND u.is_active IS TRUE
+ AND u.is_deleted IS FALSE AND u.deleted_at IS NULL
  AND l.company_id=nullif(current_setting('app.company_id',true),'')::uuid
  LIMIT 2
 $$;
