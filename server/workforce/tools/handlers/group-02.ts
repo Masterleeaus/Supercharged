@@ -48,6 +48,15 @@ function journalExecutor(context: ToolHandlerContext): SqlExecutor {
   return context.db;
 }
 
+/**
+ * Refuses an assignee id. The live schema has no user-to-company link (no migration gives users a company_id), so a
+ * user id cannot be checked against the caller's company with a scoped query. Nothing is written.
+ */
+function refuseUnverifiedAssignee(userId: unknown): void {
+  if (userId === undefined || userId === null) return;
+  throw new Error('assignee cannot be verified as a member of this company (no user-to-company link in the live schema); nothing was written');
+}
+
 // ---- Input schemas (strict: unknown keys, companyId included, are rejected) ----------------------------------------
 
 const uuid = z.string().uuid();
@@ -503,6 +512,7 @@ async function projectVisitsBulk(a: z.infer<typeof projectVisitsBulkInput>, env:
   const db = journalExecutor(env.context);
   const created: unknown[] = [];
   const updated: unknown[] = [];
+  for (const item of a.visits) refuseUnverifiedAssignee(item.assignedUserId);
   for (const item of a.visits) {
     if (item.id) {
       const result = await db.query(

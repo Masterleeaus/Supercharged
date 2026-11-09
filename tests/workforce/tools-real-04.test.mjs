@@ -378,6 +378,27 @@ test('the registry refuses a per-tool timeoutMs that is not a positive integer',
   assert.throws(() => registry.register({ ...base, timeoutMs: 1.5 }), /timeoutMs must be a positive integer/);
 });
 
+test('an assignee is refused on every group 04 write that sets one, before any SQL runs', async () => {
+  const cases = [
+    ['service_visits.schedule', { workOrderId: W_A, scheduledStart: '2026-11-10T09:00:00Z', scheduledEnd: '2026-11-10T10:00:00Z', assignedUserId: V_A }],
+    ['service_visits.reschedule', { visitId: V_A, scheduledStart: '2026-11-11T09:00:00Z', scheduledEnd: '2026-11-11T10:00:00Z', assignedUserId: V_A }],
+    ['visits.update', { id: V_A, assignedUserId: V_A }],
+    ['staff_tasks.create', { title: 'Check gate', assigneeUserId: V_A }],
+    ['technician_tasks.create', { title: 'Fit lock', visitId: V_A, assigneeUserId: V_A }],
+  ];
+  for (const [id, input] of cases) {
+    const db = fakeDb();
+    await assert.rejects(defs(db)[id].handler(input, ctx(CO_A, { db })), /assignee cannot be verified/, id);
+    assert.equal(db.calls.length, 0, `${id} ran SQL for an unverified assignee`);
+  }
+});
+
+test('group 04 writes without an assignee are not affected by the assignee refusal', async () => {
+  const db = fakeDb();
+  await defs(db)['visits.update'].handler({ id: V_A, techNotes: 'Done' }, ctx(CO_A, { db }));
+  assert.equal(db.calls.length, 1, 'visits.update without an assignee should still run its query');
+});
+
 test('read-handlers binds the group 04 definitions alongside the five read tools', () => {
   const ids = createReadToolDefinitions(new Proxy({}, { get: () => async () => [] })).map((d) => d.id);
   for (const id of EXPECTED_IDS) assert.ok(ids.includes(id), `${id} is bound through read-handlers`);

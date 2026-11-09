@@ -349,3 +349,27 @@ test('side-effect and no-table tools return not_implemented with a reason and to
   }
   assert.equal(db.calls.length, 0, 'no SQL for not_implemented tools');
 });
+
+test('an assignee is refused on project_visits.bulk: no user-to-company link exists, so nothing is written', async () => {
+  const journal = recordingDb([{ id: 'v-new' }]);
+  await assert.rejects(
+    () => defs(undefined).get('project_visits.bulk').handler(
+      { projectId: A, visits: [{ scheduledStart: '2026-11-10T09:00:00Z', scheduledEnd: '2026-11-10T11:00:00Z', assignedUserId: B }] },
+      ctx(journal, CO_A),
+    ),
+    /assignee cannot be verified as a member of this company/,
+  );
+  assert.equal(journal.calls.length, 0, 'an assignee refusal ran SQL');
+});
+
+test('an assignee on a revised visit is refused before the update runs', async () => {
+  const journal = recordingDb([{ id: B }]);
+  await assert.rejects(
+    () => defs(undefined).get('project_visits.bulk').handler(
+      { projectId: A, visits: [{ id: B, scheduledStart: '2026-11-10T09:00:00Z', scheduledEnd: '2026-11-10T11:00:00Z', assignedUserId: A }] },
+      ctx(journal, CO_A),
+    ),
+    /assignee cannot be verified/,
+  );
+  assert.equal(journal.calls.length, 0, 'an assignee refusal ran SQL');
+});
