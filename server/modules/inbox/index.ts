@@ -15,3 +15,5 @@ export { createInboxRouterForProduction, type InboxProductionRouterDeps } from '
 
 export { createSqlInboxStore } from './sql-store.ts';
 export { runInboundLocked, lockedInboxClient } from './sql-lock.ts';
+
+// Inbox PostgreSQL candidate RLS is verified in an isolated CI job; production remains disabled.

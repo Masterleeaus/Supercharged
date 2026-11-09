@@ -8,6 +8,8 @@ const current=new AsyncLocalStorage<TenantQueryClient>();
 export function lockedInboxClient():TenantQueryClient|undefined{return current.getStore();}
 export async function runInboundLocked<T>(pool:TenantPool,companyId:string,channel:Channel,address:string,fn:()=>Promise<T>):Promise<T> {
  const co=assertCompanyId(companyId);
+ // Uses a transaction-local advisory lock, not a session-global lock.
+ // All nested CRUD on this async context reuses the pinned client.
  return withTenant(pool,co,async db=>{
   await db.query('SELECT pg_advisory_xact_lock($1::bigint)',[inboundAdvisoryKey(co,channel,address)]);
   return current.run(db,fn);

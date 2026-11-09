@@ -10,3 +10,10 @@ test('read-only transaction releases a connection',async()=>{
  await createSqlInboxStore(pool).listMessages(A,'t');
  assert.equal(releases,1);assert.ok(seen.includes('COMMIT'));
 });
+
+test('failed database work rolls back and releases a checked-out client',async()=>{
+ const commands=[];let releases=0;
+ const pool={async connect(){return{async query(sql){commands.push(sql);if(sql.startsWith('SELECT id,'))throw Error('db failure');return {rows:[]};},release(){releases++;}};}};
+ await assert.rejects(createSqlInboxStore(pool).findMessage(A,'broken'),/db failure/);
+ assert.ok(commands.includes('ROLLBACK'));assert.equal(releases,1);
+});

@@ -2,7 +2,8 @@
  * PostgreSQL-backed InboxStore for the existing numbered 0010a schema.
  * Uses tenant transactions, company predicates and the existing advisory-lock
  * client so inbound deduplication survives concurrent workers without pool exhaustion.
- * Production activation still requires reviewed RLS for all five Inbox tables.
+ * Production activation still requires reviewed RLS for all four Inbox tables.
+ * The candidate lives outside automatic migrations; never enable the Inbox flag based on this store alone.
  */
 import { assertCompanyId,withTenant,type TenantPool,type TenantQueryClient } from '../../infrastructure/database/tenant-context.ts';
 import { sqlInboxWriteTx } from './drizzle-adapter.ts';

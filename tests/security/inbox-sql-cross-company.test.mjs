@@ -10,3 +10,11 @@ test('all inbox list operations use explicit tenant predicate',async()=>{
   assert.match(q.sql,/company_id\s*=\s*\$1/);assert.equal(q.args[0],A);
  }
 });
+
+test('tenant thread list filter is parameterised without leaking company context',async()=>{
+ const statements=[],pool={async connect(){return{query:async(sql,args)=>{statements.push({sql,args});return{rows:[]};},release(){}};}};
+ await createSqlInboxStore(pool).listThreads(A,{status:'open',assigneeId:"a' OR true --"});
+ const q=statements.find(x=>x.sql.includes('FROM inbox_threads'));
+ assert.equal(q.args[0],A);assert.equal(q.args[2],"a' OR true --");
+ assert.ok(!q.sql.includes("OR true --"));
+});

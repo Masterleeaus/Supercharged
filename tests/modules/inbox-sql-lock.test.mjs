@@ -15,3 +15,9 @@ test('callback errors roll back and release lock',async()=>{
  await assert.rejects(runInboundLocked(pool,A,'sms','+1111',async()=>{throw Error('fail')}),/fail/);
  assert.ok(calls.includes('ROLLBACK'));assert.ok(!calls.includes('COMMIT'));
 });
+
+test('advisory-lock key differs by company for the same external address',async()=>{
+ const {inboundAdvisoryKey}=await import('../../server/modules/inbox/drizzle-adapter.ts');
+ const B='22222222-2222-4222-8222-222222222222';
+ assert.notEqual(inboundAdvisoryKey(A,'email','a@example.com'),inboundAdvisoryKey(B,'email','a@example.com'));
+});
