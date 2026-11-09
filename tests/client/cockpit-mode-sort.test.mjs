@@ -46,14 +46,14 @@ test('mode: workforce shows the workforce panels', () => {
   assert.deepEqual(panelsForMode('workforce'), ['workforce_activity', 'needs_attention']);
 });
 
-test('mode: syncedat shows the comms panels', () => {
-  assert.deepEqual(panelsForMode('syncedat'), ['inbox', 'campaign_responses']);
+test('mode: server comms mode shows the communications panels', () => {
+  assert.deepEqual(panelsForMode('comms'), ['inbox', 'campaign_responses']);
 });
 
-test('mode: parseDeskMode accepts only the two known modes', () => {
+test('mode: parseDeskMode accepts server values and maps legacy alias', () => {
   assert.equal(parseDeskMode('workforce'), 'workforce');
-  assert.equal(parseDeskMode('syncedat'), 'syncedat');
-  assert.equal(parseDeskMode('comms'), null);
+  assert.equal(parseDeskMode('syncedat'), 'comms');
+  assert.equal(parseDeskMode('comms'), 'comms');
   assert.equal(parseDeskMode(undefined), null);
   assert.equal(parseDeskMode(42), null);
 });
@@ -73,7 +73,7 @@ test('mode: an invalid body falls back to workforce and shows a notice', () => {
 });
 
 test('mode: a valid body is used with no notice', () => {
-  assert.deepEqual(resolveDeskMode({ ok: true, body: { mode: 'syncedat' } }), { mode: 'syncedat', notice: null });
+  assert.deepEqual(resolveDeskMode({ ok: true, body: { mode: 'comms' } }), { mode: 'comms', notice: null });
 });
 
 test('activity: completed work has no action, approvals carry an approve action', () => {
