@@ -18,3 +18,11 @@ test('a failed conditional update rolls back with no COMMIT',async()=>{
  await assert.rejects(createSqlMarketingStore({pool}).updatePage(A,'p',{title:'rename',updatedAt:new Date()}),/write conflict/);
  assert.ok(seen.includes('ROLLBACK'));assert.equal(seen.includes('COMMIT'),false);assert.equal(released,1);
 });
+
+test('a page slug collision is rolled back before releasing the connection',async()=>{
+ const seen=[];let releases=0;
+ const pool={async connect(){return{async query(sql){seen.push(sql);if(sql.includes('INSERT INTO landing_pages'))throw Object.assign(new Error('duplicate slug'),{code:'23505'});return{rows:[]};},release(){releases++}};}};
+ const now=new Date(),page={id:'slug-test',companyId:A,slug:'duplicate',title:'Title',status:'draft',sections:[],campaignId:null,chatbotId:null,authorKind:'human',authorId:'test',publishedAt:null,createdAt:now,updatedAt:now};
+ await assert.rejects(createSqlMarketingStore({pool}).insertPage(page),/duplicate slug/);
+ assert.ok(seen.includes('ROLLBACK'));assert.ok(!seen.includes('COMMIT'));assert.equal(releases,1);
+});

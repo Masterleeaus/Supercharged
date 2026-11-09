@@ -51,3 +51,7 @@ Tests cover SQL shapes and tenant transaction behavior with recording pool fakes
 ## Pass 9: draft RLS candidate and lifecycle conditions
 
 The reviewed migration candidate is at `migrations/candidates/0017_marketing_tenant_rls.sql`, NOT in the production migration runner. It retains Marketing tables while adding forced tenant policies for `desk_app`. `scripts/check-marketing-migration.mjs` performs a non-invasive static preflight. SQL updates now condition on the prior publication status so stale concurrent writes cannot silently succeed. `MarketingService` surfaces a conflict if the store returns no changed record.
+
+## Pass 10: PostgreSQL integration harness
+
+A disposable PostgreSQL CI job exercises real tenant isolation, restricted role access, slug uniqueness and conditional lifecycle transitions. It does not alter the production migration list or enable Marketing on live servers.

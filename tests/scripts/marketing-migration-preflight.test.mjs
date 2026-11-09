@@ -17,3 +17,9 @@ test('a missing tenant WITH CHECK fails preflight',()=>{
  const source=readFileSync(CANDIDATE,'utf8');
  assert.ok(validateMarketingMigration(source.replace('WITH CHECK (company_id = nullif', 'WITH CHECK (false AND company_id = nullif')).length>0);
 });
+
+test('candidate never provisions database passwords or privileged roles',()=>{
+ const sql=readFileSync(CANDIDATE,'utf8');
+ assert.doesNotMatch(sql,/CREATE ROLE desk_app|PASSWORD\s+'/);
+ assert.match(sql,/NOT rolsuper AND NOT rolbypassrls/);
+});

@@ -16,6 +16,7 @@ export function validateMarketingMigration(sql) {
  if ((sql.match(/WITH CHECK \(company_id = nullif\(current_setting\('app.company_id',true\),''\)::uuid\)/g)||[]).length!==2) problems.push('Both policies need a company-specific WITH CHECK');
  if ((sql.match(/USING \(company_id = nullif\(current_setting\('app.company_id',true\),''\)::uuid\)/g)||[]).length!==2) problems.push('Both policies need a company-specific USING');
  if(!sql.includes('NOT rolsuper AND NOT rolbypassrls')) problems.push('Restricted desk_app prerequisite missing');
+ if(!sql.includes('ALTER TABLE landing_pages FORCE ROW LEVEL SECURITY') || !sql.includes('ALTER TABLE content_items FORCE ROW LEVEL SECURITY')) problems.push('FORCE RLS required');
  if(/GRANT [^;]* TO PUBLIC\b/i.test(sql)) problems.push('Public grants are forbidden');
  return problems;
 }

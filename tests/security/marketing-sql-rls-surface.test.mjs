@@ -17,3 +17,8 @@ test('marketing migration candidate is not auto-listed in the production runner'
  const runner=readFileSync(new URL('../../scripts/run-safe-migration.mjs',import.meta.url),'utf8');
  assert.ok(!runner.includes('0017_marketing_tenant_rls.sql'));
 });
+
+test('both policies rely on transaction-local authenticated tenant context',()=>{
+ for(const table of ['landing_pages','content_items']) assert.match(sql,new RegExp('CREATE POLICY '+table+'_tenant_boundary'));
+ assert.match(sql,/current_setting\('app.company_id',true\)/);
+});
