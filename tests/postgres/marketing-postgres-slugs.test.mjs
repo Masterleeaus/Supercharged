@@ -11,3 +11,15 @@ test('PostgreSQL: same-company duplicate slug fails and other company may reuse 
   assert.equal((await f.store.findPageBySlug(B,'same-slug')).id,'slug-b');
  } finally {await f.close();}
 });
+
+test('PostgreSQL: simultaneous same-tenant slug creation permits at most one commit',{skip:!enabled},async()=>{
+ const f=createFixture();try{
+  const slug='parallel-unique-'+process.pid;
+  const results=await Promise.allSettled([
+   f.store.insertPage(page(A,'parallel-a-'+process.pid,slug)),
+   f.store.insertPage(page(A,'parallel-b-'+process.pid,slug)),
+  ]);
+  assert.equal(results.filter(x=>x.status==='fulfilled').length,1);
+  assert.equal(results.filter(x=>x.status==='rejected'&&x.reason?.code==='23505').length,1);
+ }finally{await f.close();}
+});

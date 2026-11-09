@@ -24,3 +24,12 @@ test('PostgreSQL: two-company page and content visibility is isolated by real RL
   assert.equal(await f.store.updateContent(B,'pg-content-a',{body:'Blocked',updatedAt:NOW}),null);
  } finally {await f.close();}
 });
+
+test('PostgreSQL: reused connections cannot leak the previous company scope',{skip:!enabled},async()=>{
+ const f=createFixture();try{
+  const a=await f.store.listPages(A,{}),b=await f.store.listPages(B,{});
+  assert.ok(a.every(p=>p.companyId===A));assert.ok(b.every(p=>p.companyId===B));
+  const again=await f.store.listPages(A,{});
+  assert.ok(again.every(p=>p.companyId===A));
+ }finally{await f.close();}
+});
