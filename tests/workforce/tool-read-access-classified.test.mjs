@@ -15,9 +15,10 @@ const { createReadToolDefinitions } = await import('../../server/workforce/tools
 const { GROUP00_TOOL_IDS } = await import('../../server/workforce/tools/handlers/group-00.ts');
 const { GROUP01_TOOL_IDS } = await import('../../server/workforce/tools/handlers/group-01.ts');
 const { GROUP_02_TOOL_IDS } = await import('../../server/workforce/tools/handlers/group-02.ts');
+const { GROUP03_TOOL_IDS } = await import('../../server/workforce/tools/handlers/group-03.ts');
 
 // Every handler group's ids. The bound read specs are the only ids outside this set.
-const ALL_GROUP_IDS = new Set([...GROUP00_TOOL_IDS, ...GROUP01_TOOL_IDS, ...GROUP_02_TOOL_IDS]);
+const ALL_GROUP_IDS = new Set([...GROUP00_TOOL_IDS, ...GROUP01_TOOL_IDS, ...GROUP_02_TOOL_IDS, ...GROUP03_TOOL_IDS]);
 
 const GROUP02_IDS = new Set(GROUP_02_TOOL_IDS);
 
@@ -41,7 +42,7 @@ test('every TOOL_ACCESS value is read or write', () => {
 
 test('bound read tool definitions declare access read', () => {
   const definitions = createReadToolDefinitions(new Proxy({}, { get: () => async () => [] }));
-  // Groups 00 and 01 hold writes and side-effect tools, each classified on its own, so they are skipped here.
+  // Groups 00 to 03 are excluded: they hold writes and side-effect tools, each classified on its own.
   // Handler group 02 writes and drafts are declared write by design. Its read-named tools must still be read.
   const readSpecs = definitions.filter(
     (def) => !ALL_GROUP_IDS.has(def.id) || (GROUP02_IDS.has(def.id) && READ_VERBS.has(verbOf(def.id))),
@@ -55,6 +56,15 @@ test('every group 01 read-named tool is classified read in TOOL_ACCESS', () => {
   const groupReads = GROUP01_TOOL_IDS.filter((id) => READ_VERBS.has(id.split('.').pop()));
   assert.ok(groupReads.length > 0);
   for (const id of groupReads) assert.equal(TOOL_ACCESS[id], 'read', `${id} should be classified read`);
+});
+
+test('group 03 definitions match the access classification in TOOL_ACCESS', () => {
+  const definitions = createReadToolDefinitions(new Proxy({}, { get: () => async () => [] }));
+  const mismatched = definitions
+    .filter((def) => GROUP03_TOOL_IDS.includes(def.id))
+    .filter((def) => def.access !== TOOL_ACCESS[def.id])
+    .map((def) => `${def.id}=${String(def.access)}`);
+  assert.deepEqual(mismatched, [], `group 03 access differs from TOOL_ACCESS: ${mismatched.join(', ')}`);
 });
 
 test('the four tools still under review are classified', () => {

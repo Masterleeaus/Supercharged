@@ -14,9 +14,10 @@ import { createToolRegistry } from '../../server/workforce/runtime/index.ts';
 import { GROUP00_TOOL_IDS } from '../../server/workforce/tools/handlers/group-00.ts';
 import { GROUP01_TOOL_IDS } from '../../server/workforce/tools/handlers/group-01.ts';
 import { GROUP_02_TOOL_IDS } from '../../server/workforce/tools/handlers/group-02.ts';
+import { GROUP03_TOOL_IDS } from '../../server/workforce/tools/handlers/group-03.ts';
 
 // Every handler group's ids. The five bound read tools are the only ids outside this set.
-const ALL_GROUP_IDS = new Set([...GROUP00_TOOL_IDS, ...GROUP01_TOOL_IDS, ...GROUP_02_TOOL_IDS]);
+const ALL_GROUP_IDS = new Set([...GROUP00_TOOL_IDS, ...GROUP01_TOOL_IDS, ...GROUP_02_TOOL_IDS, ...GROUP03_TOOL_IDS]);
 
 const CO_A = 'company-a';
 const CO_B = 'company-b';
@@ -235,14 +236,10 @@ test('input validation rejects unknown keys and bad values, naming fields only',
 });
 
 test('registerReadTools registers each bound tool as a read tool with the registry', () => {
-  // The group 00 and group 01 handler sets are registered too. Their writes and side-effect tools declare their own
-  // access (group 00 is checked in tools-real-00.test.mjs). The five read tools below must still be access 'read'
-  // and risk 'low'.
   const registered = [];
   registerReadTools({ register: (def) => registered.push(def) }, seededStore());
-  // Group 00 (reads and writes), group 01 and group 02 (writes and drafts included) are registered alongside.
-  // Their definitions are checked in their own test files. The five read tools below must still be access 'read'
-  // and risk 'low'.
+  // Groups 00 to 03 are registered alongside (writes, drafts and side effects included). Their definitions are
+  // checked in their own test files. The five read tools below must still be access 'read' and risk 'low'.
   const reads = registered.filter((d) => !ALL_GROUP_IDS.has(d.id));
   assert.deepEqual(
     reads.map((d) => d.id).sort(),
@@ -286,9 +283,9 @@ test('read tools run through the tool registry and refuse companyId in params', 
   assert.equal(refused.reason, 'tenant_override');
 });
 
-test('definitions expose the same ids as the specs, plus the handler group 01 and 02 ids', () => {
+test('definitions expose the same ids as the specs, plus the handler group 01, 02 and 03 ids', () => {
   const store = seededStore();
-  // Group 00, group 01 and group 02 definitions sit beside the read specs; this check covers the read specs only.
+  // Groups 00 to 03 definitions sit beside the read specs; this check covers the read specs only.
   const defIds = createReadToolDefinitions(store).map((d) => d.id).filter((id) => !ALL_GROUP_IDS.has(id)).sort();
   const specIds = createReadToolSpecs(store).map((s) => s.id).sort();
   assert.deepEqual(defIds, specIds);

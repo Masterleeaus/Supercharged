@@ -10,6 +10,8 @@ import { createReadToolDefinitions } from '../../server/workforce/tools/read-han
 import { GROUP00_TOOL_IDS } from '../../server/workforce/tools/handlers/group-00.ts';
 import { GROUP01_TOOL_IDS } from '../../server/workforce/tools/handlers/group-01.ts';
 import { GROUP_02_TOOL_IDS } from '../../server/workforce/tools/handlers/group-02.ts';
+import { GROUP03_TOOL_IDS } from '../../server/workforce/tools/handlers/group-03.ts';
+import { TOOL_ACCESS } from '../../server/workforce/catalogue/tool-access.ts';
 
 const READ_VERBS = new Set(['list', 'get', 'search', 'view', 'lookup', 'check', 'read', 'availability']);
 
@@ -18,9 +20,10 @@ const definitions = createReadToolDefinitions(stubStore);
 // Groups 00 and 01 hold writes as well as reads. Each member declares access explicitly, checked below.
 const GROUP_IDS = new Set([...GROUP00_TOOL_IDS, ...GROUP01_TOOL_IDS]);
 
-// Handler group 02 also sits in this list. Its writes and drafts are declared write, so only its read-named tools
-// are held to access 'read' here.
-const isGroupWrite = (def) => GROUP_02_TOOL_IDS.includes(def.id) && !READ_VERBS.has(def.id.split('.').pop());
+// Handler groups 02 and 03 also sit in this list. Their writes, drafts and side effects are declared write, so only
+// their read-named tools are held to access 'read' here.
+const WRITE_GROUP_IDS = [...GROUP_02_TOOL_IDS, ...GROUP03_TOOL_IDS];
+const isGroupWrite = (def) => WRITE_GROUP_IDS.includes(def.id) && !READ_VERBS.has(def.id.split('.').pop());
 const readDefinitions = definitions.filter((def) => !GROUP_IDS.has(def.id) && !isGroupWrite(def));
 
 test('every read tool defined under tools/ declares access read', () => {
@@ -41,6 +44,14 @@ test('every group 01 handler declares access explicitly', () => {
   assert.equal(groupDefs.length, GROUP01_TOOL_IDS.length);
   const undeclared = groupDefs.filter((def) => def.access !== 'read' && def.access !== 'write').map((def) => def.id);
   assert.deepEqual(undeclared, [], `group 01 tools without access: ${undeclared.join(', ')}`);
+});
+
+test('group 03 definitions declare the access the catalogue gives them', () => {
+  const mismatched = definitions
+    .filter((def) => GROUP03_TOOL_IDS.includes(def.id))
+    .filter((def) => def.access !== TOOL_ACCESS[def.id])
+    .map((def) => `${def.id}=${String(def.access)} (catalogue ${String(TOOL_ACCESS[def.id])})`);
+  assert.deepEqual(mismatched, [], `access differs from the catalogue: ${mismatched.join(', ')}`);
 });
 
 test('read-named tools defined under tools/ are not declared as write', () => {

@@ -18,6 +18,7 @@ import type { SqlExecutor } from '../runtime/pg-store.ts';
 import { createGroup00ToolDefinitions } from './handlers/group-00.ts';
 import { createGroup01ToolDefinitions } from './handlers/group-01.ts';
 import { createGroup02ToolDefinitions } from './handlers/group-02.ts';
+import { createGroup03ToolDefinitions } from './handlers/group-03.ts';
 
 export const MAX_READ_ROWS = 50;
 
@@ -294,9 +295,9 @@ export function createReadToolSpecs(store: ReadStore): ReadToolSpec[] {
 
 /**
  * Registry definitions for every bound read tool, plus the handler group 00 (reads and writes on the workforce
- * tables), group 01 (handlers/group-01.ts) and group 02 (write and draft tools included). Each read spec runs with
- * access 'read' and risk 'low'. group00Db is the read executor for group 00, and the same executor is passed to
- * groups 01 and 02. Groups 01 and 02 declare their own access and risk per tool.
+ * tables), group 01, group 02 and group 03 (write, draft and side-effect tools included). Each read spec runs with
+ * access 'read' and risk 'low'. group00Db is the read executor for groups 00 to 03. Groups 01 to 03 declare their own
+ * access and risk per tool.
  */
 export function createReadToolDefinitions(store: ReadStore, group00Db?: SqlExecutor): ToolDefinition[] {
   return [
@@ -310,6 +311,7 @@ export function createReadToolDefinitions(store: ReadStore, group00Db?: SqlExecu
     ...createGroup00ToolDefinitions(group00Db),
     ...createGroup01ToolDefinitions({ db: group00Db }),
     ...createGroup02ToolDefinitions({ db: group00Db }),
+    ...createGroup03ToolDefinitions({ sql: group00Db }),
   ];
 }
 
