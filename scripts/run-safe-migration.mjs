@@ -49,23 +49,54 @@ if (!dbUrl) {
 const { default: pg } = await import('pg');
 const { Pool } = pg;
 
+// Each entry names a file in migrations/ and whether it is required.
+//   required: true  - a missing file exits 1 before any database work.
+//   required: false - a missing file prints a loud warning and is skipped.
+//
+// 008 and 009 are REQUIRED. They create the Custom Voice Engine (ve_*) tables and the
+// leads / ve_sessions / ve_voice_agents columns those tables use. Both files are committed.
 const MIGRATIONS = [
-  resolve(rootDir, 'migrations', '0001_add_missing_columns.sql'),
-  resolve(rootDir, 'migrations', '0002_add_google_sheets_credentials.sql'),
-  resolve(rootDir, 'migrations', '0003_campaign_contact_retry.sql'),
-  resolve(rootDir, 'migrations', '0004_add_missing_tables.sql'),
-  resolve(rootDir, 'migrations', '0005_add_missing_agent_messaging_columns.sql'),
-  resolve(rootDir, 'migrations', '0006_add_default_campaign_type.sql'),
-  resolve(rootDir, 'migrations', '0007_add_external_fonoster_phone_id.sql'),
-  resolve(rootDir, 'migrations', '008_add_ve_session_id_and_voice_engine_tables.sql'),
-  resolve(rootDir, 'migrations', '009_fix_ve_session_id_and_all_missing_columns.sql'),
-  resolve(rootDir, 'migrations', '0010_add_yookassa_columns.sql'),
-  resolve(rootDir, 'migrations', '0010a_inbox.sql'),
-  resolve(rootDir, 'migrations', '0011_inbox_channels_and_providers.sql'),
-  resolve(rootDir, 'migrations', '0010b_approvals.sql'),
-  resolve(rootDir, 'migrations', '0013_approvals_revoked_status.sql'),
-  resolve(rootDir, 'migrations', '0010c_chatbot.sql'),
+  { file: '0001_add_missing_columns.sql', required: true },
+  { file: '0002_add_google_sheets_credentials.sql', required: true },
+  { file: '0003_campaign_contact_retry.sql', required: true },
+  { file: '0004_add_missing_tables.sql', required: true },
+  { file: '0005_add_missing_agent_messaging_columns.sql', required: true },
+  { file: '0006_add_default_campaign_type.sql', required: true },
+  { file: '0007_add_external_fonoster_phone_id.sql', required: true },
+  { file: '008_add_ve_session_id_and_voice_engine_tables.sql', required: true },
+  { file: '009_fix_ve_session_id_and_all_missing_columns.sql', required: true },
+  { file: '0010_add_yookassa_columns.sql', required: true },
+  { file: '0010a_inbox.sql', required: true },
+  { file: '0011_inbox_channels_and_providers.sql', required: true },
+  { file: '0010b_approvals.sql', required: true },
+  { file: '0013_approvals_revoked_status.sql', required: true },
+  { file: '0010c_chatbot.sql', required: true },
+  { file: '0014_workforce_tool_tables.sql', required: true },
+  { file: '0015_company_quiet_hours.sql', required: true },
 ];
+
+const migrationPath = (file) => resolve(rootDir, 'migrations', file);
+
+// Check every entry before touching the database. A missing required file is fatal.
+const missingRequired = MIGRATIONS.filter((m) => m.required && !existsSync(migrationPath(m.file)));
+const missingOptional = MIGRATIONS.filter((m) => !m.required && !existsSync(migrationPath(m.file)));
+
+if (missingOptional.length > 0) {
+  const names = missingOptional.map((m) => m.file).join(', ');
+  console.warn('');
+  console.warn('!!! WARNING: OPTIONAL MIGRATION FILES ARE MISSING FROM THIS REPOSITORY !!!');
+  console.warn(`!!! ${names}`);
+  console.warn('!!! The schema they create is NOT applied by this run. It must be supplied by the owner.');
+  console.warn('');
+}
+
+if (missingRequired.length > 0) {
+  console.error('❌ Required migration files are missing. Nothing was applied.');
+  for (const m of missingRequired) {
+    console.error(`   - ${m.file}`);
+  }
+  process.exit(1);
+}
 
 /**
  * Count top-level SQL statements in a migration file. Naïve `split(';')`
@@ -131,9 +162,11 @@ async function runMigrations() {
   try {
     const client = await pool.connect();
     try {
-      for (const migrationFile of MIGRATIONS) {
+      for (const entry of MIGRATIONS) {
+        const migrationFile = migrationPath(entry.file);
         if (!existsSync(migrationFile)) {
-          console.warn(`⚠️  Migration file not found, skipping: ${migrationFile}`);
+          // Only optional entries reach here (required ones were checked above).
+          console.warn(`!!! OPTIONAL migration not present, skipping: ${entry.file}`);
           continue;
         }
 

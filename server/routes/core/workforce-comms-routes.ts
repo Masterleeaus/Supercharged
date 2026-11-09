@@ -12,6 +12,8 @@ import { createWorkforceRosterRouter } from "../../routes/workforce-roster-route
 import { createDeadLetterRouter } from "../../routes/dead-letter-routes.ts";
 import { createCampaignRouterForProduction, createDrizzleCampaignStore, type ApprovalPort, type SendTransport } from "../../modules/campaigns/index.ts";
 import { createCompanySettingsStore } from "../../modules/settings/company-settings.ts";
+import { pool } from "../../db";
+import type { TenantPool } from "../../infrastructure/database/tenant-context";
 import { createSuppressionList } from "../../modules/comms/suppression.ts";
 import { deskModeMiddleware } from "../../modules/desk-modes/index.ts";
 import { featureEnabled } from "../../lib/feature-flags";
@@ -95,7 +97,7 @@ export async function registerWorkforceCommsRoutes(app: Express, deps: { commsAu
       store: createDrizzleCampaignStore(),
       approvals: campaignApprovals,
       transport: campaignTransport,
-      companySettings: createCompanySettingsStore(),
+      companySettings: createCompanySettingsStore({ pool: pool as unknown as TenantPool }),
       suppression: createSuppressionList({ audit: commsAudit.audit, clock: () => new Date().toISOString() }),
       requireRole: requireRole("admin", "manager") as unknown as import('express').RequestHandler,
     }),

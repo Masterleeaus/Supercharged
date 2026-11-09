@@ -587,6 +587,15 @@ export const globalSettings = pgTable("global_settings", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+// Company quiet hours - one row per company (persisted campaign quiet window)
+export const companyQuietHours = pgTable("company_quiet_hours", {
+  companyId: uuid("company_id").primaryKey(),
+  startHour: integer("start_hour").notNull(),
+  endHour: integer("end_hour").notNull(),
+  timezone: varchar("timezone", { length: 64 }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 // LLM Models - Available models with tier restrictions
 export const llmModels = pgTable("llm_models", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
