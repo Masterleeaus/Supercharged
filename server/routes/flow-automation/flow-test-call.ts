@@ -2,11 +2,10 @@
 import { Router, Response } from "express";
 import { db } from "../../db";
 import { type AuthRequest } from "../../middleware/auth";
-import { flows, flowExecutions, flowTestQueue, phoneNumbers, calls, agents, contacts, incomingConnections, campaigns, plivoPhoneNumbers, sipPhoneNumbers, sipCalls, twilioOpenaiCalls } from "@shared/schema";
+import { flows, flowExecutions, flowTestQueue, phoneNumbers, calls, agents, contacts, incomingConnections, campaigns, plivoPhoneNumbers, sipPhoneNumbers, sipCalls } from "@shared/schema";
 import { eq, and, or, desc, sql, inArray, isNull } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { checkDemoCallLimit, logDemoCall } from "../../demo-mode";
-import { ElevenLabsService } from "../../services/elevenlabs";
 import { ElevenLabsPoolService } from "../../services/elevenlabs-pool";
 import { FlowAgentService } from "../../services/flow-agent";
 import { OutboundCallService } from "../../services/outbound-call-service";
@@ -19,12 +18,9 @@ import { getPluginStatus } from "../../plugins/loader";
 import { consumePendingFailure } from "../webhook-routes";
 import { logger } from "../../utils/logger";
 import { companyForRead, buildFlowAgentBasePrompt } from "./shared";
+import { FlowTestHttpError } from "./flow-test-call-types";
 
-export class FlowTestHttpError extends Error {
-  constructor(public statusCode: number, public body: Record<string, unknown>) {
-    super(typeof body.error === 'string' ? body.error : 'Flow test error');
-  }
-}
+export { FlowTestHttpError };
 
 export async function placeFlowTestCall({
   userId,
