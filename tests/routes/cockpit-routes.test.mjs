@@ -281,8 +281,8 @@ test('the activity route passes only the caller company and returns only that co
   }
 });
 
-test('the cockpit router is mounted in server/routes.ts with authentication, company scope and the approver role guard', () => {
-  const source = readFileSync(new URL('../../server/routes.ts', import.meta.url), 'utf8');
-  assert.match(source, /import \{[^}]*\bcreateCockpitRouter\b[^}]*\} from "\.\/routes\/cockpit-routes";/);
+test('the cockpit router is mounted in server/routes/core/workforce-comms-routes.ts with authentication, company scope and the approver role guard', () => {
+  const source = readFileSync(new URL('../../server/routes/core/workforce-comms-routes.ts', import.meta.url), 'utf8');
+  assert.match(source, /import \{[^}]*\bcreateCockpitRouter\b[^}]*\} from "\.\.\/\.\.\/routes\/cockpit-routes";/);
   assert.match(source, /app\.use\(createCockpitRouter\(\{\}, \{ authenticate: authenticateToken as unknown as import\('express'\)\.RequestHandler, requireCompanyScope: requireCompanyScope\(\), requireApprover: requireRole\("admin", "manager"\) as unknown as import\('express'\)\.RequestHandler \}\)\);/);
 });
