@@ -166,3 +166,10 @@ test('queryString refuses whitespace-only filters and repeated query values',()=
   assert.equal(queryString({query:{status:['open','closed']}},'status'),undefined);
   assert.equal(queryString({query:{status:'open'}},'status'),'open');
 });
+
+test('trusted scope is validated even when service returns a successful empty list',async()=>{
+ let called=false;
+ const res=fakeRes();
+ await commsRoute(()=>({companyId:'bad',actor:{kind:'human',id:'u'}}),async()=>{called=true;return [];})({body:{},query:{},params:{}},res,noop);
+ assert.equal(called,false);assert.equal(res.statusCode,401);
+});

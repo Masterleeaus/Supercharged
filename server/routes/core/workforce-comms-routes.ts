@@ -21,6 +21,7 @@ import { requireCompanyScope } from "../../middleware/company-scope";
 import { createCockpitRouter, DEFAULT_MODE_CONFIG } from "../../routes/cockpit-routes";
 import type { CommsAuditSink } from "./shared";
 import { logger } from "../../utils/logger";
+import { registerOptionalCommsRoutes } from "./optional-comms-routes.ts";
 
 export async function registerWorkforceCommsRoutes(app: Express, deps: { commsAudit: CommsAuditSink }): Promise<void> {
   const { commsAudit } = deps;
@@ -57,6 +58,11 @@ export async function registerWorkforceCommsRoutes(app: Express, deps: { commsAu
     { listAgents: workforceRoster ? (companyId: string) => listRosterAgents(workforceRoster, companyId) : undefined },
     { authenticate: authenticateToken as unknown as import('express').RequestHandler, requireCompanyScope: requireCompanyScope(), requireApprover: requireRole("admin", "manager") as unknown as import('express').RequestHandler },
   ));
+
+  // First-class Inbox and Marketing are disabled unless durable services are injected. Enabling without those services fails startup.
+  registerOptionalCommsRoutes(app, { authenticate: authenticateToken as RequestHandler,
+    requireCompanyScope: requireCompanyScope(),
+    requireRole: (...roles: string[]) => requireRole(...roles) as RequestHandler });
 
   // Comms campaigns, comms host only (requireModule('campaigns') inside the router). Mounted under /api/comms so it
   // does not share the legacy /api/campaigns paths. The store is a placeholder until DRAFT_campaigns is promoted, and

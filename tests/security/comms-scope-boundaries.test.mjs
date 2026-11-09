@@ -30,3 +30,9 @@ test('a valid second company scope is permitted but is never replaced by request
  assert.equal(res.statusCode,200);
  assert.equal(res.body.company,COMPANY_B);
 });
+
+test('scope validation rejects a session company represented as a plain string alias',async()=>{
+ const res=response();let count=0;
+ await commsRoute(()=>({companyId:'company-a',actor:{kind:'human',id:'user-a'}}),async()=>{count++;})({query:{},params:{},body:{}},res,noop);
+ assert.equal(res.statusCode,401);assert.equal(count,0);
+});

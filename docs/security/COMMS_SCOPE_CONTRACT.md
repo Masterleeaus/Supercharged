@@ -7,3 +7,7 @@ The browser's body, query, path and forwarded host are not tenancy authorities. 
 Only `human` and `agent` actor kinds are valid. Both require a nonblank actor identifier. A successful service call still requires the existing role, mode and company checks.
 
 Tests: `tests/modules/comms-router.test.mjs`, `tests/security/comms-scope-boundaries.test.mjs`, and the three concrete router test suites.
+
+## Express production bridge
+
+The shared Express adapter explicitly copies `res.locals` (set by verified session middleware) into the request view used by the existing comms service routers. It never reads tenant IDs or actor IDs from HTTP parameters. Mounting requires authentication, company-scope validation, and module/role checks. The new HTTP integration test exercises the actual Express request chain with two companies and an unknown Host.

@@ -157,3 +157,9 @@ test('marketing refuses malformed or absent actors before a content write',async
  }
  assert.equal(calls.length,0);
 });
+
+test('a marketing page cannot be created with an unverified tenant identifier',async()=>{
+ const {stack,calls}=build();
+ const result=await stack.dispatch('POST','/pages',{host:COMMS_HOST,session:{...HUMAN_SESSION,companyId:'c1'},body:{slug:'example',title:'Page'}});
+ assert.equal(result.status,401);assert.equal(calls.length,0);
+});
