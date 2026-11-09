@@ -12,6 +12,7 @@ import { GROUP01_TOOL_IDS } from '../../server/workforce/tools/handlers/group-01
 import { GROUP_02_TOOL_IDS } from '../../server/workforce/tools/handlers/group-02.ts';
 import { GROUP03_TOOL_IDS } from '../../server/workforce/tools/handlers/group-03.ts';
 import { TOOL_ACCESS } from '../../server/workforce/catalogue/tool-access.ts';
+import { createGroup04ToolDefinitions } from '../../server/workforce/tools/handlers/group-04.ts';
 
 const READ_VERBS = new Set(['list', 'get', 'search', 'view', 'lookup', 'check', 'read', 'availability']);
 
@@ -24,7 +25,14 @@ const GROUP_IDS = new Set([...GROUP00_TOOL_IDS, ...GROUP01_TOOL_IDS]);
 // their read-named tools are held to access 'read' here.
 const WRITE_GROUP_IDS = [...GROUP_02_TOOL_IDS, ...GROUP03_TOOL_IDS];
 const isGroupWrite = (def) => WRITE_GROUP_IDS.includes(def.id) && !READ_VERBS.has(def.id.split('.').pop());
-const readDefinitions = definitions.filter((def) => !GROUP_IDS.has(def.id) && !isGroupWrite(def));
+
+// Handler group 04 write tools are declared write and are checked against 'write' below.
+const GROUP04_WRITE_IDS = new Set(
+  createGroup04ToolDefinitions().filter((def) => def.access === 'write').map((def) => def.id),
+);
+const readDefinitions = definitions.filter(
+  (def) => !GROUP_IDS.has(def.id) && !isGroupWrite(def) && !GROUP04_WRITE_IDS.has(def.id),
+);
 
 test('every read tool defined under tools/ declares access read', () => {
   assert.ok(readDefinitions.length > 0, 'expected at least one bound read tool definition');
@@ -52,6 +60,11 @@ test('group 03 definitions declare the access the catalogue gives them', () => {
     .filter((def) => def.access !== TOOL_ACCESS[def.id])
     .map((def) => `${def.id}=${String(def.access)} (catalogue ${String(TOOL_ACCESS[def.id])})`);
   assert.deepEqual(mismatched, [], `access differs from the catalogue: ${mismatched.join(', ')}`);
+});
+
+test('every write tool from a handler group declares access write', () => {
+  const notWrite = definitions.filter((def) => GROUP04_WRITE_IDS.has(def.id) && def.access !== 'write').map((def) => def.id);
+  assert.deepEqual(notWrite, [], `group write tools not declared write: ${notWrite.join(', ')}`);
 });
 
 test('read-named tools defined under tools/ are not declared as write', () => {

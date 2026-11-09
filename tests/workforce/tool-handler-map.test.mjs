@@ -20,13 +20,14 @@ const { createGroup00ToolDefinitions, GROUP00_NOT_IMPLEMENTED_IDS } = await impo
 const { GROUP01_TOOL_IDS, GROUP01_NOT_IMPLEMENTED_IDS } = await import('../../server/workforce/tools/handlers/group-01.ts');
 const { GROUP_02_TOOL_IDS, GROUP_02_NOT_IMPLEMENTED_IDS } = await import('../../server/workforce/tools/handlers/group-02.ts');
 const { GROUP03_TOOL_IDS, GROUP03_NOT_IMPLEMENTED_IDS } = await import('../../server/workforce/tools/handlers/group-03.ts');
+const { createGroup04ToolDefinitions, GROUP04_NOT_IMPLEMENTED } = await import('../../server/workforce/tools/handlers/group-04.ts');
 
 // Recorded on 2026-11-04: 100 distinct declared IDs across 125 role files, 5 bound to a handler, 95 unmapped.
 // Counted here: a tool is bound only when it has a real handler. not_implemented tools do not count.
-// Arithmetic: 100 declared - 58 bound = 42 unmapped. The 58 bound are 5 read handlers + 13 group 00 (18 ids, 5
+// Arithmetic: 100 declared - 77 bound = 23 unmapped. The 77 bound are 5 read handlers + 13 group 00 (18 ids, 5
 // not_implemented) + 12 group 01 (18 ids, 6 not_implemented) + 15 group 02 (20 ids, 5 not_implemented) + 13 group 03
-// (18 ids, 5 not_implemented). 5 + 13 + 12 + 15 + 13 = 58.
-const UNMAPPED_COUNT_RECORDED = 42;
+// (18 ids, 5 not_implemented) + 19 group 04 (20 ids, 1 not_implemented). 5 + 13 + 12 + 15 + 13 + 19 = 77.
+const UNMAPPED_COUNT_RECORDED = 23;
 
 const ROLES_DIR = fileURLToPath(new URL('../../server/workforce/catalogue/roles', import.meta.url));
 
@@ -37,19 +38,23 @@ for (const role of catalogue.values()) for (const toolId of role.tools) declared
 // Typed handlers: the read-handler specs plus the registry definitions, which add the group 03 handlers (reads and writes).
 // The store is a stub: no calls are made when building specs or definitions.
 const stubStore = new Proxy({}, { get: () => async () => [] });
-// Group 00 and group 02 ids count as bound only when they have a real handler (not_implemented ids do not count).
+// Group 00 and group 04 ids count as bound only when they have a real handler (not_implemented ids do not count).
 const group00Bound = createGroup00ToolDefinitions()
   .map((def) => def.id)
   .filter((id) => !GROUP00_NOT_IMPLEMENTED_IDS.has(id));
 const group01Bound = GROUP01_TOOL_IDS.filter((id) => !GROUP01_NOT_IMPLEMENTED_IDS.has(id));
 const group02Bound = GROUP_02_TOOL_IDS.filter((id) => !GROUP_02_NOT_IMPLEMENTED_IDS.includes(id));
 const group03Bound = GROUP03_TOOL_IDS.filter((id) => !GROUP03_NOT_IMPLEMENTED_IDS.has(id));
+const group04Bound = createGroup04ToolDefinitions()
+  .map((def) => def.id)
+  .filter((id) => !GROUP04_NOT_IMPLEMENTED.includes(id));
 const bound = new Set([
   ...createReadToolSpecs(stubStore).map((spec) => spec.id),
   ...group00Bound,
   ...group01Bound,
   ...group02Bound,
   ...group03Bound,
+  ...group04Bound,
 ]);
 
 const unmapped = [...declared].filter((toolId) => !bound.has(toolId)).sort();

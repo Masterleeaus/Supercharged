@@ -863,7 +863,7 @@ export function createToolRegistry(options: ToolRegistryOptions): ToolRegistry {
       if (!isRiskTier(definition.risk)) throw new AiRuntimeError('config_invalid', `tool ${definition.id} needs a risk tier (${RISK_TIERS.join(', ')})`);
       if (typeof definition.handler !== 'function') throw new AiRuntimeError('config_invalid', `tool ${definition.id} needs a handler`);
       if (definition.timeoutMs !== undefined && (!Number.isInteger(definition.timeoutMs) || definition.timeoutMs < 1)) {
-        throw new AiRuntimeError('config_invalid', `tool ${definition.id} has an invalid timeoutMs (positive integer)`);
+        throw new AiRuntimeError('config_invalid', `tool ${definition.id} timeoutMs must be a positive integer`);
       }
       if (!isValidSchema(definition.schema)) throw new AiRuntimeError('config_invalid', `tool ${definition.id} has an invalid schema`);
       if (definition.category !== undefined && !TOOL_CATEGORIES.includes(definition.category)) {

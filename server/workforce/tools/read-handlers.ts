@@ -19,6 +19,7 @@ import { createGroup00ToolDefinitions } from './handlers/group-00.ts';
 import { createGroup01ToolDefinitions } from './handlers/group-01.ts';
 import { createGroup02ToolDefinitions } from './handlers/group-02.ts';
 import { createGroup03ToolDefinitions } from './handlers/group-03.ts';
+import { createGroup04ToolDefinitions } from './handlers/group-04.ts';
 
 export const MAX_READ_ROWS = 50;
 
@@ -295,9 +296,9 @@ export function createReadToolSpecs(store: ReadStore): ReadToolSpec[] {
 
 /**
  * Registry definitions for every bound read tool, plus the handler group 00 (reads and writes on the workforce
- * tables), group 01, group 02 and group 03 (write, draft and side-effect tools included). Each read spec runs with
- * access 'read' and risk 'low'. group00Db is the read executor for groups 00 to 03. Groups 01 to 03 declare their own
- * access and risk per tool.
+ * tables), group 01, group 02, group 03 (write, draft and side-effect tools included) and group 04 (reads and writes,
+ * each with its own access and timeout). Each read spec runs with access 'read' and risk 'low'. group00Db is the read
+ * executor for groups 00 to 04. Groups 01 to 04 declare their own access and risk per tool.
  */
 export function createReadToolDefinitions(store: ReadStore, group00Db?: SqlExecutor): ToolDefinition[] {
   return [
@@ -312,6 +313,8 @@ export function createReadToolDefinitions(store: ReadStore, group00Db?: SqlExecu
     ...createGroup01ToolDefinitions({ db: group00Db }),
     ...createGroup02ToolDefinitions({ db: group00Db }),
     ...createGroup03ToolDefinitions({ sql: group00Db }),
+    // Group 04 handler definitions: reads and writes, each with its own access class and timeout (handlers/group-04.ts).
+    ...createGroup04ToolDefinitions({ db: group00Db }),
   ];
 }
 
