@@ -9,7 +9,7 @@ test('PostgreSQL: queue enrollment is idempotent and lease claim is conditional'
   assert.equal(await q.enqueueQueued(A,10),1);assert.equal(await q.enqueueQueued(A,10),0);
   const jobs=await q.claim(A,10,60);assert.equal(jobs.filter(x=>x.messageId===m.id).length,1);
   const job=jobs.find(x=>x.messageId===m.id);assert.equal(job.status,'leased');
-  assert.equal(await q.markSent(A,job.id,job.leaseToken,'provider-ack'),true);
-  assert.equal(await q.markSent(A,job.id,job.leaseToken,'duplicate-ack'),false);
+  assert.equal(await q.markSent(A,job.id,job.leaseToken,id('provider-ack')),true);
+  assert.equal(await q.markSent(A,job.id,job.leaseToken,id('duplicate-ack')),false);
  }finally{await f.close();}
 });

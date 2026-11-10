@@ -8,7 +8,7 @@ test('PostgreSQL: a company cannot claim or update another company outbox lease'
   const q=createSqlOutbox(f.pool);await q.enqueueQueued(B,10);
   assert.equal((await q.claim(A,50,120)).filter(x=>x.messageId===m.id).length,0);
   const job=(await q.claim(B,50,120)).find(x=>x.messageId===m.id);assert.ok(job);
-  assert.equal(await q.markSent(A,job.id,job.leaseToken,'forged-provider'),false);
-  assert.equal(await q.markSent(B,job.id,job.leaseToken,'legitimate-provider'),true);
+  assert.equal(await q.markSent(A,job.id,job.leaseToken,id('forged-provider')),false);
+  assert.equal(await q.markSent(B,job.id,job.leaseToken,id('legitimate-provider')),true);
  }finally{await f.close();}
 });
