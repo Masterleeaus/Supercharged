@@ -32,6 +32,34 @@ jobs:
       - run: npm ci
       - run: npm run build
 
+  typecheck-required:
+    # Gating, one job per area that already passes. Each area is checked on its own
+    # (scripts/typecheck-area.mjs); whole-repo tsc is not run here. Areas still failing
+    # are not in this matrix yet; see issue #122 and the PR description.
+    name: Typecheck ${{ matrix.area }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        area:
+          - server/middleware
+          - server/lib
+          - server/plugins
+          - server/demo-mode
+          - server/infrastructure
+          - client/src/contexts
+          - client/src/lib
+          - client/src/widget
+          - client/src/i18n
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node scripts/typecheck-area.mjs "${{ matrix.area }}"
+
   typecheck:
     name: Typecheck (informational)
     runs-on: ubuntu-latest
@@ -115,10 +143,9 @@ jobs:
   migration-inventory:
     name: Migration inventory
     runs-on: ubuntu-latest
-    # Informational until issue #34 is resolved: scripts/run-safe-migration.mjs lists
-    # 008 and 009 files that are not in migrations/, so this job is red on main.
-    # Remove continue-on-error once those entries are fixed.
-    continue-on-error: true
+    # Gating. Issue #34 (008 and 009 entries) is resolved: both files exist in migrations/.
+    # The check reads the MIGRATIONS manifest in scripts/run-safe-migration.mjs and fails
+    # when a required file is missing or the manifest format cannot be read.
     # scripts/run-safe-migration.mjs has no --dry-run flag, so this job checks
     # that every migration file the script lists exists under migrations/.
     steps:
