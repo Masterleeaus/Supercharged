@@ -118,6 +118,36 @@ jobs:
       - name: Verify real Inbox PostgreSQL storage, schema readiness and inbound service
         run: node --test --experimental-transform-types tests/postgres/inbox-postgres-*.test.mjs
 
+  tenant-postgres:
+    name: Tenant PostgreSQL isolation (Settings)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: ci-only-throwaway-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TENANT_PG_DISPOSABLE: 'true'
+      TENANT_PG_INTEGRATION_URL: postgres://postgres:ci-only-throwaway-password@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build disposable tenant schema (promoted migration 0015 only)
+        run: node scripts/tenant-postgres-prepare.mjs
+      - name: Verify company quiet-hours isolation on real PostgreSQL
+        run: node --test --experimental-transform-types tests/postgres/tenant-postgres-*.test.mjs
+
   migration-inventory:
     name: Migration inventory
     runs-on: ubuntu-latest
