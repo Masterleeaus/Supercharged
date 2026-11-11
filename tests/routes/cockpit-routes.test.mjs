@@ -138,12 +138,12 @@ test('desk-mode returns the comms mode from the Host header on the comms host, w
   }
 });
 
-test('desk-mode falls back to the workforce default for an unrecognised host', async () => {
+test('desk-mode refuses unrecognised hosts', async () => {
   const srv = await start({ loadApprovals: () => [] });
   try {
     const res = await srv.call({ path: DESK_MODE_PATH, user: USER_A, host: UNKNOWN_HOST });
-    assert.equal(res.status, 200);
-    assert.deepEqual(res.body, { mode: 'workforce', source: 'default' });
+    assert.equal(res.status, 404);
+    assert.deepEqual(res.body, { error: 'not_found' });
   } finally {
     await srv.close();
   }
@@ -285,4 +285,14 @@ test('the cockpit router is mounted in server/routes/core/workforce-comms-routes
   const source = readFileSync(new URL('../../server/routes/core/workforce-comms-routes.ts', import.meta.url), 'utf8');
   assert.match(source, /import \{[^}]*\bcreateCockpitRouter\b[^}]*\} from "\.\.\/\.\.\/routes\/cockpit-routes";/);
   assert.match(source, /app\.use\(createCockpitRouter\(\{\}, \{ authenticate: authenticateToken as unknown as import\('express'\)\.RequestHandler, requireCompanyScope: requireCompanyScope\(\), requireApprover: requireRole\("admin", "manager"\) as unknown as import\('express'\)\.RequestHandler \}\)\);/);
+});
+
+test('authenticated mode discovery distinguishes a configured host from an unknown host',async()=>{
+  const srv=await start({loadApprovals:()=>[]});
+  try{
+    const valid=await srv.call({path:DESK_MODE_PATH,user:USER_A,host:COMMS_HOST});
+    assert.deepEqual(valid.body,{mode:'comms',source:'host'});
+    const denied=await srv.call({path:DESK_MODE_PATH,user:USER_A,host:UNKNOWN_HOST});
+    assert.equal(denied.status,404);
+  }finally{await srv.close();}
 });

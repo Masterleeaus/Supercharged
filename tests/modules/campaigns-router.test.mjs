@@ -163,3 +163,28 @@ test('real in-memory service: an audience defined by one company cannot be resol
   const other = await fake.dispatch('GET', `/audiences/${audienceId}/resolution`, { host: COMMS_HOST, session: OTHER_COMPANY_SESSION });
   assert.equal(other.status, 404);
 });
+
+test('an invalid authenticated company cannot resolve audience or create contacts', async () => {
+  const { stack, calls } = build();
+  const session = { ...HUMAN_SESSION, companyId: 'not-a-company' };
+  const first = await stack.dispatch('GET','/audiences/a1/resolution',{host:COMMS_HOST,session});
+  const second = await stack.dispatch('POST','/contacts',{host:COMMS_HOST,session,body:{channel:'email',address:'a@b.test'}});
+  assert.equal(first.status,401);
+  assert.equal(second.status,401);
+  assert.equal(calls.length,0);
+});
+
+test('campaign actions refuse malformed actor sessions before service invocation',async()=>{
+ const {stack,calls}=build();
+ for(const actor of [null,{kind:'human',id:'  '},{kind:'system',id:'u'}]){
+  const r=await stack.dispatch('POST','/campaigns/c1/activation',{host:COMMS_HOST,session:{...HUMAN_SESSION,actor}});
+  assert.equal(r.status,401);
+ }
+ assert.equal(calls.length,0);
+});
+
+test('campaigns do not grant a company identity through a forged header',async()=>{
+ const {stack,calls}=build();
+ const result=await stack.dispatch('POST','/campaigns',{host:COMMS_HOST,body:{name:'Campaign',companyId:'11111111-1111-4111-8111-111111111111'}});
+ assert.equal(result.status,401);assert.equal(calls.length,0);
+});

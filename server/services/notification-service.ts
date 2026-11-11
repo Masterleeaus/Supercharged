@@ -20,7 +20,7 @@ import { logger } from '../utils/logger.ts';
 
 // Default fallbacks - only used if database is unavailable
 const DEFAULT_LOW_CREDITS_THRESHOLD = 50;
-const DEFAULT_APP_NAME = '';
+const DEFAULT_APP_NAME = 'Supercharged';
 
 // Cache for low credits threshold to avoid repeated DB calls
 let cachedLowCreditsThreshold: number | null = null;

@@ -212,3 +212,50 @@ test('drizzle placeholder: every method throws until the migration is promoted',
   await assert.rejects(store.findPage(CO_A, 'x'), /DRAFT_marketing\.sql/);
   await assert.rejects(store.listContent(CO_A, {}), /DRAFT_marketing\.sql/);
 });
+
+test('simultaneous same-tenant slug inserts surface a stable conflict when PostgreSQL enforces the unique key',async()=>{
+ const duplicate=Object.assign(new Error('duplicate key'),{code:'23505',constraint:'landing_pages_company_slug_uidx'});
+ const store={findPageBySlug:async()=>null,insertPage:async()=>{throw duplicate;}};
+ const refs={campaignExists:async()=>true,chatbotExists:async()=>true};
+ const service=createMarketingService({store,campaigns:refs,chatbots:refs});
+ await assert.rejects(service.createPage(CO_A,HUMAN,{slug:'race-safe',title:'Offer'}),e=>e instanceof MarketingError&&e.code==='conflict');
+});
+test('non-slug database unique constraints are not mistakenly labeled a slug conflict',async()=>{
+ const duplicate=Object.assign(new Error('other constraint'),{code:'23505',constraint:'content_items_pkey'});
+ const store={findPageBySlug:async()=>null,insertPage:async()=>{throw duplicate;}};
+ const refs={campaignExists:async()=>true,chatbotExists:async()=>true};
+ await assert.rejects(createMarketingService({store,campaigns:refs,chatbots:refs}).createPage(CO_A,HUMAN,{slug:'not-duplicate',title:'Offer'}),e=>e===duplicate);
+});
+
+test('failed concurrent publish never returns stale page as a success',async()=>{
+ const ctx=build();const p=await ctx.service.createPage(CO_A,HUMAN,page());
+ const original=ctx.store.updatePage.bind(ctx.store);ctx.store.updatePage=async()=>null;
+ await assert.rejects(ctx.service.publishPage(CO_A,HUMAN,p.id),e=>e instanceof MarketingError&&e.code==='conflict');
+ ctx.store.updatePage=original;
+});
+test('failed concurrent approve never returns stale content as a success',async()=>{
+ const ctx=build();const item=await ctx.service.createContent(CO_A,HUMAN,{kind:'blog_post',title:'Story',body:'Body'});
+ const original=ctx.store.updateContent.bind(ctx.store);ctx.store.updateContent=async()=>null;
+ await assert.rejects(ctx.service.approveContent(CO_A,HUMAN,item.id),e=>e instanceof MarketingError&&e.code==='conflict');
+ ctx.store.updateContent=original;
+});
+
+test('production service requires explicit database readiness before use',async()=>{
+ const {createVerifiedMarketingService}=await import('../../server/modules/marketing/production-service.ts');
+ const pool={connect:async()=>{throw new Error('must not connect while schema is unverified');}};
+ const campaign={campaignExists:async()=>true},chatbot={chatbotExists:async()=>true};
+ const schemaProbe={query:async()=>({rows:[]})};
+ await assert.rejects(createVerifiedMarketingService({pool,campaigns:campaign,chatbots:chatbot,schemaProbe}),/database security not ready/);
+});
+
+test('schema readiness gate rejects an incomplete or unsafe RLS policy',async()=>{
+ const {requireMarketingSchema}=await import('../../server/modules/marketing/schema-readiness.ts');
+ const fake={query:async sql=>sql.includes('FROM pg_roles')?{rows:[]}:{rows:[]}};
+ await assert.rejects(requireMarketingSchema(fake),/database security not ready/);
+});
+
+test('the production campaign reference fallback denies linking legacy voice campaigns',async()=>{
+ const {unavailableCampaignReferences}=await import('../../server/modules/marketing/reference-adapters.ts');
+ const refs=unavailableCampaignReferences();
+ assert.equal(await refs.campaignExists(CO_A,'legacy-voice-campaign'),false);
+});

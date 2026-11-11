@@ -21,6 +21,7 @@ import { requireCompanyScope } from "../../middleware/company-scope";
 import { createCockpitRouter, DEFAULT_MODE_CONFIG } from "../../routes/cockpit-routes";
 import type { CommsAuditSink } from "./shared";
 import { logger } from "../../utils/logger";
+import { registerVerifiedCommsRoutes } from "./verified-marketing-routes.ts";
 
 export async function registerWorkforceCommsRoutes(app: Express, deps: { commsAudit: CommsAuditSink }): Promise<void> {
   const { commsAudit } = deps;
@@ -57,6 +58,14 @@ export async function registerWorkforceCommsRoutes(app: Express, deps: { commsAu
     { listAgents: workforceRoster ? (companyId: string) => listRosterAgents(workforceRoster, companyId) : undefined },
     { authenticate: authenticateToken as unknown as import('express').RequestHandler, requireCompanyScope: requireCompanyScope(), requireApprover: requireRole("admin", "manager") as unknown as import('express').RequestHandler },
   ));
+
+  // Inbox and Marketing default OFF. If enabled, create verified PostgreSQL-backed
+  // services and reject unprepared databases before exposing their routes.
+  await registerVerifiedCommsRoutes(app, { authenticate: authenticateToken as RequestHandler,
+    requireCompanyScope: requireCompanyScope(),
+    requireRole: (...roles: string[]) => requireRole(...roles) as RequestHandler,
+    pool: pool as unknown as TenantPool,
+    schemaProbe: pool });
 
   // Comms campaigns, comms host only (requireModule('campaigns') inside the router). Mounted under /api/comms so it
   // does not share the legacy /api/campaigns paths. The store is a placeholder until DRAFT_campaigns is promoted, and

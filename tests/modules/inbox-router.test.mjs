@@ -177,3 +177,33 @@ test('real in-memory service: the router returns only the session company thread
   assert.equal(theirs.status, 200);
   assert.equal(theirs.body.length, 0);
 });
+
+test('an invalid session tenant cannot list inbox threads', async () => {
+  const { stack, calls } = build();
+  const session = { ...HUMAN_SESSION, companyId: 'not-a-company' };
+  const result = await stack.dispatch('GET','/threads',{host:COMMS_HOST,session});
+  assert.equal(result.status,401);
+  assert.equal(calls.length,0);
+});
+
+test('inbox rejects a session actor without a stable identity before listing threads',async()=>{
+ const {stack,calls}=build();
+ for(const actor of [null,{kind:'human',id:''},{kind:'unknown',id:'user-1'}]){
+  const r=await stack.dispatch('GET','/threads',{host:COMMS_HOST,session:{...HUMAN_SESSION,actor}});
+  assert.equal(r.status,401);
+ }
+ assert.equal(calls.length,0);
+});
+
+test('a comms session with a missing actor cannot read inbox threads',async()=>{
+ const {stack,calls}=build();
+ const result=await stack.dispatch('GET','/threads',{host:COMMS_HOST,session:{...HUMAN_SESSION,actor:undefined}});
+ assert.equal(result.status,401);assert.equal(calls.length,0);
+});
+
+test('inbox lists company B threads using only its verified session',async()=>{
+ const {stack,calls}=build({listThreads:async()=>[]});
+ const result=await stack.dispatch('GET','/threads',{host:COMMS_HOST,session:OTHER_COMPANY_SESSION,query:{companyId:HUMAN_SESSION.companyId}});
+ assert.equal(result.status,200);
+ assert.equal(calls[0].args[0],OTHER_COMPANY_SESSION.companyId);
+});

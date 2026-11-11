@@ -140,3 +140,33 @@ test('real in-memory service: a page from one company is invisible to another', 
   const list = await fake.dispatch('GET', '/pages', { host: COMMS_HOST, session: OTHER_COMPANY_SESSION });
   assert.equal(list.body.length, 0);
 });
+
+test('an invalid authenticated company cannot read marketing pages', async () => {
+  const { stack, calls } = build();
+  const session = { ...HUMAN_SESSION, companyId: 'not-a-company' };
+  const result = await stack.dispatch('GET','/pages',{host:COMMS_HOST,session});
+  assert.equal(result.status,401);
+  assert.equal(calls.length,0);
+});
+
+test('marketing refuses malformed or absent actors before a content write',async()=>{
+ const {stack,calls}=build();
+ for(const actor of [null,{kind:'human',id:'  '},{kind:'system',id:'u'}]){
+  const r=await stack.dispatch('POST','/content',{host:COMMS_HOST,session:{...HUMAN_SESSION,actor},body:{kind:'article',title:'x',body:'y'}});
+  assert.equal(r.status,401);
+ }
+ assert.equal(calls.length,0);
+});
+
+test('a marketing page cannot be created with an unverified tenant identifier',async()=>{
+ const {stack,calls}=build();
+ const result=await stack.dispatch('POST','/pages',{host:COMMS_HOST,session:{...HUMAN_SESSION,companyId:'c1'},body:{slug:'example',title:'Page'}});
+ assert.equal(result.status,401);assert.equal(calls.length,0);
+});
+
+test('marketing lists content for company B and never accepts caller-supplied company A',async()=>{
+ const {stack,calls}=build({listContent:async()=>[]});
+ const result=await stack.dispatch('GET','/content',{host:COMMS_HOST,session:OTHER_COMPANY_SESSION,query:{companyId:HUMAN_SESSION.companyId}});
+ assert.equal(result.status,200);
+ assert.equal(calls[0].args[0],OTHER_COMPANY_SESSION.companyId);
+});

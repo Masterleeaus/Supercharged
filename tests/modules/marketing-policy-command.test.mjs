@@ -1,0 +1,11 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {inspectMarketingPolicies} from '../../server/modules/marketing/policy-inspection.ts';
+const predicate="company_id = nullif(current_setting('app.company_id', true),'')::uuid";
+const policy=over=>({tablename:'landing_pages',policyname:'landing_pages_tenant_boundary',roles:['desk_app'],cmd:'ALL',permissive:'PERMISSIVE',qual:predicate,with_check:predicate,...over});
+test('a SELECT-only policy cannot pass readiness',()=>assert.ok(inspectMarketingPolicies('landing_pages',[policy({cmd:'SELECT'})]).length));
+test('an INSERT-only policy cannot pass readiness',()=>assert.ok(inspectMarketingPolicies('landing_pages',[policy({cmd:'INSERT'})]).length));
+test('a missing WITH CHECK cannot pass readiness',()=>assert.ok(inspectMarketingPolicies('landing_pages',[policy({with_check:null})]).length));
+test('a role other than desk_app cannot pass readiness',()=>assert.ok(inspectMarketingPolicies('landing_pages',[policy({roles:['desk_app_admin']})]).length));
+test('PUBLIC in the expected policy is explicitly refused',()=>assert.ok(inspectMarketingPolicies('landing_pages',[policy({roles:['public','desk_app']})]).length));
+test('a restrictive expected policy alone does not grant a working tenant policy',()=>assert.ok(inspectMarketingPolicies('landing_pages',[policy({permissive:'RESTRICTIVE'})]).length));

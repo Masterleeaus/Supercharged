@@ -12,6 +12,14 @@ err2.json
 # Secrets and local environment: never copy into the image. Supply them at runtime (env vars or a mounted volume).
 **/.env
 **/.env.*
+**/.env*
+**/.envrc
+**/.npmrc
+**/.git
+**/*.p12
+**/*.pfx
+**/*.jks
+**/*.keystore
 **/.appointment-webhook-secret
 **/.rag-webhook-secret
 **/*-secret

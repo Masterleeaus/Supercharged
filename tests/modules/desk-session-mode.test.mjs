@@ -76,3 +76,18 @@ test('requireModule for a comms module with no mode set fails closed', () => {
   assert.equal(status, 404);
   assert.ok(!modulesForMode('workforce').includes('inbox'));
 });
+
+test('untrusted hosts never produce source host', () => {
+  assert.equal(sessionDeskMode('unknown.example', config).source, 'default');
+  assert.equal(sessionDeskMode('syncedat.work', config).source, 'host');
+});
+
+test('invalid ports never establish a verified session mode', () => {
+  for (const host of ['syncedat.work:0','syncedat.work:65536']) {
+    assert.deepEqual(sessionDeskMode(host,config),{mode:'workforce',source:'default'});
+  }
+});
+
+test('invalid DNS labels cannot yield a host-verified session',()=>{
+ for(const host of ['-syncedat.work','syncedat-.work','a'.repeat(64)+'.work']) assert.equal(sessionDeskMode(host,config).source,'default');
+});

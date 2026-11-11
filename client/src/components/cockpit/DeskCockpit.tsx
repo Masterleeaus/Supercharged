@@ -235,7 +235,7 @@ const PANEL_COMPONENTS: Record<CockpitPanelId, ComponentType> = {
 
 /**
  * The cockpit. The panels come from GET /api/desk-mode: workforce shows the workforce panels,
- * syncedat shows the comms panels. A failed read uses workforce and shows a notice.
+ * comms shows the communications panels. A failed read uses workforce and shows a notice.
  */
 export function DeskCockpit() {
   const { isLoading, resolved } = useDeskModeState();
