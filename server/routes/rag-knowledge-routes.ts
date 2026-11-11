@@ -24,6 +24,7 @@
  */
 
 import { Router, Request, Response, RequestHandler } from "express";
+import { timingSafeEqual } from "crypto";
 import multer from "multer";
 import { RAGKnowledgeService } from "../services/rag-knowledge";
 import { storage } from "../storage";
@@ -619,8 +620,10 @@ export function createRAGKnowledgeRoutes(
         return res.status(503).json({ error: "Webhook endpoint not configured" });
       }
       const authHeader = req.headers['authorization'];
-      const providedToken = authHeader?.replace('Bearer ', '');
-      if (providedToken !== webhookToken) {
+      // Constant-time compare. Length is checked first, because timingSafeEqual throws on unequal lengths.
+      const providedBuf = Buffer.from(authHeader?.replace('Bearer ', '') ?? '', 'utf8');
+      const expectedBuf = Buffer.from(webhookToken, 'utf8');
+      if (providedBuf.length !== expectedBuf.length || !timingSafeEqual(providedBuf, expectedBuf)) {
         return res.status(401).json({ error: "Invalid webhook token" });
       }
 
