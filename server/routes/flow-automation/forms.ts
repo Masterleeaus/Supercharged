@@ -6,6 +6,7 @@ import { forms, formFields, formSubmissions } from "@shared/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { companyForRead } from "./shared";
+import { logger } from '../../utils/logger.ts';
 
 export function registerFormRoutes(router: Router): void {
   router.get("/forms", async (req: AuthRequest, res: Response) => {
@@ -50,7 +51,7 @@ export function registerFormRoutes(router: Router): void {
 
       res.json(formsWithFieldsAndCount);
     } catch (error: any) {
-      console.error("Error fetching forms:", error);
+      logger.error("Error fetching forms:", error);
       res.status(500).json({ error: "Failed to fetch forms" });
     }
   });
@@ -83,7 +84,7 @@ export function registerFormRoutes(router: Router): void {
 
       res.json({ ...form, fields });
     } catch (error: any) {
-      console.error("Error fetching form:", error);
+      logger.error("Error fetching form:", error);
       res.status(500).json({ error: "Failed to fetch form" });
     }
   });
@@ -134,7 +135,7 @@ export function registerFormRoutes(router: Router): void {
 
       res.json({ ...newForm, fields: createdFields });
     } catch (error: any) {
-      console.error("Error creating form:", error);
+      logger.error("Error creating form:", error);
       res.status(500).json({ error: "Failed to create form" });
     }
   });
@@ -192,7 +193,7 @@ export function registerFormRoutes(router: Router): void {
 
       res.json({ ...updatedForm, fields: updatedFields });
     } catch (error: any) {
-      console.error("Error updating form:", error);
+      logger.error("Error updating form:", error);
       res.status(500).json({ error: "Failed to update form" });
     }
   });
@@ -212,7 +213,7 @@ export function registerFormRoutes(router: Router): void {
 
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Error deleting form:", error);
+      logger.error("Error deleting form:", error);
       res.status(500).json({ error: "Failed to delete form" });
     }
   });
@@ -245,7 +246,7 @@ export function registerFormRoutes(router: Router): void {
 
       res.json(submissions);
     } catch (error: any) {
-      console.error("Error fetching form submissions:", error);
+      logger.error("Error fetching form submissions:", error);
       res.status(500).json({ error: "Failed to fetch form submissions" });
     }
   });

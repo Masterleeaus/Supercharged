@@ -263,8 +263,8 @@ The interface automatically adjusts for right-to-left (RTL) languages.
 ### 1. Upload Files
 ```bash
 # Upload all files to your server or hosting platform
-unzip AgentLabs-Production-v5.4.5.zip
-cd AgentLabs
+unzip Supercharged-Production-v5.4.5.zip
+cd Supercharged
 ```
 
 ### 2. Install Dependencies

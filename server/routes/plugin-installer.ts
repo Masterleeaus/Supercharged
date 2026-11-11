@@ -185,7 +185,7 @@ router.post('/validate',
         },
       });
     } catch (error: any) {
-      console.error('[Plugin Installer] Validation error:', error);
+      logger.error('[Plugin Installer] Validation error:', error);
       res.status(500).json({ success: false, error: 'Failed to validate plugin' });
     }
   }
@@ -498,7 +498,7 @@ router.post('/install',
         scheduleServerRestart(`Plugin '${manifest.displayName}' v${manifest.version} installed`);
       }
     } catch (error: any) {
-      console.error('[Plugin Installer] Install error:', error);
+      logger.error('[Plugin Installer] Install error:', error);
       res.status(500).json({ success: false, error: 'Failed to install plugin' });
     }
   }
@@ -570,7 +570,7 @@ router.delete('/uninstall/:name',
 
       scheduleServerRestart(`Plugin '${manifest.displayName}' uninstalled`);
     } catch (error: any) {
-      console.error('[Plugin Installer] Uninstall error:', error);
+      logger.error('[Plugin Installer] Uninstall error:', error);
       res.status(500).json({ success: false, error: 'Failed to uninstall plugin' });
     }
   }
@@ -646,7 +646,7 @@ router.post('/run-migration/:name',
         steps,
       });
     } catch (error: any) {
-      console.error('[Plugin Installer] Migration error:', error);
+      logger.error('[Plugin Installer] Migration error:', error);
       res.status(500).json({ success: false, error: 'Failed to run migrations' });
     }
   }
@@ -714,7 +714,7 @@ router.get('/installed', async (_req, res) => {
 
     res.json({ success: true, data: { plugins, total: plugins.length } });
   } catch (error: any) {
-    console.error('[Plugin Installer] List error:', error);
+    logger.error('[Plugin Installer] List error:', error);
     res.status(500).json({ success: false, error: 'Failed to list plugins' });
   }
 });

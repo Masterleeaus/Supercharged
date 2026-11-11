@@ -104,7 +104,7 @@ export class TwilioOpenAIAudioBridge {
       this.startSilenceMonitor(session);
       return session;
     } catch (error: any) {
-      console.error(`[TwilioOpenAI Bridge] Failed to create session:`, error.message);
+      logger.error(`[TwilioOpenAI Bridge] Failed to create session:`, error.message);
       session.status = 'error';
       throw error;
     }
@@ -158,7 +158,7 @@ export class TwilioOpenAIAudioBridge {
 
       ws.on('error', (error) => {
         clearTimeout(connectionTimeoutId);
-        console.error(`[TwilioOpenAI Bridge] OpenAI error for ${callSid}:`, error);
+        logger.error(`[TwilioOpenAI Bridge] OpenAI error for ${callSid}:`, error);
         session.status = 'error';
         openaiPoolManager.removeConnection(session.callSid);
         this.activeSessions.delete(callSid);
@@ -300,7 +300,7 @@ BACKGROUND NOISE HANDLING:
         if (result.success) {
           logger.info(`[TwilioOpenAI Bridge] Queued audio played successfully`);
         } else {
-          console.error(`[TwilioOpenAI Bridge] Queued audio playback failed: ${result.error}`);
+          logger.error(`[TwilioOpenAI Bridge] Queued audio playback failed: ${result.error}`);
         }
 
         // Small delay between queued audio files
@@ -308,7 +308,7 @@ BACKGROUND NOISE HANDLING:
           await new Promise(resolve => setTimeout(resolve, 500));
         }
       } catch (error: any) {
-        console.error(`[TwilioOpenAI Bridge] Error playing queued audio: ${error.message}`);
+        logger.error(`[TwilioOpenAI Bridge] Error playing queued audio: ${error.message}`);
       }
     }
 
@@ -452,7 +452,7 @@ BACKGROUND NOISE HANDLING:
           if (message.error?.code === 'response_cancel_not_active') {
             // Harmless timing error during barge-in — response already finished before cancel arrived
           } else {
-            console.error(`[TwilioOpenAI Bridge] OpenAI error for ${callSid}:`, message.error);
+            logger.error(`[TwilioOpenAI Bridge] OpenAI error for ${callSid}:`, message.error);
           }
           break;
 
@@ -462,7 +462,7 @@ BACKGROUND NOISE HANDLING:
           }
       }
     } catch (error: any) {
-      console.error(`[TwilioOpenAI Bridge] Error handling message:`, error.message);
+      logger.error(`[TwilioOpenAI Bridge] Error handling message:`, error.message);
     }
   }
 
@@ -475,7 +475,7 @@ BACKGROUND NOISE HANDLING:
     const callId = message.call_id;
 
     if (!toolName || !callId) {
-      console.warn(`[TwilioOpenAI Bridge] Invalid tool call for ${callSid}`);
+      logger.warn(`[TwilioOpenAI Bridge] Invalid tool call for ${callSid}`);
       return;
     }
 
@@ -494,7 +494,7 @@ BACKGROUND NOISE HANDLING:
         try {
           params = JSON.parse(message.arguments);
         } catch (e) {
-          console.warn(`[TwilioOpenAI Bridge] Failed to parse tool arguments`);
+          logger.warn(`[TwilioOpenAI Bridge] Failed to parse tool arguments`);
         }
       }
 
@@ -555,7 +555,7 @@ BACKGROUND NOISE HANDLING:
         }
 
         if (!targetNumber) {
-          console.warn(`[TwilioOpenAI Bridge] No transfer destination found for ${toolName}`);
+          logger.warn(`[TwilioOpenAI Bridge] No transfer destination found for ${toolName}`);
           result = {
             error: 'No transfer destination specified',
             message: 'Cannot transfer - no phone number provided.'
@@ -759,7 +759,7 @@ BACKGROUND NOISE HANDLING:
       this.sendToolResult(session, callId, result);
 
     } catch (error: any) {
-      console.error(`[TwilioOpenAI Bridge] Tool ${toolName} error:`, error.message);
+      logger.error(`[TwilioOpenAI Bridge] Tool ${toolName} error:`, error.message);
       this.sendToolResult(session, callId, { error: error.message });
     }
   }
@@ -800,7 +800,7 @@ BACKGROUND NOISE HANDLING:
         .limit(1);
 
       if (!existingCall) {
-        console.warn(`[TwilioOpenAI Bridge] Cannot update metadata - call not found: ${callSid}`);
+        logger.warn(`[TwilioOpenAI Bridge] Cannot update metadata - call not found: ${callSid}`);
         return;
       }
 
@@ -816,7 +816,7 @@ BACKGROUND NOISE HANDLING:
 
       logger.info(`[TwilioOpenAI Bridge] Updated call metadata for ${callSid}:`, Object.keys(metadataUpdates));
     } catch (error: any) {
-      console.error(`[TwilioOpenAI Bridge] Failed to update call metadata:`, error.message);
+      logger.error(`[TwilioOpenAI Bridge] Failed to update call metadata:`, error.message);
     }
   }
 
@@ -951,7 +951,7 @@ BACKGROUND NOISE HANDLING:
   static async sendMessage(callSid: string, message: string): Promise<void> {
     const session = this.activeSessions.get(callSid);
     if (!session || !session.openaiWs || session.openaiWs.readyState !== WebSocket.OPEN) {
-      console.warn(`[TwilioOpenAI Bridge] Cannot send message - no active session for ${callSid}`);
+      logger.warn(`[TwilioOpenAI Bridge] Cannot send message - no active session for ${callSid}`);
       return;
     }
 
@@ -1073,7 +1073,7 @@ BACKGROUND NOISE HANDLING:
   static remapSession(oldCallSid: string, newCallSid: string): boolean {
     const session = this.activeSessions.get(oldCallSid);
     if (!session) {
-      console.warn(`[TwilioOpenAI Bridge] Cannot remap session - not found: ${oldCallSid}`);
+      logger.warn(`[TwilioOpenAI Bridge] Cannot remap session - not found: ${oldCallSid}`);
       return false;
     }
     session.callSid = newCallSid;
@@ -1154,7 +1154,7 @@ BACKGROUND NOISE HANDLING:
 
       // Call direction is REQUIRED for transfers to determine correct Twilio caller ID
       if (!callDirection) {
-        console.error(`[TwilioOpenAI Bridge] Transfer failed - callDirection is missing for ${callSid}. fromNumber: ${fromNumber}, toNumber: ${toNumber}`);
+        logger.error(`[TwilioOpenAI Bridge] Transfer failed - callDirection is missing for ${callSid}. fromNumber: [redacted], toNumber: [redacted]`);
         throw new Error('Cannot transfer call - callDirection is missing. This indicates a session setup issue.');
       }
 
@@ -1175,7 +1175,7 @@ BACKGROUND NOISE HANDLING:
       }
 
       if (!callerId) {
-        console.error(`[TwilioOpenAI Bridge] Transfer failed - caller ID is missing. Direction: ${callDirection}, fromNumber: ${fromNumber}, toNumber: ${toNumber}`);
+        logger.error(`[TwilioOpenAI Bridge] Transfer failed - caller ID is missing. Direction: ${callDirection}, fromNumber: [redacted], toNumber: [redacted]`);
         throw new Error(`Cannot transfer call - Twilio caller ID is missing for ${callDirection} call`);
       }
 
@@ -1202,7 +1202,7 @@ BACKGROUND NOISE HANDLING:
       return { success: true };
 
     } catch (error: any) {
-      console.error(`[TwilioOpenAI Bridge] Transfer failed for ${callSid}:`, error.message);
+      logger.error(`[TwilioOpenAI Bridge] Transfer failed for ${callSid}:`, error.message);
       return { success: false, error: error.message };
     }
   }
@@ -1239,7 +1239,7 @@ BACKGROUND NOISE HANDLING:
       return { success: true };
 
     } catch (error: any) {
-      console.error(`[TwilioOpenAI Bridge] Hangup failed for ${callSid}:`, error.message);
+      logger.error(`[TwilioOpenAI Bridge] Hangup failed for ${callSid}:`, error.message);
       return { success: false, error: error.message };
     }
   }
@@ -1271,7 +1271,7 @@ BACKGROUND NOISE HANDLING:
       logger.info(`[TwilioOpenAI Bridge] Stored callerEmail in metadata`);
       return { success: true, message: `Email address ${emailAddress} stored for post-call follow-up.` };
     } catch (err: any) {
-      console.error(`[TwilioOpenAI Bridge] Failed to store callerEmail: ${err.message}`);
+      logger.error(`[TwilioOpenAI Bridge] Failed to store callerEmail: ${err.message}`);
       return { success: false, message: 'Failed to store email address.' };
     }
   }
@@ -1282,7 +1282,7 @@ BACKGROUND NOISE HANDLING:
   ): Promise<unknown> {
     const ctx = this.getMessagingContext(session, 'send_email');
     if (!ctx) {
-      console.warn(`[TwilioOpenAI Bridge] No messaging context found for send_email`);
+      logger.warn(`[TwilioOpenAI Bridge] No messaging context found for send_email`);
       return { success: false, message: 'Email tool not properly configured.' };
     }
 
@@ -1308,7 +1308,7 @@ BACKGROUND NOISE HANDLING:
             autoVars.agent_name = agentRow.name;
           }
         } catch (e) {
-          console.warn(`[TwilioOpenAI Bridge] Could not look up agent name for auto-injection`);
+          logger.warn(`[TwilioOpenAI Bridge] Could not look up agent name for auto-injection`);
         }
       }
 
@@ -1332,7 +1332,7 @@ BACKGROUND NOISE HANDLING:
             }
           }
         } catch (e) {
-          console.warn(`[TwilioOpenAI Bridge] Could not look up call metadata for auto-injection`);
+          logger.warn(`[TwilioOpenAI Bridge] Could not look up call metadata for auto-injection`);
         }
       }
 
@@ -1357,7 +1357,7 @@ BACKGROUND NOISE HANDLING:
             autoVars.appointment_notes = latestAppt.notes || '';
           }
         } catch (e) {
-          console.warn(`[TwilioOpenAI Bridge] Could not look up appointment data for auto-injection`);
+          logger.warn(`[TwilioOpenAI Bridge] Could not look up appointment data for auto-injection`);
         }
       }
 
@@ -1390,7 +1390,7 @@ BACKGROUND NOISE HANDLING:
           : `Failed to send email: ${result.error}`,
       };
     } catch (error: any) {
-      console.error(`[TwilioOpenAI Bridge] send_email error: ${error.message}`);
+      logger.error(`[TwilioOpenAI Bridge] send_email error: ${error.message}`);
       return { success: false, message: 'Error sending email.' };
     }
   }
@@ -1401,7 +1401,7 @@ BACKGROUND NOISE HANDLING:
   ): Promise<unknown> {
     const ctx = this.getMessagingContext(session, 'send_whatsapp');
     if (!ctx) {
-      console.warn(`[TwilioOpenAI Bridge] No messaging context found for send_whatsapp`);
+      logger.warn(`[TwilioOpenAI Bridge] No messaging context found for send_whatsapp`);
       return { success: false, message: 'WhatsApp tool not properly configured.' };
     }
 
@@ -1472,7 +1472,7 @@ BACKGROUND NOISE HANDLING:
             }
           }
         } catch (tmplError: any) {
-          console.warn(`[TwilioOpenAI Bridge] Could not fetch template metadata: ${tmplError.message}`);
+          logger.warn(`[TwilioOpenAI Bridge] Could not fetch template metadata: ${tmplError.message}`);
         }
       }
 
@@ -1508,13 +1508,13 @@ BACKGROUND NOISE HANDLING:
           metadata: { agentId: ctx.agentId, source: 'twilio-openai' },
         });
       } catch (convError: any) {
-        console.warn(`[TwilioOpenAI Bridge] Failed to store WhatsApp in conversations: ${convError.message}`);
+        logger.warn(`[TwilioOpenAI Bridge] Failed to store WhatsApp in conversations: ${convError.message}`);
       }
 
       logger.info(`[TwilioOpenAI Bridge] send_whatsapp result: success=true`);
       return { success: true, message: `WhatsApp message sent successfully to ${recipientPhone}` };
     } catch (error: any) {
-      console.error(`[TwilioOpenAI Bridge] send_whatsapp error: ${error.message}`);
+      logger.error(`[TwilioOpenAI Bridge] send_whatsapp error: ${error.message}`);
       return { success: false, message: 'Error sending WhatsApp message.' };
     }
   }
@@ -1535,17 +1535,17 @@ BACKGROUND NOISE HANDLING:
 
     // Verify stream is ready before attempting playback
     if (!twilioStreamReady) {
-      console.error(`[TwilioOpenAI Bridge] Twilio stream not ready for audio playback`);
+      logger.error(`[TwilioOpenAI Bridge] Twilio stream not ready for audio playback`);
       return { success: false, error: 'Twilio stream not ready - please wait for call to connect' };
     }
 
     if (!twilioWs || twilioWs.readyState !== WebSocket.OPEN) {
-      console.error(`[TwilioOpenAI Bridge] Twilio WebSocket not available for audio playback`);
+      logger.error(`[TwilioOpenAI Bridge] Twilio WebSocket not available for audio playback`);
       return { success: false, error: 'Twilio WebSocket not available' };
     }
 
     if (!streamSid) {
-      console.error(`[TwilioOpenAI Bridge] Stream SID not available for audio playback`);
+      logger.error(`[TwilioOpenAI Bridge] Stream SID not available for audio playback`);
       return { success: false, error: 'Stream SID not available' };
     }
 
@@ -1622,7 +1622,7 @@ BACKGROUND NOISE HANDLING:
         const payload = chunk.toString('base64');
 
         if (twilioWs.readyState !== WebSocket.OPEN) {
-          console.warn(`[TwilioOpenAI Bridge] WebSocket closed during playback at chunk ${chunksSent}`);
+          logger.warn(`[TwilioOpenAI Bridge] WebSocket closed during playback at chunk ${chunksSent}`);
           break;
         }
 
@@ -1666,10 +1666,10 @@ BACKGROUND NOISE HANDLING:
       return { success: true };
 
     } catch (error: any) {
-      console.error(`[TwilioOpenAI Bridge] ===== ERROR =====`);
-      console.error(`[TwilioOpenAI Bridge] Error message: ${error.message}`);
+      logger.error(`[TwilioOpenAI Bridge] ===== ERROR =====`);
+      logger.error(`[TwilioOpenAI Bridge] Error message: ${error.message}`);
       if (error.response) {
-        console.error(`[TwilioOpenAI Bridge] Response status: ${error.response.status}`);
+        logger.error(`[TwilioOpenAI Bridge] Response status: ${error.response.status}`);
       }
       return { success: false, error: error.message };
     }
@@ -1734,7 +1734,7 @@ BACKGROUND NOISE HANDLING:
       return mulawData;
 
     } catch (error: any) {
-      console.error(`[TwilioOpenAI Bridge] FFmpeg conversion failed: ${error.message}`);
+      logger.error(`[TwilioOpenAI Bridge] FFmpeg conversion failed: ${error.message}`);
 
       // Clean up temp files on error
       await fsUnlink(inputPath).catch(() => { });

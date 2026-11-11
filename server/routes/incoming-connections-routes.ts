@@ -184,7 +184,7 @@ router.get("/", authenticateHybrid, async (req: AuthRequest, res) => {
       },
     });
   } catch (error: any) {
-    console.error("Error fetching incoming connections:", error);
+    logger.error("Error fetching incoming connections:", error);
     res.status(500).json({ message: "Failed to fetch incoming connections" });
   }
 });
@@ -375,14 +375,14 @@ router.post("/", authenticateHybrid, async (req: AuthRequest, res) => {
           phoneNumber[0].elevenLabsPhoneNumberId = migrationResult.newElevenLabsPhoneId;
           phoneNumber[0].elevenLabsCredentialId = migrationResult.newCredentialId;
         } else {
-          console.error(`❌ [Incoming Connection] Migration failed: ${migrationResult.error}`);
+          logger.error(`❌ [Incoming Connection] Migration failed: ${migrationResult.error}`);
           return res.status(400).json({
             message: "Failed to migrate phone number to agent's ElevenLabs account. The phone and agent must be on the same API key.",
             error: migrationResult.error
           });
         }
       } catch (migrationError: any) {
-        console.error(`❌ [Incoming Connection] Migration error: ${migrationError.message}`);
+        logger.error(`❌ [Incoming Connection] Migration error: ${migrationError.message}`);
         return res.status(500).json({
           message: "Phone number migration failed. Please try again or contact support.",
           error: migrationError.message
@@ -406,9 +406,9 @@ router.post("/", authenticateHybrid, async (req: AuthRequest, res) => {
       logger.info(`✅ [Incoming Connection] Twilio credentials valid (account: ${account.friendlyName})`);
       twilioCredsValid = true;
     } catch (twilioErr: any) {
-      console.error(`❌ [Incoming Connection] Twilio credentials are INVALID: ${twilioErr.message}`);
-      console.error(`   ⚠️ ElevenLabs needs valid Twilio credentials to import phone numbers.`);
-      console.error(`   Fix: Go to Admin Panel → Settings → Twilio and update Account SID + Auth Token.`);
+      logger.error(`❌ [Incoming Connection] Twilio credentials are INVALID: ${twilioErr.message}`);
+      logger.error(`   ⚠️ ElevenLabs needs valid Twilio credentials to import phone numbers.`);
+      logger.error(`   Fix: Go to Admin Panel → Settings → Twilio and update Account SID + Auth Token.`);
       return res.status(400).json({
         message: "Twilio credentials are invalid or missing. ElevenLabs needs valid Twilio credentials to manage phone numbers.",
         error: `Twilio authentication failed: ${twilioErr.message}`,
@@ -427,7 +427,7 @@ router.post("/", authenticateHybrid, async (req: AuthRequest, res) => {
     );
 
     if (!verifyResult.success) {
-      console.error(`❌ [Incoming Connection] Phone verification failed: ${verifyResult.error}`);
+      logger.error(`❌ [Incoming Connection] Phone verification failed: ${verifyResult.error}`);
       return res.status(400).json({
         message: "Phone number is not available on ElevenLabs. Please try re-syncing your phone numbers.",
         error: verifyResult.error,
@@ -491,9 +491,9 @@ router.post("/", authenticateHybrid, async (req: AuthRequest, res) => {
 
       // Guard: Verify ElevenLabs IDs are present (should be set by now from pre-flight)
       if (!phoneNumber[0].elevenLabsPhoneNumberId || !agent[0].elevenLabsAgentId) {
-        console.warn(`⚠️  [ElevenLabs Sync] Missing ElevenLabs IDs after pre-flight - skipping assignment sync`);
-        console.warn(`   Phone has EL ID: ${!!phoneNumber[0].elevenLabsPhoneNumberId}`);
-        console.warn(`   Agent has EL ID: ${!!agent[0].elevenLabsAgentId}`);
+        logger.warn(`⚠️  [ElevenLabs Sync] Missing ElevenLabs IDs after pre-flight - skipping assignment sync`);
+        logger.warn(`   Phone has EL ID: [redacted]`);
+        logger.warn(`   Agent has EL ID: ${!!agent[0].elevenLabsAgentId}`);
         return res.status(201).json(fullConnection[0]);
       }
 
@@ -501,12 +501,12 @@ router.post("/", authenticateHybrid, async (req: AuthRequest, res) => {
       const credential = await elevenLabsPoolModule.ElevenLabsPoolService.getCredentialById(agentCredentialId);
 
       if (!credential) {
-        console.warn(`⚠️  [ElevenLabs Sync] Credential not found - skipping assignment sync`);
+        logger.warn(`⚠️  [ElevenLabs Sync] Credential not found - skipping assignment sync`);
         return res.status(201).json(fullConnection[0]);
       }
 
       if (!credential.isActive) {
-        console.warn(`⚠️  [ElevenLabs Sync] Credential is inactive - skipping assignment sync`);
+        logger.warn(`⚠️  [ElevenLabs Sync] Credential is inactive - skipping assignment sync`);
         return res.status(201).json(fullConnection[0]);
       }
 
@@ -531,18 +531,18 @@ router.post("/", authenticateHybrid, async (req: AuthRequest, res) => {
         logger.info(`   Has workflow: ${hasWorkflow} (incoming agents should NOT have workflows)`);
 
         if (!voice || !model) {
-          console.error(`❌ [ElevenLabs Diag] Agent is MISSING critical configuration! This will cause "application error" on incoming calls.`);
-          console.error(`   Fix: Edit the agent in the dashboard and ensure voice and LLM model are set.`);
+          logger.error(`❌ [ElevenLabs Diag] Agent is MISSING critical configuration! This will cause "application error" on incoming calls.`);
+          logger.error(`   Fix: Edit the agent in the dashboard and ensure voice and LLM model are set.`);
         }
         if (hasWorkflow) {
-          console.error(`❌ [ElevenLabs Diag] Agent has a workflow attached! This causes "Invalid message received" errors with native Twilio integration.`);
-          console.error(`   Fix: Delete and recreate the agent — incoming agents must NOT have workflows.`);
+          logger.error(`❌ [ElevenLabs Diag] Agent has a workflow attached! This causes "Invalid message received" errors with native Twilio integration.`);
+          logger.error(`   Fix: Delete and recreate the agent — incoming agents must NOT have workflows.`);
         }
       } catch (verifyError: any) {
-        console.error(`❌ [ElevenLabs Diag] Agent verification FAILED: ${verifyError.message}`);
-        console.error(`   The agent ID ${agent[0].elevenLabsAgentId} may not exist on ElevenLabs or the API key is invalid.`);
-        console.error(`   This WILL cause "application error" on incoming calls.`);
-        console.error(`   Fix: Re-sync the agent from the Agents page.`);
+        logger.error(`❌ [ElevenLabs Diag] Agent verification FAILED: ${verifyError.message}`);
+        logger.error(`   The agent ID ${agent[0].elevenLabsAgentId} may not exist on ElevenLabs or the API key is invalid.`);
+        logger.error(`   This WILL cause "application error" on incoming calls.`);
+        logger.error(`   Fix: Re-sync the agent from the Agents page.`);
       }
 
       await elevenLabsService.assignAgentToPhoneNumber(
@@ -566,7 +566,7 @@ router.post("/", authenticateHybrid, async (req: AuthRequest, res) => {
         });
         logger.info(`✅ [ElevenLabs Webhook] Webhook configured: ${webhookUrl}`);
       } catch (webhookError: any) {
-        console.error('⚠️  [ElevenLabs Webhook] Failed to configure webhook:', webhookError.message);
+        logger.error('⚠️  [ElevenLabs Webhook] Failed to configure webhook:', webhookError.message);
       }
 
       // Refresh appointment tool with current date context for incoming agents
@@ -577,7 +577,7 @@ router.post("/", authenticateHybrid, async (req: AuthRequest, res) => {
           await elevenLabsService.refreshAppointmentToolWithCurrentDate(agent[0].elevenLabsAgentId!);
           logger.info(`✅ [Incoming Connection] Appointment tool refreshed with current date`);
         } catch (refreshError: any) {
-          console.warn(`⚠️  [Incoming Connection] Failed to refresh appointment tool (non-fatal): ${refreshError.message}`);
+          logger.warn(`⚠️  [Incoming Connection] Failed to refresh appointment tool (non-fatal): ${refreshError.message}`);
         }
       }
 
@@ -586,14 +586,14 @@ router.post("/", authenticateHybrid, async (req: AuthRequest, res) => {
         try {
           await twilioService.configurePhoneWebhookForElevenLabs(phoneNumber[0].twilioSid, phoneNumber[0].phoneNumber);
         } catch (twilioError: any) {
-          console.error('⚠️  [Twilio Config] Failed to configure Twilio webhook:', twilioError);
+          logger.error('⚠️  [Twilio Config] Failed to configure Twilio webhook:', twilioError);
           // Don't fail - the ElevenLabs side is configured, Twilio can be fixed manually
         }
       } else {
-        console.warn(`⚠️  [Twilio Config] No Twilio SID found for phone number - skipping webhook config`);
+        logger.warn(`⚠️  [Twilio Config] No Twilio SID found for phone number - skipping webhook config`);
       }
     } catch (elevenLabsError: any) {
-      console.error('⚠️  [ElevenLabs Sync] Failed to assign agent in ElevenLabs:', elevenLabsError);
+      logger.error('⚠️  [ElevenLabs Sync] Failed to assign agent in ElevenLabs:', elevenLabsError);
       // Don't fail the whole request - connection is created in DB
       // Admin can manually sync later if needed
     }
@@ -601,7 +601,7 @@ router.post("/", authenticateHybrid, async (req: AuthRequest, res) => {
     // Return the full connection
     res.status(201).json(fullConnection[0]);
   } catch (error: any) {
-    console.error("Error creating incoming connection:", error);
+    logger.error("Error creating incoming connection:", error);
     res.status(500).json({ message: "Failed to create incoming connection" });
   }
 });
@@ -680,7 +680,7 @@ router.post("/:id/sync-webhook", authenticateHybrid, async (req: AuthRequest, re
       await elevenLabsService.refreshAppointmentToolWithCurrentDate(conn.agent.elevenLabsAgentId);
       logger.info(`✅ [Webhook Sync] Appointment tool refreshed with current date`);
     } catch (refreshError: any) {
-      console.warn(`⚠️  [Webhook Sync] Failed to refresh appointment tool (non-fatal): ${refreshError.message}`);
+      logger.warn(`⚠️  [Webhook Sync] Failed to refresh appointment tool (non-fatal): ${refreshError.message}`);
     }
 
     res.json({
@@ -689,7 +689,7 @@ router.post("/:id/sync-webhook", authenticateHybrid, async (req: AuthRequest, re
       webhookUrl,
     });
   } catch (error: any) {
-    console.error("Error syncing webhook:", error);
+    logger.error("Error syncing webhook:", error);
     res.status(500).json({ message: "Failed to sync webhook" });
   }
 });
@@ -752,10 +752,10 @@ router.delete("/:id", authenticateHybrid, async (req: AuthRequest, res) => {
 
           logger.info(`✅ [ElevenLabs Sync] Agent unassigned from phone number successfully using credential: ${credential.name}`);
         } else {
-          console.warn(`⚠️  [ElevenLabs Sync] Credential not found - skipping unassignment sync`);
+          logger.warn(`⚠️  [ElevenLabs Sync] Credential not found - skipping unassignment sync`);
         }
       } catch (elevenLabsError: any) {
-        console.error('⚠️  [ElevenLabs Sync] Failed to unassign agent in ElevenLabs:', elevenLabsError);
+        logger.error('⚠️  [ElevenLabs Sync] Failed to unassign agent in ElevenLabs:', elevenLabsError);
         // Continue with deletion even if ElevenLabs sync fails
       }
     }
@@ -765,7 +765,7 @@ router.delete("/:id", authenticateHybrid, async (req: AuthRequest, res) => {
       try {
         await twilioService.clearPhoneWebhook(connection[0].phoneNumber.twilioSid);
       } catch (twilioError: any) {
-        console.error('⚠️  [Twilio Config] Failed to clear Twilio webhook:', twilioError);
+        logger.error('⚠️  [Twilio Config] Failed to clear Twilio webhook:', twilioError);
         // Continue with deletion even if Twilio sync fails
       }
     }
@@ -775,7 +775,7 @@ router.delete("/:id", authenticateHybrid, async (req: AuthRequest, res) => {
 
     res.json({ message: "Connection deleted successfully" });
   } catch (error: any) {
-    console.error("Error deleting incoming connection:", error);
+    logger.error("Error deleting incoming connection:", error);
     res.status(500).json({ message: "Failed to delete incoming connection" });
   }
 });
@@ -974,7 +974,7 @@ router.get("/:id/diagnose", authenticateHybrid, async (req: AuthRequest, res) =>
 
     res.json(diagnostics);
   } catch (error: any) {
-    console.error("Error diagnosing connection:", error);
+    logger.error("Error diagnosing connection:", error);
     res.status(500).json({ message: "Failed to diagnose connection", error: error.message });
   }
 });
@@ -1050,7 +1050,7 @@ router.get("/validate-twilio", authenticateHybrid, async (req: AuthRequest, res)
 
     res.json(result);
   } catch (error: any) {
-    console.error("Error validating Twilio:", error);
+    logger.error("Error validating Twilio:", error);
     res.status(500).json({ message: "Failed to validate Twilio credentials", error: error.message });
   }
 });

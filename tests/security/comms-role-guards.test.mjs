@@ -17,7 +17,8 @@ import { createInboxRouter } from '../../server/modules/inbox/inbox-router.ts';
 import { createMarketingRouter } from '../../server/modules/marketing/marketing-router.ts';
 
 const STAFF = ['admin', 'manager'];
-const COMPANY = 'c1';
+// Exercise validated session tenancy, not the deprecated c1 pseudo-ID.
+const COMPANY = '11111111-1111-4111-8111-111111111111';
 
 // Staff-only routes. Each must have a role guard for STAFF ahead of its service call.
 const GUARDED = [
@@ -216,4 +217,11 @@ test('the campaigns router builds its guard with exactly admin and manager', () 
   build('campaigns', roleCalls, []);
   assert.ok(roleCalls.length >= 1);
   for (const roles of roleCalls) assert.deepEqual(roles, STAFF);
+});
+
+test('authenticated role enforcement cannot be bypassed by adding admin to the body',async()=>{
+ const row=GUARDED.find(x=>x.router==='campaigns'&&x.path==='/campaigns/:id/activation');
+ const calls=[];const fr=build(row.router,[],calls);const res=fakeResponse();
+ await dispatch(handlersFor(fr,row).all,requestFor(row,'member',{role:'admin',userRole:'admin'}),res);
+ assert.equal(res.statusCode,403);assert.equal(calls.length,0);
 });

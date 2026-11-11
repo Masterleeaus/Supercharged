@@ -5,6 +5,7 @@ import { AdminRequest, requireAdminPermission } from '../../middleware/admin-aut
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import { logger } from '../../utils/logger.ts';
 
 const uploadsDir = path.join(process.cwd(), 'client', 'public', 'uploads');
 if (!fs.existsSync(uploadsDir)) {
@@ -57,7 +58,7 @@ export function registerBrandingRoutes(router: Router) {
       
       res.json(branding);
     } catch (error) {
-      console.error('Error fetching branding:', error);
+      logger.error('Error fetching branding:', error);
       res.status(500).json({ error: 'Failed to fetch branding' });
     }
   });
@@ -95,7 +96,7 @@ export function registerBrandingRoutes(router: Router) {
       
       res.json({ success: true });
     } catch (error) {
-      console.error('Error updating branding:', error);
+      logger.error('Error updating branding:', error);
       res.status(500).json({ error: 'Failed to update branding' });
     }
   });
@@ -112,7 +113,7 @@ export function registerBrandingRoutes(router: Router) {
       
       res.json({ success: true, url: logoUrl, logo_url: logoUrl });
     } catch (error) {
-      console.error('Error uploading logo:', error);
+      logger.error('Error uploading logo:', error);
       res.status(500).json({ error: 'Failed to upload logo' });
     }
   });
@@ -129,7 +130,7 @@ export function registerBrandingRoutes(router: Router) {
       
       res.json({ success: true, url: logoUrl, logo_url_light: logoUrl });
     } catch (error) {
-      console.error('Error uploading light logo:', error);
+      logger.error('Error uploading light logo:', error);
       res.status(500).json({ error: 'Failed to upload light logo' });
     }
   });
@@ -146,7 +147,7 @@ export function registerBrandingRoutes(router: Router) {
       
       res.json({ success: true, url: logoUrl, logo_url_dark: logoUrl });
     } catch (error) {
-      console.error('Error uploading dark logo:', error);
+      logger.error('Error uploading dark logo:', error);
       res.status(500).json({ error: 'Failed to upload dark logo' });
     }
   });
@@ -163,7 +164,7 @@ export function registerBrandingRoutes(router: Router) {
       
       res.json({ success: true, url: faviconUrl, favicon_url: faviconUrl });
     } catch (error) {
-      console.error('Error uploading favicon:', error);
+      logger.error('Error uploading favicon:', error);
       res.status(500).json({ error: 'Failed to upload favicon' });
     }
   });
@@ -174,7 +175,7 @@ export function registerBrandingRoutes(router: Router) {
       await storage.updateGlobalSetting('branding_updated_at', new Date().toISOString());
       res.json({ success: true });
     } catch (error) {
-      console.error('Error deleting logo:', error);
+      logger.error('Error deleting logo:', error);
       res.status(500).json({ error: 'Failed to delete logo' });
     }
   });
@@ -185,7 +186,7 @@ export function registerBrandingRoutes(router: Router) {
       await storage.updateGlobalSetting('branding_updated_at', new Date().toISOString());
       res.json({ success: true });
     } catch (error) {
-      console.error('Error deleting light logo:', error);
+      logger.error('Error deleting light logo:', error);
       res.status(500).json({ error: 'Failed to delete light logo' });
     }
   });
@@ -196,7 +197,7 @@ export function registerBrandingRoutes(router: Router) {
       await storage.updateGlobalSetting('branding_updated_at', new Date().toISOString());
       res.json({ success: true });
     } catch (error) {
-      console.error('Error deleting dark logo:', error);
+      logger.error('Error deleting dark logo:', error);
       res.status(500).json({ error: 'Failed to delete dark logo' });
     }
   });
@@ -207,7 +208,7 @@ export function registerBrandingRoutes(router: Router) {
       await storage.updateGlobalSetting('branding_updated_at', new Date().toISOString());
       res.json({ success: true });
     } catch (error) {
-      console.error('Error deleting favicon:', error);
+      logger.error('Error deleting favicon:', error);
       res.status(500).json({ error: 'Failed to delete favicon' });
     }
   });

@@ -24,12 +24,15 @@ export type NextFn = (err?: unknown) => void;
 function hostOf(req: ModeRequest): string | undefined {
   // Host only. X-Forwarded-Host is client-controlled and is never read.
   const raw = req.headers['host'];
-  if (Array.isArray(raw)) return raw[0];
+  if (Array.isArray(raw)) return undefined; // Repeated Host is invalid.
   return raw;
 }
 
 export function deskModeMiddleware(config: DeskModeConfig) {
   return function resolveMode(req: ModeRequest, res: ModeResponse, next: NextFn): void {
+    // Clear any earlier mode if middleware is invoked again on the same request.
+    delete req.deskMode;
+    delete req.deskHost;
     const result = resolveDeskMode(hostOf(req), config);
     if (!result.ok) {
       res.status(404).json({ error: 'not_found' });

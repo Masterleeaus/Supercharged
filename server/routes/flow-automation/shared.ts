@@ -171,7 +171,7 @@ export async function validateWorkingHours(
     logger.info(`📅 [Working Hours] Validated: ${appointmentTime} is within ${daySettings.start} - ${daySettings.end}`);
     return { valid: true };
   } catch (error: any) {
-    console.error(`📅 [Working Hours] Validation error:`, error.message);
+    logger.error(`📅 [Working Hours] Validation error:`, error.message);
     return {
       valid: false,
       message: `I'm having trouble validating the appointment time. Please provide the time in HH:MM format (like "14:00" or "2:30 PM").`

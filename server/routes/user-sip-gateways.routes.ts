@@ -139,7 +139,7 @@ import { logger } from '../utils/logger';
 
     logger.info('[UserSipGateways] Tables ready');
   } catch (err: any) {
-    console.error('[UserSipGateways] Failed to create tables:', err.message);
+    logger.error('[UserSipGateways] Failed to create tables:', err.message);
   }
 })();
 
@@ -163,7 +163,7 @@ export function createUserSipGatewaysRoutes(): Router {
         });
       }
     } catch (err) {
-      console.error('[UserSipGateways] checkDemoAccount error:', err);
+      logger.error('[UserSipGateways] checkDemoAccount error:', err);
     }
     next();
   };
@@ -197,7 +197,7 @@ export function createUserSipGatewaysRoutes(): Router {
 
       res.json({ success: true, data: rows });
     } catch (err: any) {
-      console.error('[UserSipGateways] GET gateways error:', err.message);
+      logger.error('[UserSipGateways] GET gateways error:', err.message);
       res.status(500).json({ error: 'Failed to fetch gateways' });
     }
   });
@@ -222,7 +222,7 @@ export function createUserSipGatewaysRoutes(): Router {
 
       res.status(201).json({ success: true, data: result.rows[0] });
     } catch (err: any) {
-      console.error('[UserSipGateways] POST gateway error:', err.message);
+      logger.error('[UserSipGateways] POST gateway error:', err.message);
       res.status(500).json({ error: 'Failed to create gateway' });
     }
   });
@@ -258,7 +258,7 @@ export function createUserSipGatewaysRoutes(): Router {
 
       res.json({ success: true, data: result.rows[0] });
     } catch (err: any) {
-      console.error('[UserSipGateways] PUT gateway error:', err.message);
+      logger.error('[UserSipGateways] PUT gateway error:', err.message);
       res.status(500).json({ error: 'Failed to update gateway' });
     }
   });
@@ -281,7 +281,7 @@ export function createUserSipGatewaysRoutes(): Router {
       await db.execute(sql`DELETE FROM user_sip_gateways WHERE id = ${id} AND user_id = ${userId}`);
       res.json({ success: true, message: 'Gateway deleted' });
     } catch (err: any) {
-      console.error('[UserSipGateways] DELETE gateway error:', err.message);
+      logger.error('[UserSipGateways] DELETE gateway error:', err.message);
       res.status(500).json({ error: 'Failed to delete gateway' });
     }
   });
@@ -314,7 +314,7 @@ export function createUserSipGatewaysRoutes(): Router {
 
       res.json({ success: true, data: result.rows[0] });
     } catch (err: any) {
-      console.error('[UserSipGateways] Activate gateway error:', err.message);
+      logger.error('[UserSipGateways] Activate gateway error:', err.message);
       res.status(500).json({ error: 'Failed to activate gateway' });
     }
   });
@@ -348,7 +348,7 @@ export function createUserSipGatewaysRoutes(): Router {
 
       res.json({ success: true, data: rows });
     } catch (err: any) {
-      console.error('[UserSipGateways] GET phone numbers error:', err.message);
+      logger.error('[UserSipGateways] GET phone numbers error:', err.message);
       res.status(500).json({ error: 'Failed to fetch phone numbers' });
     }
   });
@@ -397,7 +397,7 @@ export function createUserSipGatewaysRoutes(): Router {
 
       res.status(201).json({ success: true, data: result.rows[0] });
     } catch (err: any) {
-      console.error('[UserSipGateways] POST phone number error:', err);
+      logger.error('[UserSipGateways] POST phone number error:', err);
       res.status(500).json({ error: 'Failed to add phone number' });
     }
   });
@@ -440,7 +440,7 @@ export function createUserSipGatewaysRoutes(): Router {
 
       res.json({ success: true, data: result.rows[0] });
     } catch (err: any) {
-      console.error('[UserSipGateways] PUT phone number error:', err);
+      logger.error('[UserSipGateways] PUT phone number error:', err);
       res.status(500).json({ error: 'Failed to update phone number' });
     }
   });
@@ -463,7 +463,7 @@ export function createUserSipGatewaysRoutes(): Router {
       await db.execute(sql`DELETE FROM user_sip_phone_numbers WHERE id = ${id} AND user_id = ${userId}`);
       res.json({ success: true, message: 'Phone number deleted' });
     } catch (err: any) {
-      console.error('[UserSipGateways] DELETE phone number error:', err.message);
+      logger.error('[UserSipGateways] DELETE phone number error:', err.message);
       res.status(500).json({ error: 'Failed to delete phone number' });
     }
   });

@@ -10,6 +10,7 @@
 import { db } from "./db";
 import { plivoPhonePricing } from "@shared/schema";
 import { eq } from "drizzle-orm";
+import { logger } from './utils/logger.ts';
 
 export const PLIVO_PRICING_SEED_DATA = [
   {
@@ -191,7 +192,7 @@ export const PLIVO_PRICING_SEED_DATA = [
 ];
 
 export async function seedPlivoPhonePricing() {
-  console.log("📞 Seeding Plivo Phone Pricing...");
+  logger.info("📞 Seeding Plivo Phone Pricing...");
 
   try {
     let seededCount = 0;
@@ -210,12 +211,12 @@ export async function seedPlivoPhonePricing() {
     }
 
     if (seededCount > 0) {
-      console.log(`   ✅ Seeded ${seededCount} new Plivo phone pricing countries`);
+      logger.info(`   ✅ Seeded ${seededCount} new Plivo phone pricing countries`);
     } else {
-      console.log("   ℹ️  All Plivo Phone Pricing countries already exist, skipping...");
+      logger.info("   ℹ️  All Plivo Phone Pricing countries already exist, skipping...");
     }
   } catch (error) {
-    console.error("❌ Error seeding Plivo Phone Pricing:", error);
+    logger.error("❌ Error seeding Plivo Phone Pricing:", error);
     throw error;
   }
 }
@@ -227,11 +228,11 @@ const isRunningStandalone = process.argv[1]?.includes('seed-plivo-pricing') &&
 if (isRunningStandalone) {
   seedPlivoPhonePricing()
     .then(() => {
-      console.log("✅ Plivo Phone Pricing seeding complete!");
+      logger.info("✅ Plivo Phone Pricing seeding complete!");
       process.exit(0);
     })
     .catch((error) => {
-      console.error("❌ Plivo Phone Pricing seeding failed:", error);
+      logger.error("❌ Plivo Phone Pricing seeding failed:", error);
       process.exit(1);
     });
 }

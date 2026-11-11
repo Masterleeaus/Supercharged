@@ -15,6 +15,7 @@
  * ============================================================
  */
 import { logger } from '../utils/logger';
+import type { ElevenLabsWorkflow } from './enhanced-flow-compiler';
 /**
  * Outbound Call Service
  * 
@@ -31,7 +32,7 @@ export interface OutboundCallParams {
   toNumber: string;
   firstMessage?: string;
   dynamicData?: Record<string, string>;
-  workflow?: any;
+  workflow?: ElevenLabsWorkflow;
   webhookTools?: any[];
   conversationInitiationClientData?: {
     conversationConfigOverride?: {
@@ -42,7 +43,7 @@ export interface OutboundCallParams {
         first_message?: string;
         conversation_config?: any;
       };
-      workflow?: any;
+      workflow?: ElevenLabsWorkflow;
     };
     webhook_tools?: any[];
     dynamic_variables?: Record<string, string>;
@@ -154,14 +155,14 @@ export class OutboundCallService {
 
       if (!response.ok) {
         const errorMsg = `ElevenLabs outbound call failed: ${response.status} - ${responseText}`;
-        console.error(`❌ [OutboundCallService] ${errorMsg}`);
+        logger.error(`❌ [OutboundCallService] ${errorMsg}`);
         throw new Error(errorMsg);
       }
 
       const result = JSON.parse(responseText);
 
       if (result.success === false) {
-        console.error(`❌ [OutboundCallService] Call failed to initiate: ${result.message || 'Unknown ElevenLabs error'}`);
+        logger.error(`❌ [OutboundCallService] Call failed to initiate: ${result.message || 'Unknown ElevenLabs error'}`);
       } else {
         logger.info(`✅ [OutboundCallService] Call initiated successfully`);
       }
@@ -179,7 +180,7 @@ export class OutboundCallService {
         callSid: result.callSid || result.call_sid || null,
       };
     } catch (error) {
-      console.error(`❌ [OutboundCallService] Error initiating call:`, error);
+      logger.error(`❌ [OutboundCallService] Error initiating call:`, error);
       throw error;
     }
   }

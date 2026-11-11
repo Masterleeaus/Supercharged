@@ -21,6 +21,7 @@ import { checkAdminOrTeamMember, requireAdminPermission, AdminRequest } from '..
 import { z } from 'zod';
 import nodemailer from 'nodemailer';
 import { emailService } from '../services/email-service';
+import { logger } from '../utils/logger.ts';
 
 const router = Router();
 
@@ -183,7 +184,7 @@ router.get('/', requireAdminPermission('communications', 'email_settings', 'read
       },
     });
   } catch (error: any) {
-    console.error('Error fetching email notification settings:', error);
+    logger.error('Error fetching email notification settings:', error);
     
     let errorMessage = 'Failed to fetch email notification settings';
     let errorCode = 'EMAIL_SETTINGS_ERROR';
@@ -242,7 +243,7 @@ router.post('/test-smtp', requireAdminPermission('communications', 'email_settin
         });
       }
     } catch (verifyError: any) {
-      console.error('[SMTP Test] Verification failed:', verifyError);
+      logger.error('[SMTP Test] Verification failed:', verifyError);
       res.json({
         success: false,
         error: verifyError.message || 'SMTP verification failed',
@@ -252,7 +253,7 @@ router.post('/test-smtp', requireAdminPermission('communications', 'email_settin
       });
     }
   } catch (error: any) {
-    console.error('[SMTP Test] Error:', error);
+    logger.error('[SMTP Test] Error:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to test SMTP connection',
@@ -287,7 +288,7 @@ router.put('/:eventType', requireAdminPermission('communications', 'email_settin
       setting: updatedSetting,
     });
   } catch (error) {
-    console.error('Error updating email notification setting:', error);
+    logger.error('Error updating email notification setting:', error);
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: 'Invalid request data', details: error.issues });
     }
@@ -328,7 +329,7 @@ router.put('/', requireAdminPermission('communications', 'email_settings', 'upda
       settings: allSettings,
     });
   } catch (error) {
-    console.error('Error bulk updating email notification settings:', error);
+    logger.error('Error bulk updating email notification settings:', error);
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: 'Invalid request data', details: error.issues });
     }
@@ -370,7 +371,7 @@ router.post('/save-smtp', requireAdminPermission('communications', 'email_settin
         : 'SMTP settings saved but email service could not reinitialize',
     });
   } catch (error) {
-    console.error('Error saving SMTP settings:', error);
+    logger.error('Error saving SMTP settings:', error);
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: 'Invalid SMTP settings', details: error.issues });
     }
@@ -389,7 +390,7 @@ router.post('/reinitialize', requireAdminPermission('communications', 'email_set
         : 'Could not reinitialize - check SMTP settings in database',
     });
   } catch (error) {
-    console.error('Error reinitializing email service:', error);
+    logger.error('Error reinitializing email service:', error);
     res.status(500).json({ error: 'Failed to reinitialize email service' });
   }
 });

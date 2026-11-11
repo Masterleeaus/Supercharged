@@ -221,8 +221,8 @@ export function createCampaignService(deps: CampaignServiceDeps): CampaignServic
    * Quiet-hours window for a job: the company setting when one exists, else deps.quietHours.
    * The window is not tied to a timezone here. checkConsent reads it in the recipient's timezone.
    */
-  function quietWindow(companyId: string, job: SendJob): QuietHours | null {
-    const stored = companySettings.getQuietHours(companyId);
+  async function quietWindow(companyId: string, job: SendJob): Promise<QuietHours | null> {
+    const stored = await companySettings.getQuietHours(companyId);
     if (stored && stored.ok && stored.settings) {
       const { startHour, endHour } = stored.settings;
       return { startHour, endHour };
@@ -263,7 +263,7 @@ export function createCampaignService(deps: CampaignServiceDeps): CampaignServic
       channel: job.channel,
       contact,
       now: now(),
-      quietHours: quietWindow(companyId, job),
+      quietHours: await quietWindow(companyId, job),
     });
   }
 

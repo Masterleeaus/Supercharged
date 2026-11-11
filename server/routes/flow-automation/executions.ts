@@ -101,7 +101,7 @@ export function registerExecutionRoutes(router: Router): void {
             }
           }
         } catch (err) {
-          console.error("Error fetching ve_sessions details for flow executions:", err);
+          logger.error("Error fetching ve_sessions details for flow executions:", err);
         }
       }
 
@@ -325,7 +325,7 @@ export function registerExecutionRoutes(router: Router): void {
 
       res.json(enrichedExecutions);
     } catch (error: any) {
-      console.error("Error fetching flow executions:", error);
+      logger.error("Error fetching flow executions:", error);
       res.status(500).json({ error: "Failed to fetch flow executions" });
     }
   });

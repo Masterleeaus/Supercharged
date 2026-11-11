@@ -156,7 +156,7 @@ export async function batchInsertCalls(
     } catch (error: any) {
       result.failed += chunk.length;
       result.errors.push(`Chunk ${i + 1}: ${error.message}`);
-      console.error(`${logPrefix} ❌ Chunk ${i + 1} failed: ${error.message}`);
+      logger.error(`${logPrefix} ❌ Chunk ${i + 1} failed: ${error.message}`);
       
       for (const callInsert of chunk) {
         try {
@@ -165,7 +165,7 @@ export async function batchInsertCalls(
           result.inserted++;
           result.failed--;
         } catch (singleError: any) {
-          console.warn(`${logPrefix} ⚠️ Single insert failed for ${callInsert.phoneNumber}: ${singleError.message}`);
+          logger.warn(`${logPrefix} ⚠️ Single insert failed for [redacted]: ${singleError.message}`);
         }
       }
     }
@@ -253,7 +253,7 @@ export async function batchInsertFlowExecutions(
     } catch (error: any) {
       result.failed += chunk.length;
       result.errors.push(`Chunk ${i + 1}: ${error.message}`);
-      console.error(`${logPrefix} ❌ Chunk ${i + 1} failed: ${error.message}`);
+      logger.error(`${logPrefix} ❌ Chunk ${i + 1} failed: ${error.message}`);
       
       for (const execInsert of chunk) {
         try {
@@ -262,7 +262,7 @@ export async function batchInsertFlowExecutions(
           result.inserted++;
           result.failed--;
         } catch (singleError: any) {
-          console.warn(`${logPrefix} ⚠️ Single insert failed: ${singleError.message}`);
+          logger.warn(`${logPrefix} ⚠️ Single insert failed: ${singleError.message}`);
         }
       }
     }
@@ -347,7 +347,7 @@ export async function batchInsertContacts(
     } catch (error: any) {
       result.failed += chunk.length;
       result.errors.push(`Chunk ${i + 1}: ${error.message}`);
-      console.error(`${logPrefix} ❌ Chunk ${i + 1} failed: ${error.message}`);
+      logger.error(`${logPrefix} ❌ Chunk ${i + 1} failed: ${error.message}`);
       
       for (const contactInsert of chunk) {
         try {
@@ -360,7 +360,7 @@ export async function batchInsertContacts(
           result.inserted++;
           result.failed--;
         } catch (singleError: any) {
-          console.warn(`${logPrefix} ⚠️ Single insert failed for ${contactInsert.phone}: ${singleError.message}`);
+          logger.warn(`${logPrefix} ⚠️ Single insert failed for [redacted]: ${singleError.message}`);
         }
       }
     }
@@ -411,7 +411,7 @@ export async function processInChunks<T, R>(
       }
     } catch (error: any) {
       failedCount += chunk.length;
-      console.error(`${logPrefix} ❌ Chunk ${i + 1} failed: ${error.message}`);
+      logger.error(`${logPrefix} ❌ Chunk ${i + 1} failed: ${error.message}`);
     }
   }
 

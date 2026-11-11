@@ -40,6 +40,11 @@ export const CONTRACT_FLAGS = {
   EXTERNAL_CALENDARS_ENABLED: "CHATBOT_EXTERNAL_CALENDARS_ENABLED",
   /** Outbound customer webhooks from the outbox. */
   OUTBOUND_WEBHOOKS_ENABLED: "CHATBOT_OUTBOUND_WEBHOOKS_ENABLED",
+  /**
+   * Appointment reminder pipeline (senders, delivery ledger, appointment.reminder_sent outbox event). Off by default.
+   * It also needs CHATBOT_WORKERS_ENABLED, because the reminders job runs inside the workers runner.
+   */
+  REMINDERS_ENABLED: "CHATBOT_REMINDERS_ENABLED",
   /** WhatsApp channel. Added by the channels change request 1. The value matches channels/whatsapp. */
   WHATSAPP_CHANNEL: "CHATBOT_WHATSAPP_CHANNEL_ENABLED",
   /** Instagram channel. Added by the Instagram change request. Off by default. */

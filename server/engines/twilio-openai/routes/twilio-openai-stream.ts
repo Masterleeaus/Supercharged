@@ -43,7 +43,7 @@ export function setupTwilioOpenAIStreamHandler(httpServer: HttpServer): void {
       const callSid = pathname.split('/api/twilio-openai/stream/')[1];
       
       if (!callSid) {
-        console.error(`[TwilioOpenAI Stream] Invalid stream URL: ${pathname}`);
+        logger.error(`[TwilioOpenAI Stream] Invalid stream URL: ${pathname}`);
         socket.destroy();
         return;
       }
@@ -58,12 +58,12 @@ export function setupTwilioOpenAIStreamHandler(httpServer: HttpServer): void {
           .limit(1);
         
         if (!existingCall) {
-          console.error(`[TwilioOpenAI Stream] Security: Rejecting stream for unknown call SID: ${callSid}`);
+          logger.error(`[TwilioOpenAI Stream] Security: Rejecting stream for unknown call SID: ${callSid}`);
           socket.destroy();
           return;
         }
       } catch (err: any) {
-        console.error(`[TwilioOpenAI Stream] Security: Database error validating call SID: ${err.message}`);
+        logger.error(`[TwilioOpenAI Stream] Security: Database error validating call SID: ${err.message}`);
         socket.destroy();
         return;
       }
@@ -137,7 +137,7 @@ function handleTwilioStreamConnection(ws: WebSocket, callSid: string): void {
       }
 
     } catch (error: any) {
-      console.error(`[TwilioOpenAI Stream] Error processing message:`, error.message);
+      logger.error(`[TwilioOpenAI Stream] Error processing message:`, error.message);
     }
   });
 
@@ -262,12 +262,12 @@ function handleTwilioStreamConnection(ws: WebSocket, callSid: string): void {
         }
       }
     } catch (err: any) {
-      console.error(`[TwilioOpenAI Stream] Error ending session:`, err.message);
+      logger.error(`[TwilioOpenAI Stream] Error ending session:`, err.message);
     }
   });
 
   ws.on('error', (error: Error) => {
-    console.error(`[TwilioOpenAI Stream] WebSocket error for ${callSid}:`, error.message);
+    logger.error(`[TwilioOpenAI Stream] WebSocket error for ${callSid}:`, error.message);
   });
 }
 

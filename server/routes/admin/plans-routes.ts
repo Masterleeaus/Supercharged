@@ -57,7 +57,7 @@ async function getStripeClient(): Promise<Stripe | null> {
     
     return new Stripe(secretKey, { apiVersion: '2025-10-29.clover' });
   } catch (error) {
-    console.error('Error initializing Stripe client:', error);
+    logger.error('Error initializing Stripe client:', error);
     return null;
   }
 }
@@ -67,7 +67,7 @@ async function getDefaultCurrency(): Promise<string> {
     const currencyConfig = await getStripeCurrency();
     return currencyConfig.currency;
   } catch (error) {
-    console.error('Error getting default currency:', error);
+    logger.error('Error getting default currency:', error);
     return 'USD';
   }
 }
@@ -95,7 +95,7 @@ export function registerPlansRoutes(router: Router) {
       const plans = await storage.getAllPlans();
       res.json(plans);
     } catch (error) {
-      console.error('Error fetching plans:', error);
+      logger.error('Error fetching plans:', error);
       res.status(500).json({ error: 'Failed to fetch plans' });
     }
   });
@@ -165,7 +165,7 @@ export function registerPlansRoutes(router: Router) {
           }
           gatewaySync.razorpay = { status: 'success' };
         } catch (razorpayError: any) {
-          console.error('❌ [Razorpay] Error syncing plan to Razorpay:', razorpayError.message);
+          logger.error('❌ [Razorpay] Error syncing plan to Razorpay:', razorpayError.message);
           gatewaySync.razorpay = { status: 'failed', error: razorpayError.message };
         }
       }
@@ -221,7 +221,7 @@ export function registerPlansRoutes(router: Router) {
           logger.info(`✅ [Stripe] Created product ${stripeProduct.id} and prices for plan ${newPlan.id}`);
           gatewaySync.stripe = { status: 'success' };
         } catch (stripeError: any) {
-          console.error('❌ [Stripe] Error syncing plan to Stripe:', stripeError.message);
+          logger.error('❌ [Stripe] Error syncing plan to Stripe:', stripeError.message);
           gatewaySync.stripe = { status: 'failed', error: stripeError.message };
         }
       }
@@ -285,7 +285,7 @@ export function registerPlansRoutes(router: Router) {
           }
           gatewaySync.paypal = { status: 'success' };
         } catch (paypalError: any) {
-          console.error('❌ [PayPal] Error syncing plan to PayPal:', paypalError.message);
+          logger.error('❌ [PayPal] Error syncing plan to PayPal:', paypalError.message);
           gatewaySync.paypal = { status: 'failed', error: paypalError.message };
         }
       }
@@ -329,7 +329,7 @@ export function registerPlansRoutes(router: Router) {
           }
           gatewaySync.paystack = { status: 'success' };
         } catch (paystackError: any) {
-          console.error('❌ [Paystack] Error syncing plan to Paystack:', paystackError.message);
+          logger.error('❌ [Paystack] Error syncing plan to Paystack:', paystackError.message);
           gatewaySync.paystack = { status: 'failed', error: paystackError.message };
         }
       }
@@ -381,7 +381,7 @@ export function registerPlansRoutes(router: Router) {
           }
           gatewaySync.mercadopago = { status: 'success' };
         } catch (mercadopagoError: any) {
-          console.error('❌ [MercadoPago] Error syncing plan to MercadoPago:', mercadopagoError.message);
+          logger.error('❌ [MercadoPago] Error syncing plan to MercadoPago:', mercadopagoError.message);
           gatewaySync.mercadopago = { status: 'failed', error: mercadopagoError.message };
         }
       }
@@ -407,14 +407,14 @@ export function registerPlansRoutes(router: Router) {
           }
           gatewaySync.yookassa = { status: 'success' };
         } catch (yookassaError: any) {
-          console.error('❌ [YooKassa] Error syncing plan to YooKassa:', yookassaError.message);
+          logger.error('❌ [YooKassa] Error syncing plan to YooKassa:', yookassaError.message);
           gatewaySync.yookassa = { status: 'failed', error: yookassaError.message };
         }
       }
       
       res.json({ plan: newPlan, gatewaySync });
     } catch (error: any) {
-      console.error('Error creating plan:', error);
+      logger.error('Error creating plan:', error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ error: 'Validation failed', details: error.issues });
       }
@@ -529,7 +529,7 @@ export function registerPlansRoutes(router: Router) {
           
           gatewaySync.razorpay = { status: 'success' };
         } catch (razorpayError: any) {
-          console.error('❌ [Razorpay] Error syncing plan to Razorpay:', razorpayError.message);
+          logger.error('❌ [Razorpay] Error syncing plan to Razorpay:', razorpayError.message);
           gatewaySync.razorpay = { status: 'failed', error: razorpayError.message };
           // Continue with update without blocking
         }
@@ -594,7 +594,7 @@ export function registerPlansRoutes(router: Router) {
                 await stripe.prices.update(existingPlan.stripeMonthlyPriceId, { active: false });
                 logger.info(`📦 [Stripe] Archived old monthly price ${existingPlan.stripeMonthlyPriceId}`);
               } catch (archiveErr: any) {
-                console.warn(`⚠️ [Stripe] Could not archive old monthly price: ${archiveErr.message}`);
+                logger.warn(`⚠️ [Stripe] Could not archive old monthly price: ${archiveErr.message}`);
               }
             }
             
@@ -620,7 +620,7 @@ export function registerPlansRoutes(router: Router) {
               await stripe.prices.update(existingPlan.stripeMonthlyPriceId, { active: false });
               logger.info(`📦 [Stripe] Archived monthly price ${existingPlan.stripeMonthlyPriceId} (plan now free)`);
             } catch (archiveErr: any) {
-              console.warn(`⚠️ [Stripe] Could not archive monthly price: ${archiveErr.message}`);
+              logger.warn(`⚠️ [Stripe] Could not archive monthly price: ${archiveErr.message}`);
             }
             updateData.stripeMonthlyPriceId = null;
             logger.info(`ℹ️ [Stripe] Cleared monthly price ID for free plan`);
@@ -643,7 +643,7 @@ export function registerPlansRoutes(router: Router) {
                 await stripe.prices.update(existingPlan.stripeYearlyPriceId, { active: false });
                 logger.info(`📦 [Stripe] Archived old yearly price ${existingPlan.stripeYearlyPriceId}`);
               } catch (archiveErr: any) {
-                console.warn(`⚠️ [Stripe] Could not archive old yearly price: ${archiveErr.message}`);
+                logger.warn(`⚠️ [Stripe] Could not archive old yearly price: ${archiveErr.message}`);
               }
             }
             
@@ -669,7 +669,7 @@ export function registerPlansRoutes(router: Router) {
               await stripe.prices.update(existingPlan.stripeYearlyPriceId, { active: false });
               logger.info(`📦 [Stripe] Archived yearly price ${existingPlan.stripeYearlyPriceId} (plan now free)`);
             } catch (archiveErr: any) {
-              console.warn(`⚠️ [Stripe] Could not archive yearly price: ${archiveErr.message}`);
+              logger.warn(`⚠️ [Stripe] Could not archive yearly price: ${archiveErr.message}`);
             }
             updateData.stripeYearlyPriceId = null;
             logger.info(`ℹ️ [Stripe] Cleared yearly price ID for free plan`);
@@ -677,7 +677,7 @@ export function registerPlansRoutes(router: Router) {
           
           gatewaySync.stripe = { status: 'success' };
         } catch (stripeError: any) {
-          console.error('❌ [Stripe] Error syncing plan update to Stripe:', stripeError.message);
+          logger.error('❌ [Stripe] Error syncing plan update to Stripe:', stripeError.message);
           gatewaySync.stripe = { status: 'failed', error: stripeError.message };
           // Continue with update without blocking
         }
@@ -720,7 +720,7 @@ export function registerPlansRoutes(router: Router) {
           }
           gatewaySync.yookassa = { status: 'success' };
         } catch (yookassaError: any) {
-          console.error('❌ [YooKassa] Error syncing plan update to YooKassa:', yookassaError.message);
+          logger.error('❌ [YooKassa] Error syncing plan update to YooKassa:', yookassaError.message);
           gatewaySync.yookassa = { status: 'failed', error: yookassaError.message };
         }
       }
@@ -737,7 +737,7 @@ export function registerPlansRoutes(router: Router) {
       gatewaySync.yookassa = gatewaySync.yookassa || { status: 'skipped' };
       res.json({ success: true, plan: updatedPlan, gatewaySync });
     } catch (error: any) {
-      console.error('Error updating plan:', error);
+      logger.error('Error updating plan:', error);
       // Return 400 for validation errors, 500 for internal errors
       if (error.name === 'ZodError') {
         return res.status(400).json({ 
@@ -772,7 +772,7 @@ export function registerPlansRoutes(router: Router) {
         users: usersOnPlan.map(u => ({ id: u.id, name: u.name, email: u.email }))
       });
     } catch (error: any) {
-      console.error('Error fetching plan users:', error);
+      logger.error('Error fetching plan users:', error);
       res.status(500).json({ error: 'Failed to fetch plan users' });
     }
   });
@@ -819,7 +819,7 @@ export function registerPlansRoutes(router: Router) {
         targetPlanName: targetPlan.displayName
       });
     } catch (error: any) {
-      console.error('Error migrating users:', error);
+      logger.error('Error migrating users:', error);
       res.status(500).json({ error: 'Failed to migrate users' });
     }
   });
@@ -849,7 +849,7 @@ export function registerPlansRoutes(router: Router) {
       await storage.deletePlan(planId);
       res.json({ success: true });
     } catch (error: any) {
-      console.error('Error deleting plan:', error);
+      logger.error('Error deleting plan:', error);
       res.status(500).json({ error: 'Failed to delete plan' });
     }
   });
@@ -926,7 +926,7 @@ export function registerPlansRoutes(router: Router) {
         stripeYearlyPriceId
       });
     } catch (error: any) {
-      console.error('Error syncing plan to Stripe:', error);
+      logger.error('Error syncing plan to Stripe:', error);
       res.status(500).json({ error: 'Failed to sync plan to Stripe' });
     }
   });
@@ -988,7 +988,7 @@ export function registerPlansRoutes(router: Router) {
               logger.info(`ℹ️ [Razorpay] Monthly price unchanged, keeping existing plan ${razorpayPlanId}`);
             }
           } catch (fetchErr: any) {
-            console.warn(`⚠️ [Razorpay] Could not verify monthly plan price, keeping existing: ${fetchErr.message}`);
+            logger.warn(`⚠️ [Razorpay] Could not verify monthly plan price, keeping existing: ${fetchErr.message}`);
           }
         }
       }
@@ -1029,7 +1029,7 @@ export function registerPlansRoutes(router: Router) {
               logger.info(`ℹ️ [Razorpay] Yearly price unchanged, keeping existing plan ${razorpayYearlyPlanId}`);
             }
           } catch (fetchErr: any) {
-            console.warn(`⚠️ [Razorpay] Could not verify yearly plan price, keeping existing: ${fetchErr.message}`);
+            logger.warn(`⚠️ [Razorpay] Could not verify yearly plan price, keeping existing: ${fetchErr.message}`);
           }
         }
       }
@@ -1042,7 +1042,7 @@ export function registerPlansRoutes(router: Router) {
         razorpayYearlyPlanId
       });
     } catch (error: any) {
-      console.error('Error syncing plan to Razorpay:', error);
+      logger.error('Error syncing plan to Razorpay:', error);
       res.status(500).json({ error: 'Failed to sync plan to Razorpay' });
     }
   });
@@ -1108,7 +1108,7 @@ export function registerPlansRoutes(router: Router) {
               try {
                 await deactivatePayPalPlan(paypalMonthlyPlanId);
               } catch (deactivateErr: any) {
-                console.warn(`⚠️ [PayPal] Could not deactivate old monthly plan: ${deactivateErr.message}`);
+                logger.warn(`⚠️ [PayPal] Could not deactivate old monthly plan: ${deactivateErr.message}`);
               }
               const monthlyPlan = await createPayPalPlan({
                 productId: paypalProductId,
@@ -1130,7 +1130,7 @@ export function registerPlansRoutes(router: Router) {
               logger.info(`ℹ️ [PayPal] Monthly price unchanged, keeping existing plan ${paypalMonthlyPlanId}`);
             }
           } catch (fetchErr: any) {
-            console.warn(`⚠️ [PayPal] Could not verify monthly plan price, keeping existing: ${fetchErr.message}`);
+            logger.warn(`⚠️ [PayPal] Could not verify monthly plan price, keeping existing: ${fetchErr.message}`);
           }
         }
       }
@@ -1164,7 +1164,7 @@ export function registerPlansRoutes(router: Router) {
               try {
                 await deactivatePayPalPlan(paypalYearlyPlanId);
               } catch (deactivateErr: any) {
-                console.warn(`⚠️ [PayPal] Could not deactivate old yearly plan: ${deactivateErr.message}`);
+                logger.warn(`⚠️ [PayPal] Could not deactivate old yearly plan: ${deactivateErr.message}`);
               }
               const yearlyPlan = await createPayPalPlan({
                 productId: paypalProductId,
@@ -1186,7 +1186,7 @@ export function registerPlansRoutes(router: Router) {
               logger.info(`ℹ️ [PayPal] Yearly price unchanged, keeping existing plan ${paypalYearlyPlanId}`);
             }
           } catch (fetchErr: any) {
-            console.warn(`⚠️ [PayPal] Could not verify yearly plan price, keeping existing: ${fetchErr.message}`);
+            logger.warn(`⚠️ [PayPal] Could not verify yearly plan price, keeping existing: ${fetchErr.message}`);
           }
         }
       }
@@ -1202,7 +1202,7 @@ export function registerPlansRoutes(router: Router) {
         paypalYearlyPlanId
       });
     } catch (error: any) {
-      console.error('Error syncing plan to PayPal:', error);
+      logger.error('Error syncing plan to PayPal:', error);
       res.status(500).json({ error: 'Failed to sync plan to PayPal' });
     }
   });
@@ -1263,7 +1263,7 @@ export function registerPlansRoutes(router: Router) {
         paystackYearlyPlanCode
       });
     } catch (error: any) {
-      console.error('Error syncing plan to Paystack:', error);
+      logger.error('Error syncing plan to Paystack:', error);
       res.status(500).json({ error: 'Failed to sync plan to Paystack' });
     }
   });
@@ -1334,7 +1334,7 @@ export function registerPlansRoutes(router: Router) {
         mercadopagoYearlyPlanId
       });
     } catch (error: any) {
-      console.error('Error syncing plan to MercadoPago:', error);
+      logger.error('Error syncing plan to MercadoPago:', error);
       res.status(500).json({ error: 'Failed to sync plan to MercadoPago' });
     }
   });
@@ -1381,7 +1381,7 @@ export function registerPlansRoutes(router: Router) {
         yookassaYearlyPlanId
       });
     } catch (error: any) {
-      console.error('Error syncing plan to YooKassa:', error);
+      logger.error('Error syncing plan to YooKassa:', error);
       res.status(500).json({ error: 'Failed to sync plan to YooKassa' });
     }
   });

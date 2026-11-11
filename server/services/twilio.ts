@@ -231,7 +231,7 @@ export class TwilioService {
     try {
       numbers = await client.availablePhoneNumbers(country).local.list(listOptions);
     } catch (err: any) {
-      console.warn(`Local search failed for ${country}: ${err.message}`);
+      logger.warn(`Local search failed for ${country}: ${err.message}`);
     }
 
     // Fallback: If searching local returns no numbers, check mobile and national
@@ -256,7 +256,7 @@ export class TwilioService {
           }));
         }
       } catch (err: any) {
-        console.warn(`Mobile fallback search failed for ${country}: ${err.message}`);
+        logger.warn(`Mobile fallback search failed for ${country}: ${err.message}`);
       }
 
       logger.info(`📞 [Search] No mobile numbers found. Fetching national numbers for ${country}`);
@@ -276,7 +276,7 @@ export class TwilioService {
           }));
         }
       } catch (err: any) {
-        console.warn(`National fallback search failed for ${country}: ${err.message}`);
+        logger.warn(`National fallback search failed for ${country}: ${err.message}`);
       }
     }
 
@@ -658,7 +658,7 @@ export class TwilioService {
       logger.info(`📋 [Regulatory] Requirements for ${isoCountry}/${numberType}: address=${result.addressRequired}, bundle=${result.bundleRequired}`);
       return result;
     } catch (error: any) {
-      console.warn(`📋 [Regulatory] Could not fetch regulations for ${isoCountry}/${numberType}: ${error.message}. Using fallback.`);
+      logger.warn(`📋 [Regulatory] Could not fetch regulations for ${isoCountry}/${numberType}: ${error.message}. Using fallback.`);
       return this.getFallbackRequirements(isoCountry);
     }
   }
@@ -796,7 +796,7 @@ export class TwilioService {
       logger.warn(`📋 [Regulatory] No approved ${numberType || 'any-type'} bundle found for ${isoCountry}`);
       return null;
     } catch (error: any) {
-      console.error(`📋 [Regulatory] Error fetching bundles for ${isoCountry}:`, error.message);
+      logger.error(`📋 [Regulatory] Error fetching bundles for ${isoCountry}:`, error.message);
       return null;
     }
   }
@@ -856,7 +856,7 @@ export class TwilioService {
               return addrSids[0];
             }
           } catch (euErr: any) {
-            console.warn(`📋 [Regulatory] Could not fetch end-user ${objectSid}: ${euErr.message}`);
+            logger.warn(`📋 [Regulatory] Could not fetch end-user ${objectSid}: ${euErr.message}`);
           }
         } else if (objectSid.startsWith('RD')) {
           try {
@@ -872,7 +872,7 @@ export class TwilioService {
               return addrSids[0];
             }
           } catch (docErr: any) {
-            console.warn(`📋 [Regulatory] Could not fetch supporting-document ${objectSid}: ${docErr.message}`);
+            logger.warn(`📋 [Regulatory] Could not fetch supporting-document ${objectSid}: ${docErr.message}`);
           }
         } else {
           logger.warn(`📋 [Regulatory] Skipping unrecognised item SID prefix: ${objectSid.substring(0, 2)}... (${objectSid.substring(0, 8)})`);
@@ -885,7 +885,7 @@ export class TwilioService {
       logger.warn(`📋 [Regulatory] No address_sids found in bundle items for ${bundleSid.substring(0, 8)} (${isoCountry}) — returning null`);
       return null;
     } catch (error: any) {
-      console.warn(`📋 [Regulatory] Error fetching bundle address for ${isoCountry}: ${error.message}`);
+      logger.warn(`📋 [Regulatory] Error fetching bundle address for ${isoCountry}: ${error.message}`);
       return null;
     }
   }
@@ -911,7 +911,7 @@ export class TwilioService {
         numberType: b.numberType || 'Unknown',
       }));
     } catch (error: any) {
-      console.error(`📋 [Regulatory] Error listing bundles:`, error.message);
+      logger.error(`📋 [Regulatory] Error listing bundles:`, error.message);
       return [];
     }
   }
@@ -969,8 +969,8 @@ export class TwilioService {
       );
 
       if (!priceInfo) {
-        console.warn(`⚠️ [Pricing] No pricing found for "${numberType}" in ${isoCountry}`);
-        console.warn(`Available types:`, pricingData.phoneNumberPrices?.map((p: any) => p.numberType || p.number_type));
+        logger.warn(`⚠️ [Pricing] No pricing found for "${numberType}" in ${isoCountry}`);
+        logger.warn(`Available types:`);
         return {
           purchasePrice: '1.00',
           monthlyPrice: '1.15',
@@ -990,7 +990,7 @@ export class TwilioService {
         priceUnit: (pricingData.priceUnit as string)?.toUpperCase() || 'USD'
       };
     } catch (error: any) {
-      console.error('❌ [Pricing] Failed to fetch pricing from Twilio:', error.message);
+      logger.error('❌ [Pricing] Failed to fetch pricing from Twilio:', error.message);
       // Return default US pricing on error
       return {
         purchasePrice: '1.00',
@@ -1064,7 +1064,7 @@ export class TwilioService {
       if (routeError.status === 404) {
         logger.info(`📞 [Twilio Routes] No explicit route exists - defaulting to 'us1' (OK)`);
       } else {
-        console.warn(`⚠️ [Twilio Routes] Could not set voice region: ${routeError.message}`);
+        logger.warn(`⚠️ [Twilio Routes] Could not set voice region: ${routeError.message}`);
         // Continue anyway - the webhook config is more important
       }
     }
@@ -1175,7 +1175,7 @@ export class TwilioService {
           recordingUrl = `https://api.twilio.com${recordings[0].uri.replace('.json', '')}`;
         }
       } catch (recError: any) {
-        console.warn(`⚠️ Could not fetch recording for call ${callSid}: ${recError.message}`);
+        logger.warn(`⚠️ Could not fetch recording for call ${callSid}: ${recError.message}`);
       }
 
       return {
@@ -1190,7 +1190,7 @@ export class TwilioService {
         recordingUrl
       };
     } catch (error: any) {
-      console.error(`❌ Error fetching call details for ${callSid}: ${error.message}`);
+      logger.error(`❌ Error fetching call details for ${callSid}: ${error.message}`);
       return null;
     }
   }
@@ -1221,7 +1221,7 @@ export class TwilioService {
         url: `https://api.twilio.com${rec.uri.replace('.json', '')}`
       }));
     } catch (error: any) {
-      console.error(`❌ Error fetching recordings for ${callSid}: ${error.message}`);
+      logger.error(`❌ Error fetching recordings for ${callSid}: ${error.message}`);
       return [];
     }
   }

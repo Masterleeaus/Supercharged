@@ -50,7 +50,7 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
       const addresses = await twilioService.listAddresses(country as string);
       res.json(addresses);
     } catch (error: any) {
-      console.error("List Twilio addresses error:", error);
+      logger.error("List Twilio addresses error:", error);
       
       if (error.message?.includes('Authentication') || error.message?.includes('not connected') || error.status === 401) {
         return res.status(503).json({ 
@@ -81,7 +81,7 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
             : 'Any verified address is required for phone number purchase'
       });
     } catch (error: any) {
-      console.error("Get address requirements error:", error);
+      logger.error("Get address requirements error:", error);
       res.status(500).json({ error: "Failed to get address requirements" });
     }
   });
@@ -109,7 +109,7 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
       
       res.json(allPhoneNumbers);
     } catch (error: any) {
-      console.error("Get phone numbers error:", error);
+      logger.error("Get phone numbers error:", error);
       res.status(500).json({ error: "Failed to get phone numbers" });
     }
   });
@@ -139,7 +139,7 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
 
       res.json(availableNumbers);
     } catch (error: any) {
-      console.error("Search phone numbers error:", error);
+      logger.error("Search phone numbers error:", error);
       
       if (error.message?.includes('Authentication') || error.message?.includes('not connected') || error.status === 401) {
         return res.status(503).json({ 
@@ -168,7 +168,7 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
 
       res.json(availableNumbers);
     } catch (error: any) {
-      console.error("Search phone numbers error:", error);
+      logger.error("Search phone numbers error:", error);
       
       if (error.message?.includes('Authentication') || error.message?.includes('not connected') || error.status === 401) {
         return res.status(503).json({ 
@@ -438,7 +438,7 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
         try {
           await twilioService.releasePhoneNumber(twilioNumber.sid);
         } catch (releaseError: any) {
-          console.error('Failed to release Twilio number after credential error:', releaseError);
+          logger.error('Failed to release Twilio number after credential error:', releaseError);
         }
         return res.status(500).json({ error: 'No active ElevenLabs API keys available in pool' });
       }
@@ -490,24 +490,13 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
             });
           });
         } catch (dbError: any) {
-          console.error('Database transaction failed after Twilio purchase, releasing number:', {
-            phoneNumber: twilioNumber.phoneNumber,
-            sid: twilioNumber.sid,
-            userId: req.userId,
-            error: dbError.message
-          });
+          logger.error('Database transaction failed after Twilio purchase, releasing number:', { sid: twilioNumber.sid, userId: req.userId, error: dbError.message });
           
           try {
             await twilioService.releasePhoneNumber(twilioNumber.sid);
             logger.info(`Successfully released orphaned Twilio number: ${twilioNumber.sid}`);
           } catch (releaseError: any) {
-            console.error('CRITICAL: Failed to release Twilio number after DB failure:', {
-              phoneNumber: twilioNumber.phoneNumber,
-              sid: twilioNumber.sid,
-              userId: req.userId,
-              originalError: dbError.message,
-              releaseError: releaseError.message
-            });
+            logger.error('CRITICAL: Failed to release Twilio number after DB failure:', { sid: twilioNumber.sid, userId: req.userId, originalError: dbError.message, releaseError: releaseError.message });
           }
           
           throw dbError;
@@ -569,21 +558,21 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
             dbPhoneNumber.elevenLabsPhoneNumberId = elevenLabsPhoneNumberId;
             dbPhoneNumber.elevenLabsCredentialId = credentialToUse.id;
           } catch (dbUpdateError: any) {
-            console.error('❌ [ElevenLabs Sync] Database update failed after ElevenLabs sync - cleaning up');
+            logger.error('❌ [ElevenLabs Sync] Database update failed after ElevenLabs sync - cleaning up');
             
             try {
               await elevenLabsService.deletePhoneNumber(elevenLabsPhoneNumberId);
               logger.info(`✅ [Rollback] Deleted ElevenLabs phone number: ${elevenLabsPhoneNumberId}`);
             } catch (deleteError: any) {
-              console.error('❌ [Rollback] Failed to delete ElevenLabs phone number:', deleteError);
+              logger.error('❌ [Rollback] Failed to delete ElevenLabs phone number:', deleteError);
             }
             
             throw dbUpdateError;
           }
           
         } catch (elevenLabsError: any) {
-          console.error('⚠️  [ElevenLabs Sync] Failed to sync phone number to ElevenLabs:', elevenLabsError);
-          console.error('⚠️  [ElevenLabs Sync] Phone number purchased successfully but ElevenLabs sync failed');
+          logger.error('⚠️  [ElevenLabs Sync] Failed to sync phone number to ElevenLabs:', elevenLabsError);
+          logger.error('⚠️  [ElevenLabs Sync] Phone number purchased successfully but ElevenLabs sync failed');
           
           try {
             if (process.env.NODE_ENV !== 'development') {
@@ -614,11 +603,11 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
             logger.info('✅ [Rollback] Complete rollback successful - all state restored consistently');
             throw new Error('Failed to sync phone number to ElevenLabs. Purchase fully rolled back.');
           } catch (rollbackError: any) {
-            console.error('❌ [CRITICAL ROLLBACK FAILURE] Rollback failed after ElevenLabs sync failure:', rollbackError);
-            console.error('❌ [CRITICAL] Manual intervention required - database and billing may be inconsistent');
-            console.error('❌ [CRITICAL] User ID:', req.userId);
-            console.error('❌ [CRITICAL] Phone Number:', twilioNumber.phoneNumber);
-            console.error('❌ [CRITICAL] Twilio SID:', twilioNumber.sid);
+            logger.error('❌ [CRITICAL ROLLBACK FAILURE] Rollback failed after ElevenLabs sync failure:', rollbackError);
+            logger.error('❌ [CRITICAL] Manual intervention required - database and billing may be inconsistent');
+            logger.error('❌ [CRITICAL] User ID:', req.userId);
+            logger.error('❌ [CRITICAL] Phone Number:');
+            logger.error('❌ [CRITICAL] Twilio SID:', twilioNumber.sid);
             throw elevenLabsError;
           }
         }
@@ -626,7 +615,7 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
 
       res.json(dbPhoneNumber);
     } catch (error: any) {
-      console.error("Buy phone number error:", error);
+      logger.error("Buy phone number error:", error);
       
       if (error.message?.includes('Authentication') || error.message?.includes('not connected') || error.status === 401) {
         return res.status(503).json({ 
@@ -663,20 +652,20 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
             }
           }
         } catch (elevenLabsError: any) {
-          console.error("⚠️  [ElevenLabs Delete] Failed to delete from ElevenLabs:", elevenLabsError);
+          logger.error("⚠️  [ElevenLabs Delete] Failed to delete from ElevenLabs:", elevenLabsError);
         }
       }
 
       try {
         await twilioService.releasePhoneNumber(phoneNumber.twilioSid);
       } catch (twilioError: any) {
-        console.error("Failed to release from Twilio:", twilioError);
+        logger.error("Failed to release from Twilio:", twilioError);
       }
 
       await storage.deletePhoneNumber(req.params.id);
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Delete phone number error:", error);
+      logger.error("Delete phone number error:", error);
       res.status(500).json({ error: "Failed to delete phone number" });
     }
   });
@@ -697,7 +686,7 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
 
       res.json(availableNumbers);
     } catch (error: any) {
-      console.error("Search numbers error:", error);
+      logger.error("Search numbers error:", error);
       res.status(500).json({ error: "Failed to search numbers" });
     }
   });
@@ -755,7 +744,7 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
         phoneNumber: twilioNumber.phoneNumber 
       });
     } catch (error: any) {
-      console.error("Buy system number error:", error);
+      logger.error("Buy system number error:", error);
       
       if (error.message?.includes('Authentication') || error.message?.includes('not connected') || error.status === 401) {
         return res.status(503).json({ 

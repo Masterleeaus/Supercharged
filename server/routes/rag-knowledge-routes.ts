@@ -24,6 +24,7 @@
  */
 
 import { Router, Request, Response, RequestHandler } from "express";
+import { timingSafeEqual } from "crypto";
 import multer from "multer";
 import { RAGKnowledgeService } from "../services/rag-knowledge";
 import { storage } from "../storage";
@@ -260,7 +261,7 @@ export function createRAGKnowledgeRoutes(
         usagePercent: Math.round((usedBytes / maxBytes) * 100),
       });
     } catch (error: any) {
-      console.error("[RAG Routes] Storage usage error:", error);
+      logger.error("[RAG Routes] Storage usage error:", error);
       res.status(500).json({ error: "Failed to get storage usage" });
     }
   });
@@ -290,7 +291,7 @@ export function createRAGKnowledgeRoutes(
       
       res.json(enhancedItems);
     } catch (error: any) {
-      console.error("[RAG Routes] Get knowledge base error:", error);
+      logger.error("[RAG Routes] Get knowledge base error:", error);
       res.status(500).json({ error: "Failed to get knowledge base" });
     }
   });
@@ -360,7 +361,7 @@ export function createRAGKnowledgeRoutes(
         req.userId!,
         fileContent,
         { source: 'file', filename }
-      ).catch(err => console.error("[RAG Routes] Background processing error:", err));
+      ).catch(err => logger.error("[RAG Routes] Background processing error:", err));
 
       res.json({
         ...item,
@@ -368,7 +369,7 @@ export function createRAGKnowledgeRoutes(
         message: "File uploaded. Processing embeddings in background.",
       });
     } catch (error: any) {
-      console.error("[RAG Routes] Upload error:", error);
+      logger.error("[RAG Routes] Upload error:", error);
       res.status(500).json({ error: "Failed to upload file" });
     }
   });
@@ -448,7 +449,7 @@ export function createRAGKnowledgeRoutes(
         req.userId!,
         content,
         { source: 'url', url }
-      ).catch(err => console.error("[RAG Routes] Background processing error:", err));
+      ).catch(err => logger.error("[RAG Routes] Background processing error:", err));
 
       res.json({
         ...item,
@@ -456,7 +457,7 @@ export function createRAGKnowledgeRoutes(
         message: "URL content fetched. Processing embeddings in background.",
       });
     } catch (error: any) {
-      console.error("[RAG Routes] URL add error:", error);
+      logger.error("[RAG Routes] URL add error:", error);
       res.status(500).json({ error: "Failed to add URL" });
     }
   });
@@ -504,7 +505,7 @@ export function createRAGKnowledgeRoutes(
         req.userId!,
         text,
         { source: 'text' }
-      ).catch(err => console.error("[RAG Routes] Background processing error:", err));
+      ).catch(err => logger.error("[RAG Routes] Background processing error:", err));
 
       res.json({
         ...item,
@@ -512,7 +513,7 @@ export function createRAGKnowledgeRoutes(
         message: "Text added. Processing embeddings in background.",
       });
     } catch (error: any) {
-      console.error("[RAG Routes] Text add error:", error);
+      logger.error("[RAG Routes] Text add error:", error);
       res.status(500).json({ error: "Failed to add text" });
     }
   });
@@ -535,7 +536,7 @@ export function createRAGKnowledgeRoutes(
 
       res.json({ success: true });
     } catch (error: any) {
-      console.error("[RAG Routes] Delete error:", error);
+      logger.error("[RAG Routes] Delete error:", error);
       res.status(500).json({ error: "Failed to delete knowledge base item" });
     }
   });
@@ -560,7 +561,7 @@ export function createRAGKnowledgeRoutes(
         error: status?.error,
       });
     } catch (error: any) {
-      console.error("[RAG Routes] Status check error:", error);
+      logger.error("[RAG Routes] Status check error:", error);
       res.status(500).json({ error: "Failed to get status" });
     }
   });
@@ -601,7 +602,7 @@ export function createRAGKnowledgeRoutes(
         formattedResponse,
       });
     } catch (error: any) {
-      console.error("[RAG Routes] Search error:", error);
+      logger.error("[RAG Routes] Search error:", error);
       res.status(500).json({ error: "Failed to search knowledge base" });
     }
   });
@@ -615,12 +616,14 @@ export function createRAGKnowledgeRoutes(
     try {
       const webhookToken = process.env.WEBHOOK_TOKEN;
       if (!webhookToken) {
-        console.warn('[RAG Tool] WEBHOOK_TOKEN not configured - endpoint disabled');
+        logger.warn('[RAG Tool] WEBHOOK_TOKEN not configured - endpoint disabled');
         return res.status(503).json({ error: "Webhook endpoint not configured" });
       }
       const authHeader = req.headers['authorization'];
-      const providedToken = authHeader?.replace('Bearer ', '');
-      if (providedToken !== webhookToken) {
+      // Constant-time compare. Length is checked first, because timingSafeEqual throws on unequal lengths.
+      const providedBuf = Buffer.from(authHeader?.replace('Bearer ', '') ?? '', 'utf8');
+      const expectedBuf = Buffer.from(webhookToken, 'utf8');
+      if (providedBuf.length !== expectedBuf.length || !timingSafeEqual(providedBuf, expectedBuf)) {
         return res.status(401).json({ error: "Invalid webhook token" });
       }
 
@@ -643,7 +646,7 @@ export function createRAGKnowledgeRoutes(
         .limit(1);
 
       if (!agentRow || !agentRow.companyId || agentRow.userId !== user_id) {
-        console.warn(`[RAG Tool] Refused: agent scope does not match`);
+        logger.warn(`[RAG Tool] Refused: agent scope does not match`);
         return res.status(403).json({
           error: "Knowledge base access refused",
           response: "I couldn't access the knowledge base for this agent."
@@ -669,7 +672,7 @@ export function createRAGKnowledgeRoutes(
         })),
       });
     } catch (error: any) {
-      console.error("[RAG Tool] Webhook error:", error);
+      logger.error("[RAG Tool] Webhook error:", error);
       res.status(500).json({ 
         error: "Knowledge base access error",
         response: "I encountered an error accessing the knowledge base. Please try again."

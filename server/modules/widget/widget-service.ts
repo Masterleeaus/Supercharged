@@ -112,7 +112,7 @@ export class WidgetService {
       
       return { isOpen: false, reason: 'Outside business hours' };
     } catch (e) {
-      console.error('Error checking business hours:', e);
+      logger.error('Error checking business hours:', e);
       return { isOpen: true };
     }
   }
@@ -204,7 +204,7 @@ export class WidgetService {
     try {
       result = await widgetStorage.getUserWithPlan(userId);
     } catch (err) {
-      console.error('[checkWidgetLimit] Error fetching user/plan (defaulting to maxWidgets=1):', err);
+      logger.error('[checkWidgetLimit] Error fetching user/plan (defaulting to maxWidgets=1):', err);
       // If the plan/subscription lookup fails (e.g. missing column in older DB),
       // fall back to a conservative default of 1 widget and enforce it properly.
       const currentCount = await widgetStorage.getWidgetCount(userId).catch(() => 0);

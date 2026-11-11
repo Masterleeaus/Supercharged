@@ -74,7 +74,7 @@ async function handleSubscriptionCheckout(
   
   // Validate that end date is after start date
   if (periodEnd <= periodStart) {
-    console.warn(`[Stripe] Warning: current_period_end (${periodEnd.toISOString()}) is not after current_period_start (${periodStart.toISOString()}). Using 30-day fallback.`);
+    logger.warn(`[Stripe] Warning: current_period_end (${periodEnd.toISOString()}) is not after current_period_start (${periodStart.toISOString()}). Using 30-day fallback.`);
     // Set end date to 30 days from start as fallback
     periodEnd.setDate(periodEnd.getDate() + 30);
   }
@@ -179,7 +179,7 @@ async function handleSubscriptionCheckout(
         await generateInvoiceForTransaction(newTransaction.id);
         await emailService.sendPurchaseConfirmation(newTransaction.id);
       } catch (emailError: any) {
-        console.error(`❌ [Stripe] Failed to send purchase confirmation email:`, emailError);
+        logger.error(`❌ [Stripe] Failed to send purchase confirmation email:`);
       }
       
       return { 
@@ -252,7 +252,7 @@ async function handleCreditsCheckout(
       await generateInvoiceForTransaction(newTransaction.id);
       await emailService.sendPurchaseConfirmation(newTransaction.id);
     } catch (emailError: any) {
-      console.error(`❌ [Stripe] Failed to send purchase confirmation:`, emailError);
+      logger.error(`❌ [Stripe] Failed to send purchase confirmation:`);
     }
 
     return { 
@@ -333,7 +333,7 @@ export async function handleInvoicePaymentSucceeded(
         await generateInvoiceForTransaction(newTransaction.id);
         await emailService.sendPurchaseConfirmation(newTransaction.id);
       } catch (emailError: any) {
-        console.error(`❌ [Stripe] Failed to send renewal email:`, emailError);
+        logger.error(`❌ [Stripe] Failed to send renewal email:`);
       }
 
       return { 
@@ -390,7 +390,7 @@ export async function handleInvoicePaymentFailed(
       const amount = ((invoice.amount_due || 0) / 100).toFixed(2);
       await emailService.sendPaymentFailed(userId, amount, 'Subscription renewal failed');
     } catch (emailError: any) {
-      console.error(`❌ [Stripe] Failed to send payment failed email:`, emailError);
+      logger.error(`❌ [Stripe] Failed to send payment failed email:`);
     }
 
     return { success: true, action: 'subscription_past_due', userId };
@@ -510,7 +510,7 @@ export async function handleChargeDispute(
     try {
       await emailService.sendAccountSuspended(userId, `Chargeback dispute: ${dispute.reason || 'Unknown reason'}`);
     } catch (emailError: any) {
-      console.error(`❌ [Stripe] Failed to send account suspended email:`, emailError);
+      logger.error(`❌ [Stripe] Failed to send account suspended email:`);
     }
 
     return { 

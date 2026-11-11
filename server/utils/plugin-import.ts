@@ -49,7 +49,7 @@ async function safeImport(filePath: string): Promise<any> {
     return await import(pathToFileURL(filePath).href);
   } catch (err: any) {
     if (filePath.endsWith('.ts') && err?.code === 'ERR_UNKNOWN_FILE_EXTENSION') {
-      console.warn(`[Plugin Import] TS import failed for ${path.basename(filePath)} (ERR_UNKNOWN_FILE_EXTENSION), trying JS fallback`);
+      logger.warn(`[Plugin Import] TS import failed for ${path.basename(filePath)} (ERR_UNKNOWN_FILE_EXTENSION), trying JS fallback`);
       resetCanImportTypeScript();
       const basePath = filePath.replace(/\.ts$/, '');
       for (const ext of ['.js', '.cjs', '.mjs']) {

@@ -131,7 +131,7 @@ export class PhoneMigrator {
     
     const lockAcquired = await this.lockPhone(phoneNumberDbId);
     if (!lockAcquired) {
-      console.warn(`   ⚠️  Phone ${phoneNumberDbId} is already being migrated - skipping`);
+      logger.warn(`   ⚠️  Phone [redacted] is already being migrated - skipping`);
       return {
         success: false,
         phoneNumberId: phoneNumberDbId,
@@ -236,13 +236,13 @@ export class PhoneMigrator {
                 await oldElevenLabsService.deletePhoneNumber(oldElevenLabsPhoneId);
                 logger.info(`   ✅ Deleted from old account`);
               } else {
-                console.warn(`   ⚠️  Phone number mismatch - skipping delete from old account`);
+                logger.warn(`   ⚠️  Phone number mismatch - skipping delete from old account`);
               }
             } catch (getError: any) {
               logger.warn(`   ℹ️  Phone not found in old account (may already be deleted)`);
             }
           } catch (deleteError: any) {
-            console.warn(`   ⚠️  Could not delete from old account: ${deleteError.message}`);
+            logger.warn(`   ⚠️  Could not delete from old account: ${deleteError.message}`);
           }
         }
       }
@@ -277,7 +277,7 @@ export class PhoneMigrator {
           );
           logger.info(`   ✅ Twilio webhook reconfigured`);
         } catch (webhookError: any) {
-          console.warn(`   ⚠️  Could not reconfigure Twilio webhook: ${webhookError.message}`);
+          logger.warn(`   ⚠️  Could not reconfigure Twilio webhook: ${webhookError.message}`);
         }
       }
       
@@ -315,7 +315,7 @@ export class PhoneMigrator {
       };
       
     } catch (error: any) {
-      console.error(`📞 [Phone Migrator] Failed to migrate ${phoneRecord.phoneNumber}: ${error.message}`);
+      logger.error(`📞 [Phone Migrator] Failed to migrate [redacted]: ${error.message}`);
       
       return {
         success: false,
@@ -362,7 +362,7 @@ export class PhoneMigrator {
     // Acquire distributed lock for verification
     const lockAcquired = await this.lockPhoneVerification(phoneNumberDbId);
     if (!lockAcquired) {
-      console.warn(`   ⚠️  Phone ${phoneNumberDbId} is already being verified by another process`);
+      logger.warn(`   ⚠️  Phone [redacted] is already being verified by another process`);
       // Wait a bit and retry once
       await new Promise(resolve => setTimeout(resolve, 2000));
       const retryLock = await this.lockPhoneVerification(phoneNumberDbId);
@@ -446,7 +446,7 @@ export class PhoneMigrator {
         if (error.message?.includes('404') || error.message?.includes('not found') || error.message?.includes('Phone number') || error.status === 404) {
           logger.warn(`   ⚠️ Phone not found on ElevenLabs (404) - will re-import from Twilio`);
         } else {
-          console.error(`   ❌ Error checking phone: ${error.message}`);
+          logger.error(`   ❌ Error checking phone: ${error.message}`);
           await this.unlockPhoneVerification(phoneNumberDbId);
           return {
             success: false,
@@ -490,7 +490,7 @@ export class PhoneMigrator {
           );
           logger.info(`   ✅ Twilio webhook reconfigured`);
         } catch (webhookError: any) {
-          console.warn(`   ⚠️ Could not reconfigure Twilio webhook: ${webhookError.message}`);
+          logger.warn(`   ⚠️ Could not reconfigure Twilio webhook: ${webhookError.message}`);
         }
       }
       
@@ -505,7 +505,7 @@ export class PhoneMigrator {
           );
           logger.info(`   ✅ Agent assigned to phone`);
         } catch (assignError: any) {
-          console.warn(`   ⚠️ Could not assign agent to phone: ${assignError.message}`);
+          logger.warn(`   ⚠️ Could not assign agent to phone: ${assignError.message}`);
           // Don't fail the whole operation - phone is still usable
         }
       }
@@ -530,7 +530,7 @@ export class PhoneMigrator {
       };
       
     } catch (error: any) {
-      console.error(`   ❌ Failed to re-import phone: ${error.message}`);
+      logger.error(`   ❌ Failed to re-import phone: ${error.message}`);
       await this.unlockPhoneVerification(phoneNumberDbId);
       return {
         success: false,
@@ -568,7 +568,7 @@ export class PhoneMigrator {
     const targetAgentElevenLabsId = agent.elevenLabsAgentId;
     
     if (!targetCredentialId) {
-      console.warn(`   ⚠️  Agent ${agent.name} has no credential assigned - cannot migrate phones`);
+      logger.warn(`   ⚠️  Agent ${agent.name} has no credential assigned - cannot migrate phones`);
       return {
         agentId: agentDbId,
         agentName: agent.name,
@@ -652,7 +652,7 @@ export class PhoneMigrator {
     const targetCredentialId = agent.elevenLabsCredentialId;
     
     if (!targetCredentialId) {
-      console.warn(`   ⚠️  Agent ${agent.name} has no credential assigned - cannot migrate phones`);
+      logger.warn(`   ⚠️  Agent ${agent.name} has no credential assigned - cannot migrate phones`);
       return {
         campaignId,
         agentId,
@@ -877,7 +877,7 @@ export class PhoneMigrator {
     const lockAcquired = await this.lockBulkMigration();
     if (!lockAcquired) {
       // Lock not acquired - another process has it, return without releasing
-      console.warn(`📞 [Phone Migrator] Bulk migration already in progress - aborting`);
+      logger.warn(`📞 [Phone Migrator] Bulk migration already in progress - aborting`);
       return {
         totalChecked: 0,
         totalMigrated: 0,

@@ -56,7 +56,7 @@ async function convertWorkflowTransferNodesForSIP(
       }
     }
   } catch (error) {
-    console.warn(`⚠️  [Flow SIP] Failed to process transfer nodes for agent ${agentId}:`, error);
+    logger.warn(`⚠️  [Flow SIP] Failed to process transfer nodes for agent ${agentId}:`, error);
   }
 }
 
@@ -203,10 +203,10 @@ export class FlowAgentService {
       // Validate the compiled workflow
       const validation = compiler.validate();
       if (!validation.valid) {
-        console.warn(`⚠️  Workflow validation errors:`, validation.errors);
+        logger.warn(`⚠️  Workflow validation errors:`, validation.errors);
       }
       if (validation.warnings.length > 0) {
-        console.warn(`⚠️  Workflow validation warnings:`, validation.warnings);
+        logger.warn(`⚠️  Workflow validation warnings:`, validation.warnings);
       }
 
       return {
@@ -340,7 +340,7 @@ export class FlowAgentService {
               continue;
             }
           } catch (error: any) {
-            console.warn(`   ⚠️ [Form Enrichment] Failed to load form ${formId}:`, error.message);
+            logger.warn(`   ⚠️ [Form Enrichment] Failed to load form ${formId}:`, error.message);
           }
         }
       }
@@ -370,12 +370,12 @@ export class FlowAgentService {
         const kbItem = await storage.getKnowledgeBaseItem(kbId);
 
         if (!kbItem) {
-          console.warn(`⚠️  Knowledge base item ${kbId} not found, skipping`);
+          logger.warn(`⚠️  Knowledge base item ${kbId} not found, skipping`);
           continue;
         }
 
         if (!kbItem.elevenLabsDocId) {
-          console.warn(`⚠️  Knowledge base item ${kbId} has no ElevenLabs doc ID, skipping`);
+          logger.warn(`⚠️  Knowledge base item ${kbId} has no ElevenLabs doc ID, skipping`);
           continue;
         }
 
@@ -386,7 +386,7 @@ export class FlowAgentService {
           elevenLabsDocId: kbItem.elevenLabsDocId
         });
       } catch (error: any) {
-        console.error(`   ❌ Failed to fetch KB ${kbId}:`, error.message);
+        logger.error(`   ❌ Failed to fetch KB ${kbId}:`, error.message);
       }
     }
 
@@ -686,7 +686,7 @@ export class FlowAgentService {
         );
         logger.info(`✅ [Flow Agent] Post-creation webhook tools added (${postCreationTools.length} tools)`);
       } catch (toolError: any) {
-        console.error(`❌ [Flow Agent] Failed to add post-creation webhook tools:`, toolError.message);
+        logger.error(`❌ [Flow Agent] Failed to add post-creation webhook tools:`, toolError.message);
         // Don't fail agent creation if tool addition fails - the agent is still functional
       }
     }
@@ -817,7 +817,7 @@ export class FlowAgentService {
         await elevenLabsService.getOrCreateWorkspaceTool(ragToolConfig);
         logger.info(`📚 [Flow] RAG workspace tool created/verified`);
       } catch (wsError: any) {
-        console.warn(`📚 [Flow] RAG workspace tool skipped: ${wsError.message}`);
+        logger.warn(`📚 [Flow] RAG workspace tool skipped: ${wsError.message}`);
       }
     }
 

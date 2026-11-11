@@ -50,6 +50,7 @@ function enablement(database) {
     globalSettings: { key: "key" },
     eq: (a, b) => [a, b],
     console: logger,
+    logger,
   });
 }
 

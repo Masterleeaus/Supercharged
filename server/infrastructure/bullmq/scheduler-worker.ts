@@ -15,6 +15,7 @@
 import { Worker, Job } from 'bullmq';
 import { getRedisConnection } from './redis-connection';
 import { QUEUE_NAMES, SchedulerJob, RecoveryJob, getCampaignSchedulerQueue, getCampaignRecoveryQueue } from './queues';
+import { logger } from '../../utils/logger.ts';
 
 const STUCK_CAMPAIGN_MAX_AGE_MS = parseInt(process.env.BULLMQ_STUCK_CAMPAIGN_MAX_AGE_MS || String(30 * 60 * 1000), 10);
 const STALE_CALL_MAX_AGE_MS = parseInt(process.env.BULLMQ_STALE_CALL_MAX_AGE_MS || String(60 * 60 * 1000), 10);
@@ -27,7 +28,7 @@ let recoveryWorker: Worker<RecoveryJob> | null = null;
 async function processSchedulerJob(job: Job<SchedulerJob>): Promise<void> {
   const { type, campaignId } = job.data;
   
-  console.log(`[SchedulerWorker] Processing ${type} job`);
+  logger.info(`[SchedulerWorker] Processing ${type} job`);
   
   switch (type) {
     case 'check_scheduled':
@@ -39,7 +40,7 @@ async function processSchedulerJob(job: Job<SchedulerJob>): Promise<void> {
       }
       break;
     default:
-      console.warn(`[SchedulerWorker] Unknown job type: ${type}`);
+      logger.warn(`[SchedulerWorker] Unknown job type: ${type}`);
   }
 }
 
@@ -62,7 +63,7 @@ async function checkScheduledCampaigns(): Promise<void> {
       )
       .limit(10);
     
-    console.log(`[SchedulerWorker] Found ${scheduledCampaigns.length} campaigns ready to start`);
+    logger.info(`[SchedulerWorker] Found ${scheduledCampaigns.length} campaigns ready to start`);
     
     for (const campaign of scheduledCampaigns) {
       try {
@@ -73,9 +74,9 @@ async function checkScheduledCampaigns(): Promise<void> {
         const { campaignExecutor } = await import('../../services/campaign-executor');
         await campaignExecutor.executeCampaign(campaign.id);
         
-        console.log(`[SchedulerWorker] Started campaign ${campaign.id}`);
+        logger.info(`[SchedulerWorker] Started campaign ${campaign.id}`);
       } catch (error: any) {
-        console.error(`[SchedulerWorker] Failed to start campaign ${campaign.id}:`, error.message);
+        logger.error(`[SchedulerWorker] Failed to start campaign ${campaign.id}:`, error.message);
         
         await db.update(campaigns)
           .set({ 
@@ -87,7 +88,7 @@ async function checkScheduledCampaigns(): Promise<void> {
       }
     }
   } catch (error: any) {
-    console.error('[SchedulerWorker] Failed to check scheduled campaigns:', error.message);
+    logger.error('[SchedulerWorker] Failed to check scheduled campaigns:', error.message);
     throw error;
   }
 }
@@ -96,9 +97,9 @@ async function resumeCampaign(campaignId: string): Promise<void> {
   try {
     const { campaignExecutor } = await import('../../services/campaign-executor');
     await campaignExecutor.resumeCampaign(campaignId);
-    console.log(`[SchedulerWorker] Resumed campaign ${campaignId}`);
+    logger.info(`[SchedulerWorker] Resumed campaign ${campaignId}`);
   } catch (error: any) {
-    console.error(`[SchedulerWorker] Failed to resume campaign ${campaignId}:`, error.message);
+    logger.error(`[SchedulerWorker] Failed to resume campaign ${campaignId}:`, error.message);
     throw error;
   }
 }
@@ -106,7 +107,7 @@ async function resumeCampaign(campaignId: string): Promise<void> {
 async function processRecoveryJob(job: Job<RecoveryJob>): Promise<void> {
   const { type, campaignId, maxAge } = job.data;
   
-  console.log(`[RecoveryWorker] Processing ${type} job`);
+  logger.info(`[RecoveryWorker] Processing ${type} job`);
   
   switch (type) {
     case 'recover_stuck':
@@ -116,7 +117,7 @@ async function processRecoveryJob(job: Job<RecoveryJob>): Promise<void> {
       await cleanupStaleCalls(maxAge || 60 * 60 * 1000);
       break;
     default:
-      console.warn(`[RecoveryWorker] Unknown job type: ${type}`);
+      logger.warn(`[RecoveryWorker] Unknown job type: ${type}`);
   }
 }
 
@@ -139,7 +140,7 @@ async function recoverStuckCampaigns(maxAgeMs: number): Promise<void> {
       )
       .limit(10);
     
-    console.log(`[RecoveryWorker] Found ${stuckCampaigns.length} stuck campaigns`);
+    logger.info(`[RecoveryWorker] Found ${stuckCampaigns.length} stuck campaigns`);
     
     for (const campaign of stuckCampaigns) {
       const stuckContacts = await db.select()
@@ -157,10 +158,10 @@ async function recoverStuckCampaigns(maxAgeMs: number): Promise<void> {
           .where(eq(contacts.id, contact.id));
       }
       
-      console.log(`[RecoveryWorker] Reset ${stuckContacts.length} stuck contacts for campaign ${campaign.id}`);
+      logger.info(`[RecoveryWorker] Reset ${stuckContacts.length} stuck contacts for campaign ${campaign.id}`);
     }
   } catch (error: any) {
-    console.error('[RecoveryWorker] Failed to recover stuck campaigns:', error.message);
+    logger.error('[RecoveryWorker] Failed to recover stuck campaigns:', error.message);
     throw error;
   }
 }
@@ -188,7 +189,7 @@ async function cleanupStaleCalls(maxAgeMs: number): Promise<void> {
       return;
     }
     
-    console.log(`[RecoveryWorker] Found ${staleCalls.length} potentially stale calls`);
+    logger.info(`[RecoveryWorker] Found ${staleCalls.length} potentially stale calls`);
     
     let cleanedUp = 0;
     for (const call of staleCalls) {
@@ -196,7 +197,7 @@ async function cleanupStaleCalls(maxAgeMs: number): Promise<void> {
       const lastWebhookAt = metadata.lastWebhookAt ? new Date(metadata.lastWebhookAt) : null;
       
       if (lastWebhookAt && lastWebhookAt > cutoffTime) {
-        console.log(`[RecoveryWorker] Skipping call ${call.id} - recent webhook at ${lastWebhookAt.toISOString()}`);
+        logger.info(`[RecoveryWorker] Skipping call ${call.id} - recent webhook at ${lastWebhookAt.toISOString()}`);
         continue;
       }
       
@@ -210,11 +211,11 @@ async function cleanupStaleCalls(maxAgeMs: number): Promise<void> {
     }
     
     if (cleanedUp > 0) {
-      console.log(`[RecoveryWorker] Cleaned up ${cleanedUp} stale calls`);
+      logger.info(`[RecoveryWorker] Cleaned up ${cleanedUp} stale calls`);
     }
     
   } catch (error: any) {
-    console.error('[RecoveryWorker] Failed to cleanup stale calls:', error.message);
+    logger.error('[RecoveryWorker] Failed to cleanup stale calls:', error.message);
     throw error;
   }
 }
@@ -234,16 +235,16 @@ export function startSchedulerWorker(): Worker<SchedulerJob> {
   );
   
   schedulerWorker.on('completed', (job) => {
-    console.log(`[SchedulerWorker] Job ${job.id} completed`);
+    logger.info(`[SchedulerWorker] Job ${job.id} completed`);
   });
   
   schedulerWorker.on('failed', (job, err) => {
     if (job) {
-      console.error(`[SchedulerWorker] Job ${job.id} failed:`, err.message);
+      logger.error(`[SchedulerWorker] Job ${job.id} failed:`, err.message);
     }
   });
   
-  console.log('[SchedulerWorker] Started');
+  logger.info('[SchedulerWorker] Started');
   return schedulerWorker;
 }
 
@@ -262,16 +263,16 @@ export function startRecoveryWorker(): Worker<RecoveryJob> {
   );
   
   recoveryWorker.on('completed', (job) => {
-    console.log(`[RecoveryWorker] Job ${job.id} completed`);
+    logger.info(`[RecoveryWorker] Job ${job.id} completed`);
   });
   
   recoveryWorker.on('failed', (job, err) => {
     if (job) {
-      console.error(`[RecoveryWorker] Job ${job.id} failed:`, err.message);
+      logger.error(`[RecoveryWorker] Job ${job.id} failed:`, err.message);
     }
   });
   
-  console.log('[RecoveryWorker] Started');
+  logger.info('[RecoveryWorker] Started');
   return recoveryWorker;
 }
 
@@ -306,7 +307,7 @@ export async function setupRecurringJobs(): Promise<void> {
     }
   );
   
-  console.log(`[BullMQ] Recurring jobs scheduled:
+  logger.info(`[BullMQ] Recurring jobs scheduled:
    - Campaign scheduler: every 60s
    - Stuck recovery: every ${RECOVERY_CHECK_INTERVAL_MS / 1000}s (max age: ${STUCK_CAMPAIGN_MAX_AGE_MS / 60000} min)
    - Stale cleanup: every ${STALE_CLEANUP_INTERVAL_MS / 1000}s (max age: ${STALE_CALL_MAX_AGE_MS / 60000} min)`);
@@ -325,5 +326,5 @@ export async function stopSchedulerWorkers(): Promise<void> {
   }
   
   await Promise.all(closePromises);
-  console.log('[SchedulerWorker] All scheduler workers stopped');
+  logger.info('[SchedulerWorker] All scheduler workers stopped');
 }

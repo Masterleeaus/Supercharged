@@ -3,11 +3,13 @@ import { Router, Response } from "express";
 import { db } from "../../db";
 import { type AuthRequest } from "../../middleware/auth";
 import { getCompanyScope } from "../../middleware/company-scope";
-import { webhooks, createWebhookSchema, webhookLogs } from "@shared/schema";
+import { webhooks, webhookLogs } from "@shared/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { webhookDeliveryService } from "../../services/webhook-delivery";
 import { companyForRead, WEBHOOK_EDITABLE_FIELDS, pickEditableFields } from "./shared";
+import { webhookInsertRow, webhookCreateInputSchema } from "./insert-rows";
+import { logger } from '../../utils/logger.ts';
 
 export function registerWebhookRoutes(router: Router): void {
   router.get("/webhooks", async (req: AuthRequest, res: Response) => {
@@ -29,7 +31,7 @@ export function registerWebhookRoutes(router: Router): void {
 
       res.json(userWebhooks);
     } catch (error: any) {
-      console.error("Error fetching webhooks:", error);
+      logger.error("Error fetching webhooks:", error);
       res.status(500).json({ error: "Failed to fetch webhooks" });
     }
   });
@@ -41,7 +43,7 @@ export function registerWebhookRoutes(router: Router): void {
       }
 
       const userId = req.userId!;
-      const validatedData = createWebhookSchema.parse(req.body);
+      const validatedData = webhookCreateInputSchema.parse(req.body);
 
       let companyId: string;
       try {
@@ -51,20 +53,14 @@ export function registerWebhookRoutes(router: Router): void {
       }
 
       const webhookId = nanoid();
-      // TODO: Drizzle type inference - Zod validated data doesn't perfectly match insert type
       const [newWebhook] = await db
         .insert(webhooks)
-        .values({
-          id: webhookId,
-          userId,
-          ...validatedData,
-          companyId,
-        } as typeof webhooks.$inferInsert)
+        .values(webhookInsertRow(validatedData, { id: webhookId, userId, companyId }))
         .returning();
 
       res.json(newWebhook);
     } catch (error: any) {
-      console.error("Error creating webhook:", error);
+      logger.error("Error creating webhook:", error);
       res.status(500).json({ error: "Failed to create webhook" });
     }
   });
@@ -98,7 +94,7 @@ export function registerWebhookRoutes(router: Router): void {
 
       res.json(updatedWebhook);
     } catch (error: any) {
-      console.error("Error updating webhook:", error);
+      logger.error("Error updating webhook:", error);
       res.status(500).json({ error: "Failed to update webhook" });
     }
   });
@@ -118,7 +114,7 @@ export function registerWebhookRoutes(router: Router): void {
 
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Error deleting webhook:", error);
+      logger.error("Error deleting webhook:", error);
       res.status(500).json({ error: "Failed to delete webhook" });
     }
   });
@@ -153,7 +149,7 @@ export function registerWebhookRoutes(router: Router): void {
 
       res.json(logs);
     } catch (error: any) {
-      console.error("Error fetching webhook logs:", error);
+      logger.error("Error fetching webhook logs:", error);
       res.status(500).json({ error: "Failed to fetch webhook logs" });
     }
   });
@@ -181,7 +177,7 @@ export function registerWebhookRoutes(router: Router): void {
 
       res.json(result);
     } catch (error: any) {
-      console.error("Error testing webhook:", error);
+      logger.error("Error testing webhook:", error);
       res.status(500).json({ error: "Failed to test webhook" });
     }
   });
@@ -209,7 +205,7 @@ export function registerWebhookRoutes(router: Router): void {
 
       res.json(result);
     } catch (error: any) {
-      console.error("Error retrying webhook:", error);
+      logger.error("Error retrying webhook:", error);
       res.status(500).json({ error: "Failed to retry webhook" });
     }
   });

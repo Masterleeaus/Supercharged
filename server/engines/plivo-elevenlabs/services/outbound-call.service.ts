@@ -96,7 +96,7 @@ export class PlivoElevenLabsOutboundService {
       const [row] = await db.insert(plivoCalls).values(insertValues).returning({ id: plivoCalls.id });
       callRecordId = row?.id;
     } catch (dbErr: any) {
-      console.error(`[Plivo-ElevenLabs Outbound] Failed to insert call record for ${callUuid}:`, dbErr?.message || dbErr);
+      logger.error(`[Plivo-ElevenLabs Outbound] Failed to insert call record for ${callUuid}:`, dbErr?.message || dbErr);
     }
 
     try {
@@ -140,7 +140,7 @@ export class PlivoElevenLabsOutboundService {
       };
       
     } catch (error: any) {
-      console.error(`[Plivo-ElevenLabs Outbound] Call failed:`, error.message);
+      logger.error(`[Plivo-ElevenLabs Outbound] Call failed:`, error.message);
       
       await ElevenLabsBridgeService.endSession(callUuid);
       

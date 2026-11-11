@@ -198,8 +198,8 @@ export class CRMLeadService {
 
       logger.info(`[CRM] Created new lead ${leadId} for [redacted] from ${callData.sourceType}`);
       return { leadId };
-    } catch (error: any) {
-      console.error('[CRM] Error creating lead from call:', error.message);
+    } catch (error: unknown) {
+      logger.error('[CRM] Error creating lead from call:', error instanceof Error ? error.message : undefined);
       return null;
     }
   }
@@ -274,8 +274,8 @@ export class CRMLeadService {
 
         logger.info(`[CRM] Updated lead ${leadId} with score ${scoreResult.score} -> ${matchedStageName}`);
       }
-    } catch (error: any) {
-      console.error('[CRM] Error updating lead score:', error.message);
+    } catch (error: unknown) {
+      logger.error('[CRM] Error updating lead score:', error instanceof Error ? error.message : undefined);
     }
   }
 
@@ -327,8 +327,8 @@ Return ONLY valid JSON:`;
         summary: result.summary || 'Call completed',
         suggestedNextAction: result.suggestedNextAction,
       };
-    } catch (error: any) {
-      console.error('[CRM] Error analyzing transcript:', error.message);
+    } catch (error: unknown) {
+      logger.error('[CRM] Error analyzing transcript:', error instanceof Error ? error.message : undefined);
       return null;
     }
   }
@@ -360,8 +360,8 @@ Return ONLY valid JSON:`;
         .where(eq(leads.id, leadId));
 
       logger.info(`[CRM] Tracked tool execution: ${toolName} for lead ${leadId}`);
-    } catch (error: any) {
-      console.error('[CRM] Error tracking tool:', error.message);
+    } catch (error: unknown) {
+      logger.error('[CRM] Error tracking tool:', error instanceof Error ? error.message : undefined);
     }
   }
 }

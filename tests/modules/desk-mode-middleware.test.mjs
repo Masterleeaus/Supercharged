@@ -95,3 +95,35 @@ test('requireModule blocks a request with no mode set', () => {
   assert.equal(called, false);
   assert.equal(res.statusCode, 404);
 });
+
+test('repeated Host values are rejected rather than selecting the first', () => {
+  for (const host of [['syncedat.work'], ['syncedat.work','supercharged.at.work']]) {
+    const {res,nextCalled} = run(deskModeMiddleware(config), {headers:{host}});
+    assert.equal(res.statusCode,404);
+    assert.equal(nextCalled,false);
+  }
+});
+
+test('middleware clears a stale mode before rejecting a newly invalid host', () => {
+  const req = { headers: { host: 'unknown.example' }, deskMode: 'comms', deskHost: 'syncedat.work' };
+  const result = run(deskModeMiddleware(config),req);
+  assert.equal(result.res.statusCode,404);
+  assert.equal(result.nextCalled,false);
+  assert.equal(req.deskMode,undefined);
+  assert.equal(req.deskHost,undefined);
+});
+
+test('oversized or malformed DNS label never selects a workspace',()=>{
+ const mw=deskModeMiddleware(config);
+ for(const host of ['-syncedat.work','syncedat-.work','a'.repeat(64)+'.work']){
+  const {res,nextCalled}=run(mw,{headers:{host}});
+  assert.equal(res.statusCode,404);assert.equal(nextCalled,false);
+ }
+});
+
+test('a new HTTP router must not accept comms access from a workforce mode marker',()=>{
+ const guard=requireModule('inbox');
+ const res=fakeRes();let advanced=false;
+ guard({deskMode:'workforce'},res,()=>{advanced=true;});
+ assert.equal(advanced,false);assert.equal(res.statusCode,404);
+});

@@ -62,7 +62,7 @@ export function resolveAppointmentWebhookSecret(
   }
 
   if (env.NODE_ENV === 'development' || env.NODE_ENV === 'test') {
-    console.warn(`📅 [Appointment Tool] Using DEV-ONLY appointment webhook secret (NODE_ENV=${env.NODE_ENV})`);
+    logger.warn(`📅 [Appointment Tool] Using DEV-ONLY appointment webhook secret (NODE_ENV=${env.NODE_ENV})`);
     return DEV_ONLY_APPOINTMENT_WEBHOOK_SECRET;
   }
 

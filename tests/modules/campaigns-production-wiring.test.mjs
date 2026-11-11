@@ -24,7 +24,7 @@ function deps(overrides = {}) {
   const store = new InMemoryCampaignStore();
   const approvals = new InMemoryApprovalPort();
   const transport = new RecordingSendTransport();
-  const companySettings = createCompanySettingsStore({});
+  const companySettings = createCompanySettingsStore({ memoryForTests: true });
   const suppression = createSuppressionList();
   let seq = 0;
   let clock = 0;
@@ -65,7 +65,7 @@ test('production service refuses to build without companySettings or suppression
 
 test('production service holds a send inside the company quiet hours from companySettings', async () => {
   const d = deps();
-  assert.equal(d.companySettings.setQuietHours(CO_A, { startHour: 0, endHour: 6, timezone: 'UTC' }).ok, true);
+  assert.equal((await d.companySettings.setQuietHours(CO_A, { startHour: 0, endHour: 6, timezone: 'UTC' })).ok, true);
   const service = createCampaignServiceForProduction(d);
   const job = await queuedJob(service, d.approvals);
 
@@ -76,7 +76,7 @@ test('production service holds a send inside the company quiet hours from compan
 
 test('production service sends outside the company quiet hours', async () => {
   const d = deps();
-  assert.equal(d.companySettings.setQuietHours(CO_A, { startHour: 12, endHour: 18, timezone: 'UTC' }).ok, true);
+  assert.equal((await d.companySettings.setQuietHours(CO_A, { startHour: 12, endHour: 18, timezone: 'UTC' })).ok, true);
   const service = createCampaignServiceForProduction(d);
   const job = await queuedJob(service, d.approvals);
 
@@ -198,7 +198,7 @@ test('production router takes company from res.locals, not from the body', async
 
 test('router and worker share one service: a send held by company quiet hours is seen through the router', async () => {
   const d = deps();
-  d.companySettings.setQuietHours(CO_A, { startHour: 0, endHour: 6, timezone: 'UTC' });
+  await d.companySettings.setQuietHours(CO_A, { startHour: 0, endHour: 6, timezone: 'UTC' });
   const service = createCampaignServiceForProduction(d);
   const router = createCampaignRouterForProduction({ ...d, service, requireRole: requireRoleFake });
   const server = await listen(testApp(router, { locals: { companyId: CO_A, actor: HUMAN }, role: 'manager' }));

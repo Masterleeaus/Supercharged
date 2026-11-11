@@ -69,7 +69,7 @@ export function createPlivoApiRoutes(): Router {
         count: OPENAI_VOICES.length,
       });
     } catch (error: any) {
-      console.error('[Plivo API] Error fetching voices:', error);
+      logger.error('[Plivo API] Error fetching voices:', error);
       res.status(500).json({ error: 'Failed to fetch voices' });
     }
   });
@@ -103,7 +103,7 @@ export function createPlivoApiRoutes(): Router {
         allTiers: MODEL_TIER_CONFIG,
       });
     } catch (error: any) {
-      console.error('[Plivo API] Error fetching models:', error);
+      logger.error('[Plivo API] Error fetching models:', error);
       res.status(500).json({ error: 'Failed to fetch models' });
     }
   });
@@ -129,7 +129,7 @@ export function createPlivoApiRoutes(): Router {
         description: tierConfig.description,
       });
     } catch (error: any) {
-      console.error('[Plivo API] Error fetching models for tier:', error);
+      logger.error('[Plivo API] Error fetching models for tier:', error);
       res.status(500).json({ error: 'Failed to fetch models' });
     }
   });
@@ -147,7 +147,7 @@ export function createPlivoApiRoutes(): Router {
       const stats = await OpenAIPoolService.getPoolStats();
       res.json(stats);
     } catch (error: any) {
-      console.error('[Plivo API] Error fetching pool stats:', error);
+      logger.error('[Plivo API] Error fetching pool stats:', error);
       res.status(500).json({ error: 'Failed to fetch pool stats' });
     }
   });
@@ -161,7 +161,7 @@ export function createPlivoApiRoutes(): Router {
       const credentials = await OpenAIPoolService.getAllWithStats();
       res.json(credentials);
     } catch (error: any) {
-      console.error('[Plivo API] Error fetching credentials:', error);
+      logger.error('[Plivo API] Error fetching credentials:', error);
       res.status(500).json({ error: 'Failed to fetch credentials' });
     }
   });
@@ -192,7 +192,7 @@ export function createPlivoApiRoutes(): Router {
       const { apiKey: _, ...safeCredential } = credential;
       res.status(201).json(safeCredential);
     } catch (error: any) {
-      console.error('[Plivo API] Error adding credential:', error);
+      logger.error('[Plivo API] Error adding credential:', error);
       res.status(500).json({ error: 'Failed to add credential' });
     }
   });
@@ -217,7 +217,7 @@ export function createPlivoApiRoutes(): Router {
       const { apiKey: _, ...safeCredential } = updated;
       res.json(safeCredential);
     } catch (error: any) {
-      console.error('[Plivo API] Error updating credential:', error);
+      logger.error('[Plivo API] Error updating credential:', error);
       res.status(500).json({ error: 'Failed to update credential' });
     }
   });
@@ -232,7 +232,7 @@ export function createPlivoApiRoutes(): Router {
       await OpenAIPoolService.deleteCredential(id);
       res.json({ success: true, message: 'Credential deleted' });
     } catch (error: any) {
-      console.error('[Plivo API] Error deleting credential:', error);
+      logger.error('[Plivo API] Error deleting credential:', error);
       res.status(500).json({ error: 'Failed to delete credential' });
     }
   });
@@ -247,7 +247,7 @@ export function createPlivoApiRoutes(): Router {
       await OpenAIPoolService.activateCredential(id);
       res.json({ success: true, message: 'Credential activated' });
     } catch (error: any) {
-      console.error('[Plivo API] Error activating credential:', error);
+      logger.error('[Plivo API] Error activating credential:', error);
       res.status(500).json({ error: 'Failed to activate credential' });
     }
   });
@@ -262,7 +262,7 @@ export function createPlivoApiRoutes(): Router {
       await OpenAIPoolService.deactivateCredential(id);
       res.json({ success: true, message: 'Credential deactivated' });
     } catch (error: any) {
-      console.error('[Plivo API] Error deactivating credential:', error);
+      logger.error('[Plivo API] Error deactivating credential:', error);
       res.status(500).json({ error: 'Failed to deactivate credential' });
     }
   });
@@ -277,7 +277,7 @@ export function createPlivoApiRoutes(): Router {
       const stats = await OpenAIPoolService.getPoolStats();
       res.json({ success: true, message: 'Health checks completed', stats });
     } catch (error: any) {
-      console.error('[Plivo API] Error performing health checks:', error);
+      logger.error('[Plivo API] Error performing health checks:', error);
       res.status(500).json({ error: 'Failed to perform health checks' });
     }
   });
@@ -291,7 +291,7 @@ export function createPlivoApiRoutes(): Router {
       const result = await OpenAIPoolService.recalculateAgentCounts();
       res.json({ success: true, ...result });
     } catch (error: any) {
-      console.error('[Plivo API] Error recalculating counts:', error);
+      logger.error('[Plivo API] Error recalculating counts:', error);
       res.status(500).json({ error: 'Failed to recalculate counts' });
     }
   });
@@ -322,7 +322,7 @@ export function createPlivoApiRoutes(): Router {
 
       res.json(credentials);
     } catch (error: any) {
-      console.error('[Plivo API] Error fetching Plivo credentials:', error);
+      logger.error('[Plivo API] Error fetching Plivo credentials:', error);
       res.status(500).json({ error: 'Failed to fetch Plivo credentials' });
     }
   });
@@ -361,7 +361,7 @@ export function createPlivoApiRoutes(): Router {
       const { authToken: _, ...safeCredential } = credential;
       res.status(201).json(safeCredential);
     } catch (error: any) {
-      console.error('[Plivo API] Error adding Plivo credential:', error);
+      logger.error('[Plivo API] Error adding Plivo credential:', error);
       res.status(500).json({ error: 'Failed to add Plivo credential' });
     }
   });
@@ -397,7 +397,7 @@ export function createPlivoApiRoutes(): Router {
       const { authToken: _, ...safeCredential } = updated;
       res.json(safeCredential);
     } catch (error: any) {
-      console.error('[Plivo API] Error updating Plivo credential:', error);
+      logger.error('[Plivo API] Error updating Plivo credential:', error);
       res.status(500).json({ error: 'Failed to update Plivo credential' });
     }
   });
@@ -412,7 +412,7 @@ export function createPlivoApiRoutes(): Router {
       await db.delete(plivoCredentials).where(eq(plivoCredentials.id, id));
       res.json({ success: true, message: 'Plivo credential deleted' });
     } catch (error: any) {
-      console.error('[Plivo API] Error deleting Plivo credential:', error);
+      logger.error('[Plivo API] Error deleting Plivo credential:', error);
       res.status(500).json({ error: 'Failed to delete Plivo credential' });
     }
   });
@@ -434,7 +434,7 @@ export function createPlivoApiRoutes(): Router {
 
       res.json(pricing);
     } catch (error: any) {
-      console.error('[Plivo API] Error fetching phone pricing:', error);
+      logger.error('[Plivo API] Error fetching phone pricing:', error);
       res.status(500).json({ error: 'Failed to fetch phone pricing' });
     }
   });
@@ -465,7 +465,7 @@ export function createPlivoApiRoutes(): Router {
 
       res.status(201).json(pricing);
     } catch (error: any) {
-      console.error('[Plivo API] Error adding phone pricing:', error);
+      logger.error('[Plivo API] Error adding phone pricing:', error);
       res.status(500).json({ error: 'Failed to add phone pricing' });
     }
   });
@@ -493,7 +493,7 @@ export function createPlivoApiRoutes(): Router {
 
       res.json(updated);
     } catch (error: any) {
-      console.error('[Plivo API] Error updating phone pricing:', error);
+      logger.error('[Plivo API] Error updating phone pricing:', error);
       res.status(500).json({ error: 'Failed to update phone pricing' });
     }
   });
@@ -508,7 +508,7 @@ export function createPlivoApiRoutes(): Router {
       await db.delete(plivoPhonePricing).where(eq(plivoPhonePricing.id, id));
       res.json({ success: true, message: 'Phone pricing deleted' });
     } catch (error: any) {
-      console.error('[Plivo API] Error deleting phone pricing:', error);
+      logger.error('[Plivo API] Error deleting phone pricing:', error);
       res.status(500).json({ error: 'Failed to delete phone pricing' });
     }
   });
@@ -537,7 +537,7 @@ export function createPlivoApiRoutes(): Router {
         errors: result.errors,
       });
     } catch (error: any) {
-      console.error('[Plivo API] Error syncing phone numbers:', error);
+      logger.error('[Plivo API] Error syncing phone numbers:', error);
       res.status(500).json({ error: 'Failed to sync phone numbers' });
     }
   });
@@ -552,7 +552,7 @@ export function createPlivoApiRoutes(): Router {
       const numbers = await PlivoPhoneService.getAllNumbers();
       res.json(numbers);
     } catch (error: any) {
-      console.error('[Plivo API] Error fetching all phone numbers:', error);
+      logger.error('[Plivo API] Error fetching all phone numbers:', error);
       res.status(500).json({ error: 'Failed to fetch phone numbers' });
     }
   });
@@ -571,7 +571,7 @@ export function createPlivoApiRoutes(): Router {
       
       res.json(updated);
     } catch (error: any) {
-      console.error('[Plivo API] Error assigning phone number:', error);
+      logger.error('[Plivo API] Error assigning phone number:', error);
       res.status(500).json({ error: 'Failed to assign phone number' });
     }
   });
@@ -590,7 +590,7 @@ export function createPlivoApiRoutes(): Router {
       const numbers = await PlivoPhoneService.getUserNumbers(req.userId!);
       res.json(numbers);
     } catch (error: any) {
-      console.error('[Plivo API] Error fetching user phone numbers:', error);
+      logger.error('[Plivo API] Error fetching user phone numbers:', error);
       res.status(500).json({ error: 'Failed to fetch phone numbers' });
     }
   });
@@ -625,7 +625,7 @@ export function createPlivoApiRoutes(): Router {
         pricing: pricing || null,
       });
     } catch (error: any) {
-      console.error('[Plivo API] Error searching phone numbers:', error);
+      logger.error('[Plivo API] Error searching phone numbers:', error);
       res.status(500).json({ error: error.message || 'Failed to search phone numbers' });
     }
   });
@@ -646,7 +646,7 @@ export function createPlivoApiRoutes(): Router {
 
       res.json(pricing);
     } catch (error: any) {
-      console.error('[Plivo API] Error fetching pricing:', error);
+      logger.error('[Plivo API] Error fetching pricing:', error);
       res.status(500).json({ error: 'Failed to fetch pricing' });
     }
   });
@@ -665,7 +665,7 @@ export function createPlivoApiRoutes(): Router {
 
       res.json(pricing);
     } catch (error: any) {
-      console.error('[Plivo API] Error fetching countries:', error);
+      logger.error('[Plivo API] Error fetching countries:', error);
       res.status(500).json({ error: 'Failed to fetch countries' });
     }
   });
@@ -717,7 +717,7 @@ export function createPlivoApiRoutes(): Router {
 
       res.status(201).json(result);
     } catch (error: any) {
-      console.error('[Plivo API] Error purchasing phone number:', error);
+      logger.error('[Plivo API] Error purchasing phone number:', error);
       res.status(400).json({ error: 'Failed to purchase phone number' });
     }
   });
@@ -745,7 +745,7 @@ export function createPlivoApiRoutes(): Router {
       await PlivoPhoneService.releaseNumber(id);
       res.json({ success: true, message: 'Phone number released' });
     } catch (error: any) {
-      console.error('[Plivo API] Error releasing phone number:', error);
+      logger.error('[Plivo API] Error releasing phone number:', error);
       res.status(500).json({ error: 'Failed to release phone number' });
     }
   });
@@ -764,7 +764,7 @@ export function createPlivoApiRoutes(): Router {
       const result = await PlivoPhoneService.listAccountNumbers();
       res.json(result);
     } catch (error: any) {
-      console.error('[Plivo API] Error listing account numbers:', error);
+      logger.error('[Plivo API] Error listing account numbers:', error);
       res.status(500).json({ error: 'Failed to list account numbers' });
     }
   });
@@ -783,7 +783,7 @@ export function createPlivoApiRoutes(): Router {
         ...result,
       });
     } catch (error: any) {
-      console.error('[Plivo API] Error syncing account numbers:', error);
+      logger.error('[Plivo API] Error syncing account numbers:', error);
       res.status(500).json({ error: 'Failed to sync account numbers' });
     }
   });
@@ -798,7 +798,7 @@ export function createPlivoApiRoutes(): Router {
       const stats = await PlivoPhoneService.getPhoneStats();
       res.json(stats);
     } catch (error: any) {
-      console.error('[Plivo API] Error fetching phone stats:', error);
+      logger.error('[Plivo API] Error fetching phone stats:', error);
       res.status(500).json({ error: 'Failed to fetch phone stats' });
     }
   });
@@ -814,7 +814,7 @@ export function createPlivoApiRoutes(): Router {
       await PlivoPhoneService.unrentNumber(id);
       res.json({ success: true, message: 'Phone number unrented successfully' });
     } catch (error: any) {
-      console.error('[Plivo API] Error unrenting phone number:', error);
+      logger.error('[Plivo API] Error unrenting phone number:', error);
       res.status(500).json({ error: 'Failed to unrent phone number' });
     }
   });
@@ -957,7 +957,7 @@ export function createPlivoApiRoutes(): Router {
         },
       });
     } catch (error: any) {
-      console.error('[Plivo API] Error fetching incoming connections:', error);
+      logger.error('[Plivo API] Error fetching incoming connections:', error);
       res.status(500).json({ error: 'Failed to fetch incoming connections' });
     }
   });
@@ -1035,7 +1035,7 @@ export function createPlivoApiRoutes(): Router {
         await PlivoPhoneService.configureWebhooks(phoneNumberId, baseUrl);
         logger.info(`[Plivo API] Webhooks configured for incoming calls`);
       } catch (webhookError: any) {
-        console.error(`[Plivo API] Failed to configure webhooks:`, webhookError.message);
+        logger.error(`[Plivo API] Failed to configure webhooks:`, webhookError.message);
         // Continue anyway - agent is assigned, but webhooks may need manual config
       }
 
@@ -1047,7 +1047,7 @@ export function createPlivoApiRoutes(): Router {
         agentName: agent.name,
       });
     } catch (error: any) {
-      console.error('[Plivo API] Error assigning agent to phone number:', error);
+      logger.error('[Plivo API] Error assigning agent to phone number:', error);
       res.status(500).json({ error: 'Failed to assign agent' });
     }
   });
@@ -1087,7 +1087,7 @@ export function createPlivoApiRoutes(): Router {
         await PlivoPhoneService.clearWebhooks(phoneNumberId);
         logger.info(`[Plivo API] Webhooks cleared`);
       } catch (webhookError: any) {
-        console.error(`[Plivo API] Failed to clear webhooks:`, webhookError.message);
+        logger.error(`[Plivo API] Failed to clear webhooks:`, webhookError.message);
         // Continue anyway - agent will still be unassigned
       }
 
@@ -1108,7 +1108,7 @@ export function createPlivoApiRoutes(): Router {
         phoneNumberId,
       });
     } catch (error: any) {
-      console.error('[Plivo API] Error unassigning agent from phone number:', error);
+      logger.error('[Plivo API] Error unassigning agent from phone number:', error);
       res.status(500).json({ error: 'Failed to unassign agent' });
     }
   });

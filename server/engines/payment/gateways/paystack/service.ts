@@ -106,7 +106,7 @@ export async function testPaystackConnection(): Promise<{ success: boolean; erro
       undefined,
       { operation: 'testConnection' }
     );
-    console.error('❌ [Paystack] Connection test failed:', paymentError.message);
+    logger.error('❌ [Paystack] Connection test failed:', paymentError.message);
     return { success: false, error: paymentError.message };
   }
 }
@@ -343,7 +343,7 @@ export async function verifyWebhookSignature(
   const secretKey = dbSecretKey || process.env.PAYSTACK_SECRET_KEY;
   
   if (!secretKey) {
-    console.warn('⚠️ [Paystack] Secret key not configured - rejecting webhook for security');
+    logger.warn('⚠️ [Paystack] Secret key not configured - rejecting webhook for security');
     return false;
   }
   
@@ -356,7 +356,7 @@ export async function verifyWebhookSignature(
   if (isValid) {
     logger.info('✅ [Paystack] Webhook signature verified');
   } else {
-    console.warn('⚠️ [Paystack] Webhook signature verification failed');
+    logger.warn('⚠️ [Paystack] Webhook signature verification failed');
   }
   
   return isValid;
@@ -461,7 +461,7 @@ export async function initiateRefund(
 
     return { success: true, refundId: refund.data.id?.toString() };
   } catch (error: any) {
-    console.error('❌ [Paystack] Refund failed:', error);
+    logger.error('❌ [Paystack] Refund failed:', error);
     return { success: false, error: error.message };
   }
 }

@@ -32,6 +32,34 @@ jobs:
       - run: npm ci
       - run: npm run build
 
+  typecheck-required:
+    # Gating, one job per area that already passes. Each area is checked on its own
+    # (scripts/typecheck-area.mjs); whole-repo tsc is not run here. Areas still failing
+    # are not in this matrix yet; see issue #122 and the PR description.
+    name: Typecheck ${{ matrix.area }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        area:
+          - server/middleware
+          - server/lib
+          - server/plugins
+          - server/demo-mode
+          - server/infrastructure
+          - client/src/contexts
+          - client/src/lib
+          - client/src/widget
+          - client/src/i18n
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node scripts/typecheck-area.mjs "${{ matrix.area }}"
+
   typecheck:
     name: Typecheck (informational)
     runs-on: ubuntu-latest
@@ -48,13 +76,112 @@ jobs:
       - run: npm ci
       - run: npx tsc --noEmit
 
+  marketing-postgres:
+    name: Marketing PostgreSQL tenant isolation
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: ci-only-throwaway-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      MARKETING_PG_DISPOSABLE: 'true'
+      MARKETING_PG_INTEGRATION_URL: postgres://postgres:ci-only-throwaway-password@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Validate Marketing candidate without production changes
+        run: node scripts/check-marketing-migration.mjs
+      - name: Prepare ephemeral tenant-isolated Marketing tables
+        run: node scripts/marketing-postgres-prepare.mjs
+      - name: Verify Postgres RLS, isolation and lifecycle
+        run: node --test --experimental-transform-types tests/postgres/marketing-postgres-*.test.mjs
+
+  inbox-postgres:
+    name: Inbox PostgreSQL tenant isolation
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: ci-only-throwaway-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      INBOX_PG_DISPOSABLE: 'true'
+      INBOX_PG_INTEGRATION_URL: postgres://postgres:ci-only-throwaway-password@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Validate Inbox RLS candidate without deployment
+        run: node scripts/check-inbox-rls.mjs
+      - name: Validate review-only durable Inbox outbox candidate
+        run: node scripts/check-inbox-outbox.mjs
+      - name: Validate delivery-state projection and foreign keys
+        run: node scripts/check-inbox-delivery-state.mjs
+      - name: Build disposable Inbox schema with restricted RLS
+        run: node scripts/inbox-postgres-prepare.mjs
+      - name: Verify Inbox signed receipt contract, outbox and PostgreSQL isolation
+        run: node --test --experimental-transform-types tests/postgres/inbox-postgres-*.test.mjs
+      - name: Verify real Inbox PostgreSQL storage, schema readiness and inbound service
+        run: node --test --experimental-transform-types tests/postgres/inbox-postgres-*.test.mjs
+
+  tenant-postgres:
+    name: Tenant PostgreSQL isolation (Settings)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: ci-only-throwaway-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TENANT_PG_DISPOSABLE: 'true'
+      TENANT_PG_INTEGRATION_URL: postgres://postgres:ci-only-throwaway-password@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build disposable tenant schema (promoted migration 0015 only)
+        run: node scripts/tenant-postgres-prepare.mjs
+      - name: Verify company quiet-hours isolation on real PostgreSQL
+        run: node --test --experimental-transform-types tests/postgres/tenant-postgres-*.test.mjs
+
   migration-inventory:
     name: Migration inventory
     runs-on: ubuntu-latest
-    # Informational until issue #34 is resolved: scripts/run-safe-migration.mjs lists
-    # 008 and 009 files that are not in migrations/, so this job is red on main.
-    # Remove continue-on-error once those entries are fixed.
-    continue-on-error: true
+    # Gating. Issue #34 (008 and 009 entries) is resolved: both files exist in migrations/.
+    # The check reads the MIGRATIONS manifest in scripts/run-safe-migration.mjs and fails
+    # when a required file is missing or the manifest format cannot be read.
     # scripts/run-safe-migration.mjs has no --dry-run flag, so this job checks
     # that every migration file the script lists exists under migrations/.
     steps:
@@ -63,23 +190,91 @@ jobs:
         with:
           node-version: 22
       - name: Check listed migrations exist
+        run: node scripts/check-migration-inventory.mjs
+
+  docker:
+    name: Docker build and smoke test
+    runs-on: ubuntu-latest
+    # Gating job: no continue-on-error. No repository or organisation secrets are used.
+    # The app reads DATABASE_URL at import time (server/db.ts) and requires JWT_SECRET
+    # in production (server/middleware/auth.ts). Both are set below as CI-only values
+    # for a throwaway postgres service that exists only inside this job.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          # Throwaway CI-only password. Not a real secret; the database lives only for this job.
+          POSTGRES_PASSWORD: ci-only-throwaway-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # CI placeholder only: points at the postgres service above (same throwaway password).
+      DATABASE_URL: postgres://postgres:ci-only-throwaway-password@localhost:5432/postgres
+      # CI placeholder only: satisfies the production JWT_SECRET check. Not used anywhere real.
+      JWT_SECRET: ci-only-placeholder-jwt-secret-not-real
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t supercharged-ci .
+      - name: Start container
+        # --network host lets the app reach the postgres service on localhost:5432.
+        # Host networking also exposes the app on localhost:5000, so no -p is needed.
+        run: >-
+          docker run -d --name app --network host
+          -e NODE_ENV=production
+          -e PORT=5000
+          -e DATABASE_URL
+          -e JWT_SECRET
+          supercharged-ci
+      - name: Wait for HTTP response on /health (up to 60s)
         run: |
-          node -e "
-          const fs = require('fs');
-          const src = fs.readFileSync('scripts/run-safe-migration.mjs', 'utf8');
-          const re = /resolve\(rootDir,\s*'migrations',\s*'([^']+)'\)/g;
-          const names = [];
-          let m;
-          while ((m = re.exec(src))) names.push(m[1]);
-          if (names.length === 0) {
-            console.error('No migration names found in scripts/run-safe-migration.mjs');
-            process.exit(1);
-          }
-          const missing = names.filter((n) => !fs.existsSync('migrations/' + n));
-          console.log('Listed migrations: ' + names.length);
-          if (missing.length) {
-            console.error('Missing under migrations/:\n  ' + missing.join('\n  '));
-            process.exit(1);
-          }
-          console.log('All listed migrations exist.');
-          "
+          for i in $(seq 1 60); do
+            if [ "$(docker inspect -f '{{.State.Running}}' app 2>/dev/null)" != "true" ]; then
+              echo "Container 'app' is not running after ${i}s; it exited."
+              exit 1
+            fi
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 2 http://localhost:5000/health || true)
+            if [ -n "$code" ] && [ "$code" != "000" ]; then
+              echo "App answered with HTTP $code after ${i}s."
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "No HTTP response from http://localhost:5000/health within 60s."
+          exit 1
+      - name: Dump container logs on failure
+        if: failure()
+        run: docker logs app || true
+      - name: Remove container
+        if: always()
+        run: docker rm -f app || true
+
+  secret-scan:
+    name: Secret scan (gitleaks)
+    # Gating job: no continue-on-error. Fails when a commit in this PR adds a secret-looking value.
+    # Scans only this PR's own commits (base..head), so the existing historical findings do not
+    # block unrelated PRs. Triage of those findings is tracked separately.
+    # gitleaks v8.18.4 is installed from the Go module proxy (checksummed by go.sum), so no
+    # account, licence key or third-party action is needed. Uses the default rule set; no allow-list.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - name: Install gitleaks v8.18.4
+        run: go install github.com/zricethezav/gitleaks/v8@v8.18.4
+      - name: Scan this PR's commits for committed secrets
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          "$(go env GOPATH)/bin/gitleaks" detect --source . --redact --exit-code 1 \
+            --log-opts="${BASE_SHA}..${HEAD_SHA}"

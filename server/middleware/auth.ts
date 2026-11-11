@@ -25,7 +25,7 @@ const JWT_SECRET = process.env.JWT_SECRET || (() => {
   if (process.env.NODE_ENV === "production") {
     throw new Error("JWT_SECRET environment variable must be set in production");
   }
-  console.warn("⚠️  WARNING: Using insecure default JWT_SECRET in development. Set JWT_SECRET environment variable for production!");
+  logger.warn("⚠️  WARNING: Using insecure default JWT_SECRET in development. Set JWT_SECRET environment variable for production!");
   return "insecure-dev-secret-CHANGE-ME";
 })();
 
@@ -120,7 +120,7 @@ export async function authenticateAnyToken(req: AuthRequest, res: Response, next
       }
     }
   } catch (importError) {
-    console.error('[Auth] Admin team token check error:', importError);
+    logger.error('[Auth] Admin team token check error:', importError);
   }
 
   return res.status(403).json({ error: "Invalid or expired token" });
@@ -154,7 +154,7 @@ export function checkUserActive(storage: any) {
 
       next();
     } catch (error: any) {
-      console.error("User active check error:", error);
+      logger.error("User active check error:", error);
       return res.status(500).json({ error: "Failed to verify account status" });
     }
   };
@@ -188,7 +188,7 @@ export async function preloadJwtExpiry(storage: any): Promise<void> {
     jwtExpiryCacheTime = Date.now();
     logger.info(`🔐 [Auth] JWT expiry preloaded: ${cachedJwtExpiry}`);
   } catch (error) {
-    console.error('[Auth] Failed to preload jwt_expiry_days, using default 7d:', error);
+    logger.error('[Auth] Failed to preload jwt_expiry_days, using default 7d:', error);
   }
 }
 
@@ -205,7 +205,7 @@ async function getJwtExpiry(storage: any): Promise<string> {
     jwtExpiryCacheTime = now;
     return cachedJwtExpiry;
   } catch (error) {
-    console.error('[Auth] Failed to fetch jwt_expiry_days, using default:', error);
+    logger.error('[Auth] Failed to fetch jwt_expiry_days, using default:', error);
     return "7d";
   }
 }
@@ -259,7 +259,7 @@ export function checkActiveMembership(storage: any) {
         error: 'Active Pro membership required. Please subscribe to a plan to access this feature.' 
       });
     } catch (error: any) {
-      console.error('Membership check error:', error);
+      logger.error('Membership check error:', error);
       return res.status(500).json({ error: 'Failed to verify membership status' });
     }
   };

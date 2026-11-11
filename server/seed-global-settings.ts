@@ -17,6 +17,7 @@
 import { db } from "./db";
 import { globalSettings } from "@shared/schema";
 import { sql } from "drizzle-orm";
+import { logger } from './utils/logger.ts';
 
 const GLOBAL_SETTINGS_SEED_DATA = [
   // ============================================
@@ -371,7 +372,7 @@ const GLOBAL_SETTINGS_SEED_DATA = [
 
 async function seedGlobalSettings() {
   try {
-    console.log("⚙️  Starting Global Settings seed...");
+    logger.info("⚙️  Starting Global Settings seed...");
 
     const existingSettings = await db.select().from(globalSettings);
     const existingKeys = existingSettings.map(s => s.key);
@@ -381,11 +382,11 @@ async function seedGlobalSettings() {
     );
 
     if (settingsToInsert.length === 0) {
-      console.log(`⚠️  All ${GLOBAL_SETTINGS_SEED_DATA.length} global settings already exist. Skipping.`);
+      logger.info(`⚠️  All ${GLOBAL_SETTINGS_SEED_DATA.length} global settings already exist. Skipping.`);
       return;
     }
 
-    console.log(`📦 Inserting ${settingsToInsert.length} global settings...`);
+    logger.info(`📦 Inserting ${settingsToInsert.length} global settings...`);
 
     for (const setting of settingsToInsert) {
       await db.execute(sql`
@@ -395,7 +396,7 @@ async function seedGlobalSettings() {
       `);
     }
 
-    console.log("✅ Successfully seeded Global Settings!");
+    logger.info("✅ Successfully seeded Global Settings!");
 
     const categories = {
       "Branding": settingsToInsert.filter(s => s.key.startsWith("company_") || s.key.includes("_url")).length,
@@ -412,12 +413,12 @@ async function seedGlobalSettings() {
 
     Object.entries(categories).forEach(([category, count]) => {
       if (count > 0) {
-        console.log(`   - ${category}: ${count} settings`);
+        logger.info(`   - ${category}: ${count} settings`);
       }
     });
 
   } catch (error) {
-    console.error("❌ Error seeding Global Settings:", error);
+    logger.error("❌ Error seeding Global Settings:", error);
     throw error;
   }
 }

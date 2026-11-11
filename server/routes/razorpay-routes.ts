@@ -64,7 +64,7 @@ router.get('/config', async (req: Request, res: Response) => {
     const keyId = await getRazorpayKeyId();
     res.json({ enabled: true, keyId });
   } catch (error: any) {
-    console.error('Get Razorpay config error:', error);
+    logger.error('Get Razorpay config error:', error);
     res.status(500).json({ error: 'Failed to get Razorpay config' });
   }
 });
@@ -138,7 +138,7 @@ router.post('/create-subscription', authenticateToken, async (req: AuthRequest, 
       currency: 'INR',
     });
   } catch (error: any) {
-    console.error('Create Razorpay subscription error:', error);
+    logger.error('Create Razorpay subscription error:', error);
     res.status(500).json({ error: 'Failed to create subscription' });
   }
 });
@@ -242,7 +242,7 @@ router.post('/verify-subscription', authenticateToken, async (req: AuthRequest, 
       });
       logger.info(`✅ [Razorpay] Logged subscription transaction for user ${userId}`);
     } catch (txError: any) {
-      console.error('Failed to log payment transaction:', txError);
+      logger.error('Failed to log payment transaction:', txError);
     }
 
     res.json({
@@ -252,7 +252,7 @@ router.post('/verify-subscription', authenticateToken, async (req: AuthRequest, 
       expiresAt: currentPeriodEnd,
     });
   } catch (error: any) {
-    console.error('Verify Razorpay subscription error:', error);
+    logger.error('Verify Razorpay subscription error:', error);
     res.status(500).json({ error: 'Failed to verify subscription' });
   }
 });
@@ -327,7 +327,7 @@ router.post('/create-order', authenticateToken, async (req: AuthRequest, res: Re
       credits: pkg.credits,
     });
   } catch (error: any) {
-    console.error('Create Razorpay order error:', error);
+    logger.error('Create Razorpay order error:', error);
     res.status(500).json({ error: 'Failed to create order' });
   }
 });
@@ -384,7 +384,7 @@ router.post('/verify-order', authenticateToken, async (req: AuthRequest, res: Re
         });
         logger.info(`✅ [Razorpay] Logged credits transaction for user ${userId}`);
       } catch (txError: any) {
-        console.error('Failed to log payment transaction:', txError);
+        logger.error('Failed to log payment transaction:', txError);
       }
     } catch (error: any) {
       if (!error.message?.includes('unique') && !error.message?.includes('duplicate')) {
@@ -402,7 +402,7 @@ router.post('/verify-order', authenticateToken, async (req: AuthRequest, res: Re
       newBalance: user?.credits || 0,
     });
   } catch (error: any) {
-    console.error('Verify Razorpay order error:', error);
+    logger.error('Verify Razorpay order error:', error);
     res.status(500).json({ error: 'Failed to verify order' });
   }
 });
@@ -433,7 +433,7 @@ router.post('/cancel-subscription', authenticateToken, async (req: AuthRequest, 
       currentPeriodEnd: subscription.currentPeriodEnd,
     });
   } catch (error: any) {
-    console.error('Cancel Razorpay subscription error:', error);
+    logger.error('Cancel Razorpay subscription error:', error);
     res.status(500).json({ error: 'Failed to cancel subscription' });
   }
 });
@@ -447,7 +447,7 @@ router.post('/webhook', webhookRateLimiter, async (req: Request, res: Response) 
     const isValid = await verifyWebhookSignature(rawBody.toString(), signature || '');
 
     if (!isValid) {
-      console.error('Razorpay webhook signature verification failed');
+      logger.error('Razorpay webhook signature verification failed');
       return res.status(400).send('Invalid signature');
     }
 
@@ -535,10 +535,10 @@ router.post('/webhook', webhookRateLimiter, async (req: Request, res: Response) 
                   await emailService.sendPurchaseConfirmation(newTransaction.id);
                   logger.info(`✅ [Razorpay] Purchase confirmation email sent for transaction ${newTransaction.id}`);
                 } catch (emailError: any) {
-                  console.error(`❌ [Razorpay] Failed to send purchase confirmation email:`, emailError);
+                  logger.error(`❌ [Razorpay] Failed to send purchase confirmation email:`);
                 }
               } catch (txError: any) {
-                console.error('Failed to log payment transaction:', txError);
+                logger.error('Failed to log payment transaction:', txError);
               }
             }
           }
@@ -609,10 +609,10 @@ router.post('/webhook', webhookRateLimiter, async (req: Request, res: Response) 
                     await emailService.sendPurchaseConfirmation(renewalTransaction.id);
                     logger.info(`✅ [Razorpay] Renewal confirmation email sent for transaction ${renewalTransaction.id}`);
                   } catch (emailError: any) {
-                    console.error(`❌ [Razorpay] Failed to send renewal confirmation email:`, emailError);
+                    logger.error(`❌ [Razorpay] Failed to send renewal confirmation email:`);
                   }
                 } catch (txError: any) {
-                  console.error('Failed to log payment transaction:', txError);
+                  logger.error('Failed to log payment transaction:', txError);
                 }
               }
             }
@@ -731,7 +731,7 @@ router.post('/webhook', webhookRateLimiter, async (req: Request, res: Response) 
                   }
                 }
               } catch (error) {
-                console.error('Error downgrading user agents:', error);
+                logger.error('Error downgrading user agents:', error);
               }
             }
           }
@@ -780,10 +780,10 @@ router.post('/webhook', webhookRateLimiter, async (req: Request, res: Response) 
                     await emailService.sendPurchaseConfirmation(creditTransaction.id);
                     logger.info(`✅ [Razorpay] Credits purchase confirmation email sent for transaction ${creditTransaction.id}`);
                   } catch (emailError: any) {
-                    console.error(`❌ [Razorpay] Failed to send credits purchase confirmation email:`, emailError);
+                    logger.error(`❌ [Razorpay] Failed to send credits purchase confirmation email:`);
                   }
                 } catch (txError: any) {
-                  console.error('Failed to log payment transaction:', txError);
+                  logger.error('Failed to log payment transaction:', txError);
                 }
               }
             } catch (error: any) {
@@ -803,7 +803,7 @@ router.post('/webhook', webhookRateLimiter, async (req: Request, res: Response) 
 
       case 'payment.failed': {
         const payment = payload.payment?.entity;
-        console.error('❌ [Razorpay] Payment failed:', payment?.error_description);
+        logger.error('❌ [Razorpay] Payment failed:', payment?.error_description);
         
         // Try to find the user and send payment failed email
         try {
@@ -815,7 +815,7 @@ router.post('/webhook', webhookRateLimiter, async (req: Request, res: Response) 
             logger.info(`✅ [Razorpay] Payment failed email sent to user ${userId}`);
           }
         } catch (emailError: any) {
-          console.error(`❌ [Razorpay] Failed to send payment failed email:`, emailError);
+          logger.error(`❌ [Razorpay] Failed to send payment failed email:`);
         }
         break;
       }
@@ -886,7 +886,7 @@ router.post('/webhook', webhookRateLimiter, async (req: Request, res: Response) 
               logger.info(`✅ [Razorpay] External refund processed for user ${userId}. Payment: ${paymentId}`);
             }
           } catch (error: any) {
-            console.error('Error processing external refund:', error);
+            logger.error('Error processing external refund:', error);
           }
         }
         break;
@@ -959,15 +959,15 @@ router.post('/webhook', webhookRateLimiter, async (req: Request, res: Response) 
                 await emailService.sendAccountSuspended(userId, `Chargeback dispute: ${dispute.reason_code || 'Unknown reason'}`);
                 logger.info(`✅ [Razorpay] Account suspended email sent to user ${userId}`);
               } catch (emailError: any) {
-                console.error(`❌ [Razorpay] Failed to send account suspended email:`, emailError);
+                logger.error(`❌ [Razorpay] Failed to send account suspended email:`);
               }
               
               logger.warn(`⛔ [Razorpay] User ${userId} suspended due to chargeback. Dispute ID: ${dispute.id}, Reason: ${dispute.reason_code}`);
             } else {
-              console.warn(`⚠️ [Razorpay] No transaction found for payment ${paymentId}`);
+              logger.warn(`⚠️ [Razorpay] No transaction found for payment ${paymentId}`);
             }
           } catch (error: any) {
-            console.error('Error processing chargeback:', error);
+            logger.error('Error processing chargeback:', error);
           }
         }
         break;
@@ -979,7 +979,7 @@ router.post('/webhook', webhookRateLimiter, async (req: Request, res: Response) 
 
     res.json({ received: true });
   } catch (error: any) {
-    console.error('Razorpay webhook error:', error);
+    logger.error('Razorpay webhook error:', error);
     
     const event = req.body;
     await queueFailedWebhook(

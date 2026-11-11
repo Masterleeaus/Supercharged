@@ -3,6 +3,7 @@ import { requireRole, type AuthRequest } from '../../middleware/auth';
 import { ApprovalService, parseRuleInput, type ApprovalStatus } from './approval-service';
 import { applyApprovalDecision, type AppliedDecision, type TransactionRunner } from './apply-atomic';
 import { logAuditEvent } from '../../services/audit-log';
+import { logger } from '../../utils/logger.ts';
 
 export interface ApprovalRouteDecisionDeps {
   /**
@@ -90,7 +91,7 @@ function publishDecision(
     try {
       service.notifyDecision(applied.companyId, applied.approvalId, applied.decision);
     } catch (error: unknown) {
-      console.error('[Approvals] Failed to notify waiters of decision', { approvalId: applied.approvalId, error });
+      logger.error('[Approvals] Failed to notify waiters of decision', { approvalId: applied.approvalId, error });
     }
     await logAuditEvent({
       action: applied.decision === 'approved' ? 'approval.approved' : 'approval.rejected',

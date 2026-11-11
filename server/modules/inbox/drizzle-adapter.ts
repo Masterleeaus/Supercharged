@@ -4,8 +4,8 @@
  *
  * Two parts are live: the transaction runner for the approved-send path, and the store-level
  * inbound lock (a transaction-scoped advisory lock, so the lock holds across server instances).
- * The inbox tables are still DRAFT (migrations/DRAFT_inbox.sql), so the CRUD methods below stay
- * as placeholders until the tables are promoted. Nothing here imports drizzle-orm, and the pool
+ * Inbox tables were promoted at migrations/0010a_inbox.sql; the CRUD methods below stay
+ * as compatibility placeholders until the optional SQL store is deployed. Nothing here imports drizzle-orm, and the pool
  * is loaded lazily, so the module loads without DATABASE_URL.
  */
 import { createHash } from 'node:crypto';

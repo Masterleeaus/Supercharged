@@ -71,7 +71,7 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
         res.json(enrichedCalls);
       }
     } catch (error: any) {
-      console.error("Get calls error:", error);
+      logger.error("Get calls error:", error);
       res.status(500).json({ error: "Failed to get calls" });
     }
   });
@@ -106,7 +106,7 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
 
       res.json(callWithDetails);
     } catch (error: any) {
-      console.error("Get call error:", error);
+      logger.error("Get call error:", error);
       res.status(500).json({ error: "Failed to get call" });
     }
   });
@@ -165,7 +165,7 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
           logger.info(`🎙️ [Recording] Found record. status: "${row.status}", storage_path: "${row.storage_path}"`);
           
           if (row.status !== 'available') {
-            console.warn(`🎙️ [Recording] Recording for session ${callWithDetails.id} is not marked as 'available' (current status: ${row.status})`);
+            logger.warn(`🎙️ [Recording] Recording for session ${callWithDetails.id} is not marked as 'available' (current status: ${row.status})`);
           }
           
           const storagePath = row.storage_path;
@@ -177,10 +177,10 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
             res.setHeader('Cache-Control', 'no-cache');
             return res.send(audioBuffer);
           } else {
-            console.error(`🎙️ [Recording] ERROR: File path registered in database does not exist on disk: "${storagePath}"`);
+            logger.error(`🎙️ [Recording] ERROR: File path registered in database does not exist on disk: "${storagePath}"`);
           }
         } else {
-          console.warn(`🎙️ [Recording] No database entry found in ve_call_recordings for session ${callWithDetails.id}`);
+          logger.warn(`🎙️ [Recording] No database entry found in ve_call_recordings for session ${callWithDetails.id}`);
         }
         
         return res.status(404).json({
@@ -202,7 +202,7 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
             return res.send(twilioResult.audioBuffer);
           }
         } else {
-          console.warn(`⚠️ [Recording] Call ${callWithDetails.id} has no twilioSid — cannot fetch recording from Twilio API`);
+          logger.warn(`⚠️ [Recording] Call ${callWithDetails.id} has no twilioSid — cannot fetch recording from Twilio API`);
         }
         
         // Try using stored recording URL as fallback
@@ -216,7 +216,7 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
           }
         }
         
-        console.warn(`⚠️ [Recording] No recording found for Twilio+OpenAI call ${callWithDetails.id}. twilioSid: ${callWithDetails.twilioSid || 'MISSING'}, storedRecordingUrl: ${callWithDetails.recordingUrl || 'NONE'}. If recordings are visible on the Twilio/ElevenLabs dashboard but not here, check that APP_DOMAIN is correctly set and the recording callback URL (${callWithDetails.twilioSid ? '/api/twilio-openai/voice/recording' : 'N/A'}) is reachable from Twilio's servers.`);
+        logger.warn(`⚠️ [Recording] No recording found for Twilio+OpenAI call ${callWithDetails.id}. twilioSid: ${callWithDetails.twilioSid || 'MISSING'}, storedRecordingUrl: [redacted]. If recordings are visible on the Twilio/ElevenLabs dashboard but not here, check that APP_DOMAIN is correctly set and the recording callback URL ([redacted]) is reachable from Twilio's servers.`);
         return res.status(404).json({ 
           error: "Recording not available", 
           details: "No recording found for this Twilio+OpenAI call. If the call just ended, recordings may take up to 60 seconds to become available. If the issue persists, check that APP_DOMAIN is set correctly and the server is publicly accessible for Twilio webhooks." 
@@ -280,7 +280,7 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
               res.setHeader('Cache-Control', 'no-cache');
               return res.send(authedResult.audioBuffer);
             }
-            console.warn(`⚠️ [Recording] Authed fetch of Twilio-hosted SIP recording failed for call ${callWithDetails.id}`);
+            logger.warn(`⚠️ [Recording] Authed fetch of Twilio-hosted SIP recording failed for call ${callWithDetails.id}`);
           } else {
             try {
               const response = await fetch(callWithDetails.recordingUrl);
@@ -293,7 +293,7 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
                 return res.send(audioBuffer);
               }
             } catch (fetchError: any) {
-              console.warn(`⚠️ [Recording] Failed to fetch SIP recording URL: ${fetchError.message}`);
+              logger.warn(`⚠️ [Recording] Failed to fetch SIP recording URL: ${fetchError.message}`);
             }
           }
         }
@@ -330,7 +330,7 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
       }
 
     } catch (error: any) {
-      console.error("Download recording error:", error);
+      logger.error("Download recording error:", error);
       res.status(500).json({ error: "Failed to download recording" });
     }
   });
@@ -394,13 +394,13 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
                 errors.push(`[Twilio] No recording for call ${call.id}`);
               }
             } catch (error: any) {
-              console.error(`❌ [Twilio] Error for call ${call.id}:`, error.message);
+              logger.error(`❌ [Twilio] Error for call ${call.id}:`, error.message);
               failCount++;
               errors.push(`[Twilio] Call ${call.id}: ${error.message}`);
             }
           }
         } catch (twilioError: any) {
-          console.error(`❌ [Twilio] Failed to get client:`, twilioError.message);
+          logger.error(`❌ [Twilio] Failed to get client:`, twilioError.message);
           errors.push(`[Twilio] Client error: ${twilioError.message}`);
         }
       }
@@ -473,7 +473,7 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
               errors.push(`[ElevenLabs] No data for call ${call.id}`);
             }
           } catch (error: any) {
-            console.error(`❌ [ElevenLabs] Error for call ${call.id}:`, error.message);
+            logger.error(`❌ [ElevenLabs] Error for call ${call.id}:`, error.message);
             failCount++;
             errors.push(`[ElevenLabs] Call ${call.id}: ${error.message}`);
           }
@@ -562,7 +562,7 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
               errors.push(`[SIP ElevenLabs] No data for call ${call.id}`);
             }
           } catch (error: any) {
-            console.error(`❌ [SIP ElevenLabs] Error for call ${call.id}:`, error.message);
+            logger.error(`❌ [SIP ElevenLabs] Error for call ${call.id}:`, error.message);
             failCount++;
             errors.push(`[SIP ElevenLabs] Call ${call.id}: ${error.message}`);
           }
@@ -583,7 +583,7 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
       
       res.json(summary);
     } catch (error: any) {
-      console.error('❌ [User] Error syncing recordings:', error);
+      logger.error('❌ [User] Error syncing recordings:', error);
       res.status(500).json({ error: 'Failed to sync recordings' });
     }
   });
@@ -597,7 +597,7 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
       const dashboardData = await storage.getDashboardData(req.userId!);
       res.json(dashboardData);
     } catch (error: any) {
-      console.error("Get dashboard data error:", error);
+      logger.error("Get dashboard data error:", error);
       res.status(500).json({ error: "Failed to get dashboard data" });
     }
   });
@@ -610,7 +610,7 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
       const analytics = await storage.getUserAnalytics(req.userId!, timeRange, callType);
       res.json(analytics);
     } catch (error: any) {
-      console.error("Get analytics error:", error);
+      logger.error("Get analytics error:", error);
       res.status(500).json({ error: "Failed to get analytics" });
     }
   });
@@ -1025,7 +1025,7 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
       doc.end();
       
     } catch (error: any) {
-      console.error("Export analytics PDF error:", error);
+      logger.error("Export analytics PDF error:", error);
       res.status(500).json({ error: "Failed to export analytics PDF" });
     }
   });

@@ -114,7 +114,7 @@ export class WebhookDeliveryService {
     try {
       const urlCheck = await validateWebhookUrl(webhook.url);
       if (!urlCheck.valid) {
-        console.warn(`🚫 [Webhook] SSRF blocked: ${urlCheck.error} for URL ${webhook.url}`);
+        logger.warn(`🚫 [Webhook] SSRF blocked: ${urlCheck.error} for URL ${webhook.url}`);
         return {
           success: false,
           httpStatus: 0,
@@ -154,13 +154,13 @@ export class WebhookDeliveryService {
         responseBody,
         responseTime,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       const responseTime = Date.now() - startTime;
-      const errorMessage = error.name === 'TimeoutError' 
+      const errorMessage = error instanceof Error && error.name === 'TimeoutError'
         ? 'Request timed out after 30 seconds'
-        : error.message || 'Unknown error';
+        : (error instanceof Error && error.message) || 'Unknown error';
 
-      console.error(`❌ [Webhook] Delivery failed: ${errorMessage}`);
+      logger.error(`❌ [Webhook] Delivery failed: ${errorMessage}`);
 
       return {
         success: false,
@@ -208,7 +208,7 @@ export class WebhookDeliveryService {
       const logData: WebhookLogInsertRow & { companyId: string | null } = {
         webhookId: webhook.id,
         event: payload.event,
-        payload: payload as any,
+        payload: payload,
         success: result.success,
         httpStatus: result.httpStatus || null,
         responseBody: result.responseBody || null,
@@ -240,12 +240,14 @@ export class WebhookDeliveryService {
         } else {
           logger.warn(`ℹ️ [Webhook] Skipping log - webhook ${webhook.id} was deleted`);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         // Handle foreign key constraint violations gracefully (webhook was deleted)
-        if (err.code === '23503' || err.message?.includes('foreign key constraint')) {
+        const errCode = typeof err === 'object' && err !== null && 'code' in err ? err.code : undefined;
+        const errMessage = err instanceof Error ? err.message : '';
+        if (errCode === '23503' || errMessage.includes('foreign key constraint')) {
           logger.warn(`ℹ️ [Webhook] Skipping log - webhook ${webhook.id} no longer exists`);
         } else {
-          console.error(`❌ [Webhook] Failed to log delivery:`, err);
+          logger.error(`❌ [Webhook] Failed to log delivery:`, err);
         }
       }
 
@@ -268,7 +270,7 @@ export class WebhookDeliveryService {
     if (latestAttemptLogged) {
       await this.supersedeEarlierAttempts(retryingRowIds);
     }
-    console.error(`❌ [Webhook] All ${maxAttempts} attempts failed for ${webhook.url}`);
+    logger.error(`❌ [Webhook] All ${maxAttempts} attempts failed for ${webhook.url}`);
   }
 
   /**
@@ -283,7 +285,7 @@ export class WebhookDeliveryService {
       try {
         await storage.updateWebhookLog(rowId, { deliveryStatus: 'superseded', nextRetryAt: null });
       } catch (err) {
-        console.error(`❌ [Webhook] Failed to supersede earlier attempt row ${rowId}:`, err);
+        logger.error(`❌ [Webhook] Failed to supersede earlier attempt row ${rowId}:`, err);
       }
     }
   }
@@ -297,7 +299,7 @@ export class WebhookDeliveryService {
   ): Promise<void> {
     // Fail closed: without a company there is no tenant to deliver for.
     if (!companyId) {
-      console.error(`❌ [Webhook] Refused dispatch of ${event}: company context missing`);
+      logger.error(`❌ [Webhook] Refused dispatch of ${event}: company context missing`);
       return;
     }
 
@@ -323,7 +325,7 @@ export class WebhookDeliveryService {
 
       const deliveryPromises = webhooks.map(webhook =>
         this.deliverWithRetry(webhook, payload, companyId).catch(err => {
-          console.error(`❌ [Webhook] Error delivering to ${webhook.url}:`, err);
+          logger.error(`❌ [Webhook] Error delivering to ${webhook.url}:`, err);
         })
       );
 
@@ -331,7 +333,7 @@ export class WebhookDeliveryService {
       
       logger.info(`✅ [Webhook] Event ${event} processing complete`);
     } catch (error) {
-      console.error(`❌ [Webhook] Error triggering event ${event}:`, error);
+      logger.error(`❌ [Webhook] Error triggering event ${event}:`, error);
     }
   }
 
@@ -410,7 +412,7 @@ export class WebhookDeliveryService {
     const payload: WebhookPayload = {
       event: log.event,
       timestamp: new Date().toISOString(),
-      data: (log.payload as any)?.data || log.payload as any
+      data: (log.payload as { data?: WebhookPayload['data'] } | null)?.data || (log.payload as WebhookPayload['data'])
     };
 
     const attempt = 1;
@@ -428,7 +430,7 @@ export class WebhookDeliveryService {
     const logData: WebhookLogInsertRow & { companyId: string | null } = {
       webhookId: webhook.id,
       event: log.event,
-      payload: log.payload as any,
+      payload: log.payload,
       success: result.success,
       httpStatus: result.httpStatus || null,
       responseBody: result.responseBody || null,
@@ -451,7 +453,7 @@ export class WebhookDeliveryService {
         error: result.error
       };
     } catch (err) {
-      console.error(`❌ [Webhook] Failed to log retry:`, err);
+      logger.error(`❌ [Webhook] Failed to log retry:`, err);
       return {
         success: result.success,
         error: result.error

@@ -2,7 +2,7 @@
 import { Router, Response } from "express";
 import { db } from "../../db";
 import { type AuthRequest } from "../../middleware/auth";
-import { flows, createFlowSchema, webhooks, appointments, forms, formFields, flowExecutions, flowTestQueue, agents } from "@shared/schema";
+import { flows, webhooks, appointments, forms, formFields, flowExecutions, flowTestQueue, agents } from "@shared/schema";
 import { eq, and, or, desc, sql, ne } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { storage } from "../../storage";
@@ -12,6 +12,7 @@ import { FlowAgentService } from "../../services/flow-agent";
 import { OpenAIVoiceAgentCompiler, type FlowNode, type FlowEdge } from "../../services/openai-voice-agent";
 import { logger } from "../../utils/logger";
 import { companyForRead, FLOW_EDITABLE_FIELDS, pickEditableFields, buildFlowAgentBasePrompt } from "./shared";
+import { flowInsertRow, flowCreateInputSchema } from "./insert-rows";
 
 export function registerFlowRoutes(router: Router): void {
   router.get("/flows", async (req: AuthRequest, res: Response) => {
@@ -32,7 +33,7 @@ export function registerFlowRoutes(router: Router): void {
 
       res.json(userFlows);
     } catch (error: any) {
-      console.error("Error fetching flows:", error);
+      logger.error("Error fetching flows:", error);
       res.status(500).json({ error: "Failed to fetch flows" });
     }
   });
@@ -59,7 +60,7 @@ export function registerFlowRoutes(router: Router): void {
 
       res.json(flow);
     } catch (error: any) {
-      console.error("Error fetching flow:", error);
+      logger.error("Error fetching flow:", error);
       res.status(500).json({ error: "Failed to fetch flow" });
     }
   });
@@ -94,19 +95,12 @@ export function registerFlowRoutes(router: Router): void {
         });
       }
 
-      const validatedData = createFlowSchema.parse(req.body);
+      const validatedData = flowCreateInputSchema.parse(req.body);
 
       const flowId = nanoid();
-      // TODO: Drizzle type inference - validatedData from Zod schema doesn't perfectly match
-      // the insert type due to optional fields and defaults. Using explicit type assertion.
       const [newFlow] = await db
         .insert(flows)
-        .values({
-          id: flowId,
-          userId,
-          ...validatedData,
-          companyId,
-        } as typeof flows.$inferInsert)
+        .values(flowInsertRow(validatedData, { id: flowId, userId, companyId }))
         .returning();
 
       // Enforce 1-to-1 mapping on flow creation
@@ -133,7 +127,7 @@ export function registerFlowRoutes(router: Router): void {
 
       res.json(newFlow);
     } catch (error: any) {
-      console.error("Error creating flow:", error);
+      logger.error("Error creating flow:", error);
       res.status(500).json({ error: "Failed to create flow" });
     }
   });
@@ -227,7 +221,7 @@ export function registerFlowRoutes(router: Router): void {
             }
           }
         } catch (sheetErr: any) {
-          console.warn(`📋 [Flow Save] Google Sheets header init failed (non-fatal):`, sheetErr.message);
+          logger.warn(`📋 [Flow Save] Google Sheets header init failed (non-fatal):`, sheetErr.message);
         }
       })();
       // ──────────────────────────────────────────────────────────────────────────
@@ -333,7 +327,7 @@ export function registerFlowRoutes(router: Router): void {
                   logger.warn(`⚠️ [Flow Save] Flow has no nodes, skipping OpenAI compilation`);
                 }
               } catch (compileError: any) {
-                console.error(`❌ [Flow Save] OpenAI compilation error:`, compileError.message);
+                logger.error(`❌ [Flow Save] OpenAI compilation error:`, compileError.message);
               }
             } else {
               // ElevenLabs/Twilio flow agent - sync to ElevenLabs
@@ -512,7 +506,7 @@ export function registerFlowRoutes(router: Router): void {
                           );
                           logger.info(`✅ [Flow Save] Webhook tools added (${newAgentWebhookTools.length} tools)`);
                         } catch (toolError: any) {
-                          console.error(`❌ [Flow Save] Failed to add webhook tools:`, toolError.message);
+                          logger.error(`❌ [Flow Save] Failed to add webhook tools:`, toolError.message);
                         }
                       }
                     } else {
@@ -644,13 +638,13 @@ export function registerFlowRoutes(router: Router): void {
             }
           }
         } catch (syncError: any) {
-          console.error(`❌ [Flow Save] ElevenLabs sync error:`, syncError.message);
+          logger.error(`❌ [Flow Save] ElevenLabs sync error:`, syncError.message);
         }
       }
 
       res.json(updatedFlow);
     } catch (error: any) {
-      console.error("Error updating flow:", error);
+      logger.error("Error updating flow:", error);
       res.status(500).json({ error: "Failed to update flow" });
     }
   });
@@ -691,7 +685,7 @@ export function registerFlowRoutes(router: Router): void {
 
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Error deleting flow:", error);
+      logger.error("Error deleting flow:", error);
       res.status(500).json({ error: "This flow cannot be deleted — please try again or contact support." });
     }
   });
@@ -773,7 +767,7 @@ export function registerFlowRoutes(router: Router): void {
         firstMessage: firstMessageFromFlow
       });
     } catch (error: any) {
-      console.error("Error resyncing first message:", error);
+      logger.error("Error resyncing first message:", error);
       res.status(500).json({ error: "Failed to resync first message" });
     }
   });

@@ -45,3 +45,39 @@ New module for Desk comms mode. Not mounted. No migration run.
 - `applyApprovalDecision` marks the approval executed, then updates the message. Status as of 2026-11-08: the service now takes an optional `transactions` runner, and runs both writes in one transaction when Desk supplies it. Without it (the default), the two writes still run one after another. Desk must supply the runner before real use.
 - Inbound dedupe: the unique index on `(company_id, channel, external_id)` is in `DRAFT_inbox.sql` (`inbox_messages_external_uidx`), and the Drizzle store takes a transaction-scoped advisory lock per company, channel and address. The retry-on-conflict path still needs a test before real use.
 - No transport. Queued messages wait for a worker that is not in this module.
+
+## Pass 14: durable PostgreSQL InboxStore
+
+The existing numbered `0010a_inbox.sql` schema is now supported by the opt-in `createSqlInboxStore(pool)` implementation. All 15 store methods use scoped SQL and parameterized predicates; advisory-locked inbound ingestion reuses its pinned tenant client. The earlier Drizzle placeholder remains unchanged for compatibility and the default production mount stays disabled. Tenant RLS and approval infrastructure must be validated before activation.
+
+## Pass 15: real PostgreSQL RLS verification
+
+A separate review-only candidate at `migrations/candidates/0018_inbox_tenant_rls.sql` enables and forces RLS on the four Inbox tables already created by `0010a_inbox.sql`. A dedicated disposable PostgreSQL CI job uses the actual SQL store to exercise tenant access, link FKs, external-ID uniqueness, inbound locks and rollback. Neither the original migration manifest nor Inbox activation is changed.
+
+## Pass 16: fail-closed database readiness
+
+The opt-in `createVerifiedInboxService` now validates the actual PostgreSQL catalog before constructing a persistent service, including restricted desk_app permissions and all four tables' ENABLE/FORCE RLS policies. A durable approval port and atomic transaction runner are mandatory. No automatic Inbox activation; request-specific approval transaction composition remains necessary before mounting multi-tenant routes.
+
+## Pass 17: per-company approval execution
+
+An InboxService shared by multiple authenticated companies no longer depends on a single fixed company transaction. Production composition derives a company-bound transaction runner from its PostgreSQL pool on each approved decision using `inboxTransactionsFor`. Existing `sqlInboxWriteTx` approval-claim and message-update code is reused; any wrong-company call throws and rolls back. No provider, approval policy, or routes are automatically enabled.
+
+## Pass 18: canonical approval integration boundary
+
+The `createInboxApprovalPort` adapter reuses the canonical ApprovalService for gate decisions, company-scoped reads and execution audit. It uses the conditional SQL claim from the existing Inbox transaction runner rather than passing a partial row into ApprovalService.markExecuted. Production construction can now accept `approvalService` directly, or an explicit approved custom port for existing integration tests; specifying both is an error. No routes or providers are enabled.
+
+## Pass 19: verified production Inbox route composition
+
+When explicitly enabled, the main verified comms registrar now composes Inbox with original SQL storage, the verified schema and canonical ApprovalService connected through the injected tenant pool. Both enabled modules verify before either route mounts. Defaults are unchanged and production provider sends remain unimplemented.
+
+## Pass 20: durable outbound outbox (no provider enabled)
+
+A review-only `0019_inbox_outbox.sql` candidate adds a tenant-RLS protected outbox table linked to the existing Inbox message. The new `createSqlOutbox` handles deduplicated queue enrollment, worker leases with SKIP LOCKED, safe acknowledgments and retry/dead-letter transitions. `createOutboxDispatcher` requires an explicitly injected provider implementing stable idempotency keys. No default provider, background scheduler, migrations or outbound sending are enabled.
+
+## Pass 21: signed receipt callback boundary
+
+A generic gateway HMAC verifier authenticates exact raw bytes with timestamp expiry and constant-time comparison. Trusted integration IDs resolve company/provider/secret on the server. Receipt persistence accepts only provider IDs already acknowledged by the tenant's outbox and records each (company,provider,eventId) once. A receipt router factory is provided but not mounted; callback format is for a controlled gateway and MUST NOT be treated as the native signature protocol of arbitrary third-party providers. No provider credentials, live sending, production migration or webhook registration is enabled.
+
+## Pass 22: delivery state and reconciliation
+
+`createSqlDeliveryStateReader` provides company-restricted confirmation reads from a new, review-only projection. `createSqlDeliveryReceipts` now transactionally updates that projection for every newly persisted signed event. Once delivered, a late failed event cannot downgrade the state. Provider acknowledgment IDs must be unique per tenant and receipt/outbox relationships are enforced by composite tenant foreign keys. Provider configuration, real native signatures and production migrations are still not enabled.

@@ -19,6 +19,7 @@ import "dotenv/config";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import * as schema from "@shared/schema";
+import { logger } from './utils/logger.ts';
 
 if (!process.env.DATABASE_URL) {
   throw new Error(
@@ -36,13 +37,13 @@ export const pool = new Pool({
 // Log the database URL (safe/masked) on startup
 if (process.env.DATABASE_URL) {
   const maskedUrl = process.env.DATABASE_URL.replace(/:[^:]+@/, ':****@');
-  console.log(`🔌 [DB Pool] Initialized connection to: ${maskedUrl}`);
+  logger.info(`🔌 [DB Pool] Initialized connection to: ${maskedUrl}`);
 } else {
-  console.error(`🔌 [DB Pool] DATABASE_URL is not set!`);
+  logger.error(`🔌 [DB Pool] DATABASE_URL is not set!`);
 }
 
 pool.on('error', (err) => {
-  console.error('[DB Pool] Idle client error:', err.message);
+  logger.error('[DB Pool] Idle client error:', err.message);
 });
 
 export const db = drizzle(pool, { schema });

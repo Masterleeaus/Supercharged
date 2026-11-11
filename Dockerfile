@@ -3,8 +3,10 @@ FROM node:22 AS build
 
 WORKDIR /app
 
-# Copy only package files first (this layer caches independently)
+# Copy only package files first (this layer caches independently).
+# packages/ is needed here too: package.json depends on "file:packages/diploy-core".
 COPY package*.json ./
+COPY packages ./packages
 
 # Install all dependencies, including devDependencies, for the build
 RUN npm ci
@@ -26,6 +28,7 @@ ENV NODE_ENV=production
 ENV PORT=5000
 
 COPY package*.json ./
+COPY packages ./packages
 RUN npm ci --omit=dev && npm cache clean --force
 
 COPY --from=build /app/dist ./dist
@@ -37,6 +40,19 @@ COPY --from=build /app/plugins ./plugins
 # Static assets served from process.cwd(): public/ (widget, audio) and client/public (uploads, images)
 COPY --from=build /app/public ./public
 COPY --from=build /app/client/public ./client/public
+
+# Run as a dedicated unprivileged user. Code and dependencies stay root-owned and read-only
+# to the app user; only the directories the server writes to at runtime are handed over.
+# kyc, exports, data, logs, public/images, public/audio: created by server/utils/init-directories.ts
+# public: sitemap.xml and audio are written under public/ and client/public/
+# plugins: written by the plugin installer
+RUN groupadd --system --gid 10001 app \
+ && useradd --system --uid 10001 --gid app --create-home --home-dir /home/app --shell /usr/sbin/nologin app \
+ && mkdir -p kyc exports data/invoices data/refund-notes logs public/images public/audio \
+ && chown -R app:app kyc exports data logs public/images public/audio client/public/uploads plugins \
+ && chown app:app public client/public
+
+USER app
 
 EXPOSE 5000
 

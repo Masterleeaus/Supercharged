@@ -37,9 +37,9 @@ export interface CockpitItem {
   action?: CockpitAction;
 }
 
-/** Panels shown for each mode: workforce shows the workforce panels, syncedat the comms panels. */
+/** Panels shown for each mode: workforce shows the workforce panels, comms the communications panels. */
 export function panelsForMode(mode: DeskMode): [CockpitPanelId, CockpitPanelId] {
-  return mode === "syncedat"
+  return mode === "comms"
     ? ["inbox", "campaign_responses"]
     : ["workforce_activity", "needs_attention"];
 }

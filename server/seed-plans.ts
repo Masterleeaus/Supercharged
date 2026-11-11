@@ -16,6 +16,7 @@
  */
 import { db } from "./db";
 import { plans } from "@shared/schema";
+import { logger } from './utils/logger.ts';
 
 const PLANS_SEED_DATA = [
   {
@@ -95,25 +96,25 @@ const PLANS_SEED_DATA = [
 
 async function seedPlans() {
   try {
-    console.log("🌱 Starting Plans seed...");
+    logger.info("🌱 Starting Plans seed...");
     
     const existingPlans = await db.select().from(plans);
     
     if (existingPlans.length > 0) {
-      console.log(`⚠️  Found ${existingPlans.length} existing plans. Skipping seed to prevent duplicates.`);
-      console.log("   To re-seed, first delete all plans from the database.");
+      logger.info(`⚠️  Found ${existingPlans.length} existing plans. Skipping seed to prevent duplicates.`);
+      logger.info("   To re-seed, first delete all plans from the database.");
       return;
     }
 
-    console.log(`📦 Inserting ${PLANS_SEED_DATA.length} subscription plans...`);
+    logger.info(`📦 Inserting ${PLANS_SEED_DATA.length} subscription plans...`);
     await db.insert(plans).values(PLANS_SEED_DATA);
     
-    console.log("✅ Successfully seeded Plans!");
-    console.log(`   - Free plan: ${PLANS_SEED_DATA[0].includedCredits} credits included`);
-    console.log(`   - Pro plan: $${PLANS_SEED_DATA[1].monthlyPrice}/month, ${PLANS_SEED_DATA[1].includedCredits} credits included`);
+    logger.info("✅ Successfully seeded Plans!");
+    logger.info(`   - Free plan: ${PLANS_SEED_DATA[0].includedCredits} credits included`);
+    logger.info(`   - Pro plan: $${PLANS_SEED_DATA[1].monthlyPrice}/month, ${PLANS_SEED_DATA[1].includedCredits} credits included`);
     
   } catch (error) {
-    console.error("❌ Error seeding Plans:", error);
+    logger.error("❌ Error seeding Plans:", error);
     throw error;
   }
 }

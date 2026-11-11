@@ -460,3 +460,40 @@ test('drizzle placeholder: every method throws until the migration is promoted',
   await assert.rejects(store.insertMessage({ companyId: CO_A }), /DRAFT_inbox\.sql/);
   await assert.rejects(createInboxService({ store, approvals: new InMemoryApprovalPort() }).listThreads(CO_A), /DRAFT_inbox\.sql/);
 });
+
+test('PostgreSQL InboxStore factory is exported without activating the legacy placeholder',async()=>{
+ const {createSqlInboxStore}=await import('../../server/modules/inbox/index.ts');
+ assert.equal(typeof createSqlInboxStore,'function');
+ assert.throws(()=>createSqlInboxStore(null),/PostgreSQL pool/);
+});
+
+test('verified Inbox constructor refuses missing RLS and approvals rather than silently mounting',async()=>{
+ const {createVerifiedInboxService}=await import('../../server/modules/inbox/production-service.ts');
+ await assert.rejects(createVerifiedInboxService({pool:{connect:async()=>({})}}),/approval port/);
+});
+
+test('approval decisions resolve the transaction runner using the request company',async()=>{
+ const store=new InMemoryInboxStore(),approvals=new InMemoryApprovalPort();
+ const base=createInMemoryTransactionRunner(store,approvals),companies=[];
+ let sequence=0;
+ const service=createInboxService({store,approvals,transactionsFor:companyId=>{companies.push(companyId);return base;},newId:()=>`factory-id-${++sequence}`});
+ const input={channel:'sms',address:'+61400000001',body:'Hello',externalId:'factory-inbound'};
+ const result=await service.recordInbound(CO_B,input);
+ await service.assignThread(CO_B,AGENT,result.thread.id,{kind:'agent',id:AGENT.id});
+ const draft=await service.createDraft(CO_B,AGENT,result.thread.id,'Approved reply');
+ const awaiting=await service.requestSend(CO_B,AGENT,draft.id);
+ approvals.decide(awaiting.approvalId,'approved');
+ assert.equal((await service.applyApprovalDecision(CO_B,draft.id)).status,'queued');
+ assert.deepEqual(companies,[CO_B]);
+});
+
+test('canonical approval adapter is exported for verified Inbox composition',async()=>{
+ const {createInboxApprovalPort}=await import('../../server/modules/inbox/index.ts');
+ assert.equal(typeof createInboxApprovalPort,'function');
+ assert.throws(()=>createInboxApprovalPort(null),/canonical approval/);
+});
+
+test('canonical production approval factory rejects missing durable PostgreSQL',async()=>{
+ const {createCanonicalInboxApprovalService}=await import('../../server/modules/inbox/canonical-production-approval.ts');
+ await assert.rejects(createCanonicalInboxApprovalService(null),/PostgreSQL pool/);
+});

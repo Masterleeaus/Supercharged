@@ -16,8 +16,16 @@ import type { CompanyId } from '../../services/ai-runtime/types.ts';
 import type { ToolDefinition, ToolSchema } from '../runtime/tool-registry.ts';
 import type { SqlExecutor } from '../runtime/pg-store.ts';
 import { createGroup00ToolDefinitions } from './handlers/group-00.ts';
+import { createGroup01ToolDefinitions } from './handlers/group-01.ts';
+import { createGroup02ToolDefinitions } from './handlers/group-02.ts';
+import { createGroup03ToolDefinitions } from './handlers/group-03.ts';
+import { createGroup04ToolDefinitions } from './handlers/group-04.ts';
+import { createGroupMissingToolDefinitions } from './handlers/group-missing.ts';
 
 export const MAX_READ_ROWS = 50;
+
+/** Per-tool timeout for the five bound read tools (matches the group read timeouts). */
+export const READ_TOOL_TIMEOUT_MS = 10000;
 
 export class ReadToolInputError extends Error {
   constructor(message: string) {
@@ -292,7 +300,9 @@ export function createReadToolSpecs(store: ReadStore): ReadToolSpec[] {
 
 /**
  * Registry definitions for every bound read tool, plus the handler group 00 (reads and writes on the workforce
- * tables). Each read spec runs with access 'read' and risk 'low'. group00Db is the read executor for group 00.
+ * tables), group 01, group 02, group 03 (write, draft and side-effect tools included) and group 04 (reads and writes,
+ * each with its own access and timeout). Each read spec runs with access 'read' and risk 'low'. group00Db is the read
+ * executor for groups 00 to 04. Groups 01 to 04 declare their own access and risk per tool.
  */
 export function createReadToolDefinitions(store: ReadStore, group00Db?: SqlExecutor): ToolDefinition[] {
   return [
@@ -301,9 +311,17 @@ export function createReadToolDefinitions(store: ReadStore, group00Db?: SqlExecu
       risk: 'low' as const,
       access: 'read' as const,
       schema: spec.schema,
+      timeoutMs: READ_TOOL_TIMEOUT_MS,
       handler: (params: Record<string, unknown>, context: { companyId: CompanyId }) => spec.run(context.companyId, params),
     })),
     ...createGroup00ToolDefinitions(group00Db),
+    ...createGroup01ToolDefinitions({ db: group00Db }),
+    ...createGroup02ToolDefinitions({ db: group00Db }),
+    ...createGroup03ToolDefinitions({ sql: group00Db }),
+    // Group 04 handler definitions: reads and writes, each with its own access class and timeout (handlers/group-04.ts).
+    ...createGroup04ToolDefinitions({ db: group00Db }),
+    // Declared ids with no handler group yet: not_implemented stubs (handlers/group-missing.ts).
+    ...createGroupMissingToolDefinitions(),
   ];
 }
 

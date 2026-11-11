@@ -35,69 +35,69 @@ import { flowTemplates } from "./services/flow-templates";
 const SYSTEM_USER_ID = "system";
 
 async function seedLlmModels() {
-  console.log("\n📊 Seeding LLM Models...");
+  logger.info("\n📊 Seeding LLM Models...");
   const existing = await db.select().from(llmModels);
   if (existing.length > 0) {
-    console.log(`   ⚠️  Found ${existing.length} existing models. Skipping.`);
+    logger.info(`   ⚠️  Found ${existing.length} existing models. Skipping.`);
     return;
   }
   await db.insert(llmModels).values(MODELS_SEED_DATA);
-  console.log(`   ✅ Inserted ${MODELS_SEED_DATA.length} LLM models`);
-  console.log(`      - Free tier: ${MODELS_SEED_DATA.filter((m: { tier: string }) => m.tier === 'free').length}`);
-  console.log(`      - Pro tier: ${MODELS_SEED_DATA.filter((m: { tier: string }) => m.tier === 'pro').length}`);
+  logger.info(`   ✅ Inserted ${MODELS_SEED_DATA.length} LLM models`);
+  logger.info(`      - Free tier: ${MODELS_SEED_DATA.filter((m: { tier: string }) => m.tier === 'free').length}`);
+  logger.info(`      - Pro tier: ${MODELS_SEED_DATA.filter((m: { tier: string }) => m.tier === 'pro').length}`);
 }
 
 async function seedPlans() {
-  console.log("\n💳 Seeding Subscription Plans...");
+  logger.info("\n💳 Seeding Subscription Plans...");
   const existing = await db.select().from(plans);
   if (existing.length > 0) {
-    console.log(`   ⚠️  Found ${existing.length} existing plans. Skipping.`);
+    logger.info(`   ⚠️  Found ${existing.length} existing plans. Skipping.`);
     return;
   }
   await db.insert(plans).values(PLANS_SEED_DATA);
-  console.log(`   ✅ Inserted ${PLANS_SEED_DATA.length} subscription plans`);
+  logger.info(`   ✅ Inserted ${PLANS_SEED_DATA.length} subscription plans`);
   PLANS_SEED_DATA.forEach(p => {
-    console.log(`      - ${p.displayName}: $${p.monthlyPrice}/month, ${p.includedCredits} credits`);
+    logger.info(`      - ${p.displayName}: $${p.monthlyPrice}/month, ${p.includedCredits} credits`);
   });
 }
 
 async function seedCreditPackages() {
-  console.log("\n🪙 Seeding Credit Packages...");
+  logger.info("\n🪙 Seeding Credit Packages...");
   const existing = await db.select().from(creditPackages);
   if (existing.length > 0) {
-    console.log(`   ⚠️  Found ${existing.length} existing packages. Skipping.`);
+    logger.info(`   ⚠️  Found ${existing.length} existing packages. Skipping.`);
     return;
   }
   await db.insert(creditPackages).values(CREDIT_PACKAGES_SEED_DATA);
-  console.log(`   ✅ Inserted ${CREDIT_PACKAGES_SEED_DATA.length} credit packages`);
+  logger.info(`   ✅ Inserted ${CREDIT_PACKAGES_SEED_DATA.length} credit packages`);
   CREDIT_PACKAGES_SEED_DATA.forEach(pkg => {
-    console.log(`      - ${pkg.name}: ${pkg.credits} credits @ $${pkg.price}`);
+    logger.info(`      - ${pkg.name}: ${pkg.credits} credits @ $${pkg.price}`);
   });
 }
 
 async function seedPromptTemplates() {
-  console.log("\n📝 Seeding Prompt Templates...");
+  logger.info("\n📝 Seeding Prompt Templates...");
   const existing = await db.select().from(promptTemplates);
   const systemTemplates = existing.filter(t => t.isSystemTemplate);
   if (systemTemplates.length > 0) {
-    console.log(`   ⚠️  Found ${systemTemplates.length} existing system templates. Skipping.`);
+    logger.info(`   ⚠️  Found ${systemTemplates.length} existing system templates. Skipping.`);
     return;
   }
   await db.insert(promptTemplates).values(PROMPT_TEMPLATES_SEED_DATA);
-  console.log(`   ✅ Inserted ${PROMPT_TEMPLATES_SEED_DATA.length} prompt templates`);
+  logger.info(`   ✅ Inserted ${PROMPT_TEMPLATES_SEED_DATA.length} prompt templates`);
   const categories = ['sales', 'support', 'appointment', 'survey', 'general'];
   categories.forEach(cat => {
     const count = PROMPT_TEMPLATES_SEED_DATA.filter(t => t.category === cat).length;
-    console.log(`- ${cat}: ${count} templates`);
+    logger.info(`- ${cat}: ${count} templates`);
   });
 }
 
 async function seedFlowTemplates() {
-  console.log("\n🔄 Seeding Flow Templates...");
+  logger.info("\n🔄 Seeding Flow Templates...");
   const existing = await db.select().from(flows);
   const existingTemplates = existing.filter(f => f.isTemplate);
   if (existingTemplates.length > 0) {
-    console.log(`   ⚠️  Found ${existingTemplates.length} existing flow templates. Skipping.`);
+    logger.info(`   ⚠️  Found ${existingTemplates.length} existing flow templates. Skipping.`);
     return;
   }
 
@@ -113,14 +113,14 @@ async function seedFlowTemplates() {
   }));
 
   await db.insert(flows).values(flowsToInsert);
-  console.log(`   ✅ Inserted ${flowTemplates.length} flow templates`);
+  logger.info(`   ✅ Inserted ${flowTemplates.length} flow templates`);
   flowTemplates.forEach(t => {
-    console.log(`      - ${t.name}: ${t.nodes.length} nodes`);
+    logger.info(`      - ${t.name}: ${t.nodes.length} nodes`);
   });
 }
 
 async function seedEmailTemplates() {
-  console.log("\n📧 Seeding Email Templates...");
+  logger.info("\n📧 Seeding Email Templates...");
   const existing = await db.select().from(emailTemplates);
   const existingTypes = existing.map(t => t.templateType);
 
@@ -129,36 +129,36 @@ async function seedEmailTemplates() {
   );
 
   if (templatesToInsert.length === 0) {
-    console.log(`   ⚠️  All ${EMAIL_TEMPLATES_SEED_DATA.length} email templates already exist. Skipping.`);
+    logger.info(`   ⚠️  All [redacted] email templates already exist. Skipping.`);
     return;
   }
 
   await db.insert(emailTemplates).values(templatesToInsert);
-  console.log(`   ✅ Inserted ${templatesToInsert.length} email templates`);
+  logger.info(`   ✅ Inserted ${templatesToInsert.length} email templates`);
   templatesToInsert.forEach(template => {
-    console.log(`      - ${template.name} (${template.templateType}): ${template.variables.length} variables`);
+    logger.info(`      - ${template.name} (${template.templateType}): ${template.variables.length} variables`);
   });
 }
 
 async function seedAgentTemplates() {
-  console.log("\n🤖 Seeding Agent Templates...");
+  logger.info("\n🤖 Seeding Agent Templates...");
   const existing = await db.select().from(promptTemplates);
   const agentPresets = existing.filter(t => t.category === "agent_preset" && t.isSystemTemplate);
 
   if (agentPresets.length > 0) {
-    console.log(`   ⚠️  Found ${agentPresets.length} existing agent preset templates. Skipping.`);
+    logger.info(`   ⚠️  Found ${agentPresets.length} existing agent preset templates. Skipping.`);
     return;
   }
 
   await db.insert(promptTemplates).values(AGENT_TEMPLATES_SEED_DATA);
-  console.log(`   ✅ Inserted ${AGENT_TEMPLATES_SEED_DATA.length} agent preset templates`);
+  logger.info(`   ✅ Inserted ${AGENT_TEMPLATES_SEED_DATA.length} agent preset templates`);
   AGENT_TEMPLATES_SEED_DATA.forEach(template => {
-    console.log(`      - ${template.name}`);
+    logger.info(`      - ${template.name}`);
   });
 }
 
 async function seedGlobalSettings() {
-  console.log("\n⚙️  Seeding Global Settings...");
+  logger.info("\n⚙️  Seeding Global Settings...");
   const existing = await db.select().from(globalSettings);
   const existingKeys = existing.map(s => s.key);
 
@@ -167,7 +167,7 @@ async function seedGlobalSettings() {
   );
 
   if (settingsToInsert.length === 0) {
-    console.log(`   ⚠️  All ${GLOBAL_SETTINGS_SEED_DATA.length} global settings already exist. Skipping.`);
+    logger.info(`   ⚠️  All ${GLOBAL_SETTINGS_SEED_DATA.length} global settings already exist. Skipping.`);
     return;
   }
 
@@ -178,7 +178,7 @@ async function seedGlobalSettings() {
       ON CONFLICT (key) DO NOTHING
     `);
   }
-  console.log(`   ✅ Inserted ${settingsToInsert.length} global settings`);
+  logger.info(`   ✅ Inserted ${settingsToInsert.length} global settings`);
 
   const categories = {
     "Branding": settingsToInsert.filter(s => s.key.startsWith("company_")).length,
@@ -190,13 +190,13 @@ async function seedGlobalSettings() {
 
   Object.entries(categories).forEach(([category, count]) => {
     if (count > 0) {
-      console.log(`      - ${category}: ${count} settings`);
+      logger.info(`      - ${category}: ${count} settings`);
     }
   });
 }
 
 async function seedSeoSettings() {
-  console.log("\n🔍 Seeding SEO Settings...");
+  logger.info("\n🔍 Seeding SEO Settings...");
   const existing = await db.select().from(globalSettings);
   const existingKeys = existing.map(s => s.key);
 
@@ -205,7 +205,7 @@ async function seedSeoSettings() {
   );
 
   if (settingsToInsert.length === 0) {
-    console.log(`   ⚠️  All ${SEO_SETTINGS_SEED_DATA.length} SEO settings already exist. Skipping.`);
+    logger.info(`   ⚠️  All ${SEO_SETTINGS_SEED_DATA.length} SEO settings already exist. Skipping.`);
     return;
   }
 
@@ -216,7 +216,7 @@ async function seedSeoSettings() {
       ON CONFLICT (key) DO NOTHING
     `);
   }
-  console.log(`   ✅ Inserted ${settingsToInsert.length} SEO settings`);
+  logger.info(`   ✅ Inserted ${settingsToInsert.length} SEO settings`);
 
   const categories = {
     "Meta Tags": settingsToInsert.filter(s => s.key.includes("_title") || s.key.includes("_description")).length,
@@ -228,26 +228,26 @@ async function seedSeoSettings() {
 
   Object.entries(categories).forEach(([category, count]) => {
     if (count > 0) {
-      console.log(`      - ${category}: ${count} settings`);
+      logger.info(`      - ${category}: ${count} settings`);
     }
   });
 }
 
 async function seedLanguages() {
-  console.log("\n🌍 Seeding Supported Languages...");
+  logger.info("\n🌍 Seeding Supported Languages...");
   const existing = await db.select().from(supportedLanguages);
   if (existing.length > 0) {
-    console.log(`   ⚠️  Found ${existing.length} existing languages. Skipping.`);
+    logger.info(`   ⚠️  Found ${existing.length} existing languages. Skipping.`);
     return;
   }
   await db.insert(supportedLanguages).values(LANGUAGES_SEED_DATA);
-  console.log(`   ✅ Inserted ${LANGUAGES_SEED_DATA.length} supported languages`);
+  logger.info(`   ✅ Inserted ${LANGUAGES_SEED_DATA.length} supported languages`);
   const bothCount = LANGUAGES_SEED_DATA.filter((l: { providers: string }) => l.providers === 'both').length;
   const openaiOnlyCount = LANGUAGES_SEED_DATA.filter((l: { providers: string }) => l.providers === 'openai').length;
   const elevenLabsOnlyCount = LANGUAGES_SEED_DATA.filter((l: { providers: string }) => l.providers === 'elevenlabs').length;
-  console.log(`      - Both providers: ${bothCount} languages`);
-  console.log(`      - OpenAI only: ${openaiOnlyCount} languages`);
-  console.log(`      - ElevenLabs only: ${elevenLabsOnlyCount} languages`);
+  logger.info(`      - Both providers: ${bothCount} languages`);
+  logger.info(`      - OpenAI only: ${openaiOnlyCount} languages`);
+  logger.info(`      - ElevenLabs only: ${elevenLabsOnlyCount} languages`);
 }
 
 const SEED_VERSION = "5.4.5";
@@ -349,7 +349,7 @@ function getPermissionsForLevel(level: string): { canCreate: boolean; canRead: b
 }
 
 async function seedPluginTables() {
-  console.log("\n🔌 Seeding Plugin Tables...");
+  logger.info("\n🔌 Seeding Plugin Tables...");
 
   // Ensure calls table has REST API columns (added post-launch, may be missing on older databases)
   try {
@@ -360,7 +360,7 @@ async function seedPluginTables() {
 
   try {
     // REST API Plugin tables
-    console.log("   📡 Creating REST API plugin tables...");
+    logger.info("   📡 Creating REST API plugin tables...");
     try {
       await db.execute(sql`
         CREATE TABLE IF NOT EXISTS api_keys (
@@ -436,10 +436,10 @@ async function seedPluginTables() {
       await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_api_rate_limits_api_key_id ON api_rate_limits(api_key_id)`);
       await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_api_rate_limits_window_start ON api_rate_limits(window_start)`);
     } catch (e: any) { /* Indexes may already exist */ }
-    console.log("   ✅ REST API plugin tables created");
+    logger.info("   ✅ REST API plugin tables created");
 
     // SIP Engine Plugin tables
-    console.log("   📞 Creating SIP Engine plugin tables...");
+    logger.info("   📞 Creating SIP Engine plugin tables...");
     try {
       await db.execute(sql`
         CREATE TABLE IF NOT EXISTS sip_trunks (
@@ -565,10 +565,10 @@ async function seedPluginTables() {
         ON CONFLICT (setting_key) DO NOTHING
       `);
     } catch (e: any) { /* Setting may already exist */ }
-    console.log("   ✅ SIP Engine plugin tables created");
+    logger.info("   ✅ SIP Engine plugin tables created");
 
     // Team Management Plugin tables
-    console.log("   👥 Creating Team Management plugin tables...");
+    logger.info("   👥 Creating Team Management plugin tables...");
 
     // User teams
     try {
@@ -836,7 +836,7 @@ async function seedPluginTables() {
       await db.execute(sql`CREATE TRIGGER update_admin_team_permissions_updated_at BEFORE UPDATE ON admin_team_permissions FOR EACH ROW EXECUTE FUNCTION update_team_tables_updated_at()`);
     } catch (e: any) { /* Triggers may already exist */ }
 
-    console.log("   ✅ Team Management plugin tables created");
+    logger.info("   ✅ Team Management plugin tables created");
 
     // Google Sheets OAuth credentials — schema must match shared/schema.ts exactly
     try {
@@ -870,20 +870,20 @@ async function seedPluginTables() {
         await db.execute(sql`ALTER TABLE google_sheets_credentials RENAME COLUMN email TO connected_email`);
       }
       await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_google_sheets_credentials_user_id ON google_sheets_credentials(user_id)`);
-      console.log("   ✅ Google Sheets credentials table created/verified");
+      logger.info("   ✅ Google Sheets credentials table created/verified");
     } catch (e: any) {
-      console.error("   ⚠️  Google Sheets credentials table error:", (e as Error).message?.slice(0, 100));
+      logger.error("   ⚠️  Google Sheets credentials table error:", (e as Error).message?.slice(0, 100));
     }
 
-    console.log("   ✅ All plugin tables seeded successfully");
+    logger.info("   ✅ All plugin tables seeded successfully");
   } catch (error: any) {
-    console.error("   ❌ Error creating plugin tables:", error.message?.slice(0, 100));
+    logger.error("   ❌ Error creating plugin tables:", error.message?.slice(0, 100));
     throw error;
   }
 }
 
 async function seedAdminTeamAndRoles() {
-  console.log("\n👥 Seeding Admin Team and Roles...");
+  logger.info("\n👥 Seeding Admin Team and Roles...");
 
   try {
     const tableCheck = await db.execute(sql`
@@ -894,7 +894,7 @@ async function seedAdminTeamAndRoles() {
     `);
 
     if (!tableCheck.rows[0]?.exists) {
-      console.log("   ⚠️  Admin teams table not found (team-management plugin not installed). Skipping.");
+      logger.info("   ⚠️  Admin teams table not found (team-management plugin not installed). Skipping.");
       return;
     }
 
@@ -903,7 +903,7 @@ async function seedAdminTeamAndRoles() {
 
     if (existingTeam.rows.length > 0) {
       adminTeamId = (existingTeam.rows[0] as any).id;
-      console.log("   ✓ Admin team already exists");
+      logger.info("   ✓ Admin team already exists");
     } else {
       const teamResult = await db.execute(sql`
         INSERT INTO admin_teams (name, description)
@@ -911,7 +911,7 @@ async function seedAdminTeamAndRoles() {
         RETURNING id
       `);
       adminTeamId = (teamResult.rows[0] as any).id;
-      console.log("   ✅ Created admin team");
+      logger.info("   ✅ Created admin team");
     }
 
     const existingRoles = await db.execute(sql`
@@ -949,22 +949,22 @@ async function seedAdminTeamAndRoles() {
         }
       }
 
-      console.log(`   ✅ Created role: ${role.displayName} with ${ADMIN_PERMISSION_SECTIONS.reduce((acc, s) => acc + s.subsections.length, 0)} permissions`);
+      logger.info(`   ✅ Created role: ${role.displayName} with ${ADMIN_PERMISSION_SECTIONS.reduce((acc, s) => acc + s.subsections.length, 0)} permissions`);
     }
 
     if (rolesCreated === 0) {
-      console.log("   ⚠️  All admin roles already exist. Skipping.");
+      logger.info("   ⚠️  All admin roles already exist. Skipping.");
     } else {
-      console.log(`   ✅ Created ${rolesCreated} admin roles with ${permissionsCreated} permissions total`);
+      logger.info(`   ✅ Created ${rolesCreated} admin roles with ${permissionsCreated} permissions total`);
     }
 
   } catch (error: any) {
-    console.log(`   ⚠️  Admin team seeding skipped: ${error.message?.slice(0, 50)}`);
+    logger.info(`   ⚠️  Admin team seeding skipped: ${error.message?.slice(0, 50)}`);
   }
 }
 
 async function updateSeedVersion() {
-  console.log("\n📌 Updating seed version tracking...");
+  logger.info("\n📌 Updating seed version tracking...");
   await db.execute(sql`
     UPDATE global_settings 
     SET value = ${JSON.stringify(SEED_VERSION)}::jsonb, updated_at = NOW()
@@ -975,7 +975,7 @@ async function updateSeedVersion() {
     SET value = ${JSON.stringify(new Date().toISOString())}::jsonb, updated_at = NOW()
     WHERE key = 'seed_applied_at'
   `);
-  console.log(`   ✅ Seed version: ${SEED_VERSION}`);
+  logger.info(`   ✅ Seed version: ${SEED_VERSION}`);
 }
 
 export async function runAllSeedsForInstaller(): Promise<{
@@ -983,7 +983,7 @@ export async function runAllSeedsForInstaller(): Promise<{
   summary: Record<string, number>;
   error?: string;
 }> {
-  console.log("🌱 [Installer] Running database seeds...");
+  logger.info("🌱 [Installer] Running database seeds...");
 
   const summary: Record<string, number> = {};
 
@@ -1032,21 +1032,21 @@ export async function runAllSeedsForInstaller(): Promise<{
 
     await updateSeedVersion();
 
-    console.log("✅ [Installer] All seeds completed successfully");
-    console.log(`   Summary: ${JSON.stringify(summary)}`);
+    logger.info("✅ [Installer] All seeds completed successfully");
+    logger.info(`   Summary: ${JSON.stringify(summary)}`);
 
     return { success: true, summary };
   } catch (error: any) {
-    console.error("❌ [Installer] Seeding failed:", error);
+    logger.error("❌ [Installer] Seeding failed:", error);
     return { success: false, summary, error: error.message };
   }
 }
 
 export async function runAllSeeds() {
-  console.log("╔════════════════════════════════════════════════════════════╗");
-  console.log("║           🌱 Platform Database Seeder                      ║");
-  console.log("║           © 2025 Diploy - Bisht Technologies               ║");
-  console.log("╚════════════════════════════════════════════════════════════╝");
+  logger.info("╔════════════════════════════════════════════════════════════╗");
+  logger.info("║           🌱 Platform Database Seeder                      ║");
+  logger.info("║           © 2025 Diploy - Bisht Technologies               ║");
+  logger.info("╚════════════════════════════════════════════════════════════╝");
 
   try {
     await seedLlmModels();
@@ -1063,7 +1063,7 @@ export async function runAllSeeds() {
     try {
       await seedLanguages();
     } catch (langError: any) {
-      console.log(`   ⚠️  Languages seeding skipped (schema mismatch): ${langError.message?.slice(0, 50)}`);
+      logger.info(`   ⚠️  Languages seeding skipped (schema mismatch): ${langError.message?.slice(0, 50)}`);
     }
 
     await seedTwilioCountries();
@@ -1073,45 +1073,46 @@ export async function runAllSeeds() {
     try {
       await seedPluginTables();
     } catch (pluginError: any) {
-      console.log(`   ⚠️  Plugin tables seeding skipped: ${pluginError.message?.slice(0, 50)}`);
+      logger.info(`   ⚠️  Plugin tables seeding skipped: ${pluginError.message?.slice(0, 50)}`);
     }
 
     // Admin team and roles seeding - depends on plugin tables being created
     try {
       await seedAdminTeamAndRoles();
     } catch (adminError: any) {
-      console.log(`   ⚠️  Admin team seeding skipped: ${adminError.message?.slice(0, 50)}`);
+      logger.info(`   ⚠️  Admin team seeding skipped: ${adminError.message?.slice(0, 50)}`);
     }
 
     await updateSeedVersion();
 
-    console.log("\n╔════════════════════════════════════════════════════════════╗");
-    console.log("║           🎉 All Seeds Completed Successfully!            ║");
-    console.log("╚════════════════════════════════════════════════════════════╝");
-    console.log("\n📋 Seed Summary:");
-    console.log("   - LLM Models: Up to 14 models (Free + Pro tiers)");
-    console.log("   - Subscription Plans: Free & Pro plans");
-    console.log("   - Credit Packages: 6 packages ($9.99 - $699.99)");
-    console.log("   - Prompt Templates: 15 professional templates");
-    console.log("   - Agent Templates: 8 agent presets");
-    console.log("   - Flow Templates: 8 automation flows");
-    console.log("   - Email Templates: 8 transactional emails");
-    console.log("   - Global Settings: Platform configuration");
-    console.log("   - SEO Settings: Meta tags & analytics");
-    console.log(`   - Supported Languages: ${LANGUAGES_SEED_DATA.length} languages with provider support`);
-    console.log(`   - Twilio Countries: ${TWILIO_COUNTRIES_SEED_DATA.length} countries for phone number purchasing`);
-    console.log(`   - Plivo Phone Pricing: ${PLIVO_PRICING_SEED_DATA.length} countries seeded`);
-    console.log("   - Plugin Tables: REST API (3), SIP Engine (3), Team Management (12)");
-    console.log("   - Admin Team: 4 default roles (Super Admin, Admin, Support, Viewer)");
-    console.log(`   - Seed Version: ${SEED_VERSION}\n`);
+    logger.info("\n╔════════════════════════════════════════════════════════════╗");
+    logger.info("║           🎉 All Seeds Completed Successfully!            ║");
+    logger.info("╚════════════════════════════════════════════════════════════╝");
+    logger.info("\n📋 Seed Summary:");
+    logger.info("   - LLM Models: Up to 14 models (Free + Pro tiers)");
+    logger.info("   - Subscription Plans: Free & Pro plans");
+    logger.info("   - Credit Packages: 6 packages ($9.99 - $699.99)");
+    logger.info("   - Prompt Templates: 15 professional templates");
+    logger.info("   - Agent Templates: 8 agent presets");
+    logger.info("   - Flow Templates: 8 automation flows");
+    logger.info("   - Email Templates: 8 transactional emails");
+    logger.info("   - Global Settings: Platform configuration");
+    logger.info("   - SEO Settings: Meta tags & analytics");
+    logger.info(`   - Supported Languages: ${LANGUAGES_SEED_DATA.length} languages with provider support`);
+    logger.info(`   - Twilio Countries: ${TWILIO_COUNTRIES_SEED_DATA.length} countries for phone number purchasing`);
+    logger.info(`   - Plivo Phone Pricing: ${PLIVO_PRICING_SEED_DATA.length} countries seeded`);
+    logger.info("   - Plugin Tables: REST API (3), SIP Engine (3), Team Management (12)");
+    logger.info("   - Admin Team: 4 default roles (Super Admin, Admin, Support, Viewer)");
+    logger.info(`   - Seed Version: ${SEED_VERSION}\n`);
 
   } catch (error) {
-    console.error("\n❌ Seeding failed:", error);
+    logger.error("\n❌ Seeding failed:", error);
     throw error;
   }
 }
 
 import { fileURLToPath } from 'url';
+import { logger } from './utils/logger.ts';
 
 // Only run standalone when this file is executed directly, NOT when bundled
 const isDirectExecution = process.argv[1]?.includes('seed-all') &&
@@ -1123,7 +1124,7 @@ if (isDirectExecution) {
       process.exit(0);
     })
     .catch((error) => {
-      console.error("💥 Fatal error:", error);
+      logger.error("💥 Fatal error:", error);
       process.exit(1);
     });
 }

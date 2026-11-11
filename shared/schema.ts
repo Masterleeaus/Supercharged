@@ -587,6 +587,15 @@ export const globalSettings = pgTable("global_settings", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+// Company quiet hours - one row per company (persisted campaign quiet window)
+export const companyQuietHours = pgTable("company_quiet_hours", {
+  companyId: uuid("company_id").primaryKey(),
+  startHour: integer("start_hour").notNull(),
+  endHour: integer("end_hour").notNull(),
+  timezone: varchar("timezone", { length: 64 }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 // LLM Models - Available models with tier restrictions
 export const llmModels = pgTable("llm_models", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -1374,7 +1383,7 @@ export interface WebhookNodeConfig {
   url: string;
   method: "POST" | "PUT" | "PATCH";
   headers?: Record<string, string>;
-  payload: Record<string, any>;
+  payload: Record<string, unknown>;
 }
 
 export interface TransferNodeConfig {
@@ -1488,9 +1497,9 @@ export const flowExecutions = pgTable("flow_executions", {
   flowId: varchar("flow_id").notNull().references(() => flows.id),
   currentNodeId: varchar("current_node_id"),
   status: varchar("status", { length: 50 }).notNull(),
-  variables: jsonb("variables").default({}).$type<Record<string, any>>(),
+  variables: jsonb("variables").default({}).$type<Record<string, unknown>>(),
   pathTaken: jsonb("path_taken").default([]).$type<string[]>(),
-  metadata: jsonb("metadata").$type<Record<string, any>>(),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>(),
   error: text("error"),
   startedAt: timestamp("started_at").defaultNow().notNull(),
   completedAt: timestamp("completed_at"),
@@ -1615,7 +1624,7 @@ export const appointments = pgTable("appointments", {
   status: varchar("status", { length: 50 }).default("scheduled").notNull(),
   statusReason: varchar("status_reason", { length: 500 }),
   googleCalendarEventId: varchar("google_calendar_event_id", { length: 255 }),
-  metadata: jsonb("metadata").$type<Record<string, any>>(),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   companyId: uuid("company_id"),

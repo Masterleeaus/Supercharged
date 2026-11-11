@@ -2,6 +2,7 @@ import { WebSocket } from "ws";
 import { eq } from "drizzle-orm";
 import { db } from "../../db";
 import { globalSettings } from "@shared/schema";
+import { logger } from '../../utils/logger.ts';
 
 interface ConnectionLimits {
   maxPerProcess: number;
@@ -32,7 +33,7 @@ export class WebSocketConnectionManager {
   private settingsLoaded = false;
 
   async loadSettings(): Promise<void> {
-    console.log("[WS Manager] Loading settings from globalSettings table...");
+    logger.info("[WS Manager] Loading settings from globalSettings table...");
     
     try {
       const maxPerProcessResult = await db
@@ -63,15 +64,15 @@ export class WebSocketConnectionManager {
       }
 
       this.settingsLoaded = true;
-      console.log(`[WS Manager] Settings loaded: maxPerProcess=${this.limits.maxPerProcess}, maxPerUser=${this.limits.maxPerUser}, maxPerIp=${this.limits.maxPerIp}`);
+      logger.info(`[WS Manager] Settings loaded: maxPerProcess=${this.limits.maxPerProcess}, maxPerUser=${this.limits.maxPerUser}, maxPerIp=${this.limits.maxPerIp}`);
     } catch (error) {
-      console.log(`[WS Manager] Failed to load settings, using defaults: ${error instanceof Error ? error.message : String(error)}`);
+      logger.info(`[WS Manager] Failed to load settings, using defaults: ${error instanceof Error ? error.message : String(error)}`);
       this.settingsLoaded = true;
     }
   }
 
   async refreshSettings(): Promise<void> {
-    console.log("[WS Manager] Refreshing settings...");
+    logger.info("[WS Manager] Refreshing settings...");
     this.settingsLoaded = false;
     await this.loadSettings();
   }
@@ -86,14 +87,14 @@ export class WebSocketConnectionManager {
     await this.ensureSettingsLoaded();
 
     if (this.connections.size >= this.limits.maxPerProcess) {
-      console.log(`[WS Manager] Connection rejected: process limit reached (${this.connections.size}/${this.limits.maxPerProcess})`);
+      logger.info(`[WS Manager] Connection rejected: process limit reached (${this.connections.size}/${this.limits.maxPerProcess})`);
       return false;
     }
 
     if (userId) {
       const userConns = this.userConnections.get(userId);
       if (userConns && userConns.size >= this.limits.maxPerUser) {
-        console.log(`[WS Manager] Connection rejected: user limit reached for ${userId} (${userConns.size}/${this.limits.maxPerUser})`);
+        logger.info(`[WS Manager] Connection rejected: user limit reached for ${userId} (${userConns.size}/${this.limits.maxPerUser})`);
         return false;
       }
     }
@@ -101,7 +102,7 @@ export class WebSocketConnectionManager {
     if (ip) {
       const ipConns = this.ipConnections.get(ip);
       if (ipConns && ipConns.size >= this.limits.maxPerIp) {
-        console.log(`[WS Manager] Connection rejected: IP limit reached for ${ip} (${ipConns.size}/${this.limits.maxPerIp})`);
+        logger.info(`[WS Manager] Connection rejected: IP limit reached for ${ip} (${ipConns.size}/${this.limits.maxPerIp})`);
         return false;
       }
     }
@@ -127,7 +128,7 @@ export class WebSocketConnectionManager {
       this.removeConnection(id, userId, ip);
     });
 
-    console.log(`[WS Manager] Connection added: ${id} (total: ${this.connections.size})`);
+    logger.info(`[WS Manager] Connection added: ${id} (total: ${this.connections.size})`);
     return true;
   }
 
@@ -163,7 +164,7 @@ export class WebSocketConnectionManager {
     }
 
     this.connectionMetadata.delete(id);
-    console.log(`[WS Manager] Connection removed: ${id} (total: ${this.connections.size})`);
+    logger.info(`[WS Manager] Connection removed: ${id} (total: ${this.connections.size})`);
   }
 
   getConnection(id: string): WebSocket | undefined {
@@ -192,7 +193,7 @@ export class WebSocketConnectionManager {
   }
 
   async closeAll(reason: string): Promise<void> {
-    console.log(`[WS Manager] Closing all connections: ${reason}`);
+    logger.info(`[WS Manager] Closing all connections: ${reason}`);
     
     const closePromises: Promise<void>[] = [];
     
@@ -204,7 +205,7 @@ export class WebSocketConnectionManager {
               ws.close(1001, reason);
             }
           } catch (error) {
-            console.log(`[WS Manager] Error closing connection ${id}: ${error instanceof Error ? error.message : String(error)}`);
+            logger.info(`[WS Manager] Error closing connection ${id}: ${error instanceof Error ? error.message : String(error)}`);
           }
           resolve();
         })
@@ -218,7 +219,7 @@ export class WebSocketConnectionManager {
     this.ipConnections.clear();
     this.connectionMetadata.clear();
     
-    console.log(`[WS Manager] All connections closed: ${reason}`);
+    logger.info(`[WS Manager] All connections closed: ${reason}`);
   }
 
   getLimits(): ConnectionLimits {

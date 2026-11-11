@@ -432,7 +432,7 @@ export class RAGKnowledgeService {
           isJson = true;
           logger.info(`[RAG] Successfully parsed JSON content into ${chunks.length} logical chunks`);
         } catch (jsonErr: any) {
-          console.warn(`[RAG] Failed to parse content as JSON, falling back to text chunking:`, jsonErr.message);
+          logger.warn(`[RAG] Failed to parse content as JSON, falling back to text chunking:`, jsonErr.message);
         }
       }
 
@@ -488,7 +488,7 @@ export class RAGKnowledgeService {
             .where(eq(knowledgeProcessingQueue.id, queueEntry.id));
           
         } catch (chunkError: any) {
-          console.error(`[RAG] Error processing chunk ${i}:`, chunkError.message);
+          logger.error(`[RAG] Error processing chunk ${i}:`, chunkError.message);
           // If the knowledge base was deleted, foreign key constraint is violated (PG code 23503).
           // Stop processing immediately to avoid log spam and unnecessary API calls.
           if (chunkError.code === '23503' || chunkError.message?.includes('foreign key constraint')) {
@@ -517,7 +517,7 @@ export class RAGKnowledgeService {
       return { success: true, chunksCreated: processedCount };
       
     } catch (error: any) {
-      console.error(`[RAG] Error processing knowledge item:`, error.message);
+      logger.error(`[RAG] Error processing knowledge item:`, error.message);
       
       // Mark as failed
       await db
@@ -600,7 +600,7 @@ export class RAGKnowledgeService {
 
     } catch (error: any) {
       // Surface a failure as a failure, not as "no results". The provider message is not returned.
-      console.error(`[RAG] Search error:`, error.message);
+      logger.error(`[RAG] Search error:`, error.message);
       throw new Error('Knowledge search failed.');
     }
   }

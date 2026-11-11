@@ -41,3 +41,29 @@ New module for Desk comms mode. Not mounted. No migration run.
 - No renderer, no public route, no hosting.
 - Unique slug check is read-then-insert. The Drizzle version relies on the `(company_id, slug)` unique constraint.
 - Campaign references are not checked for status. A page can link to a cancelled campaign.
+
+## Pass 8: real SQL store, still not auto-mounted
+
+`sql-store.ts`, `sql-row.ts` and `sql-patch.ts` now implement the existing nine-method MarketingStore contract with tenant-scoped PostgreSQL queries and fixed update-field allowlists. The implementation is exported as `createSqlMarketingStore({ pool })`; the prior fail-closed `createDrizzleMarketingStore()` is preserved for backward compatibility. The SQL store requires the archived DRAFT schema to be reviewed and promoted before it can run against a live database. No migration was applied. Unique page-slug races now map the PostgreSQL `landing_pages_company_slug_uidx` constraint to the existing domain conflict code.
+
+Tests cover SQL shapes and tenant transaction behavior with recording pool fakes. Real RLS and concurrent DB tests remain required before enabling Marketing.
+
+## Pass 9: draft RLS candidate and lifecycle conditions
+
+The reviewed migration candidate is at `migrations/candidates/0017_marketing_tenant_rls.sql`, NOT in the production migration runner. It retains Marketing tables while adding forced tenant policies for `desk_app`. `scripts/check-marketing-migration.mjs` performs a non-invasive static preflight. SQL updates now condition on the prior publication status so stale concurrent writes cannot silently succeed. `MarketingService` surfaces a conflict if the store returns no changed record.
+
+## Pass 10: PostgreSQL integration harness
+
+A disposable PostgreSQL CI job exercises real tenant isolation, restricted role access, slug uniqueness and conditional lifecycle transitions. It does not alter the production migration list or enable Marketing on live servers.
+
+## Pass 11: verified production composition
+
+`createVerifiedMarketingService` is an opt-in async composition root. It requires a tenant Postgres pool, a separate schema inspection probe, real company-scoped campaign reference checks, and chatbot reference checks. It checks both Marketing tables for enforced and forced RLS and verifies the restricted database role before creating the SQL-backed service. It does not modify the production feature flag or run any migrations.
+
+## Pass 12: policy combination hardening
+
+The `policy-inspection.ts` helper validates the complete PostgreSQL policy expression and the exact desk_app role. The readiness gate now rejects permissive PUBLIC/desk_app overrides, allows only additional restrictive policies and explicitly fails closed on missing RLS metadata. CI exercises both simulated policy attacks and actual PostgreSQL pg_policies output.
+
+## Pass 13 — real route composition
+
+Production `registerWorkforceCommsRoutes` now awaits `registerVerifiedCommsRoutes`, which constructs the Marketing SQL-backed service only with the explicit flag. On that path, database RLS/schema is checked before any Marketing HTTP handler mounts. It reuses `createDrizzleChatbotStorage` for company-scoped chatbot references. Campaign references are intentionally unavailable until the separate Campaigns draft is promoted: the existing voice-call campaigns table cannot be reused safely. No environment flags are changed.

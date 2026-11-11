@@ -51,7 +51,7 @@ export function registerSystemUpdateRoutes(router: Router) {
           },
         });
       } catch (error: any) {
-        console.error('[SystemUpdate] Status error:', error);
+        logger.error('[SystemUpdate] Status error:', error);
         res.status(500).json({ success: false, error: 'Failed to get update status' });
       }
     }
@@ -64,7 +64,7 @@ export function registerSystemUpdateRoutes(router: Router) {
         const history = await systemUpdateService.getUpdateHistory();
         res.json({ success: true, data: { history } });
       } catch (error: any) {
-        console.error('[SystemUpdate] History error:', error);
+        logger.error('[SystemUpdate] History error:', error);
         res.status(500).json({ success: false, error: 'Failed to get update history' });
       }
     }
@@ -104,7 +104,7 @@ export function registerSystemUpdateRoutes(router: Router) {
           },
         });
       } catch (error: any) {
-        console.error('[SystemUpdate] Validation error:', error);
+        logger.error('[SystemUpdate] Validation error:', error);
         res.status(500).json({ success: false, error: 'Failed to validate update package' });
       }
     }
@@ -156,10 +156,10 @@ export function registerSystemUpdateRoutes(router: Router) {
         });
 
         systemUpdateService.performUpdate(req.file.buffer, performedBy).catch((err) => {
-          console.error('[SystemUpdate] Async update error:', err);
+          logger.error('[SystemUpdate] Async update error:', err);
         });
       } catch (error: any) {
-        console.error('[SystemUpdate] Apply error:', error);
+        logger.error('[SystemUpdate] Apply error:', error);
         res.status(500).json({ success: false, error: 'Failed to start update' });
       }
     }
@@ -198,7 +198,7 @@ export function registerSystemUpdateRoutes(router: Router) {
         const status = systemUpdateService.forceReset();
         res.json({ success: true, message: 'Update state cleared', data: status });
       } catch (error: any) {
-        console.error('[SystemUpdate] Reset error:', error);
+        logger.error('[SystemUpdate] Reset error:', error);
         res.status(500).json({ success: false, error: error.message || 'Failed to reset update state' });
       }
     }
@@ -281,11 +281,11 @@ export function registerSystemUpdateRoutes(router: Router) {
             }
           })
           .catch((err) => {
-            console.error('[SystemUpdate] Async rollback error:', err);
+            logger.error('[SystemUpdate] Async rollback error:', err);
           });
         return;
       } catch (error: any) {
-        console.error('[SystemUpdate] Rollback error:', error);
+        logger.error('[SystemUpdate] Rollback error:', error);
         res.status(500).json({ success: false, error: error.message || 'Failed to rollback' });
       }
     }
@@ -330,7 +330,7 @@ export function registerSystemUpdateRoutes(router: Router) {
           return res.status(500).json({ success: false, error: 'Failed to build backup ZIP' });
         }
       } catch (error: any) {
-        console.error('[SystemUpdate] Download backup error:', error);
+        logger.error('[SystemUpdate] Download backup error:', error);
         if (!res.headersSent) {
           res.status(500).json({ success: false, error: 'Failed to download backup' });
         }
@@ -394,7 +394,7 @@ export function registerSystemUpdateRoutes(router: Router) {
           message: 'Backup deleted successfully',
         });
       } catch (error: any) {
-        console.error('[SystemUpdate] Delete backup error:', error);
+        logger.error('[SystemUpdate] Delete backup error:', error);
         res.status(500).json({ success: false, error: 'Failed to delete backup' });
       }
     }

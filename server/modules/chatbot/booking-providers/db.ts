@@ -17,7 +17,7 @@
  *   chatbot_calendar_secrets: UNIQUE (company_id, provider, purpose)
  */
 import { sql } from "drizzle-orm";
-import { check, foreignKey, index, jsonb, pgTable, text, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
+import { check, foreignKey, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
 import { chatbotAppointments } from "../db/bookings.ts";
 
 export const CALENDAR_PROVIDER_VALUES = ["calendly", "calcom"] as const;
@@ -82,6 +82,27 @@ export const chatbotBookingReminderSends = pgTable(
       foreignColumns: [chatbotAppointments.companyId, chatbotAppointments.id],
     }),
     check("chatbot_booking_reminder_sends_status_chk", sql`${table.status} IN ('sending', 'sent', 'failed', 'cancelled')`),
+  ],
+);
+
+/** One row per reminder send attempt, including retryable failures. Written by the attempt log, never read by a send. */
+export const chatbotBookingReminderAttempts = pgTable(
+  "chatbot_booking_reminder_attempts",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    companyId: uuid("company_id").notNull(),
+    appointmentId: varchar("appointment_id").notNull(),
+    channel: varchar("channel", { length: 16 }).notNull(),
+    attemptNo: integer("attempt_no").notNull(),
+    status: varchar("status", { length: 16 }).notNull(), // sent | failed | error
+    idempotencyKey: varchar("idempotency_key", { length: 255 }).notNull(),
+    externalMessageId: varchar("external_message_id", { length: 255 }),
+    reason: varchar("reason", { length: 255 }),
+    attemptedAt: timestamp("attempted_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("chatbot_booking_reminder_attempts_company_appt_idx").on(table.companyId, table.appointmentId, table.channel),
+    check("chatbot_booking_reminder_attempts_status_chk", sql`${table.status} IN ('sent', 'failed', 'error')`),
   ],
 );
 
