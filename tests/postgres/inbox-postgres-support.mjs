@@ -3,7 +3,9 @@ import {randomUUID} from 'node:crypto';
 import {createSqlInboxStore} from '../../server/modules/inbox/sql-store.ts';
 import {verifyInboxSchema} from '../../server/modules/inbox/schema-readiness.ts';
 import {createSqlOutbox} from '../../server/modules/inbox/sql-outbox.ts';
-export const A='11111111-1111-4111-8111-111111111111',B='22222222-2222-4222-8222-222222222222';
+// Node runs test files in separate processes. Give each file its own tenants so
+// bulk enqueue/claim operations cannot consume another file's test messages.
+export const A=randomUUID(),B=randomUUID();
 export const NOW=new Date('2026-11-09T00:00:00Z');
 export const enabled=process.env.INBOX_PG_DISPOSABLE==='true'&&Boolean(process.env.INBOX_PG_INTEGRATION_URL);
 export const id=prefix=>prefix+'-'+randomUUID();

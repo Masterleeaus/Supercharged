@@ -1,0 +1,25 @@
+name: Central SSO adapter checks
+on:
+  push:
+    branches: [feat/central-product-oidc-adapter-pass25]
+  pull_request:
+    paths:
+      - 'server/infrastructure/central-sso/**'
+      - 'tests/infrastructure/central-sso-*.test.mjs'
+      - 'docs/pending/central-sso-company-links.sql'
+      - '.github/workflows/central-oidc-adapter.yml'
+permissions:
+  contents: read
+jobs:
+  adapter-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Verify company-scoped Central identity and JWT session boundaries
+        run: node --test --experimental-transform-types tests/infrastructure/central-sso-account-resolver.test.mjs tests/infrastructure/central-sso-session-gate.test.mjs
