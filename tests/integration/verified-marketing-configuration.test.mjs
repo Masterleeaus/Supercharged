@@ -10,8 +10,8 @@ test('exact flag true is required to enable Marketing',async()=>{
   assert.deepEqual(result.mounted,[]);assert.deepEqual(calls,[]);
  }
 });
-test('Inbox cannot turn on without an explicitly supplied durable service',async()=>{
+test('Inbox cannot turn on without a verified PostgreSQL pool',async()=>{
  const calls=[];
- await assert.rejects(registerVerifiedCommsRoutes({use:(...args)=>calls.push(args)},{...guards,env:{COMMS_INBOX_ENABLED:'true'},pool:null,schemaProbe:null}),/InboxService/);
+ await assert.rejects(registerVerifiedCommsRoutes({use:(...args)=>calls.push(args)},{...guards,env:{COMMS_INBOX_ENABLED:'true'},pool:null,schemaProbe:null}),/PostgreSQL pool/);
  assert.deepEqual(calls,[]);
 });

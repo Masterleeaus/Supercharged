@@ -17,3 +17,23 @@ Pass 15's disposable PostgreSQL suite passed. Pass 16 adds a read-only live-sche
 ## Pass 17: approved-send transaction isolation
 
 The existing Inbox SQL store and approval-write code are reused. The newly exported `inboxTransactionsFor(pool)` binds one transaction runner per request company; its whole callback uses one restricted PostgreSQL connection and rejects foreign company arguments. The production constructor now uses that factory automatically. This does not yet connect a production approval policy or provider dispatcher, so Inbox remains off.
+
+## Pass 18: approval policy integration
+
+Production Inbox composition can now reuse the canonical ApprovalService as `approvalService`, so Inbox no longer needs a separate approval engine. A claim takes place atomically through the existing per-company SQL runner. Before feature activation, verify the target approval schema, role grants, real approval audit pipeline and outbound provider delivery, and run complete authenticated HTTP tests. Flags remain unchanged.
+
+## Pass 19: verified Inbox route mounting
+
+The actual Workforce/Comms registrar no longer needs a manually injected Inbox service. When `COMMS_INBOX_ENABLED=true`, startup constructs the existing SQL-backed Inbox service and canonical approval engine only after the database security gate succeeds. With the flag off, no Inbox schema query is performed. The RLS candidate is not promoted and no provider transport is enabled.
+
+## Pass 20: opt-in persistent delivery queue
+
+An additional review-only outbox candidate supports unique queued message enrollment and tenant-bound worker leases. The disposable CI database applies this table after Inbox's existing schema and RLS, with real tests for duplicate enrollment, cross-company denial, token-protected acknowledgement and retry. The dispatcher has no provider configured or scheduler; production sending remains disabled until migration review, provider idempotency, signed callbacks and delivery reconciliation are complete.
+
+## Pass 21: signed delivery callback evidence
+
+A review-only `0020_inbox_delivery_receipts.sql` candidate records immutable provider acknowledgments for previously sent, tenant-owned outbox rows. Callback signatures use a generic internal HMAC over timestamp and raw request body. Integration ID resolution selects the company and signing secret; user-supplied tenant selectors are ignored. The optional Express router remains unmounted and requires an explicit provider guard. Disposable PostgreSQL checks verify event deduplication and foreign-tenant denial. Provider-native signature translators, actual signing credentials, and delivery reconciliation operations remain prerequisites to production activation.
+
+## Pass 22: delivery confirmation projection
+
+Adds a review-only tenant-RLS delivery-state table linked by composite company/outbox keys. The signed receipt insert and conditional state projection happen in the same PostgreSQL transaction. Duplicate and late events cannot demote confirmed delivery; the separate query service reads delivery by scoped message ID. The candidate strengthens outbox provider acknowledgment uniqueness and receipt foreign-key tenant isolation. This does not automatically deploy migrations or activate outbound providers.

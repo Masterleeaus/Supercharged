@@ -24,3 +24,24 @@ export {createVerifiedInboxService} from './production-service.ts';
 export type {VerifiedInboxDependencies} from './production-service.ts';
 
 export {createInboxSqlTransactionRunner,inboxTransactionsFor} from './sql-transaction-runner.ts';
+
+export {createInboxApprovalPort} from './approval-port.ts';
+export type {CanonicalApprovalPortSource} from './approval-port.ts';
+
+export {createCanonicalInboxApprovalService} from './canonical-production-approval.ts';
+
+export {createSqlOutbox} from './sql-outbox.ts';
+export {createOutboxDispatcher} from './outbox-dispatcher.ts';
+export type {OutboxJob,OutboxRepository,OutboxTransport,OutboxStatus} from './outbox-types.ts';
+
+// Receipt gateway is a factory only: no callbacks are mounted or provider secrets loaded.
+export {verifyProviderSignature,InvalidProviderSignature} from './provider-signature.ts';
+export {parseDeliveryReceipt} from './delivery-receipt.ts';
+export {createSqlDeliveryReceipts} from './sql-delivery-receipts.ts';
+export {createReceiptService} from './receipt-service.ts';
+export {createReceiptRouter} from './receipt-router.ts';
+
+export {createSqlDeliveryStateReader} from './sql-delivery-state.ts';
+export {mapDeliveryState,validateDeliveryOutcome} from './delivery-state.ts';
+export type {DeliveryState,DeliveryOutcome} from './delivery-state.ts';
+export type {DeliveryStateReader} from './sql-delivery-state.ts';

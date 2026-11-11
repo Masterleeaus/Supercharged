@@ -486,3 +486,14 @@ test('approval decisions resolve the transaction runner using the request compan
  assert.equal((await service.applyApprovalDecision(CO_B,draft.id)).status,'queued');
  assert.deepEqual(companies,[CO_B]);
 });
+
+test('canonical approval adapter is exported for verified Inbox composition',async()=>{
+ const {createInboxApprovalPort}=await import('../../server/modules/inbox/index.ts');
+ assert.equal(typeof createInboxApprovalPort,'function');
+ assert.throws(()=>createInboxApprovalPort(null),/canonical approval/);
+});
+
+test('canonical production approval factory rejects missing durable PostgreSQL',async()=>{
+ const {createCanonicalInboxApprovalService}=await import('../../server/modules/inbox/canonical-production-approval.ts');
+ await assert.rejects(createCanonicalInboxApprovalService(null),/PostgreSQL pool/);
+});

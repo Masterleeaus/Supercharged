@@ -61,3 +61,23 @@ The opt-in `createVerifiedInboxService` now validates the actual PostgreSQL cata
 ## Pass 17: per-company approval execution
 
 An InboxService shared by multiple authenticated companies no longer depends on a single fixed company transaction. Production composition derives a company-bound transaction runner from its PostgreSQL pool on each approved decision using `inboxTransactionsFor`. Existing `sqlInboxWriteTx` approval-claim and message-update code is reused; any wrong-company call throws and rolls back. No provider, approval policy, or routes are automatically enabled.
+
+## Pass 18: canonical approval integration boundary
+
+The `createInboxApprovalPort` adapter reuses the canonical ApprovalService for gate decisions, company-scoped reads and execution audit. It uses the conditional SQL claim from the existing Inbox transaction runner rather than passing a partial row into ApprovalService.markExecuted. Production construction can now accept `approvalService` directly, or an explicit approved custom port for existing integration tests; specifying both is an error. No routes or providers are enabled.
+
+## Pass 19: verified production Inbox route composition
+
+When explicitly enabled, the main verified comms registrar now composes Inbox with original SQL storage, the verified schema and canonical ApprovalService connected through the injected tenant pool. Both enabled modules verify before either route mounts. Defaults are unchanged and production provider sends remain unimplemented.
+
+## Pass 20: durable outbound outbox (no provider enabled)
+
+A review-only `0019_inbox_outbox.sql` candidate adds a tenant-RLS protected outbox table linked to the existing Inbox message. The new `createSqlOutbox` handles deduplicated queue enrollment, worker leases with SKIP LOCKED, safe acknowledgments and retry/dead-letter transitions. `createOutboxDispatcher` requires an explicitly injected provider implementing stable idempotency keys. No default provider, background scheduler, migrations or outbound sending are enabled.
+
+## Pass 21: signed receipt callback boundary
+
+A generic gateway HMAC verifier authenticates exact raw bytes with timestamp expiry and constant-time comparison. Trusted integration IDs resolve company/provider/secret on the server. Receipt persistence accepts only provider IDs already acknowledged by the tenant's outbox and records each (company,provider,eventId) once. A receipt router factory is provided but not mounted; callback format is for a controlled gateway and MUST NOT be treated as the native signature protocol of arbitrary third-party providers. No provider credentials, live sending, production migration or webhook registration is enabled.
+
+## Pass 22: delivery state and reconciliation
+
+`createSqlDeliveryStateReader` provides company-restricted confirmation reads from a new, review-only projection. `createSqlDeliveryReceipts` now transactionally updates that projection for every newly persisted signed event. Once delivered, a late failed event cannot downgrade the state. Provider acknowledgment IDs must be unique per tenant and receipt/outbox relationships are enforced by composite tenant foreign keys. Provider configuration, real native signatures and production migrations are still not enabled.

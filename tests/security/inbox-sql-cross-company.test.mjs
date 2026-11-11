@@ -35,3 +35,9 @@ test('cross-company claim attempt fails before any UPDATE approvals SQL runs',as
  assert.ok(!queries.some(sql=>sql.startsWith('UPDATE approvals')));
  assert.ok(queries.includes('ROLLBACK'));
 });
+
+test('canonical approval bridge refuses a foreign tenant before touching approval data',async()=>{
+ const {createInboxApprovalPort}=await import('../../server/modules/inbox/approval-port.ts');
+ const source={gateAction:async()=>({}),getApproval:async()=>{throw Error('should not query')},recordExecuted:async()=>{}};
+ await assert.rejects(createInboxApprovalPort(source).getApproval('invalid','any'),/companyId/);
+});
