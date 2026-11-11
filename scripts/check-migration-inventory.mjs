@@ -35,7 +35,9 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   if (result.missingRequired.length) {
     console.error('Missing required migrations:', result.missingRequired.join(', '));
     process.exitCode = 1;
+  } else if (result.missingOptional.length) {
+    console.log('All required migrations exist. Optional migrations are missing (see warning above).');
   } else {
-    console.log('All required migrations exist.');
+    console.log('All listed migrations exist.');
   }
 }
