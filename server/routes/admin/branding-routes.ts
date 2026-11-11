@@ -46,11 +46,12 @@ export function registerBrandingRoutes(router: Router) {
         'theme_website_accent', 'theme_website_foreground',
         'branding_updated_at'
       ];
-      const branding: Record<string, any> = {};
+      const branding: Record<string, any> = { app_name: 'Supercharged', app_tagline: '' };
       
       for (const key of brandingKeys) {
         const setting = await storage.getGlobalSetting(key);
         if (setting) {
+          if (key === 'app_name' && (typeof setting.value !== 'string' || !setting.value.trim())) continue;
           branding[key] = setting.value;
         }
       }

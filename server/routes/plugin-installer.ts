@@ -224,6 +224,20 @@ router.post('/install',
       const backupDir = path.join(pluginsDir, `${pluginName}.backup.${Date.now()}`);
       const isUpgrade = fs.existsSync(targetDir) && fs.existsSync(path.join(targetDir, 'plugin.json'));
 
+      // Reject the entire archive before replacing any existing plugin files.
+      for (const entry of zip.getEntries()) {
+        if (entry.isDirectory) continue;
+        let entryPath = entry.entryName;
+        if (rootDir && entryPath.startsWith(rootDir + '/')) {
+          entryPath = entryPath.substring(rootDir.length + 1);
+        }
+        if (!entryPath || !isSafeZipEntry(entryPath, targetDir)) {
+          return res.status(400).json({
+            success: false,
+            error: 'Unsafe plugin archive entry; existing files preserved',
+          });
+        }
+      }
       const steps: Array<{ step: string; status: 'success' | 'failed' | 'skipped'; message: string }> = [];
 
       if (!fs.existsSync(pluginsDir)) {
@@ -399,14 +413,63 @@ router.post('/install',
         steps.push({ step: 'migrations', status: 'skipped', message: 'Migrations skipped by user request' });
       }
 
-      try {
-        await setPluginEnabled(pluginName, true);
-        steps.push({ step: 'register', status: 'success', message: 'Plugin registered and enabled' });
-      } catch (regErr: any) {
-        steps.push({ step: 'register', status: 'failed', message: `Registration failed: ${regErr.message}` });
+      // Never activate a plugin after a failed extraction/migration.
+      // SQL migrations already applied cannot be rolled back by file recovery.
+      if (steps.some(step => step.status === 'failed')) {
+        if (isUpgrade && fs.existsSync(backupDir)) {
+          try {
+            if (fs.existsSync(targetDir)) fs.rmSync(targetDir, { recursive: true, force: true });
+            fs.cpSync(backupDir, targetDir, { recursive: true });
+            steps.push({ step: 'rollback_files', status: 'success', message: 'Original plugin files restored; review any applied database migrations' });
+          } catch (rollbackErr: any) {
+            logger.error('Plugin rollback failed', { plugin: pluginName, code: rollbackErr?.code }, 'PluginInstaller');
+            steps.push({ step: 'rollback_files', status: 'failed', message: 'Original plugin recovery failed; backup retained' });
+          }
+        } else if (!isUpgrade) {
+          try {
+            if (fs.existsSync(targetDir)) fs.rmSync(targetDir, { recursive: true, force: true });
+            steps.push({ step: 'cleanup_files', status: 'success', message: 'Incomplete new plugin files removed' });
+          } catch {
+            steps.push({ step: 'cleanup_files', status: 'failed', message: 'Incomplete new plugin requires manual cleanup' });
+          }
+        }
+        return res.status(500).json({
+          success: false,
+          error: 'Plugin installation failed; activation skipped',
+          data: { name: pluginName, isUpgrade, backupPreserved: isUpgrade, databaseRollback: false, steps },
+        });
       }
 
-      if (isUpgrade && fs.existsSync(backupDir)) {
+      try {
+        await setPluginEnabled(pluginName, true);
+        steps.push({ step: 'register', status: 'success', message: 'Plugin enabled for next startup; runtime registration pending restart' });
+      } catch (regErr: any) {
+        steps.push({ step: 'register', status: 'failed', message: `Activation setting failed: ${regErr.message}` });
+        if (isUpgrade && fs.existsSync(backupDir)) {
+          try {
+            if (fs.existsSync(targetDir)) fs.rmSync(targetDir, { recursive: true, force: true });
+            fs.cpSync(backupDir, targetDir, { recursive: true });
+            steps.push({ step: 'rollback_files', status: 'success', message: 'Original plugin files restored; review any applied database migrations' });
+          } catch (rollbackErr: any) {
+            logger.error('Plugin activation rollback failed', { plugin: pluginName, code: rollbackErr?.code }, 'PluginInstaller');
+            steps.push({ step: 'rollback_files', status: 'failed', message: 'Original files could not be restored; backup retained' });
+          }
+        } else if (!isUpgrade) {
+          try {
+            if (fs.existsSync(targetDir)) fs.rmSync(targetDir, { recursive: true, force: true });
+            steps.push({ step: 'cleanup_files', status: 'success', message: 'New plugin files removed after activation failure' });
+          } catch {
+            steps.push({ step: 'cleanup_files', status: 'failed', message: 'New plugin requires manual cleanup' });
+          }
+        }
+        return res.status(503).json({
+          success: false,
+          error: 'Plugin activation could not be saved; files restored where possible',
+          data: { name: pluginName, isUpgrade, backupPreserved: isUpgrade, databaseRollback: false, steps },
+        });
+      }
+
+      if (isUpgrade && fs.existsSync(backupDir) && steps.every(step => step.status !== 'failed')) {
         try {
           fs.rmSync(backupDir, { recursive: true, force: true });
         } catch (err: any) {
@@ -419,7 +482,7 @@ router.post('/install',
       res.json({
         success: allSuccess,
         message: allSuccess
-          ? `Plugin '${manifest.displayName}' v${manifest.version} installed successfully. Server will restart automatically to activate.`
+          ? `Plugin '${manifest.displayName}' v${manifest.version} installed successfully. Server restart requested to activate. A configured process manager must start the service again.`
           : `Plugin '${manifest.displayName}' installed with some issues. Check the steps below.`,
         data: {
           name: pluginName,
@@ -467,25 +530,34 @@ router.delete('/uninstall/:name',
         return res.status(403).json({ success: false, error: `Plugin '${name}' is a core plugin and cannot be uninstalled` });
       }
 
+      // If disablement cannot be saved, preserve files and abort removal.
       try {
         await setPluginEnabled(name, false);
       } catch (err: any) {
-        logger.warn('Could not disable plugin before uninstall; continuing', { plugin: name, error: err?.message }, 'PluginInstaller');
+        logger.error('Could not persist plugin disable state; uninstall aborted', { plugin: name, code: err?.code }, 'PluginInstaller');
+        return res.status(503).json({
+          success: false,
+          error: 'Could not disable plugin before uninstall; files have been preserved',
+        });
       }
 
       const backupDir = path.join(pluginsDir, `${name}.uninstalled.${Date.now()}`);
       try {
         fs.renameSync(targetDir, backupDir);
       } catch (renameErr: any) {
+        // Disablement was persisted but the plugin files remain. Request a
+        // restart so this process no longer presents the module as active.
+        scheduleServerRestart(`Plugin '${manifest.displayName}' disabled after failed uninstall`);
         return res.status(500).json({
           success: false,
-          error: 'Failed to remove plugin files',
+          error: 'Plugin disablement saved, but files could not be removed',
+          data: { name, enabled: false, requiresRestart: true, filesPreserved: true },
         });
       }
 
       res.json({
         success: true,
-        message: `Plugin '${manifest.displayName}' uninstalled. Server will restart automatically to apply changes. Database tables have been preserved.`,
+        message: `Plugin '${manifest.displayName}' uninstalled. Server restart requested. A configured process manager is required to bring the service back online. Database tables have been preserved.`,
         data: {
           name,
           displayName: manifest.displayName,

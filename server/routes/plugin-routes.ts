@@ -186,7 +186,7 @@ publicPluginRouter.get('/health', async (_req, res) => {
       name: string;
       displayName: string;
       version: string;
-      status: 'ok' | 'error' | 'disabled';
+      status: 'ok' | 'error' | 'disabled' | 'pending_restart';
       enabled: boolean;
       registered: boolean;
       tablesStatus: 'ok' | 'missing' | 'unchecked';
@@ -222,11 +222,14 @@ publicPluginRouter.get('/health', async (_req, res) => {
         }
       }
 
-      let status: 'ok' | 'error' | 'disabled' = 'ok';
-      if (!plugin.enabled) {
-        status = 'disabled';
-      } else if (plugin.error || missingTables.length > 0) {
+      let status: 'ok' | 'error' | 'disabled' | 'pending_restart' = 'ok';
+      if (plugin.error || missingTables.length > 0) {
         status = 'error';
+      } else if (plugin.enabled !== plugin.registered) {
+        status = 'pending_restart';
+      } else if (!plugin.enabled) {
+        status = 'disabled';
+
       }
 
       healthChecks.push({
@@ -507,7 +510,7 @@ router.put('/:name/enable', requireAdminPermission('settings', 'plugins', 'updat
     
     res.json({
       success: true,
-      message: `Plugin '${manifest.displayName}' enabled. Server will restart automatically to apply changes.`,
+      message: `Plugin '${manifest.displayName}' enabled. Server restart requested. A configured process manager is required to bring the service back online.`,
       data: {
         name,
         enabled: true,
@@ -549,7 +552,7 @@ router.put('/:name/disable', requireAdminPermission('settings', 'plugins', 'upda
     
     res.json({
       success: true,
-      message: `Plugin '${manifest.displayName}' disabled. Server will restart automatically to apply changes.`,
+      message: `Plugin '${manifest.displayName}' disabled. Server restart requested. A configured process manager is required to bring the service back online.`,
       data: {
         name,
         enabled: false,

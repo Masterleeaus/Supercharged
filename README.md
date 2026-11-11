@@ -1,4 +1,4 @@
-# Supercharged - AI-Powered Bulk Calling Platform
+# Supercharged — Business Communications and Operations
 
 **Version:** 5.4.5  
 **Last Updated:** not verified in this repo (5.4.1 was dated May 2026)  
@@ -24,11 +24,14 @@
 
 ---
 
+
+> **Implementation status:** This README documents inherited modules and intended capabilities, not a production certification. Verify routes, permissions, persistence, provider credentials and end-to-end workflows before representing a feature as live. See `STATUS.md`, issue #54 (branding/source consolidation), and issue #37 (licensing).
+
 ## Product Overview
 
-Supercharged is a multi-tenant SaaS platform for AI-powered bulk calling, supporting multiple AI engines and telephony providers. The platform enables businesses to automate outbound calls, handle incoming inquiries, gather feedback, qualify leads, and manage comprehensive calling campaigns.
+Supercharged is a business communications and operations codebase with AI calling, customer engagement, and shared runtime modules. Available functionality depends on deployment configuration, integrations, licensing, tenant permissions, and the implementation status of each module.
 
-### What Can You Do With Supercharged?
+### Capability inventory (verify availability before offering to customers)
 
 - **Automated Calling Campaigns** - Launch bulk outbound calls with AI agents
 - **24/7 Virtual Receptionist** - Handle incoming calls automatically
@@ -143,7 +146,7 @@ Automatic notifications for:
 
 ## AI Engine Options
 
-Supercharged supports three AI engine configurations to match your needs:
+The inherited source contains integrations for three AI engine configurations:
 
 ### 1. ElevenLabs + Twilio (Default)
 
@@ -179,7 +182,7 @@ Supercharged supports three AI engine configurations to match your needs:
 
 ## Payment Gateways
 
-Supercharged supports 5 payment gateways for global coverage:
+The inherited codebase contains adapters for five payment gateways; deployment readiness must be independently verified:
 
 | Gateway | Regions | Currencies | Features |
 |---------|---------|------------|----------|
@@ -204,7 +207,7 @@ Supercharged supports 5 payment gateways for global coverage:
 
 ## Multi-Language Support
 
-Supercharged supports 11 languages with full interface translation:
+The repository contains localized interface files (translation completeness is not verified):
 
 | Language | Code | RTL Support |
 |----------|------|-------------|
@@ -706,6 +709,6 @@ Check version via API: `GET /api/system/version`
 
 ---
 
-**Thank you for purchasing Supercharged!**
+**Supercharged source and deployment notes**
 
-If you find this product helpful, please consider leaving a rating on CodeCanyon. Your feedback helps us improve and continue development.
+The source includes inherited CodeCanyon licensing notices. Preserve the original legal attribution and verify redistribution rights before distribution; see issue #37.
