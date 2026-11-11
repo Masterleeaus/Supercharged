@@ -8,7 +8,7 @@ import { nanoid } from "nanoid";
 import { flowTemplates } from "../../services/flow-templates";
 import { storage } from "../../storage";
 import { companyForRead } from "./shared";
-import { flowInsertRow } from "./insert-rows";
+import { flowInsertRow, flowCreateInputSchema } from "./insert-rows";
 import { logger } from '../../utils/logger.ts';
 
 export function registerFlowTemplateRoutes(router: Router): void {
@@ -66,21 +66,17 @@ export function registerFlowTemplateRoutes(router: Router): void {
 
       const newFlowId = nanoid();
       const now = new Date();
+      const cloneInput = flowCreateInputSchema.parse({
+        name: name || template.name,
+        description: template.description || null,
+        nodes: template.nodes,
+        edges: template.edges,
+        isActive: false,
+        isTemplate: false,
+      });
       const [newFlow] = await db
         .insert(flows)
-        .values(flowInsertRow({
-          id: newFlowId,
-          userId,
-          companyId,
-          name: name || template.name,
-          description: template.description || null,
-          nodes: template.nodes,
-          edges: template.edges,
-          isActive: false,
-          isTemplate: false,
-          createdAt: now,
-          updatedAt: now,
-        }))
+        .values(flowInsertRow(cloneInput, { id: newFlowId, userId, companyId, createdAt: now, updatedAt: now }))
         .returning();
 
       res.json(newFlow);

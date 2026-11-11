@@ -2,7 +2,7 @@
 import { Router, Response } from "express";
 import { db } from "../../db";
 import { type AuthRequest } from "../../middleware/auth";
-import { flows, createFlowSchema, webhooks, appointments, forms, formFields, flowExecutions, flowTestQueue, agents } from "@shared/schema";
+import { flows, webhooks, appointments, forms, formFields, flowExecutions, flowTestQueue, agents } from "@shared/schema";
 import { eq, and, or, desc, sql, ne } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { storage } from "../../storage";
@@ -12,7 +12,7 @@ import { FlowAgentService } from "../../services/flow-agent";
 import { OpenAIVoiceAgentCompiler, type FlowNode, type FlowEdge } from "../../services/openai-voice-agent";
 import { logger } from "../../utils/logger";
 import { companyForRead, FLOW_EDITABLE_FIELDS, pickEditableFields, buildFlowAgentBasePrompt } from "./shared";
-import { flowInsertRow } from "./insert-rows";
+import { flowInsertRow, flowCreateInputSchema } from "./insert-rows";
 
 export function registerFlowRoutes(router: Router): void {
   router.get("/flows", async (req: AuthRequest, res: Response) => {
@@ -95,17 +95,12 @@ export function registerFlowRoutes(router: Router): void {
         });
       }
 
-      const validatedData = createFlowSchema.parse(req.body);
+      const validatedData = flowCreateInputSchema.parse(req.body);
 
       const flowId = nanoid();
       const [newFlow] = await db
         .insert(flows)
-        .values(flowInsertRow({
-          id: flowId,
-          userId,
-          ...validatedData,
-          companyId,
-        }))
+        .values(flowInsertRow(validatedData, { id: flowId, userId, companyId }))
         .returning();
 
       // Enforce 1-to-1 mapping on flow creation

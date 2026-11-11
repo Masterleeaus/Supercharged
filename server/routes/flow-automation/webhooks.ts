@@ -3,12 +3,12 @@ import { Router, Response } from "express";
 import { db } from "../../db";
 import { type AuthRequest } from "../../middleware/auth";
 import { getCompanyScope } from "../../middleware/company-scope";
-import { webhooks, createWebhookSchema, webhookLogs } from "@shared/schema";
+import { webhooks, webhookLogs } from "@shared/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { webhookDeliveryService } from "../../services/webhook-delivery";
 import { companyForRead, WEBHOOK_EDITABLE_FIELDS, pickEditableFields } from "./shared";
-import { webhookInsertRow } from "./insert-rows";
+import { webhookInsertRow, webhookCreateInputSchema } from "./insert-rows";
 import { logger } from '../../utils/logger.ts';
 
 export function registerWebhookRoutes(router: Router): void {
@@ -43,7 +43,7 @@ export function registerWebhookRoutes(router: Router): void {
       }
 
       const userId = req.userId!;
-      const validatedData = createWebhookSchema.parse(req.body);
+      const validatedData = webhookCreateInputSchema.parse(req.body);
 
       let companyId: string;
       try {
@@ -55,12 +55,7 @@ export function registerWebhookRoutes(router: Router): void {
       const webhookId = nanoid();
       const [newWebhook] = await db
         .insert(webhooks)
-        .values(webhookInsertRow({
-          id: webhookId,
-          userId,
-          ...validatedData,
-          companyId,
-        }))
+        .values(webhookInsertRow(validatedData, { id: webhookId, userId, companyId }))
         .returning();
 
       res.json(newWebhook);
