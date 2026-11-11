@@ -57,7 +57,7 @@ async function getAppName(): Promise<string> {
   
   try {
     const setting = await storage.getGlobalSetting('app_name');
-    const appName = typeof setting?.value === 'string' ? setting.value : DEFAULT_APP_NAME;
+    const appName = typeof setting?.value === 'string' && setting.value.trim() ? setting.value : DEFAULT_APP_NAME;
     cachedAppName = appName;
     appNameCacheTime = now;
     return appName;

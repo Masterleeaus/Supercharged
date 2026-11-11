@@ -38,9 +38,9 @@ export function createPublicRoutes(ctx: RouteContext): Router {
   async function getAppNameFallback(): Promise<string> {
     try {
       const setting = await storage.getGlobalSetting('app_name');
-      return (setting?.value as string) || 'AgentLabs';
+      return (setting?.value as string) || 'Supercharged';
     } catch {
-      return 'AgentLabs';
+      return 'Supercharged';
     }
   }
 
@@ -109,7 +109,7 @@ export function createPublicRoutes(ctx: RouteContext): Router {
         success: true,
         installed,
         branding: {
-          app_name: brandingSettings.app_name || '',
+          app_name: brandingSettings.app_name || 'Supercharged',
           app_tagline: brandingSettings.app_tagline || '',
           logo_url: brandingSettings.logo_url || null,
           logo_url_light: brandingSettings.logo_url_light || null,
@@ -127,7 +127,7 @@ export function createPublicRoutes(ctx: RouteContext): Router {
       res.json({
         success: false,
         installed: false,
-        branding: { app_name: '', app_tagline: '', logo_url: null, favicon_url: null },
+        branding: { app_name: 'Supercharged', app_tagline: '', logo_url: null, favicon_url: null },
         seo: null,
         version
       });
@@ -254,6 +254,7 @@ export function createPublicRoutes(ctx: RouteContext): Router {
       logger.info("\n⚙️  Step 3: Configuring platform settings...");
       const settingsToCreate = [
         { key: 'company_name', value: companyName, description: 'Company name displayed across the platform' },
+        { key: 'app_name', value: companyName, description: 'Initial app branding from installer company name' },
         { key: 'support_email', value: adminEmail, description: 'Support email for customer inquiries' },
       ];
 
@@ -614,7 +615,7 @@ export function createPublicRoutes(ctx: RouteContext): Router {
     try {
       const brandingKeys = ['app_name', 'app_tagline', 'logo_url', 'logo_url_light', 'logo_url_dark', 'favicon_url', 'branding_updated_at', 'admin_email', 'app_location', 'social_twitter_url', 'social_linkedin_url', 'social_github_url', 'theme_primary', 'theme_primary_foreground', 'theme_accent', 'theme_background', 'theme_sidebar', 'theme_website_accent', 'theme_website_foreground'];
       const branding: Record<string, any> = {
-        app_name: '',
+        app_name: 'Supercharged',
         app_tagline: '',
         logo_url: null,
         logo_url_light: null,
@@ -638,16 +639,18 @@ export function createPublicRoutes(ctx: RouteContext): Router {
       for (const key of brandingKeys) {
         const setting = await storage.getGlobalSetting(key);
         if (setting) {
+          // A blank stored name must not override the product identity.
+          if (key === 'app_name' && (typeof setting.value !== 'string' || !setting.value.trim())) continue;
           branding[key] = setting.value;
         }
       }
 
-      res.setHeader('Cache-Control', 'public, max-age=300');
+      res.setHeader('Cache-Control', 'no-store'); // Reflect admin branding updates without a five-minute stale response.
       res.json(branding);
     } catch (error) {
       logger.error('Error fetching branding:', error);
       res.json({
-        app_name: '',
+        app_name: 'Supercharged',
         app_tagline: '',
         logo_url: null,
         favicon_url: null,
@@ -999,7 +1002,7 @@ ${allUrls.map(u => {
       const adminEmail = (adminEmailSetting?.value as string) || (smtpFromEmail?.value as string) || process.env.SMTP_USER;
 
       const appNameSetting = await storage.getGlobalSetting('app_name');
-      const appName = (appNameSetting?.value as string) || '';
+      const appName = (appNameSetting?.value as string) || 'Supercharged';
 
       if (!adminEmail) {
         logger.error('No admin email configured for contact form');

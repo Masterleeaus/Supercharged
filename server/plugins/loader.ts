@@ -113,23 +113,24 @@ async function isPluginEnabled(pluginName: string): Promise<boolean> {
       .where(eq(globalSettings.key, settingKey))
       .limit(1);
     
-    if (setting && setting.value) {
-      // Value is jsonb type, could be { enabled: boolean } or string 'true'/'false'
+    if (setting) {
+      // An explicitly stored false/null is a disabled plugin, not an absent setting.
+      // Only the exact boolean/string true or { enabled: true } activates it.
       const val = setting.value as any;
-      if (typeof val === 'object' && 'enabled' in val) {
+      if (val !== null && typeof val === 'object' && !Array.isArray(val)) {
         return val.enabled === true;
       }
       if (typeof val === 'string') {
         return val === 'true';
       }
-      return Boolean(val);
+      return val === true;
     }
     
     // Default: enabled
     return true;
   } catch (error) {
-    logger.warn(`[Plugin Loader] Could not check plugin status for ${pluginName}, defaulting to enabled`);
-    return true;
+    logger.warn(`[Plugin Loader] Could not verify plugin status for ${pluginName}, refusing activation`);
+    return false;
   }
 }
 
@@ -148,7 +149,7 @@ export function discoverPlugins(): PluginManifest[] {
   const entries = fs.readdirSync(pluginsDir, { withFileTypes: true });
   
   for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
+    if (!entry.isDirectory() || entry.isSymbolicLink()) continue;
     
     const manifestPath = path.join(pluginsDir, entry.name, 'plugin.json');
     
@@ -158,8 +159,31 @@ export function discoverPlugins(): PluginManifest[] {
     }
     
     try {
+      if (fs.lstatSync(manifestPath).isSymbolicLink()) {
+        logger.warn(`[Plugin Loader] Skipping symlinked manifest for '${entry.name}'`);
+        continue;
+      }
       const manifestContent = fs.readFileSync(manifestPath, 'utf-8');
       const manifest = JSON.parse(manifestContent) as PluginManifest;
+      // The loader constructs paths from manifest.name, so never trust a
+      // manifest to point outside its own discovered plugin directory.
+      if (!manifest || typeof manifest !== 'object' ||
+          typeof manifest.name !== 'string' ||
+          !/^[a-z][a-z0-9-]{1,63}$/.test(manifest.name) ||
+          manifest.name !== entry.name) {
+        logger.warn(`[Plugin Loader] Skipping invalid plugin name for directory '${entry.name}'`);
+        continue;
+      }
+      if (typeof manifest.entryPoint !== 'string' ||
+          !/\.(?:mjs|js|ts)$/.test(manifest.entryPoint) ||
+          path.isAbsolute(manifest.entryPoint) ||
+          manifest.entryPoint.includes('\\') ||
+          manifest.entryPoint.split('/').some(segment => segment === '..' || segment === '.') ||
+          typeof manifest.registerFunction !== 'string' ||
+          !/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(manifest.registerFunction)) {
+        logger.warn(`[Plugin Loader] Skipping invalid entrypoint or register function for '${entry.name}'`);
+        continue;
+      }
       if (seenNames.has(manifest.name)) {
         logger.warn(`[Plugin Loader] Skipping duplicate plugin '${manifest.name}' in directory '${entry.name}'`);
         continue;
@@ -256,7 +280,14 @@ export async function loadPlugins(app: Express, options: PluginLoaderOptions): P
         }
       }
       
-      const entryPointUrl = pathToFileURL(entryPointPath).href;
+      // Resolve real paths after TS/JS fallback selection: a symlinked entry
+      // must not escape its discovered plugin's directory.
+      const pluginRoot = fs.realpathSync(pluginPath);
+      const resolvedEntryPoint = fs.realpathSync(entryPointPath);
+      if (!resolvedEntryPoint.startsWith(pluginRoot + path.sep)) {
+        throw new Error(`Plugin entrypoint escapes its directory: '${manifest.name}'`);
+      }
+      const entryPointUrl = pathToFileURL(resolvedEntryPoint).href;
       let pluginModule: any;
       try {
         pluginModule = await import(entryPointUrl);
@@ -270,7 +301,11 @@ export async function loadPlugins(app: Express, options: PluginLoaderOptions): P
             const fallbackPath = basePath + ext;
             if (fs.existsSync(fallbackPath)) {
               logger.info(`[Plugin Loader] Using fallback: ${path.basename(fallbackPath)} for '${manifest.name}'`);
-              pluginModule = await import(pathToFileURL(fallbackPath).href);
+              const resolvedFallback = fs.realpathSync(fallbackPath);
+              if (!resolvedFallback.startsWith(pluginRoot + path.sep)) {
+                throw new Error(`Plugin fallback escapes its directory: '${manifest.name}'`);
+              }
+              pluginModule = await import(pathToFileURL(resolvedFallback).href);
               fallbackLoaded = true;
               break;
             }
@@ -500,11 +535,30 @@ export function getPluginManifest(name: string): PluginManifest | undefined {
  * Get plugin manifest from disk (fallback for newly installed plugins not yet in memory)
  */
 export function getPluginManifestFromDisk(name: string): PluginManifest | undefined {
-  const manifestPath = path.join(pluginsDir, name, 'plugin.json');
-  if (!fs.existsSync(manifestPath)) return undefined;
+  // This helper can be called for newly installed plugins: reject traversal
+  // before constructing paths and never trust a symlinked directory/manifest.
+  if (!/^[a-z][a-z0-9-]{1,63}$/.test(name)) return undefined;
+  const pluginPath = path.join(pluginsDir, name);
+  const manifestPath = path.join(pluginPath, 'plugin.json');
   try {
-    const content = fs.readFileSync(manifestPath, 'utf-8');
-    return JSON.parse(content) as PluginManifest;
+    if (!fs.statSync(pluginPath).isDirectory() ||
+        fs.lstatSync(pluginPath).isSymbolicLink() ||
+        fs.lstatSync(manifestPath).isSymbolicLink()) return undefined;
+    const pluginRoot = fs.realpathSync(pluginPath);
+    const manifestRoot = fs.realpathSync(manifestPath);
+    if (!manifestRoot.startsWith(pluginRoot + path.sep)) return undefined;
+    const parsed: unknown = JSON.parse(fs.readFileSync(manifestRoot, 'utf-8'));
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return undefined;
+    const manifest = parsed as PluginManifest;
+    if (manifest.name !== name ||
+        typeof manifest.entryPoint !== 'string' ||
+        !/\.(?:mjs|js|ts)$/.test(manifest.entryPoint) ||
+        path.isAbsolute(manifest.entryPoint) ||
+        manifest.entryPoint.includes('\\') ||
+        manifest.entryPoint.split('/').some(segment => segment === '..' || segment === '.') ||
+        typeof manifest.registerFunction !== 'string' ||
+        !/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(manifest.registerFunction)) return undefined;
+    return manifest;
   } catch {
     return undefined;
   }
@@ -552,6 +606,8 @@ export async function getPluginStatus(): Promise<Array<{
   description: string;
   enabled: boolean;
   registered: boolean;
+  // A persisted toggle is not an unload/reload of routes in this process.
+  requiresRestart: boolean;
   features: string[];
   hasFrontendBundle: boolean;
   error?: string;
@@ -569,6 +625,7 @@ export async function getPluginStatus(): Promise<Array<{
       description: plugin.manifest.description,
       enabled: plugin.enabled,
       registered: plugin.registered,
+      requiresRestart: !plugin.error && plugin.enabled !== plugin.registered,
       features: plugin.manifest.features || [],
       hasFrontendBundle,
       error: plugin.error,

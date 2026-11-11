@@ -25,12 +25,12 @@ const SEO_SETTINGS_SEED_DATA = [
   // ============================================
   {
     key: "seo_site_title",
-    value: "AI-Powered Calling Platform",
+    value: "Supercharged | AI Communications and Business Operations",
     description: "Default site title for SEO",
   },
   {
     key: "seo_site_description",
-    value: "Automate your outbound communication with AI-powered voice agents. Scale your calling campaigns with intelligent automation, lead qualification, and real-time analytics.",
+    value: "Connect customer communications, marketing and business operations with Supercharged.",
     description: "Default meta description for SEO",
   },
   {
@@ -49,12 +49,12 @@ const SEO_SETTINGS_SEED_DATA = [
   // ============================================
   {
     key: "seo_og_title",
-    value: "Scale Your Outreach with AI Voice Agents",
+    value: "Supercharged | AI Communications and Business Operations",
     description: "Open Graph title for social sharing",
   },
   {
     key: "seo_og_description",
-    value: "Launch AI-powered calling campaigns that qualify leads, book appointments, and engage customers automatically. Start your free trial today.",
+    value: "Bring your customer conversations and business operations together with Supercharged.",
     description: "Open Graph description for social sharing",
   },
   {
@@ -93,12 +93,12 @@ const SEO_SETTINGS_SEED_DATA = [
   },
   {
     key: "seo_twitter_title",
-    value: "AI-Powered Calling Platform",
+    value: "Supercharged | AI Communications and Business Operations",
     description: "Twitter card title",
   },
   {
     key: "seo_twitter_description",
-    value: "Automate your calling campaigns with AI voice agents. Qualify leads, book appointments, and engage customers 24/7.",
+    value: "Manage customer communications and everyday business operations with connected tools.",
     description: "Twitter card description",
   },
   {
@@ -225,7 +225,7 @@ Sitemap: {{site_url}}/sitemap.xml`,
   {
     key: "seo_canonical_url",
     value: "",
-    description: "Canonical URL base (e.g., https://your-domain.example)",
+    description: "Canonical URL base (e.g., https://example.com)",
   },
   {
     key: "seo_default_language",
@@ -248,12 +248,12 @@ Sitemap: {{site_url}}/sitemap.xml`,
   // ============================================
   {
     key: "seo_home_title",
-    value: "Supercharged | Automate Your Outreach",
+    value: "Supercharged | AI Communications and Business Operations",
     description: "Homepage specific title",
   },
   {
     key: "seo_home_description",
-    value: "Transform your outbound communication with AI voice agents. Automate calls, qualify leads, and scale your sales operations effortlessly.",
+    value: "Bring business communications, customer engagement and everyday operations together.",
     description: "Homepage specific description",
   },
   {
@@ -263,7 +263,7 @@ Sitemap: {{site_url}}/sitemap.xml`,
   },
   {
     key: "seo_pricing_description",
-    value: "Choose the perfect plan for your calling needs. Start free with 50 credits or upgrade to Pro for advanced features and higher limits.",
+    value: "Explore available plans and choose the capabilities that fit your business.",
     description: "Pricing page specific description",
   },
   {

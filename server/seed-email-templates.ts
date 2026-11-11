@@ -210,7 +210,7 @@ function wrapEmailTemplate(content: string): string {
     <div class="email-container">
       <div class="email-header">
         <h1 class="email-logo">{{companyName}}</h1>
-        <p class="email-tagline">AI-Powered Bulk Calling Platform</p>
+        <p class="email-tagline">Business communications and operations</p>
       </div>
       ${content}
       <div class="email-footer">
@@ -241,7 +241,7 @@ const EMAIL_TEMPLATES_SEED_DATA = [
         Hi {{userName}},
       </p>
       <p class="email-text">
-        Thank you for joining {{companyName}}! We're excited to have you on board. Our AI-powered bulk calling platform is designed to help you automate your outreach and engage with your contacts more effectively.
+        Thank you for joining {{companyName}}! We're excited to have you on board. Supercharged helps your business manage communications and customer engagement.
       </p>
       <div class="email-highlight-box">
         <p style="margin: 0 0 12px 0; font-weight: 600; color: #1e293b;">Here's what you can do with {{companyName}}:</p>
@@ -265,7 +265,7 @@ const EMAIL_TEMPLATES_SEED_DATA = [
 
 Hi {{userName}},
 
-Thank you for joining {{companyName}}! We're excited to have you on board. Our AI-powered bulk calling platform is designed to help you automate your outreach and engage with your contacts more effectively.
+Thank you for joining {{companyName}}! We're excited to have you on board. Supercharged helps your business manage communications and customer engagement.
 
 Here's what you can do with {{companyName}}:
 - Create AI-powered voice agents for automated calling
