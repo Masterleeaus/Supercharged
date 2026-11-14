@@ -165,7 +165,7 @@ export const GROUP03_NOT_IMPLEMENTED_IDS: ReadonlySet<string> = new Set([
 
 type Row = Record<string, unknown>;
 
-function parseInput<T>(schema: z.ZodType<T>, input: unknown): T {
+function parseInput<S extends z.ZodType>(schema: S, input: unknown): z.infer<S> {
   const result = schema.safeParse(input);
   if (!result.success) {
     // Field names only. Values are never echoed back.
