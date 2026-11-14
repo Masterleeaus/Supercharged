@@ -2,7 +2,7 @@
 
 **Version:** 5.4.5  
 **Last Updated:** not verified in this repo (5.4.1 was dated May 2026)  
-**License:** Regular/Extended License (CodeCanyon)
+**License:** MIT (see [LICENSE](LICENSE))
 
 ---
 
@@ -666,25 +666,10 @@ NODE_ENV=development npm run dev
 
 ### License Information
 
-This product is licensed under the CodeCanyon/Envato Regular or Extended License.
-
-**Regular License:**
-- Use in a single end product
-- End product is free to end users
-
-**Extended License:**
-- Use in a single end product
-- End product can be sold to end users
-
-### License Terms
-- You cannot redistribute the source code
-- You cannot include this product in other products for resale
-- License includes 6 months of support from purchase date
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for the full text.
 
 ### Support Channels
 - **Documentation**: This README and INSTALLATION.md
-- **CodeCanyon Comments**: Leave questions on the item page
-- **Email Support**: Contact via CodeCanyon author profile
 
 ### What's Included in Support
 - Answers to questions about how to use the product
@@ -711,4 +696,4 @@ Check version via API: `GET /api/system/version`
 
 **Supercharged source and deployment notes**
 
-The source includes inherited CodeCanyon licensing notices. Preserve the original legal attribution and verify redistribution rights before distribution; see issue #37.
+This project is released under the MIT License. See [LICENSE](LICENSE).
