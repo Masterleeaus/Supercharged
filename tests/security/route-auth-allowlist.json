@@ -1,0 +1,4 @@
+{
+  "note": "Owner-approved unauthenticated routes only. Each entry: file, method, path, reason, approvedBy. Empty until the owner approves entries.",
+  "entries": []
+}
