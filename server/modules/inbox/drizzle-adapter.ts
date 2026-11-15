@@ -197,6 +197,8 @@ export function createDrizzleInboxStore(): InboxStore {
     listThreads: notReady,
     linkParticipant: notReady,
     listThreadParticipants: notReady,
+    findThreadContactParticipant: notReady,
+    findThreadContactAddress: notReady,
     insertMessage: notReady,
     findMessage: notReady,
     findMessageByExternalId: notReady,

@@ -87,7 +87,8 @@ export function createTitanFieldBridgeRouter(ports?: TitanBridgePorts): Router {
       res.status(503).json({error: 'bridge_not_enabled'});
       return;
     }
-    const rawBody = Buffer.isBuffer(req.rawBody) ? req.rawBody : undefined;
+    const rawReq = req as Request & { rawBody?: unknown };
+    const rawBody = Buffer.isBuffer(rawReq.rawBody) ? rawReq.rawBody : undefined;
     const answer = await receiveCommunicationIntent({body: rawBody, headers: req.headers}, {
       secret: process.env.TITAN_FIELD_BRIDGE_SECRET,
       ports

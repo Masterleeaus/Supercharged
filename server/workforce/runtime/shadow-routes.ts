@@ -141,7 +141,7 @@ export function createShadowRouter(deps: ShadowRouteDeps, guards: ShadowRouteGua
           action === 'retry'
             ? await deps.shadow.retry(companyId, id, approver)
             : await deps.shadow.decide(companyId, id, approver, action);
-        if (result.ok) {
+        if (result.ok === true) {
           res.json({ status: result.status });
           return;
         }

@@ -3,9 +3,9 @@ import { logger } from "../utils/logger";
 import { sql, eq, and, desc, isNull } from 'drizzle-orm';
 import { agents, contacts, campaigns, appointments, emailTemplates } from '@shared/schema';
 
-function extractRows(result: any): any[] {
+function extractRows(result: unknown): any[] {// rows are read by field name downstream; typed rows need a schema per query
   if (Array.isArray(result)) return result;
-  if (Array.isArray((result as any).rows)) return (result as any).rows;
+  if (result && typeof result === 'object' && Array.isArray((result as { rows?: unknown }).rows)) return (result as { rows: any[] }).rows;
   return [];
 }
 
@@ -34,7 +34,7 @@ async function readCallerEmailFromMetadata(callId: string): Promise<string> {
         }
       } catch (_) { /* table may not have the record */ }
     }
-  } catch (err: any) {
+  } catch (err) {
     logger.warn(`[Post-Call Messaging] Could not read callerEmail from metadata: ${err.message}`);
   }
   return '';
@@ -71,7 +71,7 @@ async function lookupContactByPhone(phone: string, userId: string): Promise<Reco
         ...(c.email ? { contact_email: c.email } : {}),
       };
     }
-  } catch (err: any) {
+  } catch (err) {
     logger.warn(`[Post-Call Messaging] Contact lookup error: ${err.message}`);
   }
   return {};
@@ -107,7 +107,7 @@ async function lookupSipCallData(callId: string, userId: string): Promise<{ conv
         },
       };
     }
-  } catch (err: any) {
+  } catch (err) {
     logger.warn(`[Post-Call Messaging] SIP call lookup error: ${err.message}`);
   }
   return { conversationId: '', contactData: {} };
@@ -141,7 +141,7 @@ async function lookupRegularCallData(callId: string, userId: string): Promise<Re
         ...(row.agent_name ? { agent_name: row.agent_name } : {}),
       };
     }
-  } catch (err: any) {
+  } catch (err) {
     logger.warn(`[Post-Call Messaging] Regular call lookup error: ${err.message}`);
   }
   return {};
@@ -215,7 +215,7 @@ async function lookupAppointmentData(
         }
       }
     }
-  } catch (err: any) {
+  } catch (err) {
     logger.warn(`[Post-Call Messaging] Appointment lookup error: ${err.message}`);
   }
   return {};
@@ -409,7 +409,7 @@ export async function triggerPostCallMessaging(params: {
               const bodyVarEntries: Array<[number, string]> = [];
               for (const [key, val] of Object.entries(parsedVars)) {
                 if (!val || typeof val !== 'object') continue;
-                const entry = val as any;
+                const entry = val as { componentType?: string; value?: string; mode?: string; [k: string]: unknown };
 
                 if (entry.componentType === 'button') {
                   const btnIdx = key.startsWith('btn_') ? parseInt(key.replace('btn_', '')) : parseInt(key);
@@ -434,7 +434,7 @@ export async function triggerPostCallMessaging(params: {
               if (Object.keys(buttonOverrides).length > 0) {
                 logger.info(`[Post-Call Messaging] Found ${Object.keys(buttonOverrides).length} button override(s) from agent config`);
               }
-            } catch (parseErr: any) {
+            } catch (parseErr) {
               logger.warn(`[Post-Call Messaging] Failed to parse whatsapp variables: ${parseErr.message}`);
             }
           }
@@ -481,8 +481,8 @@ export async function triggerPostCallMessaging(params: {
                       try {
                         const parsedVars = JSON.parse(whatsappVariables);
                         for (const [, val] of Object.entries(parsedVars)) {
-                          if (val && typeof val === 'object' && (val as any).componentType === 'header' && (val as any).value) {
-                            headerUrl = stripUnresolvedVar(resolveVarValue((val as any).value, contactData));
+                          if (val && typeof val === 'object' && (val as { componentType?: string; value?: string; mode?: string; [k: string]: unknown }).componentType === 'header' && (val as { value?: string }).value) {
+                            headerUrl = stripUnresolvedVar(resolveVarValue((val as { value: string }).value, contactData));
                             break;
                           }
                         }
@@ -520,8 +520,8 @@ export async function triggerPostCallMessaging(params: {
                         try {
                           const parsedVars = JSON.parse(whatsappVariables);
                           for (const [, val] of Object.entries(parsedVars)) {
-                            if (val && typeof val === 'object' && (val as any).componentType === 'header' && (val as any).value) {
-                              headerVal = stripUnresolvedVar(resolveVarValue((val as any).value, contactData));
+                            if (val && typeof val === 'object' && (val as { componentType?: string; value?: string; mode?: string; [k: string]: unknown }).componentType === 'header' && (val as { value?: string }).value) {
+                              headerVal = stripUnresolvedVar(resolveVarValue((val as { value: string }).value, contactData));
                               break;
                             }
                           }
@@ -543,7 +543,7 @@ export async function triggerPostCallMessaging(params: {
                   logger.info(`[Post-Call Messaging] Added ${buttonComponents.length} button component(s)`);
                 }
               }
-            } catch (tmplErr: any) {
+            } catch (tmplErr) {
               logger.warn(`[Post-Call Messaging] Could not fetch Meta template definition: ${tmplErr.message}`);
             }
 
@@ -559,7 +559,7 @@ export async function triggerPostCallMessaging(params: {
             logger.warn(`[Post-Call Messaging] No active WhatsApp provider for user ${userId}`);
           }
         }
-      } catch (waErr: any) {
+      } catch (waErr) {
         logger.error(`❌ [Post-Call Messaging] WhatsApp send error: ${waErr.message}`);
         logger.error(waErr.stack);
       }
@@ -586,11 +586,11 @@ export async function triggerPostCallMessaging(params: {
           await emailTemplateService.sendEmailByName(userId, emailTemplate, callerEmail, variables, { callId, agentId: dbAgentId });
           logger.info(`✅ [Post-Call Messaging] Email sent to [redacted]`);
         }
-      } catch (emailErr: any) {
+      } catch (emailErr) {
         logger.error(`❌ [Post-Call Messaging] Email send error: [redacted]`);
       }
     }
-  } catch (err: any) {
+  } catch (err) {
     logger.error(`❌ [Post-Call Messaging] Unexpected error: ${err.message}`);
   }
 }

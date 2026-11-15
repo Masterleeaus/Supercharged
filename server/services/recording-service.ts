@@ -18,7 +18,17 @@
 import { logger } from '../utils/logger';
 import { db } from "../db";
 import { agents, campaigns, incomingConnections, plivoCredentials } from "@shared/schema";
-import type { Call, ElevenLabsCredential } from "@shared/schema";
+import type { Call, CallMetadata, ElevenLabsCredential } from "@shared/schema";
+
+// Call metadata keys this file reads. Keys not declared on CallMetadata are stored as plain strings.
+type RecordingCallMetadata = CallMetadata & {
+  engine?: string;
+  source?: string;
+  widgetId?: string;
+  agentId?: string;
+  elevenLabsAgentId?: string;
+  agent_id?: string;
+};
 import { eq, and } from "drizzle-orm";
 import { widgetStorage } from "../modules/widget/widget-storage";
 import { ElevenLabsService, elevenLabsService } from "./elevenlabs";
@@ -75,11 +85,11 @@ export class RecordingService {
   async getRecordingAudio(call: Call): Promise<RecordingResult | RecordingError> {
     // Check for ElevenLabs conversation ID in the dedicated field or in metadata (for widget calls)
     const elevenLabsConvId = call.elevenLabsConversationId || 
-      (call.metadata as any)?.conversationId;
+      (call.metadata as RecordingCallMetadata | null | undefined)?.conversationId;
     
     // Check if this is an OpenAI widget call (no recording available)
-    const engine = (call.metadata as any)?.engine;
-    if (engine === 'openai' && (call.metadata as any)?.source === 'widget') {
+    const engine = (call.metadata as RecordingCallMetadata | null | undefined)?.engine;
+    if (engine === 'openai' && (call.metadata as RecordingCallMetadata | null | undefined)?.source === 'widget') {
       return {
         error: "Recording not available for OpenAI widget calls",
         details: "OpenAI Realtime API does not provide post-call recordings"
@@ -182,7 +192,7 @@ export class RecordingService {
         logger.error(`⚠️ [Recording] No audio from ElevenLabs for call ${call.id}: ${audioResult.error}`);
       }
       return null;
-    } catch (error: any) {
+    } catch (error) {
       logger.error(`❌ [Recording] ElevenLabs recording fetch error:`, error.message);
       throw error;
     }
@@ -241,7 +251,7 @@ export class RecordingService {
         contentType: 'audio/mpeg',
         source: 'twilio'
       };
-    } catch (error: any) {
+    } catch (error) {
       logger.warn(`⚠️ [Recording] Twilio fallback failed: ${error.message}`);
       return null;
     }
@@ -297,7 +307,7 @@ export class RecordingService {
         contentType: 'audio/mpeg',
         source: 'twilio'
       };
-    } catch (error: any) {
+    } catch (error) {
       logger.error(`❌ [Recording] Twilio recording fetch error:`, error.message);
       return null;
     }
@@ -384,7 +394,7 @@ export class RecordingService {
     }
     
     // Handle widget calls - check widgetId in call record or metadata
-    const widgetId = call.widgetId || (call.metadata as any)?.widgetId;
+    const widgetId = call.widgetId || (call.metadata as RecordingCallMetadata | null | undefined)?.widgetId;
     if (widgetId) {
       try {
         const widget = await widgetStorage.getWidgetById(widgetId);
@@ -409,7 +419,7 @@ export class RecordingService {
     }
     
     // Check agentId directly from metadata (for widget calls that store it)
-    const metadataAgentId = (call.metadata as any)?.agentId;
+    const metadataAgentId = (call.metadata as RecordingCallMetadata | null | undefined)?.agentId;
     if (metadataAgentId) {
       try {
         const [agent] = await db
@@ -432,7 +442,7 @@ export class RecordingService {
     
     // Fallback: try to resolve via ElevenLabs agent ID stored in call metadata
     // The webhook stores the ElevenLabs agent_id in metadata, which maps to agents.elevenLabsAgentId
-    const elevenLabsAgentIdFromMeta = (call.metadata as any)?.elevenLabsAgentId || (call.metadata as any)?.agent_id;
+    const elevenLabsAgentIdFromMeta = (call.metadata as RecordingCallMetadata | null | undefined)?.elevenLabsAgentId || (call.metadata as RecordingCallMetadata | null | undefined)?.agent_id;
     if (elevenLabsAgentIdFromMeta) {
       try {
         const [matchedAgent] = await db
@@ -552,7 +562,7 @@ export class RecordingService {
         contentType,
         source: 'plivo'
       };
-    } catch (error: any) {
+    } catch (error) {
       logger.warn(`⚠️ [Recording] Plivo recording fetch failed: ${error.message}`);
       return null;
     }
@@ -581,7 +591,7 @@ export class RecordingService {
         contentType: response.headers.get('content-type') || 'audio/mpeg',
         source: 'plivo'
       };
-    } catch (error: any) {
+    } catch (error) {
       logger.warn(`⚠️ [Recording] Plivo URL fetch failed: ${error.message}`);
       return null;
     }

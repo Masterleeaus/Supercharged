@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {registerVerifiedCommsRoutes} from '../../server/routes/core/verified-marketing-routes.ts';
 import {fixture} from '../modules/inbox-schema-readiness.test.mjs';
-const noop=(_req,_res,next)=>next(),guards={authenticate:noop,requireCompanyScope:noop,requireRole:()=>noop};
+const noop=(_req,_res,next)=>next(),guards={authenticate:noop,requireCompanyScope:noop,requireRole:()=>noop,auditWrite:async()=>{}};
 const canonical={gateAction:async()=>({status:'pending',approval:{id:'ap'},decision:'route_to_human',policyId:null}),getApproval:async()=>null,recordExecuted:async()=>{}};
 test('both flags disabled never inspect the database',async()=>{
  const calls=[];const r=await registerVerifiedCommsRoutes({use:(...a)=>calls.push(a)},{...guards,pool:null,schemaProbe:null,env:{}});

@@ -38,6 +38,30 @@ import { batchInsertCalls, batchInsertFlowExecutions, FlowExecutionInsert } from
 import { substituteContactVariables, enrichDynamicDataWithContactInfo } from '../utils/contact-variable-substitution';
 import { resyncSinglePhoneCredentials, resyncSipPhoneCredentials, verifySipPhoneExists } from './elevenlabs-phone-resync';
 import { logger } from '../utils/logger';
+import type { Agent, Campaign, Contact, Call } from '../../shared/schema';
+
+/** Snake_case row from the legacy ve_voice_agents table, used as a fallback agent. */
+type VeVoiceAgentRow = {
+  id: string;
+  user_id: string;
+  name: string;
+  system_prompt: string | null;
+  first_message: string | null;
+  language: string | null;
+  llm_model: string | null;
+  temperature: number | null;
+  tts_voice: string | null;
+  max_duration_seconds: number | null;
+  is_active: boolean | null;
+};
+
+/** One entry in campaigns.batch_job_history. */
+interface BatchJobHistoryEntry {
+  batchJobId: string;
+  pass: number;
+  contactCount: number;
+  createdAt: string;
+}
 
 /** Log when a single ElevenLabs batch job carries very many recipients (API / payload limits vary by workspace). */
 const ELEVENLABS_BATCH_LARGE_RECIPIENT_WARN = 25_000;
@@ -128,7 +152,7 @@ export class CampaignExecutor {
       }
 
       // Check phone number (Twilio phoneNumberId OR Plivo plivoPhoneNumberId OR SIP sipPhoneNumberId)
-      if (!campaign.phoneNumberId && !campaign.plivoPhoneNumberId && !(campaign as any).sipPhoneNumberId) {
+      if (!campaign.phoneNumberId && !campaign.plivoPhoneNumberId && !campaign.sipPhoneNumberId) {
         errors.push('No phone number assigned to this campaign. Please select a phone number.');
       }
 
@@ -146,7 +170,7 @@ export class CampaignExecutor {
             SELECT * FROM ve_voice_agents WHERE id = ${campaign.agentId} LIMIT 1
           `);
           if (veAgentResult.rows.length > 0) {
-            const veAgent = veAgentResult.rows[0] as any;
+            const veAgent = veAgentResult.rows[0] as VeVoiceAgentRow;
             agentResult = {
               id: veAgent.id,
               userId: veAgent.user_id,
@@ -161,7 +185,7 @@ export class CampaignExecutor {
               openaiVoice: veAgent.tts_voice,
               maxDurationSeconds: veAgent.max_duration_seconds,
               isActive: veAgent.is_active,
-            } as any;
+            } as unknown as Agent;
           }
         }
 
@@ -189,11 +213,11 @@ export class CampaignExecutor {
 
       // Get SIP phone number details (if using SIP)
       let sipPhoneNumber;
-      if ((campaign as any).sipPhoneNumberId) {
+      if (campaign.sipPhoneNumberId) {
         const [sipPhoneResult] = await db
           .select()
           .from(sipPhoneNumbers)
-          .where(eq(sipPhoneNumbers.id, (campaign as any).sipPhoneNumberId))
+          .where(eq(sipPhoneNumbers.id, campaign.sipPhoneNumberId))
           .limit(1);
         sipPhoneNumber = sipPhoneResult;
 
@@ -301,7 +325,7 @@ export class CampaignExecutor {
         throw new Error('Campaign has no agent configured');
       }
       // Check for either Twilio phoneNumberId, Plivo plivoPhoneNumberId, or SIP sipPhoneNumberId
-      if (!campaign.phoneNumberId && !campaign.plivoPhoneNumberId && !(campaign as any).sipPhoneNumberId) {
+      if (!campaign.phoneNumberId && !campaign.plivoPhoneNumberId && !campaign.sipPhoneNumberId) {
         throw new Error('Campaign has no phone number configured');
       }
 
@@ -317,7 +341,7 @@ export class CampaignExecutor {
           SELECT * FROM ve_voice_agents WHERE id = ${campaign.agentId} LIMIT 1
         `);
         if (veAgentResult.rows.length > 0) {
-          const veAgent = veAgentResult.rows[0] as any;
+          const veAgent = veAgentResult.rows[0] as VeVoiceAgentRow;
           agent = {
             id: veAgent.id,
             userId: veAgent.user_id,
@@ -332,7 +356,7 @@ export class CampaignExecutor {
             openaiVoice: veAgent.tts_voice,
             maxDurationSeconds: veAgent.max_duration_seconds,
             isActive: veAgent.is_active,
-          } as any;
+          } as unknown as Agent;
         }
       }
 
@@ -361,7 +385,7 @@ export class CampaignExecutor {
         const { CveBatchCallingService } = await importPlugin('plugins/custom-voice-engine/services/cve-batch-calling.service');
         const cveBatchService = CveBatchCallingService.getInstance(campaignId);
 
-        cveBatchService.executeCampaign(campaignId).then(async (result: any) => {
+        cveBatchService.executeCampaign(campaignId).then(async (result) => {
           if (campaign.userId && result.status === 'completed') {
             const completedContacts = await db
               .select()
@@ -377,7 +401,7 @@ export class CampaignExecutor {
               timestamp: new Date().toISOString()
             }).catch(err => logger.error('Failed to trigger webhook:', err));
           }
-        }).catch((err: any) => {
+        }).catch((err: unknown) => {
           logger.error(`[Campaign Executor] Background Custom Voice Engine campaign error:`, err);
         });
 
@@ -487,7 +511,7 @@ export class CampaignExecutor {
         // Fire-and-forget: start the Plivo engine in the background so the HTTP
         // response is returned immediately without waiting for all calls to finish.
         const plivoBatchService = PlivoBatchCallingService.getInstance(campaignId);
-        plivoBatchService.executeCampaign(campaignId).then(async (result: any) => {
+        plivoBatchService.executeCampaign(campaignId).then(async (result) => {
           if (campaign.userId && result.status === 'completed') {
             const completedContacts = await db
               .select()
@@ -525,11 +549,11 @@ export class CampaignExecutor {
 
             try {
               await emailService.sendCampaignCompleted(campaignId);
-            } catch (emailError: any) {
+            } catch (emailError: unknown) {
               logger.error(`❌ [Campaign] Failed to send campaign completed email:`);
             }
           }
-        }).catch((error: any) => {
+        }).catch((error: unknown) => {
           // The batch service already marks the campaign as 'failed' in its own catch block.
           logger.error(`❌ [Plivo Campaign] Background execution error for ${campaignId}:`, error);
         });
@@ -633,7 +657,7 @@ export class CampaignExecutor {
         // Fire-and-forget: start the Twilio-OpenAI engine in the background so the HTTP
         // response is returned immediately without waiting for all calls to finish.
         const twilioOpenAIBatchService = TwilioOpenAIBatchCallingService.getInstance(campaignId);
-        twilioOpenAIBatchService.executeCampaign(campaignId).then(async (result: any) => {
+        twilioOpenAIBatchService.executeCampaign(campaignId).then(async (result) => {
           if (campaign.userId && result.status === 'completed') {
             const finalContacts = await db
               .select()
@@ -671,11 +695,11 @@ export class CampaignExecutor {
 
             try {
               await emailService.sendCampaignCompleted(campaignId);
-            } catch (emailError: any) {
+            } catch (emailError: unknown) {
               logger.error(`❌ [Campaign] Failed to send campaign completed email:`);
             }
           }
-        }).catch((error: any) => {
+        }).catch((error: unknown) => {
           // The batch service already marks the campaign as 'failed' in its own catch block.
           logger.error(`❌ [Twilio-OpenAI Campaign] Background execution error for ${campaignId}:`, error);
         });
@@ -708,14 +732,14 @@ export class CampaignExecutor {
         logger.info(`📞 [Campaign Executor] Routing to ElevenLabs SIP batch calling for campaign ${campaignId}`);
 
         // Validate SIP phone number exists and is configured
-        if (!(campaign as any).sipPhoneNumberId) {
+        if (!campaign.sipPhoneNumberId) {
           throw new Error('ElevenLabs SIP campaign requires a SIP phone number. Please select a SIP phone number.');
         }
 
         const [sipPhoneNumber] = await db
           .select()
           .from(sipPhoneNumbers)
-          .where(eq(sipPhoneNumbers.id, (campaign as any).sipPhoneNumberId))
+          .where(eq(sipPhoneNumbers.id, campaign.sipPhoneNumberId))
           .limit(1);
 
         if (!sipPhoneNumber) {
@@ -810,8 +834,8 @@ export class CampaignExecutor {
               } else if (!freshResult.success) {
                 logger.warn(`⚠️ [Campaign Executor] SIP credential refresh failed (non-fatal, continuing): ${freshResult.error}`);
               }
-            } catch (syncErr: any) {
-              logger.warn(`⚠️ [Campaign Executor] SIP credential refresh error (non-fatal, continuing): ${syncErr?.message}`);
+            } catch (syncErr: unknown) {
+              logger.warn(`⚠️ [Campaign Executor] SIP credential refresh error (non-fatal, continuing): ${(syncErr as Error)?.message}`);
             }
           } else if (!needsSync) {
             logger.info(`✅ [Campaign Executor] SIP PRE-FLIGHT CHECK 3: Credentials fresh (last synced ${Math.round((now - lastSync) / 3600000)}h ago)`);
@@ -844,8 +868,8 @@ export class CampaignExecutor {
             await elevenLabsServiceForTools.refreshAppointmentToolWithCurrentDate(agent.elevenLabsAgentId);
             await elevenLabsServiceForTools.refreshAgentPromptWithCurrentDate(agent.elevenLabsAgentId);
             logger.info(`✅ [Campaign Executor] SIP agent appointment tool and prompt refreshed with current date`);
-          } catch (toolRefreshError: any) {
-            logger.warn(`⚠️ [Campaign Executor] Failed to refresh SIP agent tools/prompt: ${toolRefreshError.message}`);
+          } catch (toolRefreshError: unknown) {
+            logger.warn(`⚠️ [Campaign Executor] Failed to refresh SIP agent tools/prompt: ${(toolRefreshError as Error).message}`);
             // Non-fatal - continue with campaign execution
           }
         }
@@ -900,7 +924,7 @@ export class CampaignExecutor {
             lastName: c.lastName,
             phone: c.phone,
             email: c.email,
-            customFields: c.customFields as Record<string, any> | null,
+            customFields: c.customFields as Record<string, unknown> | null,
           }))
         );
 
@@ -1081,8 +1105,8 @@ export class CampaignExecutor {
             } else {
               logger.warn(`⚠️ [Campaign Executor] Credential refresh failed (non-fatal, continuing): ${freshResult.error}`);
             }
-          } catch (syncErr: any) {
-            logger.warn(`⚠️ [Campaign Executor] Credential refresh error (non-fatal, continuing): ${syncErr?.message}`);
+          } catch (syncErr: unknown) {
+            logger.warn(`⚠️ [Campaign Executor] Credential refresh error (non-fatal, continuing): ${(syncErr as Error)?.message}`);
           }
         } else {
           logger.info(`✅ [Campaign Executor] PRE-FLIGHT CHECK 3: Credentials fresh (last synced ${Math.round((now - lastSync) / 3600000)}h ago)`);
@@ -1116,8 +1140,8 @@ export class CampaignExecutor {
           await elevenLabsService.refreshAppointmentToolWithCurrentDate(agent.elevenLabsAgentId);
           await elevenLabsService.refreshAgentPromptWithCurrentDate(agent.elevenLabsAgentId);
           logger.info(`✅ [Campaign Executor] Agent tools and prompt refreshed with current date context`);
-        } catch (toolRefreshError: any) {
-          logger.warn(`⚠️ [Campaign Executor] Failed to refresh agent tools/prompt: ${toolRefreshError.message}`);
+        } catch (toolRefreshError: unknown) {
+          logger.warn(`⚠️ [Campaign Executor] Failed to refresh agent tools/prompt: ${(toolRefreshError as Error).message}`);
           // Non-fatal - continue with campaign execution
         }
       }
@@ -1168,7 +1192,7 @@ export class CampaignExecutor {
           lastName: c.lastName,
           phone: c.phone,
           email: c.email,
-          customFields: c.customFields as Record<string, any> | null,
+          customFields: c.customFields as Record<string, unknown> | null,
         }))
       );
 
@@ -1370,7 +1394,7 @@ export class CampaignExecutor {
 
     const effectiveBatchJobId = campaign.batchJobId || `batch_${campaign.id.slice(0, 8)}`;
 
-    let agent: any = null;
+    let agent: Agent | null = null;
     if (campaign.agentId) {
       const [foundAgent] = await db.select().from(agents).where(eq(agents.id, campaign.agentId)).limit(1);
       agent = foundAgent;
@@ -1380,7 +1404,7 @@ export class CampaignExecutor {
           SELECT * FROM ve_voice_agents WHERE id = ${campaign.agentId} LIMIT 1
         `);
         if (veAgentResult.rows.length > 0) {
-          const veAgent = veAgentResult.rows[0] as any;
+          const veAgent = veAgentResult.rows[0] as VeVoiceAgentRow;
           agent = {
             id: veAgent.id,
             userId: veAgent.user_id,
@@ -1395,7 +1419,7 @@ export class CampaignExecutor {
             openaiVoice: veAgent.tts_voice,
             maxDurationSeconds: veAgent.max_duration_seconds,
             isActive: veAgent.is_active,
-          } as any;
+          } as unknown as Agent;
         }
       }
     }
@@ -1403,7 +1427,7 @@ export class CampaignExecutor {
     // Non-ElevenLabs campaigns (Plivo, Twilio-OpenAI, SIP) use local batch job IDs
     // and should NOT be queried against ElevenLabs batch calling API
     if (isNonElevenLabsBatchJob(campaign.batchJobId) || (agent && agent.telephonyProvider === 'openai-sip')) {
-      let campaignCalls: any[] = [];
+      let campaignCalls: Array<{ status: string } & Record<string, unknown>> = [];
       if (campaign.batchJobId && campaign.batchJobId.startsWith('plivo-')) {
         campaignCalls = await db.select().from(plivoCalls).where(eq(plivoCalls.campaignId, campaignId));
       } else if (campaign.batchJobId && (campaign.batchJobId.startsWith('twilio_openai-') || campaign.batchJobId.startsWith('twilio-openai-'))) {
@@ -1505,8 +1529,8 @@ export class CampaignExecutor {
         .where(eq(campaigns.id, campaignId));
 
       return batchJob;
-    } catch (err: any) {
-      logger.warn(`[BatchCalling] Could not fetch batch job status from ElevenLabs API (${err.message}), falling back to local synthesis`);
+    } catch (err: unknown) {
+      logger.warn(`[BatchCalling] Could not fetch batch job status from ElevenLabs API (${(err as Error).message}), falling back to local synthesis`);
       // Fallback: construct batch job response using local DB call records
       const campaignCalls = await db.select().from(calls).where(eq(calls.campaignId, campaignId));
       const completedCallsCount = campaignCalls.filter(c =>
@@ -1735,7 +1759,7 @@ export class CampaignExecutor {
       }
 
       return batchJob;
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error(`❌ [Campaign Executor] Failed to pause campaign ${campaignId}:`, error);
       throw error;
     }
@@ -1976,7 +2000,7 @@ export class CampaignExecutor {
         SELECT * FROM ve_voice_agents WHERE id = ${campaign.agentId} LIMIT 1
       `);
       if (veAgentResult.rows.length > 0) {
-        const veAgent = veAgentResult.rows[0] as any;
+        const veAgent = veAgentResult.rows[0] as VeVoiceAgentRow;
         agent = {
           id: veAgent.id,
           userId: veAgent.user_id,
@@ -1985,7 +2009,7 @@ export class CampaignExecutor {
           telephonyProvider: 'custom-voice-engine',
           elevenLabsAgentId: null,
           isActive: veAgent.is_active
-        } as any;
+        } as unknown as Agent;
       }
     }
 
@@ -2012,7 +2036,7 @@ export class CampaignExecutor {
         })
         .where(eq(campaigns.id, campaignId));
 
-      cveBatchService.executeCampaign(campaignId).then(async (result: any) => {
+      cveBatchService.executeCampaign(campaignId).then(async (result) => {
         if (campaign.userId) {
           webhookDeliveryService.triggerEvent(campaign.companyId ?? null, campaign.userId, 'campaign.resumed', {
             campaign: {
@@ -2028,7 +2052,7 @@ export class CampaignExecutor {
             logger.error('❌ [Webhook] Error triggering campaign.resumed event:', err);
           });
         }
-      }).catch((err: any) => {
+      }).catch((err: unknown) => {
         logger.error(`❌ [CVE Campaign] Background execution error for ${campaignId}:`, err);
       });
 
@@ -2190,7 +2214,7 @@ export class CampaignExecutor {
         .where(eq(campaigns.id, campaignId));
 
       return batchJob;
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error(`❌ [Campaign Executor] Failed to resume campaign ${campaignId}:`, error);
       throw error;
     }
@@ -2239,7 +2263,7 @@ export class CampaignExecutor {
         SELECT * FROM ve_voice_agents WHERE id = ${campaign.agentId} LIMIT 1
       `);
       if (veAgentResult.rows.length > 0) {
-        const veAgent = veAgentResult.rows[0] as any;
+        const veAgent = veAgentResult.rows[0] as VeVoiceAgentRow;
         agent = {
           id: veAgent.id,
           userId: veAgent.user_id,
@@ -2248,7 +2272,7 @@ export class CampaignExecutor {
           telephonyProvider: 'custom-voice-engine',
           elevenLabsAgentId: null,
           isActive: veAgent.is_active
-        } as any;
+        } as unknown as Agent;
       }
     }
 
@@ -2258,7 +2282,7 @@ export class CampaignExecutor {
 
     // Check for phone number unless the agent is custom-voice-engine
     if (agent.telephonyProvider !== 'custom-voice-engine') {
-      if (!campaign.phoneNumberId && !campaign.plivoPhoneNumberId && !(campaign as any).sipPhoneNumberId) {
+      if (!campaign.phoneNumberId && !campaign.plivoPhoneNumberId && !campaign.sipPhoneNumberId) {
         throw new Error('Campaign has no phone number configured');
       }
     }
@@ -2279,7 +2303,7 @@ export class CampaignExecutor {
         })
         .where(eq(campaigns.id, campaignId));
 
-      cveBatchService.executeCampaign(campaignId).then(async (result: any) => {
+      cveBatchService.executeCampaign(campaignId).then(async (result) => {
         if (result.completedCalls + result.failedCalls === result.totalCalls) {
           await db
             .update(campaigns)
@@ -2292,8 +2316,8 @@ export class CampaignExecutor {
             })
             .where(eq(campaigns.id, campaignId));
         }
-      }).catch((err: any) => {
-        logger.error(`[Campaign Executor] Error executing CVE campaign ${campaignId}: ${err.message}`);
+      }).catch((err: unknown) => {
+        logger.error(`[Campaign Executor] Error executing CVE campaign ${campaignId}: ${(err as Error).message}`);
       });
 
       logger.info(`▶️ [Campaign Executor] Resumed CVE campaign with new batch: ${campaignId}`);
@@ -2438,14 +2462,14 @@ export class CampaignExecutor {
       logger.info(`📞 [Campaign Executor] Routing to ElevenLabs SIP batch calling for campaign resume ${campaignId}`);
 
       // Validate SIP phone number exists and is configured
-      if (!(campaign as any).sipPhoneNumberId) {
+      if (!campaign.sipPhoneNumberId) {
         throw new Error('ElevenLabs SIP campaign requires a SIP phone number. Please select a SIP phone number.');
       }
 
       const [sipPhoneNumber] = await db
         .select()
         .from(sipPhoneNumbers)
-        .where(eq(sipPhoneNumbers.id, (campaign as any).sipPhoneNumberId))
+        .where(eq(sipPhoneNumbers.id, campaign.sipPhoneNumberId))
         .limit(1);
 
       if (!sipPhoneNumber) {
@@ -2538,8 +2562,8 @@ export class CampaignExecutor {
             } else if (!freshResult.success) {
               logger.warn(`⚠️ [Campaign Executor Resume] SIP credential refresh failed (non-fatal): ${freshResult.error}`);
             }
-          } catch (syncErr: any) {
-            logger.warn(`⚠️ [Campaign Executor Resume] SIP credential refresh error (non-fatal): ${syncErr?.message}`);
+          } catch (syncErr: unknown) {
+            logger.warn(`⚠️ [Campaign Executor Resume] SIP credential refresh error (non-fatal): ${(syncErr as Error)?.message}`);
           }
         } else if (!needsSync) {
           logger.info(`✅ [Campaign Executor Resume] SIP PRE-FLIGHT CHECK 3: Credentials fresh (last synced ${Math.round((now - lastSync) / 3600000)}h ago)`);
@@ -2615,8 +2639,8 @@ export class CampaignExecutor {
           await elevenLabsServiceForTools.refreshAppointmentToolWithCurrentDate(agent.elevenLabsAgentId);
           await elevenLabsServiceForTools.refreshAgentPromptWithCurrentDate(agent.elevenLabsAgentId);
           logger.info(`✅ [Campaign Executor] SIP agent appointment tool and prompt refreshed with current date`);
-        } catch (toolRefreshError: any) {
-          logger.warn(`⚠️ [Campaign Executor] Failed to refresh SIP agent tools/prompt: ${toolRefreshError.message}`);
+        } catch (toolRefreshError: unknown) {
+          logger.warn(`⚠️ [Campaign Executor] Failed to refresh SIP agent tools/prompt: ${(toolRefreshError as Error).message}`);
           // Non-fatal - continue with campaign execution
         }
       }
@@ -2666,7 +2690,7 @@ export class CampaignExecutor {
           lastName: c.lastName,
           phone: c.phone,
           email: c.email,
-          customFields: c.customFields as Record<string, any> | null,
+          customFields: c.customFields as Record<string, unknown> | null,
         }))
       );
 
@@ -2861,7 +2885,7 @@ export class CampaignExecutor {
         lastName: c.lastName,
         phone: c.phone,
         email: c.email,
-        customFields: c.customFields as Record<string, any> | null,
+        customFields: c.customFields as Record<string, unknown> | null,
       }))
     );
 
@@ -3007,7 +3031,7 @@ export class CampaignExecutor {
             lastName: contact.lastName,
             phone: contact.phone,
             email: contact.email,
-            customFields: contact.customFields as Record<string, any> || null,
+            customFields: contact.customFields as Record<string, unknown> || null,
           })
           : undefined;
 
@@ -3016,7 +3040,7 @@ export class CampaignExecutor {
         // to be available throughout the entire conversation, not just the first message
         const customFieldsData: Record<string, string> = {};
         if (contact.customFields && typeof contact.customFields === 'object') {
-          for (const [key, value] of Object.entries(contact.customFields as Record<string, any>)) {
+          for (const [key, value] of Object.entries(contact.customFields as Record<string, unknown>)) {
             if (value !== null && value !== undefined) {
               customFieldsData[key] = String(value);
             }
@@ -3070,7 +3094,7 @@ export class CampaignExecutor {
           twilioCallSid: callResult.call_sid
         };
 
-      } catch (callError: any) {
+      } catch (callError: unknown) {
         logger.error(`❌ [Campaign Executor] ElevenLabs call initiation failed:`, callError);
 
         // Mark call as failed in database
@@ -3079,14 +3103,14 @@ export class CampaignExecutor {
           .set({
             status: 'failed',
             endedAt: new Date(),
-            metadata: { error: `ElevenLabs error: ${callError.message}` }
+            metadata: { error: `ElevenLabs error: ${(callError as Error).message}` }
           })
           .where(eq(calls.id, callRecord.id));
 
         return {
           callId: callRecord.id,
           status: 'failed',
-          error: callError.message
+          error: (callError as Error).message
         };
       }
 
@@ -3250,8 +3274,8 @@ export class CampaignExecutor {
         })
         .where(inArray(contacts.id, dueContactIds));
 
-    } catch (err: any) {
-      logger.error(`[Retry Pass] Failed for campaign "${campaign.name}": ${err.message}`);
+    } catch (err: unknown) {
+      logger.error(`[Retry Pass] Failed for campaign "${campaign.name}": ${(err as Error).message}`);
       // Do NOT update contacts — leave nextRetryAt intact so they can be retried again
     }
   }
@@ -3259,7 +3283,7 @@ export class CampaignExecutor {
   /**
    * Retry pass for Plivo+OpenAI engine
    */
-  private async _retryPassPlivo(campaign: any, agent: any, dueContacts: any[], pass: number): Promise<void> {
+  private async _retryPassPlivo(campaign: Campaign, agent: Agent, dueContacts: Contact[], pass: number): Promise<void> {
     const [campaignPhoneNumber] = await db
       .select()
       .from(plivoPhoneNumbers)
@@ -3273,9 +3297,9 @@ export class CampaignExecutor {
     const retryBatchJobId = `plivo-${campaign.id}-retry${pass}`;
 
     // Archive old batchJobId in history before updating
-    const batchJobHistory = (campaign.batchJobHistory as any[]) || [];
+    const batchJobHistory = (campaign.batchJobHistory as BatchJobHistoryEntry[] | null) || [];
     if (campaign.batchJobId) {
-      const alreadyRecorded = batchJobHistory.some((h: any) => h.batchJobId === campaign.batchJobId);
+      const alreadyRecorded = batchJobHistory.some((h: BatchJobHistoryEntry) => h.batchJobId === campaign.batchJobId);
       if (!alreadyRecorded) {
         batchJobHistory.push({
           batchJobId: campaign.batchJobId,
@@ -3297,7 +3321,7 @@ export class CampaignExecutor {
     // Update campaign batchJobId + history + advance retry pass counter
     await db.update(campaigns).set({
       batchJobId: retryBatchJobId,
-      batchJobHistory: batchJobHistory as any,
+      batchJobHistory,
       currentRetryPass: pass + 1,
       status: 'running',
     }).where(eq(campaigns.id, campaign.id));
@@ -3326,8 +3350,8 @@ export class CampaignExecutor {
 
     // Fire-and-forget via Plivo batch service
     const plivoBatchService = PlivoBatchCallingService.getInstance(`${campaign.id}-retry${pass}`);
-    plivoBatchService.executeCampaign(campaign.id).catch((err: any) => {
-      logger.error(`[Retry Pass Plivo] Error: ${err.message}`);
+    plivoBatchService.executeCampaign(campaign.id).catch((err: unknown) => {
+      logger.error(`[Retry Pass Plivo] Error: ${(err as Error).message}`);
     });
 
     logger.info(`✅ [Retry Pass] Plivo retry pass ${pass} initiated for ${dueContacts.length} contacts`);
@@ -3336,7 +3360,7 @@ export class CampaignExecutor {
   /**
    * Retry pass for Twilio+OpenAI engine
    */
-  private async _retryPassTwilioOpenAI(campaign: any, agent: any, dueContacts: any[], pass: number): Promise<void> {
+  private async _retryPassTwilioOpenAI(campaign: Campaign, agent: Agent, dueContacts: Contact[], pass: number): Promise<void> {
     const [campaignPhoneNumber] = await db
       .select()
       .from(phoneNumbers)
@@ -3350,9 +3374,9 @@ export class CampaignExecutor {
     const retryBatchJobId = `twilio_openai-${campaign.id}-retry${pass}`;
 
     // Archive old batchJobId in history before updating
-    const batchJobHistory = (campaign.batchJobHistory as any[]) || [];
+    const batchJobHistory = (campaign.batchJobHistory as BatchJobHistoryEntry[] | null) || [];
     if (campaign.batchJobId) {
-      const alreadyRecorded = batchJobHistory.some((h: any) => h.batchJobId === campaign.batchJobId);
+      const alreadyRecorded = batchJobHistory.some((h: BatchJobHistoryEntry) => h.batchJobId === campaign.batchJobId);
       if (!alreadyRecorded) {
         batchJobHistory.push({
           batchJobId: campaign.batchJobId,
@@ -3373,7 +3397,7 @@ export class CampaignExecutor {
 
     await db.update(campaigns).set({
       batchJobId: retryBatchJobId,
-      batchJobHistory: batchJobHistory as any,
+      batchJobHistory,
       currentRetryPass: pass + 1,
       status: 'running',
     }).where(eq(campaigns.id, campaign.id));
@@ -3400,8 +3424,8 @@ export class CampaignExecutor {
     await batchInsertCalls(callInserts, `🔄 [Twilio+OpenAI Retry Pass ${pass}]`);
 
     const twilioOpenAIBatchService = TwilioOpenAIBatchCallingService.getInstance(`${campaign.id}-retry${pass}`);
-    twilioOpenAIBatchService.executeCampaign(campaign.id).catch((err: any) => {
-      logger.error(`[Retry Pass Twilio+OpenAI] Error: ${err.message}`);
+    twilioOpenAIBatchService.executeCampaign(campaign.id).catch((err: unknown) => {
+      logger.error(`[Retry Pass Twilio+OpenAI] Error: ${(err as Error).message}`);
     });
 
     logger.info(`✅ [Retry Pass] Twilio+OpenAI retry pass ${pass} initiated for ${dueContacts.length} contacts`);
@@ -3410,11 +3434,11 @@ export class CampaignExecutor {
   /**
    * Retry pass for ElevenLabs SIP engine
    */
-  private async _retryPassElevenLabsSip(campaign: any, agent: any, dueContacts: any[], pass: number): Promise<void> {
+  private async _retryPassElevenLabsSip(campaign: Campaign, agent: Agent, dueContacts: Contact[], pass: number): Promise<void> {
     const [sipPhoneNumber] = await db
       .select()
       .from(sipPhoneNumbers)
-      .where(eq(sipPhoneNumbers.id, (campaign as any).sipPhoneNumberId!))
+      .where(eq(sipPhoneNumbers.id, campaign.sipPhoneNumberId!))
       .limit(1);
 
     if (!sipPhoneNumber || !sipPhoneNumber.externalElevenLabsPhoneId) {
@@ -3432,7 +3456,7 @@ export class CampaignExecutor {
         lastName: c.lastName,
         phone: c.phone,
         email: c.email,
-        customFields: c.customFields as Record<string, any> | null,
+        customFields: c.customFields as Record<string, unknown> | null,
       }))
     );
 
@@ -3445,9 +3469,9 @@ export class CampaignExecutor {
     });
 
     // Build batch history: archive old batchJobId then append the new one
-    const batchJobHistory = (campaign.batchJobHistory as any[]) || [];
+    const batchJobHistory = (campaign.batchJobHistory as BatchJobHistoryEntry[] | null) || [];
     if (campaign.batchJobId) {
-      const alreadyRecorded = batchJobHistory.some((h: any) => h.batchJobId === campaign.batchJobId);
+      const alreadyRecorded = batchJobHistory.some((h: BatchJobHistoryEntry) => h.batchJobId === campaign.batchJobId);
       if (!alreadyRecorded) {
         batchJobHistory.push({
           batchJobId: campaign.batchJobId,
@@ -3490,7 +3514,7 @@ export class CampaignExecutor {
     await db.update(campaigns).set({
       batchJobId: batchJob.id,
       batchJobStatus: batchJob.status,
-      batchJobHistory: batchJobHistory as any,
+      batchJobHistory,
       currentRetryPass: pass + 1,
       status: 'running',
     }).where(eq(campaigns.id, campaign.id));
@@ -3501,7 +3525,7 @@ export class CampaignExecutor {
   /**
    * Retry pass for ElevenLabs (Twilio+ElevenLabs) engine
    */
-  private async _retryPassElevenLabs(campaign: any, agent: any, dueContacts: any[], pass: number): Promise<void> {
+  private async _retryPassElevenLabs(campaign: Campaign, agent: Agent, dueContacts: Contact[], pass: number): Promise<void> {
     const [phoneNumber] = await db
       .select()
       .from(phoneNumbers)
@@ -3523,7 +3547,7 @@ export class CampaignExecutor {
         lastName: c.lastName,
         phone: c.phone,
         email: c.email,
-        customFields: c.customFields as Record<string, any> | null,
+        customFields: c.customFields as Record<string, unknown> | null,
       }))
     );
 
@@ -3536,9 +3560,9 @@ export class CampaignExecutor {
     });
 
     // Build batch history: archive old batchJobId then append the new one
-    const batchJobHistory = (campaign.batchJobHistory as any[]) || [];
+    const batchJobHistory = (campaign.batchJobHistory as BatchJobHistoryEntry[] | null) || [];
     if (campaign.batchJobId) {
-      const alreadyRecorded = batchJobHistory.some((h: any) => h.batchJobId === campaign.batchJobId);
+      const alreadyRecorded = batchJobHistory.some((h: BatchJobHistoryEntry) => h.batchJobId === campaign.batchJobId);
       if (!alreadyRecorded) {
         batchJobHistory.push({
           batchJobId: campaign.batchJobId,
@@ -3589,7 +3613,7 @@ export class CampaignExecutor {
     await db.update(campaigns).set({
       batchJobId: batchJob.id,
       batchJobStatus: batchJob.status,
-      batchJobHistory: batchJobHistory as any,
+      batchJobHistory,
       currentRetryPass: pass + 1,
       status: 'running',
     }).where(eq(campaigns.id, campaign.id));

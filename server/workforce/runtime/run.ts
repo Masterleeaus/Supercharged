@@ -411,7 +411,7 @@ export function createRunEngine(options: RunEngineOptions): RunEngine {
     runId: string,
   ): Promise<{ ok: true; companyId: CompanyId; run: RunRecord } | { ok: false; reason: RunReason; run: RunRecord | null }> {
     const company = companyOf(rawCompany);
-    if (!company.ok) return { ok: false, reason: company.reason, run: null };
+    if (company.ok === false) return { ok: false, reason: company.reason, run: null };
     const run = await store.getRun(company.companyId, runId);
     if (!run) return { ok: false, reason: 'run_not_found', run: null };
     if (isTerminal(run.status)) return { ok: false, reason: 'run_terminal', run };
@@ -586,7 +586,7 @@ export function createRunEngine(options: RunEngineOptions): RunEngine {
   return {
     async createRun(input) {
       const company = companyOf(input?.companyId);
-      if (!company.ok) return { ok: false, reason: company.reason, run: null };
+      if (company.ok === false) return { ok: false, reason: company.reason, run: null };
       if (!isValidTeam(input.team)) return { ok: false, reason: 'invalid_team', run: null };
 
       const budget = input.budget;
@@ -695,12 +695,12 @@ export function createRunEngine(options: RunEngineOptions): RunEngine {
 
     async callTool(companyId, runId, call) {
       const loaded = await loadLive(companyId, runId);
-      if (!loaded.ok) return { ok: false, reason: loaded.reason, run: loaded.run, tool: null };
+      if (loaded.ok === false) return { ok: false, reason: loaded.reason, run: loaded.run, tool: null };
       const { run } = loaded;
       if (run.status !== 'running') return { ok: false, reason: 'run_not_running', run, tool: null };
 
       const actor = resolveActor(run, call?.actor);
-      if (!actor.ok) return { ok: false, reason: actor.reason, run, tool: null };
+      if (actor.ok === false) return { ok: false, reason: actor.reason, run, tool: null };
       if (!isNonEmptyString(call?.toolId)) return { ok: false, reason: 'actor_invalid', run, tool: null };
 
       // The current owner may call only the tools in its own role's list, from the first call. Before any handoff the
@@ -718,7 +718,7 @@ export function createRunEngine(options: RunEngineOptions): RunEngine {
 
     async resumeAfterApproval(companyId, runId, call) {
       const loaded = await loadLive(companyId, runId);
-      if (!loaded.ok) return { ok: false, reason: loaded.reason, run: loaded.run, tool: null };
+      if (loaded.ok === false) return { ok: false, reason: loaded.reason, run: loaded.run, tool: null };
       const { run } = loaded;
       if (run.status !== 'awaiting_approval') return { ok: false, reason: 'run_not_awaiting_approval', run, tool: null };
 
@@ -726,7 +726,7 @@ export function createRunEngine(options: RunEngineOptions): RunEngine {
       if (!pending) return { ok: false, reason: 'no_pending_approval', run, tool: null };
 
       const actor = resolveActor(run, call?.actor);
-      if (!actor.ok) return { ok: false, reason: actor.reason, run, tool: null };
+      if (actor.ok === false) return { ok: false, reason: actor.reason, run, tool: null };
 
       const params = call.params ?? {};
       let hash: string;
@@ -755,7 +755,7 @@ export function createRunEngine(options: RunEngineOptions): RunEngine {
       }
 
       const plan = planHandoff(run.team, run.path, input.actor.roleId, input.toRole, run.limits);
-      if (!plan.ok) return { ok: false, reason: plan.reason, run };
+      if (plan.ok === false) return { ok: false, reason: plan.reason, run };
       // Kept as a guard: planHandoff now applies run.limits, so this check agrees with it.
       if (run.path.length > run.limits.maxDelegationDepth) return { ok: false, reason: 'depth_exceeded', run };
 
@@ -770,7 +770,7 @@ export function createRunEngine(options: RunEngineOptions): RunEngine {
           let open = false;
           for (const agentId of agents) {
             const decision = canStartWork(state, loaded.companyId, agentId);
-            if (decision.allowed) {
+            if (decision.allowed === true) {
               open = true;
               break;
             }
@@ -808,7 +808,7 @@ export function createRunEngine(options: RunEngineOptions): RunEngine {
         { id: delegationId, parentId: input.parentId ?? null, fromRole: input.actor.roleId, toRole: input.toRole },
         run.limits,
       );
-      if (!plan.ok) return { ok: false, reason: plan.reason, run };
+      if (plan.ok === false) return { ok: false, reason: plan.reason, run };
 
       const saved = await commit(loaded.companyId, run, { delegations: [...run.delegations, plan.delegation] });
       await audit('run.delegation', loaded.companyId, run.id, {
@@ -826,7 +826,7 @@ export function createRunEngine(options: RunEngineOptions): RunEngine {
       if (!loaded.ok) return loaded;
       const { run } = loaded;
       const plan = planCloseDelegation(run.delegations, delegationId);
-      if (!plan.ok) return { ok: false, reason: plan.reason, run };
+      if (plan.ok === false) return { ok: false, reason: plan.reason, run };
 
       const saved = await commit(loaded.companyId, run, { delegations: plan.delegations });
       await audit('run.delegation_closed', loaded.companyId, run.id, { delegationId });

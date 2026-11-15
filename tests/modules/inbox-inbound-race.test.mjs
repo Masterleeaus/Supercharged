@@ -3,6 +3,7 @@
 // one thread and one message. Until recordInbound serializes the thread and participant
 // creation (see the report for the change), this test is expected to fail.
 import test from 'node:test';
+import { consentingGate } from './presend-fixture.mjs';
 import assert from 'node:assert/strict';
 import { createInboxService, InMemoryInboxStore, InMemoryApprovalPort } from '../../server/modules/inbox/index.ts';
 
@@ -11,7 +12,7 @@ const CO_A = '11111111-1111-4111-8111-111111111111';
 function build() {
   const store = new InMemoryInboxStore();
   let seq = 0;
-  const service = createInboxService({
+  const service = createInboxService({ compliance: consentingGate(), 
     store,
     approvals: new InMemoryApprovalPort(),
     newId: () => `race_${++seq}`,

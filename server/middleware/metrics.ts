@@ -68,7 +68,7 @@ export interface MetricsAccessOptions {
   /** Bearer token accepted for scrapers (METRICS_TOKEN). */
   metricsToken?: string;
   /** Admin check, e.g. checkAdmin from middleware/admin-auth. Runs when no valid metrics token is presented. */
-  adminAuth?: (req: any, res: any, next: any) => unknown;
+  adminAuth?: (req: Request, res: Response, next: NextFunction) => unknown;
 }
 
 function bearerToken(req: Pick<Request, 'headers'>): string | undefined {

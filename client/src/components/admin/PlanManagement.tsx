@@ -51,8 +51,6 @@ export default function PlanManagement() {
     paystackYearlyPrice: 0,
     mercadopagoMonthlyPrice: 0,
     mercadopagoYearlyPrice: 0,
-    yookassaMonthlyPrice: 0,
-    yookassaYearlyPrice: 0,
     maxAgents: 1,
     maxCampaigns: 1,
     maxContactsPerCampaign: 5,
@@ -106,7 +104,6 @@ export default function PlanManagement() {
   const paypalCurrency = paymentGateway?.paypalCurrency?.toUpperCase() || "USD";
   const paystackCurrency = paymentGateway?.paystackDefaultCurrency?.toUpperCase() || "NGN";
   const mercadopagoCurrency = paymentGateway?.mercadopagoCurrency?.toUpperCase() || "BRL";
-  const yookassaCurrency = paymentGateway?.yookassaCurrency?.toUpperCase() || "RUB";
   
   // Currency symbol mapping
   const getCurrencySymbol = (currency: string) => {
@@ -137,7 +134,6 @@ export default function PlanManagement() {
   const paypalCurrencySymbol = getCurrencySymbol(paypalCurrency);
   const paystackCurrencySymbol = getCurrencySymbol(paystackCurrency);
   const mercadopagoCurrencySymbol = getCurrencySymbol(mercadopagoCurrency);
-  const yookassaCurrencySymbol = getCurrencySymbol(yookassaCurrency);
 
   const createPlan = useMutation({
     mutationFn: async (planData: Partial<Plan>) => {
@@ -161,8 +157,6 @@ export default function PlanManagement() {
         paystackYearlyPrice: 0,
         mercadopagoMonthlyPrice: 0,
         mercadopagoYearlyPrice: 0,
-        yookassaMonthlyPrice: 0,
-        yookassaYearlyPrice: 0,
         maxAgents: 1,
         maxCampaigns: 1,
         maxContactsPerCampaign: 5,
@@ -401,31 +395,6 @@ export default function PlanManagement() {
     }
   });
 
-  const syncToYookassa = useMutation({
-    mutationFn: async (planId: string) => {
-      const response = await apiRequest("POST", `/api/admin/plans/${planId}/sync/yookassa`);
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'YooKassa sync failed');
-      }
-      return response.json();
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/plans"] });
-      toast({ 
-        title: "YooKassa Sync Complete",
-        description: data.message
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "YooKassa Sync Failed",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
-  });
-
   const handleEdit = (plan: Plan) => {
     setEditingPlan(plan.id);
     setPlanForms({
@@ -508,20 +477,6 @@ export default function PlanManagement() {
         normalizedUpdates.mercadopagoYearlyPrice = null;
       }
     }
-    // YooKassa
-    if (normalizedUpdates.yookassaMonthlyPrice !== undefined) {
-      const val = normalizedUpdates.yookassaMonthlyPrice;
-      if (val === null || (typeof val === 'number' && (isNaN(val) || val === 0))) {
-        normalizedUpdates.yookassaMonthlyPrice = null;
-      }
-    }
-    if (normalizedUpdates.yookassaYearlyPrice !== undefined) {
-      const val = normalizedUpdates.yookassaYearlyPrice;
-      if (val === null || (typeof val === 'number' && (isNaN(val) || val === 0))) {
-        normalizedUpdates.yookassaYearlyPrice = null;
-      }
-    }
-    
     updatePlan.mutate({ planId, updates: normalizedUpdates });
   };
 
@@ -585,7 +540,6 @@ export default function PlanManagement() {
           paypalCurrency={paypalCurrency}
           paystackCurrency={paystackCurrency}
           mercadopagoCurrency={mercadopagoCurrency}
-          yookassaCurrency={yookassaCurrency}
           sipPluginInstalled={sipPluginInstalled}
           restApiPluginInstalled={restApiPluginInstalled}
           handleCreatePlan={handleCreatePlan}
@@ -606,7 +560,6 @@ export default function PlanManagement() {
               paypalCurrency={paypalCurrency}
               paystackCurrency={paystackCurrency}
               mercadopagoCurrency={mercadopagoCurrency}
-              yookassaCurrency={yookassaCurrency}
               isEditing={isEditing}
               stripeCurrency={stripeCurrency}
               formData={formData}
@@ -621,13 +574,11 @@ export default function PlanManagement() {
               paypalCurrencySymbol={paypalCurrencySymbol}
               paystackCurrencySymbol={paystackCurrencySymbol}
               mercadopagoCurrencySymbol={mercadopagoCurrencySymbol}
-              yookassaCurrencySymbol={yookassaCurrencySymbol}
               syncToStripe={syncToStripe}
               syncToRazorpay={syncToRazorpay}
               syncToPayPal={syncToPayPal}
               syncToPaystack={syncToPaystack}
               syncToMercadoPago={syncToMercadoPago}
-              syncToYookassa={syncToYookassa}
               handleEdit={handleEdit}
               setDeletingPlan={setDeletingPlan}
             />

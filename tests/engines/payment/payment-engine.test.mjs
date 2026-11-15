@@ -193,13 +193,12 @@ test("stripe timestamp outside the 300 s tolerance is rejected", async () => {
   );
 });
 
-test("paypal and yookassa are refused without a remote verifier and accepted with one", async () => {
+test("paypal is refused without a remote verifier and accepted with one", async () => {
   const body = JSON.stringify({ id: "WH-1", event_type: "PAYMENT.CAPTURE.COMPLETED" });
   const input = { rawBody: body, headers: {} };
 
   const bare = makeEngine().engine;
   await assert.rejects(bare.receiveWebhook({ companyId: COMPANY }, "paypal", input), { code: "signature_invalid" });
-  await assert.rejects(bare.receiveWebhook({ companyId: COMPANY }, "yookassa", input), { code: "signature_invalid" });
 
   let remoteCalls = 0;
   const remote = async () => {

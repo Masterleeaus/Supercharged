@@ -2,13 +2,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MODE_DESTINATIONS, selectedMode, destinationForMode, destinationForPath } from '../../client/src/lib/mode-navigation.ts';
 test('both modes have unique, stable deep links', () => {
-  assert.deepEqual(MODE_DESTINATIONS.map(x => x.id), ['marketing', 'inbox']);
-  assert.equal(new Set(MODE_DESTINATIONS.map(x => x.href)).size, 2);
+  assert.deepEqual(MODE_DESTINATIONS.map(x => x.id), ['marketing', 'inbox', 'chatbot']);
+  assert.equal(new Set(MODE_DESTINATIONS.map(x => x.href)).size, 3);
+  assert.equal(destinationForMode('chatbot').href, '/app/chatbot-builder');
 });
 test('reload and route selection derive from URL, not client tenant storage', () => {
   assert.equal(selectedMode('/app/modes/inbox'), 'inbox');
   assert.equal(selectedMode('/app/modes/marketing?tab=flows'), 'marketing');
   assert.equal(selectedMode('/app/chatbot-inbox'), 'inbox');
+  assert.equal(selectedMode('/app/chatbot-builder'), 'chatbot');
+  assert.equal(selectedMode('/app/chatbot-builder/wizard/abc?step=train'), 'chatbot');
 });
 test('unknown navigation mode fails explicitly', () => {
   assert.equal(destinationForMode('inbox').label, 'Omnichannel Inbox');

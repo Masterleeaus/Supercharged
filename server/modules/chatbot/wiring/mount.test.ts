@@ -67,7 +67,8 @@ const CHANNEL_PREFIXES = [
 ];
 
 const PREFIX_FOR_FLAG: Record<string, string[]> = {
-  [WIRING_FLAGS.BUILDER]: [WIRING_PREFIXES.builder],
+  // The builder router is mounted at /api/chatbot (its paths are /builder/...) behind a builder-path filter.
+  [WIRING_FLAGS.BUILDER]: ["/api/chatbot"],
   [WIRING_FLAGS.AGENT]: [WIRING_PREFIXES.agent],
   [WIRING_FLAGS.BOOKINGS]: [WIRING_PREFIXES.bookings],
   [WIRING_FLAGS.CONTENT]: [WIRING_PREFIXES.content],

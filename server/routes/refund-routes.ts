@@ -31,7 +31,6 @@ import { PaymentRefund as MercadoPagoRefund } from 'mercadopago';
 import axios from 'axios';
 import { applyRefund, type RefundGateway } from "../services/credit-service";
 import { generateRefundNoteForRefund, refundNoteService } from "../services/refund-note-service";
-import { isYookassaEnabled, processYookassaRefund } from "../engines/payment/gateways/yookassa/service";
 import { logger } from '../utils/logger';
 
 const router = Router();
@@ -307,20 +306,6 @@ router.post("/:transactionId", authenticateToken, requireRole("admin"), async (r
           return res.status(400).json({ message: "No MercadoPago payment ID found for this transaction" });
         }
         gatewayResult = await processMercadoPagoRefund(
-          transaction.gatewayTransactionId,
-          amount,
-          transaction.currency
-        );
-        break;
-
-      case 'yookassa':
-        if (!await isYookassaEnabled()) {
-          return res.status(400).json({ message: "YooKassa is not enabled" });
-        }
-        if (!transaction.gatewayTransactionId) {
-          return res.status(400).json({ message: "No YooKassa payment ID found for this transaction" });
-        }
-        gatewayResult = await processYookassaRefund(
           transaction.gatewayTransactionId,
           amount,
           transaction.currency

@@ -85,9 +85,9 @@ function startHealthMonitor(): void {
       await redisConnection.ping();
       lastHealthCheck = new Date();
       consecutiveFailures = 0;
-    } catch (error: any) {
+    } catch (error: unknown) {
       consecutiveFailures++;
-      logger.warn(`[BullMQ] Health check failed (${consecutiveFailures}/${MAX_CONSECUTIVE_FAILURES}): ${error.message}`);
+      logger.warn(`[BullMQ] Health check failed (${consecutiveFailures}/${MAX_CONSECUTIVE_FAILURES}): ${(error as Error).message}`);
       
       if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
         logger.error('[BullMQ] Redis health check failed multiple times, connection may be degraded');
@@ -105,8 +105,8 @@ export async function closeRedisConnection(): Promise<void> {
   if (redisConnection) {
     try {
       await redisConnection.quit();
-    } catch (error: any) {
-      logger.warn('[BullMQ] Error during Redis disconnect:', error.message);
+    } catch (error: unknown) {
+      logger.warn('[BullMQ] Error during Redis disconnect:', (error as Error).message);
       redisConnection.disconnect();
     }
     redisConnection = null;
