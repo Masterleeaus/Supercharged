@@ -76,7 +76,7 @@ export default function AllContacts() {
       setDeletingContact(null);
       toast({ title: "Contact deleted successfully" });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: "Failed to delete contact",
         description: error.message || "Please try again",

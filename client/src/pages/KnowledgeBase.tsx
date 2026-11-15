@@ -192,7 +192,7 @@ export default function KnowledgeBase() {
         description: t('knowledgeBase.toast.fileUploadedDesc'),
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('knowledgeBase.toast.uploadFailed'),
         description: error.message || t('knowledgeBase.toast.uploadFailedDesc'),
@@ -217,7 +217,7 @@ export default function KnowledgeBase() {
         description: t('knowledgeBase.toast.urlAddedDesc'),
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('knowledgeBase.toast.urlFailed'),
         description: error.message || t('knowledgeBase.toast.urlFailedDesc'),
@@ -242,7 +242,7 @@ export default function KnowledgeBase() {
         description: t('knowledgeBase.toast.textAddedDesc'),
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('knowledgeBase.toast.textFailed'),
         description: error.message || t('knowledgeBase.toast.textFailedDesc'),

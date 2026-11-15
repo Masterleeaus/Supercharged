@@ -202,7 +202,7 @@ export default function Campaigns() {
       toast({ title: t('campaigns.restoredSuccess') });
       setRestoringCampaignId(null);
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('campaigns.restoreFailed'),
         description: error.message || t('common.tryAgain'),

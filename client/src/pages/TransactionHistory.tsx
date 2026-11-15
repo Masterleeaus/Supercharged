@@ -90,7 +90,7 @@ export default function TransactionHistory({ embedded = false }: TransactionHist
       
       if (!response.ok) {
         const error = await response.json().catch(() => ({ message: 'Failed to download invoice' }));
-        throw new Error(error.message || 'Failed to download invoice');
+        throw new Error((error as Error).message || 'Failed to download invoice');
       }
       
       const blob = await response.blob();
@@ -107,10 +107,10 @@ export default function TransactionHistory({ embedded = false }: TransactionHist
         title: t('transactionHistory.invoiceDownloaded'),
         description: t('transactionHistory.invoiceDownloadedDesc'),
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: t('transactionHistory.downloadFailed'),
-        description: error.message || 'Failed to download invoice',
+        description: (error as Error).message || 'Failed to download invoice',
         variant: 'destructive',
       });
     } finally {
@@ -134,7 +134,7 @@ export default function TransactionHistory({ embedded = false }: TransactionHist
       
       if (!response.ok) {
         const error = await response.json().catch(() => ({ message: 'Failed to download refund note' }));
-        throw new Error(error.message || 'Failed to download refund note');
+        throw new Error((error as Error).message || 'Failed to download refund note');
       }
       
       const blob = await response.blob();
@@ -151,10 +151,10 @@ export default function TransactionHistory({ embedded = false }: TransactionHist
         title: t('transactionHistory.refundNoteDownloaded'),
         description: t('transactionHistory.refundNoteDownloadedDesc'),
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: t('transactionHistory.downloadFailed'),
-        description: error.message || 'Failed to download refund note',
+        description: (error as Error).message || 'Failed to download refund note',
         variant: 'destructive',
       });
     } finally {

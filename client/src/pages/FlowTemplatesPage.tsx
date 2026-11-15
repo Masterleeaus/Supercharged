@@ -65,10 +65,10 @@ export default function FlowTemplatesPage() {
       });
       handleCloseClone();
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('flowTemplates.toast.createFailed'),
-        description: error.data?.message ?? error.message,
+        description: (error as Error & { data?: { message?: string } }).data?.message ?? error.message,
         variant: "destructive",
       });
     },

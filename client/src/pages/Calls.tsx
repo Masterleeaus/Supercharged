@@ -464,14 +464,14 @@ export default function Calls() {
       };
       
       await audio.play();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (currentPlayingIdRef.current === call.id) {
         setLoadingRecording(null);
         setPlayingCallId(null);
       }
       toast({
         title: "Recording Unavailable",
-        description: error.message || "Could not load recording. Try syncing recordings first.",
+        description: (error as Error).message || "Could not load recording. Try syncing recordings first.",
         variant: "destructive",
       });
     }

@@ -24,7 +24,7 @@ export interface AgentDeleteDialogProps {
   deletingAgent: Agent;
   setDeletingAgent: Dispatch<SetStateAction<Agent>>;
   t: TFunction<"translation", undefined>;
-  deleteMutation: UseMutationResult<any, any, string, unknown>;
+  deleteMutation: UseMutationResult<unknown, Error, string, unknown>;
 }
 
 export function AgentDeleteDialog({ deletingAgent, setDeletingAgent, t, deleteMutation }: AgentDeleteDialogProps) {

@@ -111,8 +111,8 @@ export default function SttTester() {
         stopTest();
       };
 
-    } catch (err: any) {
-      toast({ title: "Failed to start test", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      toast({ title: "Failed to start test", description: (err as Error).message, variant: "destructive" });
       setIsStarting(false);
     }
   };
@@ -146,8 +146,8 @@ export default function SttTester() {
       
       setIsRecording(true);
       setIsStarting(false);
-    } catch (err: any) {
-      toast({ title: "Microphone Access Denied", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      toast({ title: "Microphone Access Denied", description: (err as Error).message, variant: "destructive" });
       stopTest();
     }
   };

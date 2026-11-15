@@ -172,10 +172,10 @@ export default function Contact() {
         title: t("landing.contactPage.form.successTitle"),
         description: t("landing.contactPage.form.successDescription"),
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: t("landing.contactPage.form.errorTitle", "Error"),
-        description: error.message || t("landing.contactPage.form.errorDescription", "Failed to send message. Please try again."),
+        description: (error as Error).message || t("landing.contactPage.form.errorDescription", "Failed to send message. Please try again."),
         variant: "destructive",
       });
     } finally {
