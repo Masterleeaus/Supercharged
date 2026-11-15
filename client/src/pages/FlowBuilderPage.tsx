@@ -109,11 +109,24 @@ interface FlowNodeConfig {
   templateVariables?: Array<{ position: number; source: string; value: string }>;
   headerVariable?: { type: string; url?: string; value?: string; source?: string } | null;
   buttonVariables?: Array<{ index: number; label: string; url: string; value: string }>;
-  templateComponents?: Array<Record<string, unknown>>;
+  templateComponents?: WaTemplateComponent[];
+  formName?: string;
 }
 
 /** Rows the flow builder reads from its list endpoints. */
 interface FlowAgent { id: string; name?: string; type?: string; telephonyProvider?: string | null }
+/** List endpoints return either a bare array or an object with data. */
+type ListResponse<T> = T[] | { data?: T[] };
+function listOf<T>(res: unknown): T[] {
+  const r = res as ListResponse<T>;
+  if (Array.isArray(r)) return r;
+  return Array.isArray(r?.data) ? r.data : [];
+}
+/** Integration settings response, bare or wrapped in data. */
+type IntegrationSettingsResponse = { isActive?: boolean; data?: { isActive?: boolean } };
+/** Flow detail as returned by the flow endpoint. */
+interface FlowDetail { id?: string; name?: string; description?: string | null; agentId?: string | null; isActive?: boolean; nodes?: unknown[]; edges?: unknown[] }
+
 interface FlowRecord { id: string; name?: string; agentId?: string | null }
 interface WaTemplateButton { type?: string; text?: string; url?: string }
 interface WaTemplateComponent { type?: string; format?: string; text?: string; buttons?: WaTemplateButton[] }
@@ -370,29 +383,29 @@ export default function FlowBuilderPage() {
 
   const { data: emailTemplatesForFlow } = useQuery<EmailTemplateOption[]>({
     queryKey: ["/api/messaging/email-templates"],
-    select: (res: any) => Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []),
+    select: (res) => listOf<EmailTemplateOption>(res),
   });
 
-  const { data: metaWhatsAppSettings } = useQuery<any>({
+  const { data: metaWhatsAppSettings } = useQuery<IntegrationSettingsResponse>({
     queryKey: ["/api/messaging/meta-whatsapp/settings"],
-    select: (res: any) => res?.data || res,
+    select: (res: IntegrationSettingsResponse) => res?.data || res,
   });
 
-  const { data: whatswaySettings } = useQuery<any>({
+  const { data: whatswaySettings } = useQuery<IntegrationSettingsResponse>({
     queryKey: ["/api/messaging/whatsway/settings"],
-    select: (res: any) => res?.data || res,
+    select: (res: IntegrationSettingsResponse) => res?.data || res,
   });
 
   const { data: metaTemplatesRaw } = useQuery<WaTemplate[]>({
     queryKey: ["/api/messaging/meta-whatsapp/templates"],
     enabled: !!metaWhatsAppSettings?.isActive,
-    select: (res: any) => Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []),
+    select: (res) => listOf<WaTemplate>(res),
   });
 
   const { data: whatswayTemplates } = useQuery<WaTemplate[]>({
     queryKey: ["/api/messaging/whatsway/templates"],
     enabled: !!whatswaySettings?.isActive,
-    select: (res: any) => Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []),
+    select: (res) => listOf<WaTemplate>(res),
   });
 
   const waTemplatesForFlow = (() => {
@@ -419,7 +432,7 @@ export default function FlowBuilderPage() {
   })();
 
   // Load existing flow if editing (not for new flows)
-  const { data: flow, isError: flowError, isLoading: flowLoading } = useQuery<any>({
+  const { data: flow, isError: flowError, isLoading: flowLoading } = useQuery<FlowDetail>({
     queryKey: [`/api/flow-automation/flows/${flowId}`],
     enabled: !!flowId && flowId !== "new",
   });
@@ -514,7 +527,7 @@ export default function FlowBuilderPage() {
       const data = await response.json();
       return data;
     },
-    onSuccess: (data: any) => {
+    onSuccess: (data: { id?: string } | undefined) => {
       toast({
         title: t("flows.toast.saved"),
         description: t("flows.toast.savedDescription"),
@@ -562,7 +575,7 @@ export default function FlowBuilderPage() {
   };
 
   // Update selected node configuration
-  const updateNodeConfig = (config: any) => {
+  const updateNodeConfig = (config: FlowNodeConfig) => {
     if (!selectedNode) return;
 
     setNodes((nds) =>
@@ -1532,9 +1545,9 @@ export default function FlowBuilderPage() {
                             const buttons = tmpl?.buttons || [];
                             const existingBtnVars = selectedNode.data.config?.buttonVariables || [];
                             const buttonVariables = buttons
-                              .map((btn: any, idx: number) => {
+                              .map((btn: WaTemplateButton, idx: number) => {
                                 if (btn.type === "URL" && btn.url?.includes("{{")) {
-                                  const existing = existingBtnVars.find((bv: any) => bv.index === idx);
+                                  const existing = existingBtnVars.find((bv: { index: number }) => bv.index === idx);
                                   return existing || { index: idx, label: btn.text || `Button ${idx + 1}`, url: btn.url, value: "" };
                                 }
                                 return null;
@@ -1629,13 +1642,13 @@ export default function FlowBuilderPage() {
                     {(selectedNode.data.config?.templateVariables || []).length > 0 && (
                       <div className="space-y-3">
                         <Label className="text-sm font-medium">Body Variable Mapping</Label>
-                        {(selectedNode.data.config?.templateVariables as any[] || []).map((tv: any) => (
+                        {(selectedNode.data.config?.templateVariables || []).map((tv) => (
                           <div key={tv.position} className="space-y-1.5">
                             <Label className="text-xs text-muted-foreground">{`Variable {{${tv.position}}}`}</Label>
                             <Select
                               value={tv.source || "custom"}
                               onValueChange={(src) => {
-                                const updated = (selectedNode.data.config?.templateVariables as any[] || []).map((v: any) =>
+                                const updated = (selectedNode.data.config?.templateVariables || []).map((v) =>
                                   v.position === tv.position
                                     ? { ...v, source: src, value: src === "custom" ? v.value : `{{${src}}}` }
                                     : v
@@ -1659,7 +1672,7 @@ export default function FlowBuilderPage() {
                               <Input
                                 value={tv.value || ""}
                                 onChange={(e) => {
-                                  const updated = (selectedNode.data.config?.templateVariables as any[] || []).map((v: any) =>
+                                  const updated = (selectedNode.data.config?.templateVariables || []).map((v) =>
                                     v.position === tv.position ? { ...v, value: e.target.value } : v
                                   );
                                   updateNodeConfig({ templateVariables: updated });
@@ -1677,7 +1690,7 @@ export default function FlowBuilderPage() {
                     {(selectedNode.data.config?.buttonVariables || []).length > 0 && (
                       <div className="space-y-3">
                         <Label className="text-sm font-medium">Button URL Variables</Label>
-                        {(selectedNode.data.config?.buttonVariables as any[] || []).map((bv: any) => (
+                        {(selectedNode.data.config?.buttonVariables || []).map((bv) => (
                           <div key={bv.index} className="space-y-1.5">
                             <Label className="text-xs text-muted-foreground">
                               {bv.label || `Button ${bv.index + 1}`}
@@ -1686,7 +1699,7 @@ export default function FlowBuilderPage() {
                             <Input
                               value={bv.value || ""}
                               onChange={(e) => {
-                                const updated = (selectedNode.data.config?.buttonVariables as any[] || []).map((v: any) =>
+                                const updated = (selectedNode.data.config?.buttonVariables || []).map((v) =>
                                   v.index === bv.index ? { ...v, value: e.target.value } : v
                                 );
                                 updateNodeConfig({ buttonVariables: updated });

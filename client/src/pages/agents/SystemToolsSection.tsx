@@ -31,7 +31,7 @@ export interface SystemToolsSectionProps {
   hasEmailTemplates: boolean;
   emailTemplates: { id: string; name: string; }[];
   isWhatsAppActive: boolean;
-  whatsappTemplates: { name: string; id?: string; components?: any[]; }[];
+  whatsappTemplates: { name: string; id?: string; components?: Array<{ type?: string; format?: string; text?: string; buttons?: Array<{ type?: string; text?: string; url?: string }> }>; }[];
   getWhatsAppTemplateVariables: (templateName: string) => number[];
   getWhatsAppTemplateButtonVariables: (templateName: string) => Array<{ index: number; label: string; url: string; }>;
   getWhatsAppTemplateHeaderInfo: (templateName: string) => { format: string; hasVariable: boolean; text?: string; } | null;
