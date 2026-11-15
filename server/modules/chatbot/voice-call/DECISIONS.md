@@ -54,3 +54,8 @@ Files: `voice-call/provider-memory.ts` (new), `voice-call/scheduler.ts` (new), `
 ## Tests
 
 `tests/modules/chatbot-voice-call.test.mjs`: 39 tests, all passing. Scoped strict type check of the six source files passes (`/home/claude/voice-call-tc/tsconfig.json`).
+
+## Boot wiring (issue #24)
+
+- Decision (conservative, no owner answer yet): the service is built at boot whenever CHATBOT_WORKERS_ENABLED is "true", with fail-closed ports in `unconfigured.ts`. Nothing is sent to a provider. The quota sweep runs, so calls already in progress past their cap are still ended.
+- Owner step: choose the CallProvider, the CreditLedger, the plan lookup, the chatbot gate and the credential source, then replace the fail-closed ports in the boot builder.
