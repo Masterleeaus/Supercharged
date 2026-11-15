@@ -28,8 +28,8 @@ Notes on the key:
 
 ## Summary
 
-- 167 rows: 41 non-role modules and 126 role files.
-- Wired: 146. NOT WIRED: 21.
+- 172 rows: 41 non-role modules and 131 role files.
+- Wired: 151. NOT WIRED: 21.
 - The Postgres store and budget files (`pg-store.ts`, `pg-budgets.ts`) and the drizzle schema (`approvals/schema.ts`) are not applied to any database according to their own headers. This table does not change that.
 
 ## Modules
@@ -119,6 +119,7 @@ The loader imports each file below at startup, so each is wired. Purposes are co
 | `server/workforce/catalogue/roles/commercial-cleaning-site-visit-scheduler.ts` | Books site walkthroughs after confirming access and an on-site contact | `tests/workforce/roles-cleaning-pool.test.mjs` | wired |
 | `server/workforce/catalogue/roles/complaint-triage.ts` | Records customer complaints, rates urgency and routes each to the right person | `tests/workforce/roles-back-office.test.mjs` | wired |
 | `server/workforce/catalogue/roles/compliance-expiry-tracker.ts` | Tracks expiry dates of staff and company documents and flags items due soon (recommend only) | `tests/workforce/roles-back-office.test.mjs` | wired |
+| `server/workforce/catalogue/roles/construction-site-cleanup-scheduler.ts` | Schedules construction site clean-up after induction and access are confirmed; hazardous material goes to a person | `tests/workforce/roles-cleaning-verticals.test.mjs` | wired |
 | `server/workforce/catalogue/roles/customer-data-hygiene.ts` | Finds duplicate and incomplete customer records and suggests fixes (recommendations only) | `tests/workforce/roles-back-office.test.mjs` | wired |
 | `server/workforce/catalogue/roles/dispute-intake.ts` | Records payment disputes, places a contact hold and passes the case to a person | `tests/workforce/roles-back-office.test.mjs` | wired |
 | `server/workforce/catalogue/roles/end-of-lease-clean-coordinator.ts` | Captures end-of-lease details and books the clean for approval | `tests/workforce/roles-cleaning-pool.test.mjs` | wired |
@@ -155,6 +156,7 @@ The loader imports each file below at startup, so each is wired. Purposes are co
 | `server/workforce/catalogue/roles/garden-service-history-reviewer.ts` | Reports repeat problems and gaps in garden history for a manager (read-only) | `tests/workforce/roles-garden-pest.test.mjs` | wired |
 | `server/workforce/catalogue/roles/garden-tree-lopping-quote-intake.ts` | Captures tree lopping enquiries and flags power-line or building risk | `tests/workforce/roles-garden-pest.test.mjs` | wired |
 | `server/workforce/catalogue/roles/garden-weed-control-seasonal-campaign.ts` | Drafts seasonal weed control offers for review before sending | `tests/workforce/roles-garden-pest.test.mjs` | wired |
+| `server/workforce/catalogue/roles/hard-floor-care-scheduler.ts` | Schedules hard floor care (tile, stone, timber, vinyl); damaged or unknown floors go to a person first | `tests/workforce/roles-cleaning-verticals.test.mjs` | wired |
 | `server/workforce/catalogue/roles/handyman-job-scoping.ts` | Qualifies handyman requests with scope questions, photos and an urgency tag | `tests/workforce/roles-general-field.test.mjs` | wired |
 | `server/workforce/catalogue/roles/handyman-warranty-callback.ts` | Logs handyman warranty callbacks against the original job and passes them to customer care | `tests/workforce/roles-general-field.test.mjs` | wired |
 | `server/workforce/catalogue/roles/home-cleaning-recurring-scheduler.ts` | Plans recurring home cleaning visits and proposes changes for approval | `tests/workforce/roles-cleaning-pool.test.mjs` | wired |
@@ -188,7 +190,9 @@ The loader imports each file below at startup, so each is wired. Purposes are co
 | `server/workforce/catalogue/roles/pool-service-scheduler.ts` | Plans recurring pool rounds grouped by area; changes go for approval | `tests/workforce/roles-cleaning-pool.test.mjs` | wired |
 | `server/workforce/catalogue/roles/pool-water-quality-escalation.ts` | Logs water-quality and safety complaints and escalates every case without diagnosing | `tests/workforce/roles-cleaning-pool.test.mjs` | wired |
 | `server/workforce/catalogue/roles/pool-water-testing-scheduler.ts` | Schedules water tests and routes flagged results to a person | `tests/workforce/roles-cleaning-pool.test.mjs` | wired |
+| `server/workforce/catalogue/roles/post-construction-clean-coordinator.ts` | Books post-construction cleans once the builder confirms the site is cleared; hazards go to a person | `tests/workforce/roles-cleaning-verticals.test.mjs` | wired |
 | `server/workforce/catalogue/roles/post-job-check-in.ts` | Checks in after completed jobs and passes problems to complaint triage | `tests/workforce/roles-back-office.test.mjs` | wired |
+| `server/workforce/catalogue/roles/pressure-cleaning-scheduler.ts` | Schedules pressure cleaning at all heights; high, roof, fragile or water-risk work goes to a person first | `tests/workforce/roles-cleaning-verticals.test.mjs` | wired |
 | `server/workforce/catalogue/roles/quote-follow-up.ts` | Drafts courteous quote reminders for a person to approve before sending | `tests/workforce/roles-back-office.test.mjs` | wired |
 | `server/workforce/catalogue/roles/referral-request.ts` | Asks satisfied customers for referrals, with a person approving each message | `tests/workforce/roles-back-office.test.mjs` | wired |
 | `server/workforce/catalogue/roles/refund-triage.ts` | Prepares refund requests for a person to decide; never issues or promises a refund | `tests/workforce/roles-back-office.test.mjs` | wired |
@@ -196,6 +200,7 @@ The loader imports each file below at startup, so each is wired. Purposes are co
 | `server/workforce/catalogue/roles/service-due-reminder.ts` | Reminds customers when a recurring service is due; a person confirms any booking | `tests/workforce/roles-back-office.test.mjs` | wired |
 | `server/workforce/catalogue/roles/staff-roster-suggestions.ts` | Suggests weekly rostering options (suggestions only) | `tests/workforce/roles-back-office.test.mjs` | wired |
 | `server/workforce/catalogue/roles/stock-reorder-suggestions.ts` | Suggests stock reorders from stock levels; a person places every order | `tests/workforce/roles-back-office.test.mjs` | wired |
+| `server/workforce/catalogue/roles/strata-common-area-scheduler.ts` | Schedules strata common-area cleaning within the approved scope; scope changes go to the strata manager | `tests/workforce/roles-cleaning-verticals.test.mjs` | wired |
 | `server/workforce/catalogue/roles/supplier-bill-check.ts` | Checks supplier bills against orders for duplicates and price differences | `tests/workforce/roles-back-office.test.mjs` | wired |
 | `server/workforce/catalogue/roles/timesheet-check.ts` | Flags timesheet gaps, overlaps and unusual shift lengths for review | `tests/workforce/roles-back-office.test.mjs` | wired |
 | `server/workforce/catalogue/roles/trades-after-hours-handover-summary.ts` | Summarises overnight calls and requests for the first business-hours shift | `tests/workforce/roles-trades.test.mjs` | wired |
