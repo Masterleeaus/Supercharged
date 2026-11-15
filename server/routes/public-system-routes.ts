@@ -227,31 +227,24 @@ export function createPublicSystemRoutes(ctx: RouteContext): Router {
       const dbMercadopagoPublicKey = await storage.getGlobalSetting('mercadopago_public_key');
       const mercadopagoConfigured = !!dbMercadopagoAccessToken?.value;
 
-      const dbYookassaShopId = await storage.getGlobalSetting('yookassa_shop_id');
-      const dbYookassaSecretKey = await storage.getGlobalSetting('yookassa_secret_key');
-      const yookassaConfigured = !!(dbYookassaShopId?.value && dbYookassaSecretKey?.value);
-
       const stripeEnabledSetting = await storage.getGlobalSetting('stripe_enabled');
       const razorpayEnabledSetting = await storage.getGlobalSetting('razorpay_enabled');
       const paypalEnabledSetting = await storage.getGlobalSetting('paypal_enabled');
       const paystackEnabledSetting = await storage.getGlobalSetting('paystack_enabled');
       const mercadopagoEnabledSetting = await storage.getGlobalSetting('mercadopago_enabled');
-      const yookassaEnabledSetting = await storage.getGlobalSetting('yookassa_enabled');
 
       const stripeEnabled = stripeConfigured && toBool(stripeEnabledSetting?.value) === true;
       const razorpayEnabled = razorpayConfigured && toBool(razorpayEnabledSetting?.value) === true;
       const paypalEnabled = paypalConfigured && toBool(paypalEnabledSetting?.value) === true;
       const paystackEnabled = paystackConfigured && toBool(paystackEnabledSetting?.value) === true;
       const mercadopagoEnabled = mercadopagoConfigured && toBool(mercadopagoEnabledSetting?.value) === true;
-      const yookassaEnabled = yookassaConfigured && toBool(yookassaEnabledSetting?.value) === true;
 
       const result: any = {
         stripeEnabled,
         razorpayEnabled,
         paypalEnabled,
         paystackEnabled,
-        mercadopagoEnabled,
-        yookassaEnabled
+        mercadopagoEnabled
       };
 
       if (stripeEnabled) {
@@ -302,15 +295,6 @@ export function createPublicSystemRoutes(ctx: RouteContext): Router {
         result.mercadopagoCurrencies = ['BRL', 'MXN', 'ARS', 'CLP', 'COP', 'PEN', 'UYU'];
       }
 
-      if (yookassaEnabled) {
-        result.yookassaShopId = dbYookassaShopId?.value || null;
-        const yookassaCurrencySetting = await storage.getGlobalSetting('yookassa_currency');
-        const yookassaCurrency = (yookassaCurrencySetting?.value as string) || 'RUB';
-        result.yookassaCurrency = yookassaCurrency.toUpperCase();
-        result.yookassaCurrencySymbol = currencySymbols[yookassaCurrency.toUpperCase()] || '₽';
-        result.yookassaCurrencies = ['RUB', 'USD', 'EUR'];
-      }
-
       res.json(result);
     } catch (error) {
       logger.error('Error fetching payment gateway config:', error);
@@ -320,7 +304,6 @@ export function createPublicSystemRoutes(ctx: RouteContext): Router {
         paypalEnabled: false,
         paystackEnabled: false,
         mercadopagoEnabled: false,
-        yookassaEnabled: false,
         stripePublicKey: null
       });
     }

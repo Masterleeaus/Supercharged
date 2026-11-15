@@ -2502,7 +2502,8 @@ export class DbStorage implements IStorage {
   }
 
   async createCreditPackage(insertPack: InsertCreditPackage): Promise<CreditPackage> {
-    const [pack] = await db.insert(creditPackages).values(insertPack).returning();
+    // Type-only cast: zod's extend+transform types price as optional when strictNullChecks is off.
+    const [pack] = await db.insert(creditPackages).values(insertPack as typeof creditPackages.$inferInsert).returning();
     return pack;
   }
 

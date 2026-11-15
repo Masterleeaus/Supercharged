@@ -25,7 +25,8 @@ import {
 import { gateCommsAction } from '../comms/suggest-reply.ts';
 import { getDefaultCompanySettingsStore, type CompanySettingsStore } from '../settings/company-settings.ts';
 import { rewriteCampaignLinks } from './campaign-links.ts';
-import type { SuppressionList } from '../comms/suppression.ts';
+import { createSuppressionList, type SuppressionList } from '../comms/suppression.ts';
+import { createPreSendGate, type BlockedSendRecord, type PreSendBlockReason } from '../comms/presend-gate.ts';
 import type { ApprovalPort, CampaignStore, SendTransport } from './ports.ts';
 import {
   CAMPAIGN_CHANNELS,
@@ -138,6 +139,10 @@ export interface CampaignServiceDeps {
    * default: when absent, dispatchJob skips the suppression check.
    */
   suppression?: SuppressionList;
+  /**
+   * Called for each send the pre-send gate blocks, with the reason. The job row also keeps the reason as its skipReason.
+   */
+  onSendBlocked?: (record: BlockedSendRecord) => Promise<void> | void;
   /**
    * Company settings store. When it holds quiet hours for the job's company, those win over
    * deps.quietHours. When absent, the shared process store (getDefaultCompanySettingsStore) is used.
@@ -266,6 +271,47 @@ export function createCampaignService(deps: CampaignServiceDeps): CampaignServic
       quietHours: await quietWindow(companyId, job),
     });
   }
+
+  // Pre-send gate for campaign transport sends. Built from the same stores as the checks above.
+  // Quiet hours are passed per job (quietWindow), so the gate does not read a company-only window.
+  // With no suppression list wired, the gate uses an empty list, which matches the old behaviour.
+  const presendGate = createPreSendGate({
+    suppression: deps.suppression ?? createSuppressionList(),
+    async loadContact(companyId, channel, address) {
+      // Campaigns send email and sms only. Any other channel has no campaign consent record.
+      if (channel !== 'email' && channel !== 'sms') return null;
+      const optIns = (await store.listOptIns(companyId, channel))
+        .filter((o) => o.address === address && o.revokedAt === null);
+      const unsub = await store.findUnsubscribe(companyId, channel, address);
+      const consents: ConsentEvent[] = [
+        ...optIns.map((o): ConsentEvent => ({ channel, action: 'opt_in', at: o.grantedAt, source: 'system' })),
+        ...(unsub ? [{ channel, action: 'opt_out', at: unsub.createdAt, source: 'system' } as ConsentEvent] : []),
+      ];
+      const recipient = (await store.findContactByAddress(companyId, channel, address)) as StoredContact | null;
+      return {
+        handles: channel === 'email' ? { email: address } : { phone: address },
+        consents,
+        timezone: recipient?.timezone ?? null,
+      };
+    },
+    // Used only when a check does not pass its own window. Campaign sends always pass one.
+    async loadQuietHours(companyId) {
+      const stored = await companySettings.getQuietHours(companyId);
+      return stored && stored.ok && stored.settings
+        ? { startHour: stored.settings.startHour, endHour: stored.settings.endHour }
+        : null;
+    },
+    now: () => now(),
+    async recordBlocked(record) {
+      // Durable write of the reason. The job itself is also moved to skipped with the same reason.
+      await deps.onSendBlocked?.(record);
+    },
+  });
+
+  const campaignSkipReason = (reason: PreSendBlockReason): SkipReason =>
+    reason === 'unsupported_channel' || reason === 'invalid_address' || reason === 'gate_error'
+      ? 'invalid_contact'
+      : reason;
 
   const service: CampaignService = {
     async defineAudience(rawCompanyId, input) {
@@ -610,6 +656,24 @@ export function createCampaignService(deps: CampaignServiceDeps): CampaignServic
           return (await store.transitionJob(companyId, job.id, 'sending', { status: 'queued', updatedAt: now() })) ?? claimed;
         }
         return (await store.transitionJob(companyId, job.id, 'sending', { status: 'skipped', skipReason: decision.reason, updatedAt: now() })) ?? claimed;
+      }
+
+      // The pre-send gate: suppression, consent, opt-out and quiet hours in the recipient's timezone.
+      // It runs immediately before the transport, so an opt-out recorded after the checks above is caught.
+      const gate = await presendGate.check({
+        companyId,
+        channel: claimed.channel,
+        address: claimed.address,
+        surface: 'marketing',
+        actorId: 'system',
+        quietHours: await quietWindow(companyId, claimed),
+      });
+      if (gate.allowed === false) {
+        await presendGate.recordBlock({ companyId, channel: claimed.channel, surface: 'marketing', actorId: 'system' }, gate.reason);
+        if (gate.reason === 'quiet_hours') {
+          return (await store.transitionJob(companyId, job.id, 'sending', { status: 'queued', updatedAt: now() })) ?? claimed;
+        }
+        return (await store.transitionJob(companyId, job.id, 'sending', { status: 'skipped', skipReason: campaignSkipReason(gate.reason), updatedAt: now() })) ?? claimed;
       }
 
       // Every https link in the message gets campaign tracking before the provider adapter sees it.

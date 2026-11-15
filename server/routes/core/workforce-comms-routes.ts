@@ -15,6 +15,7 @@ import { createCompanySettingsStore } from "../../modules/settings/company-setti
 import { pool } from "../../db";
 import type { TenantPool } from "../../infrastructure/database/tenant-context";
 import { createSuppressionList } from "../../modules/comms/suppression.ts";
+import { logAuditEvent } from "../../services/audit-log";
 import { deskModeMiddleware } from "../../modules/desk-modes/index.ts";
 import { featureEnabled } from "../../lib/feature-flags";
 import { requireCompanyScope } from "../../middleware/company-scope";
@@ -65,7 +66,8 @@ export async function registerWorkforceCommsRoutes(app: Express, deps: { commsAu
     requireCompanyScope: requireCompanyScope(),
     requireRole: (...roles: string[]) => requireRole(...roles) as RequestHandler,
     pool: pool as unknown as TenantPool,
-    schemaProbe: pool });
+    schemaProbe: pool,
+    auditWrite: logAuditEvent });
 
   // Comms campaigns, comms host only (requireModule('campaigns') inside the router). Mounted under /api/comms so it
   // does not share the legacy /api/campaigns paths. The store is a placeholder until DRAFT_campaigns is promoted, and
@@ -109,7 +111,7 @@ export async function registerWorkforceCommsRoutes(app: Express, deps: { commsAu
       transport: campaignTransport,
       companySettings: createCompanySettingsStore({ pool: pool as unknown as TenantPool }),
       suppression: createSuppressionList({ audit: commsAudit.audit, clock: () => new Date().toISOString() }),
-      requireRole: requireRole("admin", "manager") as unknown as import('express').RequestHandler,
+      requireRole: (...roles: string[]) => requireRole(...roles) as unknown as import('express').RequestHandler,
     }),
   );
 }

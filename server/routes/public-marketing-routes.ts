@@ -26,6 +26,7 @@ import { RouteContext } from './common';
 import { eq } from 'drizzle-orm';
 import { users, calls, campaigns, twilioCountries } from '@shared/schema';
 import { logger } from '../utils/logger';
+import { PRODUCT_NAME } from '../../shared/brand.ts';
 
 export function createPublicMarketingRoutes(ctx: RouteContext): Router {
   const router = Router();
@@ -224,7 +225,7 @@ export function createPublicMarketingRoutes(ctx: RouteContext): Router {
       const adminEmail = (adminEmailSetting?.value as string) || (smtpFromEmail?.value as string) || process.env.SMTP_USER;
 
       const appNameSetting = await storage.getGlobalSetting('app_name');
-      const appName = (appNameSetting?.value as string) || 'Supercharged';
+      const appName = (appNameSetting?.value as string) || PRODUCT_NAME;
 
       if (!adminEmail) {
         logger.error('No admin email configured for contact form');

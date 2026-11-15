@@ -6,15 +6,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { WEBHOOK_BARREL, readWebhookRouteSources } from './webhook-route-sources.mjs';
 
 // Silence logging: these modules log on use, and test output must not reach stdout.
 for (const m of ['log', 'info', 'warn', 'error']) console[m] = () => {};
 
 const ROOT = new URL('../../', import.meta.url);
-const read = (rel) => fs.readFileSync(new URL(rel, ROOT), 'utf8');
+const read = (rel) => (rel === WEBHOOK_BARREL ? readWebhookRouteSources() : fs.readFileSync(new URL(rel, ROOT), 'utf8'));
 
 const FILES = {
-  webhook: 'server/routes/webhook-routes.ts',
+  webhook: WEBHOOK_BARREL, // barrel plus server/routes/webhook-modules/*, see readWebhookRouteSources
   widget: 'server/modules/widget/public-widget-routes.ts',
   plivo: 'server/engines/plivo/services/openai-agent-factory.ts',
   twilio: 'server/engines/twilio-openai/services/openai-agent-factory.ts',

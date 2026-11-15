@@ -143,9 +143,29 @@ test("the avatar list puts presets first, then the company's uploads by creation
 
 /* ---------- storage class ---------- */
 
-test("DrizzleBuilderStorage exposes the three BuilderStorage methods", () => {
+test("the create insert takes company_id from the caller and writes the builder columns", () => {
+  const { sql, params } = render(
+    builderQueries.insertChatbot(db, CO_A, {
+      id: CHATBOT_ID,
+      publicUuid: "33333333-3333-4333-8333-333333333333",
+      title: "Front desk",
+      language: "en",
+      welcomeMessage: "Hi",
+      instructions: "Be kind",
+      active: true,
+      settings: { bubbleMessage: "Ask" },
+      now: NOW,
+    }),
+  );
+  assert.match(sql, /^insert into "chatbots" \(id, company_id, title, language, welcome_message, instructions, active, updated_at, builder_settings, public_uuid\)/i);
+  assert.ok(params.includes(CO_A));
+  assert.ok(!params.includes(CO_B));
+  assert.ok(params.includes(JSON.stringify({ bubbleMessage: "Ask" })));
+});
+
+test("DrizzleBuilderStorage exposes the four BuilderStorage methods", () => {
   const storage = new DrizzleBuilderStorage(db);
-  for (const name of ["findBuilderState", "updateBuilderState", "listChatbotAvatars"]) {
+  for (const name of ["findBuilderState", "updateBuilderState", "createBuilderState", "listChatbotAvatars"]) {
     assert.equal(typeof storage[name], "function", name);
   }
 });

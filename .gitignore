@@ -34,3 +34,13 @@ server/utils/domain.js
 server/utils/logger.js
 server/utils/url-validator.js
 shared/schema.js
+
+# Archives, editor junk and coverage output: generated or local, never commit
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+*.rar
+*.dump
+coverage/
+.DS_Store

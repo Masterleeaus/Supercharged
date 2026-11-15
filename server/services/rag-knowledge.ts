@@ -130,8 +130,8 @@ async function getOpenAIClient(): Promise<OpenAI> {
     if (dbSetting?.value) {
       apiKey = dbSetting.value as string;
     }
-  } catch (e: any) {
-    logger.warn('Could not read OpenAI key from settings; falling back to environment', { error: e?.message }, 'RagKnowledge');
+  } catch (e: unknown) {
+    logger.warn('Could not read OpenAI key from settings; falling back to environment', { error: errorText(e) }, 'RagKnowledge');
   }
 
   if (!apiKey && process.env.OPENAI_API_KEY) {
@@ -151,8 +151,8 @@ async function getOpenAIClient(): Promise<OpenAI> {
         baseURL = 'https://openrouter.ai/api/v1';
         embeddingModel = 'openai/text-embedding-3-small'; // OpenRouter model path
       }
-    } catch (e: any) {
-      logger.warn('Could not read OpenRouter key from settings', { error: e?.message }, 'RagKnowledge');
+    } catch (e: unknown) {
+      logger.warn('Could not read OpenRouter key from settings', { error: errorText(e) }, 'RagKnowledge');
     }
   }
 
@@ -247,16 +247,19 @@ function chunkText(text: string, maxChars: number = MAX_CHUNK_CHARS, overlapChar
 /**
  * Convert structured JSON to clean, human-readable text chunks
  */
-function parseJsonToChunks(data: any): string[] {
+type JsonValue = string | number | boolean | null | JsonValue[] | JsonObject;
+type JsonObject = { [key: string]: JsonValue };
+
+function parseJsonToChunks(data: JsonValue): string[] {
   const chunks: string[] = [];
 
-  function traverse(node: any, path: string = ''): void {
+  function traverse(node: JsonValue, path: string = ''): void {
     if (node === null || node === undefined) return;
 
     if (Array.isArray(node)) {
       if (node.length > 0 && typeof node[0] === 'object' && node[0] !== null) {
         for (const item of node) {
-          const itemText = objectToReadableText(item, path);
+          const itemText = objectToReadableText(item as JsonObject, path);
           if (itemText) chunks.push(itemText);
         }
       } else {
@@ -267,7 +270,7 @@ function parseJsonToChunks(data: any): string[] {
       const hasNested = keys.some(k => typeof node[k] === 'object' && node[k] !== null);
 
       if (!hasNested && keys.length > 0) {
-        const itemText = objectToReadableText(node, path);
+        const itemText = objectToReadableText(node as JsonObject, path);
         if (itemText) chunks.push(itemText);
       } else {
         for (const key of keys) {
@@ -281,7 +284,7 @@ function parseJsonToChunks(data: any): string[] {
     }
   }
 
-  function objectToReadableText(obj: any, prefix: string): string {
+  function objectToReadableText(obj: JsonObject, prefix: string): string {
     const parts: string[] = [];
     if (prefix) {
       parts.push(`[Category: ${prefix}]`);
@@ -333,6 +336,11 @@ async function generateEmbedding(text: string): Promise<number[]> {
 function estimateTokens(text: string): number {
   // Rough estimate: ~4 characters per token for English
   return Math.ceil(text.length / 4);
+}
+
+/** Message text from a caught value of unknown type. Non-Error throws are stringified. */
+function errorText(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
 }
 
 export class RAGKnowledgeService {
@@ -388,7 +396,7 @@ export class RAGKnowledgeService {
     knowledgeBaseId: string, 
     userId: string, 
     content: string,
-    metadata?: Record<string, any>
+    metadata?: Record<string, unknown> & { filename?: string; mimeType?: string }
   ): Promise<{ success: boolean; chunksCreated: number; error?: string }> {
     try {
       logger.info(`[RAG] Processing knowledge item ${knowledgeBaseId} for user ${userId}`);
@@ -431,8 +439,8 @@ export class RAGKnowledgeService {
           chunks = parseJsonToChunks(jsonData);
           isJson = true;
           logger.info(`[RAG] Successfully parsed JSON content into ${chunks.length} logical chunks`);
-        } catch (jsonErr: any) {
-          logger.warn(`[RAG] Failed to parse content as JSON, falling back to text chunking:`, jsonErr.message);
+        } catch (jsonErr: unknown) {
+          logger.warn(`[RAG] Failed to parse content as JSON, falling back to text chunking:`, errorText(jsonErr));
         }
       }
 
@@ -487,11 +495,11 @@ export class RAGKnowledgeService {
             .set({ processedChunks: processedCount, updatedAt: new Date() })
             .where(eq(knowledgeProcessingQueue.id, queueEntry.id));
           
-        } catch (chunkError: any) {
-          logger.error(`[RAG] Error processing chunk ${i}:`, chunkError.message);
+        } catch (chunkError: unknown) {
+          logger.error(`[RAG] Error processing chunk ${i}:`, errorText(chunkError));
           // If the knowledge base was deleted, foreign key constraint is violated (PG code 23503).
           // Stop processing immediately to avoid log spam and unnecessary API calls.
-          if (chunkError.code === '23503' || chunkError.message?.includes('foreign key constraint')) {
+          if (chunkError instanceof Error && (('code' in chunkError && chunkError.code === '23503') || chunkError.message.includes('foreign key constraint'))) {
             logger.info(`[RAG] Knowledge base ${knowledgeBaseId} was deleted. Stopping chunk processing.`);
             break;
           }
@@ -516,16 +524,16 @@ export class RAGKnowledgeService {
       
       return { success: true, chunksCreated: processedCount };
       
-    } catch (error: any) {
-      logger.error(`[RAG] Error processing knowledge item:`, error.message);
+    } catch (error: unknown) {
+      logger.error(`[RAG] Error processing knowledge item:`, errorText(error));
       
       // Mark as failed
       await db
         .update(knowledgeProcessingQueue)
-        .set({ status: 'failed', errorMessage: error.message, updatedAt: new Date() })
+        .set({ status: 'failed', errorMessage: errorText(error), updatedAt: new Date() })
         .where(eq(knowledgeProcessingQueue.knowledgeBaseId, knowledgeBaseId));
       
-      return { success: false, chunksCreated: 0, error: error.message };
+      return { success: false, chunksCreated: 0, error: errorText(error) };
     }
   }
   
@@ -598,9 +606,9 @@ export class RAGKnowledgeService {
 
       return scoredChunks;
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Surface a failure as a failure, not as "no results". The provider message is not returned.
-      logger.error(`[RAG] Search error:`, error.message);
+      logger.error(`[RAG] Search error:`, errorText(error));
       throw new Error('Knowledge search failed.');
     }
   }

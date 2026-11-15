@@ -10,7 +10,7 @@
  * ============================================================
  */
 
-import { Worker, Job } from 'bullmq';
+import { Worker, Job, type ConnectionOptions } from 'bullmq';
 import { getRedisConnection } from './redis-connection';
 import { QUEUE_NAMES, CampaignCallJob } from './queues';
 import { substituteContactVariables, enrichDynamicDataWithContactInfo } from '../../utils/contact-variable-substitution';
@@ -38,14 +38,14 @@ async function processCall(job: Job<CampaignCallJob>): Promise<CallResult> {
     logger.info(`[CallWorker] Call ${callId} result: ${result.status}`);
     return result;
     
-  } catch (error: any) {
-    logger.error(`[CallWorker] Call ${callId} failed:`, error.message);
+  } catch (error: unknown) {
+    logger.error(`[CallWorker] Call ${callId} failed:`, (error as Error).message);
     
     return {
       success: false,
       callId,
       status: 'error',
-      error: error.message,
+      error: (error as Error).message,
     };
   }
 }
@@ -140,7 +140,7 @@ async function initiateCall(data: CampaignCallJob): Promise<CallResult> {
           lastName: contact.lastName,
           phone: contact.phone,
           email: contact.email,
-          customFields: contact.customFields as Record<string, any> || null,
+          customFields: contact.customFields as Record<string, unknown> || null,
         };
         const hydratedFirstMessage = agent.firstMessage 
           ? substituteContactVariables(agent.firstMessage, contactInfo)
@@ -190,7 +190,7 @@ async function initiateCall(data: CampaignCallJob): Promise<CallResult> {
       error: errorMessage,
     };
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     throw error;
   }
 }
@@ -204,7 +204,7 @@ export function startCallWorker(): Worker<CampaignCallJob> {
     QUEUE_NAMES.CAMPAIGN_CALLS,
     processCall,
     {
-      connection: getRedisConnection() as any,
+      connection: getRedisConnection() as ConnectionOptions,
       concurrency: MAX_CONCURRENT_CALLS,
       limiter: {
         max: MAX_CONCURRENT_CALLS,

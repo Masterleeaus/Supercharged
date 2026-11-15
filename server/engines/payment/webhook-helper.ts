@@ -54,7 +54,6 @@ export async function getWebhookSecret(gateway: PaymentGateway): Promise<string 
     paypal: GLOBAL_SETTINGS_KEYS.PAYPAL_WEBHOOK_ID,
     paystack: GLOBAL_SETTINGS_KEYS.PAYSTACK_SECRET_KEY,
     mercadopago: GLOBAL_SETTINGS_KEYS.MERCADOPAGO_WEBHOOK_SECRET,
-    yookassa: GLOBAL_SETTINGS_KEYS.YOOKASSA_WEBHOOK_SECRET,
   };
 
   const settingKey = keyMap[gateway];
@@ -70,7 +69,6 @@ export async function getWebhookSecret(gateway: PaymentGateway): Promise<string 
     paypal: 'PAYPAL_WEBHOOK_ID',
     paystack: 'PAYSTACK_SECRET_KEY',
     mercadopago: 'MERCADOPAGO_WEBHOOK_SECRET',
-    yookassa: 'YOOKASSA_WEBHOOK_SECRET',
   };
 
   return process.env[envKeyMap[gateway]] || null;
@@ -83,7 +81,6 @@ export async function setWebhookSecret(gateway: PaymentGateway, secret: string):
     paypal: GLOBAL_SETTINGS_KEYS.PAYPAL_WEBHOOK_ID,
     paystack: GLOBAL_SETTINGS_KEYS.PAYSTACK_SECRET_KEY,
     mercadopago: GLOBAL_SETTINGS_KEYS.MERCADOPAGO_WEBHOOK_SECRET,
-    yookassa: GLOBAL_SETTINGS_KEYS.YOOKASSA_WEBHOOK_SECRET,
   };
 
   await storage.updateGlobalSetting(keyMap[gateway], secret);
@@ -96,7 +93,6 @@ export async function getLastWebhookReceivedAt(gateway: PaymentGateway | 'eleven
     paypal: GLOBAL_SETTINGS_KEYS.PAYPAL_LAST_WEBHOOK_AT,
     paystack: GLOBAL_SETTINGS_KEYS.PAYSTACK_LAST_WEBHOOK_AT,
     mercadopago: GLOBAL_SETTINGS_KEYS.MERCADOPAGO_LAST_WEBHOOK_AT,
-    yookassa: GLOBAL_SETTINGS_KEYS.YOOKASSA_LAST_WEBHOOK_AT,
     elevenlabs: GLOBAL_SETTINGS_KEYS.ELEVENLABS_LAST_WEBHOOK_AT,
   };
 
@@ -114,7 +110,6 @@ export async function recordWebhookReceived(gateway: PaymentGateway | 'elevenlab
     paypal: GLOBAL_SETTINGS_KEYS.PAYPAL_LAST_WEBHOOK_AT,
     paystack: GLOBAL_SETTINGS_KEYS.PAYSTACK_LAST_WEBHOOK_AT,
     mercadopago: GLOBAL_SETTINGS_KEYS.MERCADOPAGO_LAST_WEBHOOK_AT,
-    yookassa: GLOBAL_SETTINGS_KEYS.YOOKASSA_LAST_WEBHOOK_AT,
     elevenlabs: GLOBAL_SETTINGS_KEYS.ELEVENLABS_LAST_WEBHOOK_AT,
   };
 
@@ -149,7 +144,7 @@ export async function getWebhookConfig(gateway: PaymentGateway): Promise<Webhook
 }
 
 export async function getAllWebhookConfigs(): Promise<WebhookConfig[]> {
-  const gateways: PaymentGateway[] = ['stripe', 'razorpay', 'paypal', 'paystack', 'mercadopago', 'yookassa'];
+  const gateways: PaymentGateway[] = ['stripe', 'razorpay', 'paypal', 'paystack', 'mercadopago'];
   const configs = await Promise.all(gateways.map(getWebhookConfig));
   return configs;
 }
@@ -180,7 +175,6 @@ export async function isGatewayEnabled(gateway: PaymentGateway): Promise<boolean
     paypal: GLOBAL_SETTINGS_KEYS.PAYPAL_ENABLED,
     paystack: GLOBAL_SETTINGS_KEYS.PAYSTACK_ENABLED,
     mercadopago: GLOBAL_SETTINGS_KEYS.MERCADOPAGO_ENABLED,
-    yookassa: GLOBAL_SETTINGS_KEYS.YOOKASSA_ENABLED,
   };
 
   const setting = await storage.getGlobalSetting(keyMap[gateway]);
@@ -230,18 +224,13 @@ export async function isGatewayConfigured(gateway: PaymentGateway): Promise<bool
       const accessToken = await storage.getGlobalSetting(GLOBAL_SETTINGS_KEYS.MERCADOPAGO_ACCESS_TOKEN);
       return !!accessToken?.value;
     }
-    case 'yookassa': {
-      const shopId = await storage.getGlobalSetting(GLOBAL_SETTINGS_KEYS.YOOKASSA_SHOP_ID);
-      const secretKey = await storage.getGlobalSetting(GLOBAL_SETTINGS_KEYS.YOOKASSA_SECRET_KEY);
-      return !!(shopId?.value && secretKey?.value);
-    }
     default:
       return false;
   }
 }
 
 export async function getEnabledGateways(): Promise<PaymentGateway[]> {
-  const gateways: PaymentGateway[] = ['stripe', 'razorpay', 'paypal', 'paystack', 'mercadopago', 'yookassa'];
+  const gateways: PaymentGateway[] = ['stripe', 'razorpay', 'paypal', 'paystack', 'mercadopago'];
   const results = await Promise.all(
     gateways.map(async (gateway) => {
       const [enabled, configured] = await Promise.all([
