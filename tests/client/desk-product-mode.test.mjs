@@ -11,6 +11,8 @@ test('marketing and inbox paths resolve to distinct product modes', () => {
   assert.equal(productModeForPath('/app/modes/marketing'), 'marketing');
   assert.equal(productModeForPath('/app/modes/inbox'), 'inbox');
   assert.equal(productModeForPath('/app/chatbot-inbox'), 'inbox');
+  assert.equal(productModeForPath('/app/chatbot-builder'), 'chatbot');
+  assert.equal(productModeForPath('/app/chatbot-builder-old'), null);
   assert.equal(productModeForPath('/app/campaigns/123'), 'marketing');
   assert.equal(productModeForPath('/app/settings'), null);
 });

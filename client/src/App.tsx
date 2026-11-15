@@ -364,10 +364,10 @@ function UserRouter() {
                 <Route path="/app/approvals" component={Approvals} />
                 <Route path="/app/modes/marketing">{() => <ModeRouteGuard mode="marketing"><MarketingHome /></ModeRouteGuard>}</Route>
                 <Route path="/app/modes/inbox">{() => <ModeRouteGuard mode="inbox"><InboxHome /></ModeRouteGuard>}</Route>
-                <Route path="/app/chatbot-builder" component={ChatbotBuilder} />
+                <Route path="/app/chatbot-builder">{() => <ModeRouteGuard mode="chatbot"><ChatbotBuilder /></ModeRouteGuard>}</Route>
                 <Route
                   path="/app/chatbot-builder/wizard/:id?"
-                  component={chatbotBuilderFlagOn ? ChatbotWizard : ChatbotBuilder}
+                  component={() => <ModeRouteGuard mode="chatbot">{chatbotBuilderFlagOn ? <ChatbotWizard /> : <ChatbotBuilder />}</ModeRouteGuard>}
                 />
                 <Route
                   path="/app/chatbot-inbox"

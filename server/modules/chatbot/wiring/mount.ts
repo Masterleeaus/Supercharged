@@ -130,6 +130,12 @@ export interface ChatbotWiringDeps {
   authenticate: RequestHandler;
   /** Sets res.locals.companyId from the verified user (requireCompanyScope middleware). */
   requireCompanyScope: RequestHandler;
+  /**
+   * Desk mode guard for the builder surface (deskModeMiddleware + requireModule('chatbot') in production). The builder
+   * is a Synced (comms) feature, so it is reachable only on the comms host. Optional, but fails closed: without it the
+   * builder mount answers 404 for every request.
+   */
+  builderModeGuard?: RequestHandler[];
   /** Role check, shaped like requireRole in server/middleware/auth.ts. Optional: without it the routers refuse every request. */
   requireRole?: (...roles: string[]) => RequestHandler;
   /**
@@ -214,6 +220,11 @@ function withLegacyFlag(env: FlagEnv, legacyFlag: string): FlagEnv {
 
 const denyAgentIdentity: AuthenticateFn = () => null;
 
+/** Used when no builder mode guard is supplied: every builder request gets 404 (fail closed). */
+const denyBuilderMode: RequestHandler = (_req, res) => {
+  res.status(404).json({ error: "not_found" });
+};
+
 function requireDep<T>(value: T | undefined, flag: string, name: string): T {
   if (value === undefined || value === null) {
     throw new Error(`${flag} is "true" but no ${name} was supplied. Refusing to mount.`);
@@ -247,7 +258,18 @@ export function mountChatbotModule(app: Pick<Express, "use">, deps: ChatbotWirin
       demoMode: false,
     });
     result.routers.builder = router;
-    mountAt(WIRING_PREFIXES.builder, [deps.authenticate, deps.requireCompanyScope, router]);
+    // Mode guard runs first. Without a guard the surface refuses every request (fail closed), never mounts open.
+    const modeGuard: RequestHandler[] = deps.builderModeGuard ?? [denyBuilderMode];
+    // The builder router's paths are relative to /api/chatbot (/builder/...), so it mounts at /api/chatbot. A filter
+    // hands every non-builder path back to the app (next("router")), so the guard and auth run on builder paths only.
+    const builderMount = Router();
+    builderMount.use((req, _res, next) => {
+      if (req.path === "/builder" || req.path.startsWith("/builder/")) next();
+      else next("router");
+    });
+    builderMount.use(...modeGuard, deps.authenticate, deps.requireCompanyScope, router);
+    app.use("/api/chatbot", builderMount);
+    result.mounted.push("/api/chatbot"); // real mount point, see above
   }
 
   // Agent: the same authenticate middleware as the other staff surfaces runs first and sets req.user. The router

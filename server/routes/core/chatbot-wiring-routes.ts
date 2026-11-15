@@ -10,6 +10,7 @@ import { startChatbotWorkersFromEnv } from "../../modules/chatbot/workers/boot.t
 import { captureChatbotWebhookRawBody } from "../../middleware/raw-body.ts";
 import { registerApprovalModule } from "../../modules/approvals/index.ts";
 import { requireCompanyScope } from "../../middleware/company-scope";
+import { DEFAULT_DESK_MODE_CONFIG, deskModeMiddleware, requireModule } from "../../modules/desk-modes/index.ts";
 import type { RouteContext } from "./shared";
 
 export function registerChatbotWiringRoutes(app: Express, deps: { routeContext: RouteContext }): void {
@@ -33,6 +34,11 @@ export function registerChatbotWiringRoutes(app: Express, deps: { routeContext: 
     env: process.env,
     authenticate: routeContext.authenticateHybrid as unknown as import('express').RequestHandler,
     requireCompanyScope: requireCompanyScope(),
+    // Builder is a Synced (comms) feature: comms host only, and the chatbot module must be allowed in that mode.
+    builderModeGuard: [
+      deskModeMiddleware(DEFAULT_DESK_MODE_CONFIG) as unknown as import('express').RequestHandler,
+      requireModule('chatbot') as unknown as import('express').RequestHandler,
+    ],
     requireRole: (...roles: string[]) => requireRole(...roles) as unknown as import('express').RequestHandler,
     // Agent surface: identity comes from req.user, which authenticateHybrid sets from a verified token. Company and role
     // come from that user only, never from headers or body. A user with no company gets 403, no identity gets 401.
