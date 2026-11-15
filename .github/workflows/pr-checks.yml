@@ -171,9 +171,9 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Build disposable tenant schema (promoted migrations 0015 and 0017)
+      - name: Build disposable tenant schema (promoted migrations 0010c, 0015, 0016 and 0017)
         run: node scripts/tenant-postgres-prepare.mjs
-      - name: Verify company quiet-hours isolation on real PostgreSQL
+      - name: Verify tenant isolation (Settings, memberships, chatbot tables and stores) on real PostgreSQL
         run: node --test --experimental-transform-types tests/postgres/tenant-postgres-*.test.mjs
 
   boot-fresh-db:
