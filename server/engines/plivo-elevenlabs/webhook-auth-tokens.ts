@@ -9,7 +9,7 @@
  */
 import { sipTrunks } from '@shared/schema';
 import { and, eq } from 'drizzle-orm';
-import { db } from '../../../db';
+import { db } from '../../db';
 import { loadActiveAuthTokens } from '../plivo/plivo-signature';
 
 export async function loadPlivoElevenLabsAuthTokens(): Promise<string[]> {
