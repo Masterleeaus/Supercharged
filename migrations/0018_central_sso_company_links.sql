@@ -1,6 +1,9 @@
+-- Migration 0018: Central SSO company link lookup (moved from docs/pending).
 -- Product-specific Central SSO link lookup. No automatic provisioning.
+-- Forward-only: there is no down script. Roll back by a later forward migration.
 -- This migration must be applied ONLY after the existing tenant schema
 -- and restricted desk_app role are verified against the deployment.
+-- Not applied to any database by the repository. Operator action only.
 BEGIN;
 CREATE TABLE IF NOT EXISTS desk_central_identity_links (
  issuer text NOT NULL CHECK(length(issuer) BETWEEN 8 AND 256),
