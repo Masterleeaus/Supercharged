@@ -176,6 +176,36 @@ jobs:
       - name: Verify company quiet-hours isolation on real PostgreSQL
         run: node --test --experimental-transform-types tests/postgres/tenant-postgres-*.test.mjs
 
+  suppression-postgres:
+    name: Durable comms suppression on PostgreSQL (restart, send refusal, RLS)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: ci-only-throwaway-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      SUPPRESSION_PG_DISPOSABLE: 'true'
+      SUPPRESSION_PG_INTEGRATION_URL: postgres://postgres:ci-only-throwaway-password@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build disposable suppression schema (migration 0022)
+        run: node scripts/suppression-postgres-prepare.mjs
+      - name: Verify suppression survives a restart and blocks sends on real PostgreSQL
+        run: node --test --experimental-transform-types tests/postgres/suppression-postgres-*.test.mjs
+
   boot-fresh-db:
     # Gating (issue #124). Applies the base schema and every manifest migration, in order,
     # to an empty native PostgreSQL 16, then boots the built server until /health answers.
