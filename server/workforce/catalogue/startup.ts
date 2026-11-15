@@ -7,8 +7,34 @@
  * Never throws.
  */
 import { fileURLToPath } from "node:url";
+import { courseAssistantRolesEnabled } from "../courses/flag.ts";
 import { loadRoleCatalogue, RoleCatalogueError, type RoleCatalogue } from "./loader.ts";
 import type { ValidationIssue } from "./validate.ts";
+
+/**
+ * Adds the Academy learner assistants and the Skilled Manager when WORKFORCE_COURSE_ASSISTANTS is on.
+ * With the flag off this returns the catalogue unchanged and does not import the course generator.
+ * The generator is imported only when the flag is on. Any failure keeps the base catalogue and is logged.
+ */
+async function addCourseAssistantsIfEnabled(
+  catalogue: RoleCatalogue,
+  logger: CatalogueStartupLogger,
+): Promise<RoleCatalogue> {
+  if (!courseAssistantRolesEnabled()) return catalogue;
+  try {
+    const { registerCourseAssistantRoles } = await import("../courses/register.ts");
+    const registration = registerCourseAssistantRoles(catalogue);
+    logger.log(`[workforce] course assistants added: ${registration.added.length}`);
+    for (const problem of registration.problems) {
+      logger.error(`[workforce]   - course ${problem.path}: ${problem.message}`);
+    }
+    return registration.catalogue;
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    logger.error(`[workforce] course assistants not added: ${reason}`);
+    return catalogue;
+  }
+}
 
 export const DEFAULT_ROLE_CATALOGUE_DIR = fileURLToPath(new URL("./roles/", import.meta.url));
 
@@ -48,8 +74,9 @@ export async function loadCatalogueAtStartup(
   }
 
   if (result.ok) {
-    activeCatalogue = result.catalogue;
-    logger.log(`[workforce] role catalogue loaded: ${result.catalogue.size} roles`);
+    const catalogue = await addCourseAssistantsIfEnabled(result.catalogue, logger);
+    activeCatalogue = catalogue;
+    logger.log(`[workforce] role catalogue loaded: ${catalogue.size} roles`);
   } else {
     const count = result.problems.length;
     logger.error(

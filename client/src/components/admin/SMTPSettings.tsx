@@ -218,7 +218,7 @@ export default function SMTPSettings() {
             <Input
               value={formData.smtp_from_name}
               onChange={(e) => handleChange("smtp_from_name", e.target.value)}
-              placeholder="AgentLabs"
+              placeholder="Supercharged"
               data-testid="input-smtp-from-name"
             />
           </div>

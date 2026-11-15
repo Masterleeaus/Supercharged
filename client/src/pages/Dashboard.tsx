@@ -979,7 +979,7 @@ export default function Dashboard() {
                 Dashboard Demonstration Video
               </DialogTitle>
               <DialogDescription className="text-xs text-slate-400">
-                Watch a overview demonstration of the AgentLabs platform dashboard features.
+                Watch a overview demonstration of the Supercharged platform dashboard features.
               </DialogDescription>
             </DialogHeader>
             <div className="relative aspect-video w-full rounded-xl overflow-hidden bg-black border border-slate-800">

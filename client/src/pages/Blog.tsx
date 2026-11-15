@@ -129,7 +129,7 @@ const allArticles: Article[] = [
     id: "7",
     slug: "enterprise-security-compliance",
     title: "Enterprise Security and Compliance in AI Calling",
-    excerpt: "How AgentLabs maintains SOC 2 Type II compliance and enterprise-grade security while delivering powerful AI voice capabilities.",
+    excerpt: "How Supercharged maintains SOC 2 Type II compliance and enterprise-grade security while delivering powerful AI voice capabilities.",
     category: "AI Technology",
     categoryColor: "bg-blue-500/90 text-white",
     readTime: "5 min read",
