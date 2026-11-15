@@ -1,0 +1,39 @@
+name: Require completed task checklists before issue closure
+
+on:
+  issues:
+    types: [closed, edited]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: issue-closure-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  enforce:
+    if: github.event.issue.state == 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reopen issues without fully completed checklists
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const { data: issue } = await github.rest.issues.get({ owner, repo, issue_number });
+            if (issue.state !== 'closed' || issue.pull_request) return;
+            const matches = [...(issue.body || '').matchAll(/^\s*[-*+]\s*\[([ xX])\]\s+\S/gm)];
+            const incomplete = matches.filter(match => match[1].toLowerCase() !== 'x').length;
+            if (matches.length === 0 || incomplete > 0) {
+              await github.rest.issues.update({ owner, repo, issue_number, state: 'open' });
+              const reason = matches.length === 0
+                ? 'This issue has no Markdown task checklist.'
+                : `${incomplete} of ${matches.length} checklist tasks remain unchecked.`;
+              await github.rest.issues.createComment({
+                owner, repo, issue_number,
+                body: `Reopened automatically: ${reason} Every task must be marked \`[x]\` before closing this issue. Mark tasks only after their work and verification are complete.`
+              });
+            }
