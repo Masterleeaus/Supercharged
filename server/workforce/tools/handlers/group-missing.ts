@@ -4,7 +4,7 @@
  * tools/READ_TOOLS.md). A stub is not a real handler: the handler-map ratchet does not count it as bound.
  */
 import { z } from 'zod';
-import type { ToolDefinition, ToolSchema } from '../runtime/tool-registry.ts';
+import type { ToolDefinition, ToolSchema } from '../../runtime/tool-registry.ts';
 
 export const MISSING_TOOL_TIMEOUT_MS = 10000;
 

@@ -313,9 +313,17 @@ interface Group01Spec<S extends z.ZodTypeAny = z.ZodTypeAny> {
   run: (args: z.output<S>, companyId: CompanyId, db: SqlExecutor | undefined) => Promise<unknown>;
 }
 
+/**
+ * Pairs one tool's input schema with its run function at definition time, then erases the schema type so all 18
+ * tools can sit in one array. The erasure is safe: run only ever receives the output of its own schema.
+ */
+function defineSpec<S extends z.ZodTypeAny>(spec: Group01Spec<S>): Group01Spec {
+  return spec as Group01Spec;
+}
+
 const SPECS: readonly Group01Spec[] = [
   // ---- reads
-  {
+  defineSpec({
     id: 'estimates.list',
     access: 'read',
     risk: 'low',
@@ -342,8 +350,8 @@ const SPECS: readonly Group01Spec[] = [
       );
       return bounded(companyId, result.rows, cap, estimateOut);
     },
-  },
-  {
+  }),
+  defineSpec({
     id: 'inventory.list',
     access: 'read',
     risk: 'low',
@@ -364,8 +372,8 @@ const SPECS: readonly Group01Spec[] = [
       );
       return bounded(companyId, result.rows, cap, inventoryOut);
     },
-  },
-  {
+  }),
+  defineSpec({
     id: 'job_checklists.list',
     access: 'read',
     risk: 'low',
@@ -384,8 +392,8 @@ const SPECS: readonly Group01Spec[] = [
       );
       return bounded(companyId, result.rows, cap, checklistItemOut);
     },
-  },
-  {
+  }),
+  defineSpec({
     id: 'job_photos.list',
     access: 'read',
     risk: 'low',
@@ -406,10 +414,10 @@ const SPECS: readonly Group01Spec[] = [
       );
       return bounded(companyId, result.rows, cap, photoOut);
     },
-  },
+  }),
 
   // ---- plain record writes
-  {
+  defineSpec({
     id: 'estimates.create',
     access: 'write',
     risk: 'high',
@@ -448,8 +456,8 @@ const SPECS: readonly Group01Spec[] = [
       const row = firstRow(result.rows, 'estimate insert');
       return { created: true, id: row.id, status: row.status, totalCents: Number(row.total_cents) };
     },
-  },
-  {
+  }),
+  defineSpec({
     id: 'crew_rosters.update',
     access: 'write',
     risk: 'high',
@@ -482,8 +490,8 @@ const SPECS: readonly Group01Spec[] = [
       if (row === undefined) return { updated: false };
       return { updated: true, id: row.id, teamName: row.team_name, status: row.status };
     },
-  },
-  {
+  }),
+  defineSpec({
     id: 'disputes.create',
     access: 'write',
     risk: 'medium',
@@ -499,8 +507,8 @@ const SPECS: readonly Group01Spec[] = [
       const row = firstRow(result.rows, 'dispute insert');
       return { created: true, id: row.id, status: row.status };
     },
-  },
-  {
+  }),
+  defineSpec({
     id: 'invoice_disputes.create',
     access: 'write',
     risk: 'medium',
@@ -520,8 +528,8 @@ const SPECS: readonly Group01Spec[] = [
       const row = firstRow(result.rows, 'invoice dispute insert');
       return { created: true, id: row.id, status: row.status };
     },
-  },
-  {
+  }),
+  defineSpec({
     id: 'end_of_lease_checklists.create',
     access: 'write',
     risk: 'medium',
@@ -538,8 +546,8 @@ const SPECS: readonly Group01Spec[] = [
       const row = firstRow(result.rows, 'end-of-lease checklist insert');
       return { created: true, id: row.id, status: row.status };
     },
-  },
-  {
+  }),
+  defineSpec({
     id: 'feedback_responses.create',
     access: 'write',
     risk: 'medium',
@@ -560,8 +568,8 @@ const SPECS: readonly Group01Spec[] = [
       const row = firstRow(result.rows, 'feedback insert');
       return { created: true, id: row.id, respondedAt: iso(row.responded_at) };
     },
-  },
-  {
+  }),
+  defineSpec({
     id: 'job_notes.create',
     access: 'write',
     risk: 'low',
@@ -577,10 +585,10 @@ const SPECS: readonly Group01Spec[] = [
       const row = firstRow(result.rows, 'job note insert');
       return { created: true, id: row.id, createdAt: iso(row.created_at) };
     },
-  },
+  }),
 
   // ---- draft (the registry stages drafts and does not run this handler; it is a safe fallback)
-  {
+  defineSpec({
     id: 'customer_messages.draft',
     access: 'write',
     risk: 'low',
@@ -593,10 +601,10 @@ const SPECS: readonly Group01Spec[] = [
       channel: args.channel,
       body: args.body,
     }),
-  },
+  }),
 
   // ---- customer contact: owner approval first (always-approval list); no outbound provider in this build
-  {
+  defineSpec({
     id: 'customer_messages.send',
     access: 'write',
     risk: 'critical',
@@ -605,8 +613,8 @@ const SPECS: readonly Group01Spec[] = [
     fields: { clientId: field('string', true), channel: field('string', true), body: field('string', true) },
     run: async () =>
       notImplemented('No outbound messaging provider is wired in this build. Nothing was sent.'),
-  },
-  {
+  }),
+  defineSpec({
     id: 'feedback_surveys.send',
     access: 'write',
     risk: 'critical',
@@ -615,8 +623,8 @@ const SPECS: readonly Group01Spec[] = [
     fields: { clientId: field('string', true), visitId: field('string') },
     run: async () =>
       notImplemented('No outbound messaging provider is wired in this build. Nothing was sent.'),
-  },
-  {
+  }),
+  defineSpec({
     id: 'job_photos.request_from_customer',
     access: 'write',
     risk: 'critical',
@@ -625,10 +633,10 @@ const SPECS: readonly Group01Spec[] = [
     fields: { visitId: field('string', true), category: field('string'), message: field('string') },
     run: async () =>
       notImplemented('No outbound messaging provider is wired in this build. Nothing was sent.'),
-  },
+  }),
 
   // ---- no table and no safe write path
-  {
+  defineSpec({
     id: 'escalations.create',
     access: 'write',
     risk: 'low',
@@ -638,8 +646,8 @@ const SPECS: readonly Group01Spec[] = [
       notImplemented(
         'No escalation table or owner-review write path exists. The review inbox is derived from runs and is not a write target. Nothing was recorded.',
       ),
-  },
-  {
+  }),
+  defineSpec({
     id: 'human_escalation.create',
     access: 'write',
     risk: 'low',
@@ -649,8 +657,8 @@ const SPECS: readonly Group01Spec[] = [
       notImplemented(
         'No escalation table or owner-review write path exists. The review inbox is derived from runs and is not a write target. Nothing was recorded.',
       ),
-  },
-  {
+  }),
+  defineSpec({
     id: 'identity.verify_request',
     access: 'write',
     risk: 'critical',
@@ -661,7 +669,7 @@ const SPECS: readonly Group01Spec[] = [
       notImplemented(
         'No identity verification record table exists, and a verification request would contact the customer with no approved path. Nothing was sent.',
       ),
-  },
+  }),
 ];
 
 /** Input schema per tool id. Tests use it to check valid and invalid inputs. */

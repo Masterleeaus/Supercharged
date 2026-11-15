@@ -696,4 +696,4 @@ Check version via API: `GET /api/system/version`
 
 **Supercharged source and deployment notes**
 
-This project is released under the MIT License. See [LICENSE](LICENSE).
+The source files carry notices from an earlier licence. Keep those notices in place. Tracked in issue #37.

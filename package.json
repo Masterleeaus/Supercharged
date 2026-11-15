@@ -9,6 +9,7 @@
     "build:widget": "vite build --config client/vite.widget.config.ts",
     "start": "cross-env NODE_ENV=production node dist/index.js",
     "check": "tsc",
+    "typecheck:strict": "tsc -p tsconfig.strict.json --noEmit",
     "test": "node --test --experimental-transform-types $(find tests -name '*.test.*')",
     "db:push": "node scripts/db-push-non-interactive.mjs",
     "db:migrate": "node scripts/run-safe-migration.mjs",
