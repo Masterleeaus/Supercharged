@@ -2,7 +2,7 @@
 
 Date: 2026-11-09
 Branch: claude/licence-brief
-Status: for the owner to decide. Issue #37 is still open.
+Status: decided by the owner. Licence is MIT, copyright holder "Titan Zero". The CodeCanyon/Envato terms below no longer apply to the repository text. Source-file header cleanup is in progress under issue #37. The rest of this brief is kept as the record of the audit.
 
 This is not legal advice. It lists what the repository says. It does not decide what the law requires.
 
