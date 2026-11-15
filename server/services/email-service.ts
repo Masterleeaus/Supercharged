@@ -25,8 +25,8 @@ import { PRODUCT_NAME } from '../../shared/brand.ts';
 
 const SOURCE = 'EmailService';
 
-import { smtpTlsOptions } from './smtp-tls';
-export { smtpTlsOptions } from './smtp-tls';
+import { smtpTlsOptions } from './smtp-tls.ts';
+export { smtpTlsOptions } from './smtp-tls.ts';
 
 const DEFAULT_COMPANY_NAME = PRODUCT_NAME;
 const DEFAULT_TAGLINE = 'Business communications and operations';
