@@ -1,6 +1,7 @@
 /**
  * PostgreSQL store for the Scheduled booking mirror (Sc3). One transaction claims the idempotency key
- * and moves the mirror forward. A stale event (older than the stored state) does not overwrite it.
+ * and moves the mirror forward. Order is `outranks` in consumer.ts: a strictly later occurredAt wins,
+ * and an equal timestamp is broken by the idempotency key (COLLATE "C"), so arrival order never decides.
  * The pool is structural so this file does not import a driver.
  */
 import type { BookingEvent, ApplyOutcome, ScheduledBookingStore } from './consumer.ts';
@@ -18,6 +19,8 @@ export function createPgScheduledBookingStore(pool: SqlPool): ScheduledBookingSt
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
+        // Tenant context for the forced RLS policies in migration 0020 (transaction-local).
+        await client.query("SELECT set_config('app.company_id', $1, true)", [event.companyId]);
         const claim = await client.query(
           `INSERT INTO scheduled_booking_events
              (company_id, idempotency_key, event_id, event_type, booking_id, occurred_at)
@@ -40,7 +43,9 @@ export function createPgScheduledBookingStore(pool: SqlPool): ScheduledBookingSt
              last_event_key = EXCLUDED.last_event_key,
              last_occurred_at = EXCLUDED.last_occurred_at,
              updated_at = now()
-           WHERE scheduled_booking_mirror.last_occurred_at <= EXCLUDED.last_occurred_at`,
+           WHERE scheduled_booking_mirror.last_occurred_at < EXCLUDED.last_occurred_at
+              OR (scheduled_booking_mirror.last_occurred_at = EXCLUDED.last_occurred_at
+                  AND scheduled_booking_mirror.last_event_key COLLATE "C" < EXCLUDED.last_event_key COLLATE "C")`,
           [event.companyId, event.bookingId, event.status, event.startsAt, event.endsAt, event.idempotencyKey, event.occurredAt],
         );
         await client.query('COMMIT');
