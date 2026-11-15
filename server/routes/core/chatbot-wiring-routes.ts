@@ -28,7 +28,7 @@ export function registerChatbotWiringRoutes(app: Express, deps: { routeContext: 
     readFlag(flag, process.env),
   );
   const chatbotSecretBox = chatbotSecretsOn ? createSecretBox({ env: process.env }) : undefined;
-  mountChatbotModule(app, {
+  const chatbotWiring = mountChatbotModule(app, {
     db,
     env: process.env,
     authenticate: routeContext.authenticateHybrid as unknown as import('express').RequestHandler,
@@ -46,8 +46,9 @@ export function registerChatbotWiringRoutes(app: Express, deps: { routeContext: 
     channels: { onReceipt: async () => { throw new Error("chatbot channel receipt store is not wired"); } },
   });
   // Chatbot background workers. Off unless CHATBOT_WORKERS_ENABLED is exactly "true"; then only the services whose own
-  // flag is on are built and passed in (see workers/boot.ts). Voice-call limits are not built: no production provider.
-  startChatbotWorkersFromEnv({ db, env: process.env, secretBox: chatbotSecretBox });
+  // flag is on are built and passed in (see workers/boot.ts). The voice-call service is built with fail-closed ports
+  // (no provider or ledger yet), and takes its demo options from the mount result.
+  startChatbotWorkersFromEnv({ db, env: process.env, secretBox: chatbotSecretBox, voiceCall: chatbotWiring.voiceCall });
   // Chatbot module (port of the Clean-Hub Chatbot extension). Authenticated, company-scoped.
   // Tables are DRAFT (migrations/DRAFT_chatbot.sql); requests fail until the draft is applied.
   // A request that matches no route mounted above falls through to this core route unchanged.
