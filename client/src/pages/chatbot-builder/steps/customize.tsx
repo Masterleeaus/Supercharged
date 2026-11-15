@@ -357,7 +357,7 @@ function CommitTextField({ id, label, value, disabled, placeholder, mono, parse,
   function handleText(raw: string) {
     setText(raw);
     const result = parse(raw);
-    if (result.ok) {
+    if (result.ok === true) {
       setError(null);
       commit(result.value);
     } else {
