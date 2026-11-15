@@ -77,6 +77,7 @@ const MIGRATIONS = [
   { file: '0015_company_quiet_hours.sql', required: true },
   { file: '0016_chatbot_reminder_pipeline.sql', required: true },
   { file: '0017_user_company_memberships.sql', required: true },
+  { file: '0022_marketing_tables_tenant_rls.sql', required: true },
 ];
 
 const migrationPath = (file) => resolve(rootDir, 'migrations', file);
