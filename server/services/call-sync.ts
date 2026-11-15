@@ -17,7 +17,41 @@
  */
 import { logger } from '../utils/logger';
 import { db } from '../db';
-import { calls, agents, campaigns, sipCalls } from '../../shared/schema';
+import { calls, agents, campaigns, sipCalls, type SipCall } from '../../shared/schema';
+
+/** Analysis block on an ElevenLabs conversation (from the webhook or the API). */
+interface ConversationAnalysis {
+  call_successful?: boolean | string;
+  transcript_summary?: string;
+  summary?: string;
+  sentiment?: string;
+  evaluation_criteria_results?: Record<string, { result?: string; reason?: string }>;
+  data_collected?: Record<string, unknown>;
+  data_collection_results?: Record<string, unknown>;
+}
+
+/** Metadata block on ElevenLabs webhook and conversation payloads. */
+interface ConversationMetadata {
+  call_sid?: string;
+  from_number?: string;
+  to_number?: string;
+  direction?: string;
+  call_duration_secs?: number;
+  from?: string;
+  to?: string;
+  phone_call?: {
+    direction?: string;
+    from?: string;
+    from_number?: string;
+    to?: string;
+    to_number?: string;
+    call_sid?: string;
+    twilio_call_sid?: string;
+    call_duration_secs?: number;
+  };
+  batch_call?: { from?: string; to?: string };
+  [key: string]: unknown;
+}
 import { eq, or, and, isNull, isNotNull } from 'drizzle-orm';
 import { twilioService } from './twilio';
 import { ElevenLabsService, elevenLabsService } from './elevenlabs';
@@ -90,7 +124,7 @@ export class CallSyncService {
       logger.info(`   ElevenLabs Conv ID: ${callRecord.elevenLabsConversationId || 'N/A'}`);
 
       // Prepare update object
-      const updates: Record<string, any> = {};
+      const updates: Partial<typeof calls.$inferInsert> = {};
       
       // 1. Fetch from Twilio (for phone numbers, duration, recording)
       if (callRecord.twilioSid) {
@@ -139,8 +173,8 @@ export class CallSyncService {
             
             logger.info(`   ✅ Twilio data: from=[redacted], to=[redacted], duration=${twilioData.duration}s`);
           }
-        } catch (twilioError: any) {
-          logger.warn(`   ⚠️ Twilio fetch failed: ${twilioError.message}`);
+        } catch (twilioError: unknown) {
+          logger.warn(`   ⚠️ Twilio fetch failed: ${(twilioError as Error).message}`);
         }
       }
       
@@ -241,7 +275,7 @@ export class CallSyncService {
             }
             
             // Merge ElevenLabs metadata
-            const existingMetadata = updates.metadata || callRecord.metadata as object || {};
+            const existingMetadata = (updates.metadata || (callRecord.metadata as object) || {}) as object;
             updates.metadata = {
               ...existingMetadata,
               elevenLabsStatus: elevenLabsData.status,
@@ -253,8 +287,8 @@ export class CallSyncService {
             
             logger.info(`   ✅ ElevenLabs data: status=${elevenLabsData.status}, transcript=${elevenLabsData.transcript?.length || 0} entries`);
           }
-        } catch (elevenLabsError: any) {
-          logger.warn(`   ⚠️ ElevenLabs fetch failed: ${elevenLabsError.message}`);
+        } catch (elevenLabsError: unknown) {
+          logger.warn(`   ⚠️ ElevenLabs fetch failed: ${(elevenLabsError as Error).message}`);
         }
       }
       
@@ -303,24 +337,24 @@ export class CallSyncService {
             } else {
               logger.error(`❌ [Sync Call] Credit deduction failed for call ${callId}: ${creditResult.error}`);
             }
-          } catch (err: any) {
-            logger.error(`❌ [Sync Call] Error during background credit/CRM process for call ${callId}:`, err.message);
+          } catch (err: unknown) {
+            logger.error(`❌ [Sync Call] Error during background credit/CRM process for call ${callId}:`, (err as Error).message);
           }
         })();
       }
       
       return { callId, success: true, updatedFields };
       
-    } catch (error: any) {
-      logger.error(`❌ [Sync] Error syncing call ${callId}:`, error.message);
-      return { callId, success: false, error: error.message, updatedFields };
+    } catch (error: unknown) {
+      logger.error(`❌ [Sync] Error syncing call ${callId}:`, (error as Error).message);
+      return { callId, success: false, error: (error as Error).message, updatedFields };
     }
   }
   
   /**
    * Sync a SIP call from ElevenLabs API
    */
-  private async syncSipCall(callId: string, callRecord: any): Promise<SyncResult> {
+  private async syncSipCall(callId: string, callRecord: SipCall): Promise<SyncResult> {
     const updatedFields: string[] = [];
     
     if (!callRecord.elevenlabsConversationId) {
@@ -345,7 +379,7 @@ export class CallSyncService {
         }
       }
       
-      const updates: Record<string, any> = {};
+      const updates: Partial<typeof sipCalls.$inferInsert> = {};
       const elevenLabsData = await agentElevenLabsService.getConversationDetails(callRecord.elevenlabsConversationId);
       if (elevenLabsData) {
         
@@ -381,9 +415,9 @@ export class CallSyncService {
         }
         
         // 5. Classification & Sentiment
-        if (!callRecord.classification && (elevenLabsData as any).analysis) {
+        if (!callRecord.classification && elevenLabsData.analysis) {
           // Re-use logic for classification if needed
-          const analysisObj = (elevenLabsData as any).analysis;
+          const analysisObj: ConversationAnalysis = elevenLabsData.analysis;
           if (analysisObj.sentiment) {
             updates.sentiment = analysisObj.sentiment;
             updatedFields.push('sentiment');
@@ -422,16 +456,16 @@ export class CallSyncService {
             } else {
               logger.error(`❌ [Sync SIP Call] Credit deduction failed for SIP call ${callId}: ${creditResult.error}`);
             }
-          } catch (err: any) {
-            logger.error(`❌ [Sync SIP Call] Error during background credit/CRM process for SIP call ${callId}:`, err.message);
+          } catch (err: unknown) {
+            logger.error(`❌ [Sync SIP Call] Error during background credit/CRM process for SIP call ${callId}:`, (err as Error).message);
           }
         })();
       }
       
       return { callId, success: true, updatedFields };
-    } catch (error: any) {
-      logger.error(`❌ [Sync] Error syncing SIP call ${callId}:`, error.message);
-      return { callId, success: false, error: error.message, updatedFields };
+    } catch (error: unknown) {
+      logger.error(`❌ [Sync] Error syncing SIP call ${callId}:`, (error as Error).message);
+      return { callId, success: false, error: (error as Error).message, updatedFields };
     }
   }
   
@@ -530,14 +564,14 @@ export class CallSyncService {
       
       return summary;
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('❌ [Sync] Error syncing calls:', error);
       return {
         total: 0,
         success: 0,
         failed: 1,
         skipped: 0,
-        errors: [error.message]
+        errors: [(error as Error).message]
       };
     }
   }
@@ -550,7 +584,7 @@ export class CallSyncService {
     conversationId: string;
     agentId?: string;
     transcript?: Array<{ role: string; message: string; time_in_call_secs: number }>;
-    analysis?: { call_successful?: boolean; summary?: string; transcript_summary?: string; data_collected?: Record<string, any> };
+    analysis?: { call_successful?: boolean; summary?: string; transcript_summary?: string; data_collected?: Record<string, unknown> };
     metadata?: { call_sid?: string; from_number?: string; to_number?: string; direction?: string };
     status?: string;
     callDurationSecs?: number;
@@ -565,13 +599,13 @@ export class CallSyncService {
     aiSummary: string | null;
     sentiment: string | null;
     classification: string | null;
-    metadata: Record<string, any>;
+    metadata: Record<string, unknown>;
   }> {
     logger.info(`🔄 [Sync] Syncing from webhook for conversation: ${params.conversationId}`);
     
     // Extract phone numbers from all possible nested locations
     // Priority: phone_call object > batch_call object > direct metadata fields
-    const webhookMeta = params.metadata as any;
+    const webhookMeta = params.metadata as ConversationMetadata | undefined;
     const direction = webhookMeta?.phone_call?.direction || 'inbound';
     
     let phoneNumber: string | null = 
@@ -604,7 +638,7 @@ export class CallSyncService {
     }
     let status: string | null = params.status || null;
     let recordingUrl: string | null = null;
-    const metadata: Record<string, any> = {};
+    const metadata: Record<string, unknown> = {};
     
     logger.info(`   Phone numbers from webhook:`);
     logger.info(`     From: [redacted]`);
@@ -624,7 +658,7 @@ export class CallSyncService {
     
     // Extract analysis - ElevenLabs sends transcript_summary in analysis object
     // Check multiple possible field names for compatibility
-    let analysisObj = params.analysis as any;
+    let analysisObj = params.analysis as ConversationAnalysis | undefined;
     let aiSummary = analysisObj?.transcript_summary || analysisObj?.summary || null;
     
     // Extract lead classification from call analysis
@@ -677,7 +711,7 @@ export class CallSyncService {
             calculatedDuration = convDetails.end_time_unix_secs - convDetails.start_time_unix_secs;
           }
           if (calculatedDuration === 0 && convDetails.transcript && convDetails.transcript.length > 0) {
-            const maxTime = Math.max(...convDetails.transcript.map((t: any) => t.time_in_call_secs || 0));
+            const maxTime = Math.max(...convDetails.transcript.map((t: { time_in_call_secs?: number }) => t.time_in_call_secs || 0));
             if (maxTime > 0) {
               calculatedDuration = maxTime;
             }
@@ -701,7 +735,7 @@ export class CallSyncService {
 
           // 2. Backfill Transcript if missing or empty in webhook
           if (!transcript && convDetails.transcript && convDetails.transcript.length > 0) {
-            transcript = convDetails.transcript.map((entry: any) => 
+            transcript = convDetails.transcript.map((entry: { role: string; message: string; time_in_call_secs: number }) => 
               `${entry.role.toUpperCase()} (${entry.time_in_call_secs}s): ${entry.message}`
             ).join('\n');
             logger.info(`   ✅ Backfilled transcript from ElevenLabs API (${convDetails.transcript.length} turns)`);
@@ -745,15 +779,15 @@ export class CallSyncService {
            // 6. Backfill Duration if missing or 0 (redundant, pre-emptively done above)
 
           // 7. Backfill phone numbers if missing
-          const apiMeta = convDetails.metadata as any;
+          const apiMeta = convDetails.metadata as ConversationMetadata | undefined;
           const apiFromNumber = 
             apiMeta?.phone_call?.from || 
             apiMeta?.phone_call?.from_number || 
             apiMeta?.batch_call?.from || 
             apiMeta?.from_number || 
             apiMeta?.from ||
-            (convDetails as any).user_id ||
-            (convDetails as any).userId ||
+            (convDetails as { user_id?: string; userId?: string }).user_id ||
+            (convDetails as { user_id?: string; userId?: string }).userId ||
             null;
           const apiToNumber = 
             apiMeta?.phone_call?.to || 
@@ -772,8 +806,8 @@ export class CallSyncService {
             logger.info(`   ✅ Backfilled To number from ElevenLabs API: [redacted]`);
           }
         }
-      } catch (elError: any) {
-        logger.warn(`   ⚠️ ElevenLabs recording fetch failed: ${elError.message}`);
+      } catch (elError: unknown) {
+        logger.warn(`   ⚠️ ElevenLabs recording fetch failed: ${(elError as Error).message}`);
       }
     }
     
@@ -811,8 +845,8 @@ export class CallSyncService {
           
           logger.info(`   ✅ Twilio data: from=[redacted], to=[redacted]`);
         }
-      } catch (twilioError: any) {
-        logger.warn(`   ⚠️ Twilio fetch failed: ${twilioError.message}`);
+      } catch (twilioError: unknown) {
+        logger.warn(`   ⚠️ Twilio fetch failed: ${(twilioError as Error).message}`);
       }
     } else if (callSidFromWebhook && !isTwilioSid) {
       logger.info(`   ℹ️ Skipping Twilio lookup for non-Twilio call SID: ${callSidFromWebhook} (source: ${callSidFromWebhook.startsWith('SCL') ? 'sip' : 'unknown'})`);
@@ -841,7 +875,7 @@ export class CallSyncService {
     };
   }
 
-  private calculateClassification(analysisObj: any, callDuration: number): { classification: string | null, sentimentValue: string | null } {
+  private calculateClassification(analysisObj: ConversationAnalysis | undefined, callDuration: number): { classification: string | null, sentimentValue: string | null } {
     if (!analysisObj) {
       return { classification: callDuration >= 30 ? 'warm' : (callDuration > 0 ? 'cold' : null), sentimentValue: null };
     }

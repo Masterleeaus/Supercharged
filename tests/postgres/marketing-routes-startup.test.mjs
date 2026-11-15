@@ -6,7 +6,7 @@ import express from 'express';
 import {enabled,createFixture,A,B} from './marketing-postgres-support.mjs';
 import {registerVerifiedCommsRoutes} from '../../server/routes/core/verified-marketing-routes.ts';
 import {withTenant} from '../../server/infrastructure/database/tenant-context.ts';
-const MIGRATION=new URL('../../migrations/0022_marketing_tables_tenant_rls.sql',import.meta.url);
+const MIGRATION=new URL('../../migrations/0023_marketing_tables_tenant_rls.sql',import.meta.url);
 async function startApp(pool) {
  const app=express();app.use(express.json());
  const authenticate=(req,_res,next)=>{req.userId='staff1';req.userRole='manager';next();};

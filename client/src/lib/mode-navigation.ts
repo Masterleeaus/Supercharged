@@ -9,6 +9,7 @@ export interface ModeDestination {
 export const MODE_DESTINATIONS: readonly ModeDestination[] = [
   { id: "marketing", label: "Marketing", description: "Campaigns, audiences and responses", href: "/app/modes/marketing" },
   { id: "inbox", label: "Omnichannel Inbox", description: "Customer conversations and handover", href: "/app/modes/inbox" },
+  { id: "chatbot", label: "Chatbot Builder", description: "Build, publish and manage your customer chatbot", href: "/app/chatbot-builder" },
 ];
 export function destinationForMode(mode: ProductMode): ModeDestination {
   const found = MODE_DESTINATIONS.find((entry) => entry.id === mode);

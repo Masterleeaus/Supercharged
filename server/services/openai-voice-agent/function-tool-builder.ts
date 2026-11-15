@@ -22,7 +22,7 @@ export class FunctionToolBuilder {
    */
   private static getNodeType(node: FlowNode): string {
     const data = node.data || {};
-    return (data.type as string) || (data.config as any)?.type || node.type || 'unknown';
+    return (data.type as string) || (data.config as { type?: string } | undefined)?.type || node.type || 'unknown';
   }
 
   /**

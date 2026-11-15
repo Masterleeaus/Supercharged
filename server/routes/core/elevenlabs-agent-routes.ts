@@ -2,7 +2,7 @@ import { logger } from "../../utils/logger";
 import type { Express, Response } from "express";
 import { storage } from "../../storage";
 import { db } from "../../db";
-import { agents, llmModels } from "@shared/schema";
+import { agents, llmModels, type InsertAgent } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 import { authenticateToken, type AuthRequest } from "../../middleware/auth";
 import { elevenLabsService, ElevenLabsService, isAgentOnSipPhoneNumber, getSipTrunkOutboundAddress } from "../../services/elevenlabs";
@@ -12,13 +12,16 @@ import { flows, FlowNode, FlowEdge } from "@shared/schema";
 import { ElevenLabsFlowCompiler } from "../../services/elevenlabs-flow-compiler";
 import { safeErrorMessage } from "../../utils/safe-error";
 
+// Payload shape accepted by ElevenLabsService.updateAgent (CreateAgentParams is not exported).
+type ElevenLabsAgentUpdate = Parameters<ElevenLabsService["updateAgent"]>[1];
+
 export function registerElevenLabsAgentRoutes(app: Express): void {
   // ElevenLabs Agents routes
   app.get("/api/elevenlabs/agents", authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const agents = await storage.getUserAgents(req.userId!);
       res.json(agents);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Get agents error:", error);
       res.status(500).json({ error: "Failed to get agents" });
     }
@@ -226,8 +229,8 @@ export function registerElevenLabsAgentRoutes(app: Express): void {
                 name: kbItem.title,
                 id: kbItem.elevenLabsDocId
               });
-            } catch (error: any) {
-              logger.error(`   ❌ Failed to fetch KB ${kbId}:`, error.message);
+            } catch (error: unknown) {
+              logger.error(`   ❌ Failed to fetch KB ${kbId}:`, (error as Error).message);
             }
           }
         }
@@ -293,7 +296,7 @@ export function registerElevenLabsAgentRoutes(app: Express): void {
       });
 
       res.json(agent);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Create agent error:", error);
       res.status(500).json({ error: safeErrorMessage(error, "Failed to create agent") });
     }
@@ -364,7 +367,7 @@ export function registerElevenLabsAgentRoutes(app: Express): void {
         ...(knowledgeBaseIds !== undefined && { knowledgeBaseIds }),
       };
 
-      const updateData: Partial<any> = {
+      const updateData: Partial<InsertAgent> = {
         ...(type && { type }),
         ...(name && { name }),
         ...(voiceTone !== undefined && { voiceTone }),
@@ -417,7 +420,7 @@ export function registerElevenLabsAgentRoutes(app: Express): void {
         }
 
         // Build update payload - no double spreading
-        const updatePayload: any = {
+        const updatePayload: ElevenLabsAgentUpdate = {
           ...(name && { name }),
           ...(systemPrompt && { prompt: systemPrompt }),
           ...(elevenLabsVoiceId && { voice_id: elevenLabsVoiceId }),
@@ -440,7 +443,7 @@ export function registerElevenLabsAgentRoutes(app: Express): void {
         }
 
         // Retry logic: 3 attempts with exponential backoff
-        let lastError: any = null;
+        let lastError: unknown = null;
         const maxRetries = 3;
         const delays = [0, 1000, 2000]; // 0ms, 1s, 2s
 
@@ -454,9 +457,9 @@ export function registerElevenLabsAgentRoutes(app: Express): void {
             await elevenLabsService.updateAgent(agent.elevenLabsAgentId!, updatePayload);
             logger.info("✅ ElevenLabs agent synced successfully");
             break; // Success - exit retry loop
-          } catch (error: any) {
+          } catch (error: unknown) {
             lastError = error;
-            logger.warn(`⚠️ Attempt ${attempt + 1}/${maxRetries} failed:`, error.message);
+            logger.warn(`⚠️ Attempt ${attempt + 1}/${maxRetries} failed:`, (error as Error).message);
 
             // If this was the last attempt, return with warning
             if (attempt === maxRetries - 1) {
@@ -573,8 +576,8 @@ When using a tool:
             } else {
               logger.warn(`⚠️ Flow not found for sync: ${flowToUse}`);
             }
-          } catch (error: any) {
-            logger.error("❌ Flow Agent sync failed:", error.message);
+          } catch (error: unknown) {
+            logger.error("❌ Flow Agent sync failed:", (error as Error).message);
             return res.json({
               success: true,
               warning: "Agent updated locally. ElevenLabs workflow sync failed. Please try editing again later."
@@ -584,7 +587,7 @@ When using a tool:
       }
 
       res.json({ success: true });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Update agent error:", error);
       res.status(500).json({ error: safeErrorMessage(error, "Failed to update agent") });
     }
@@ -619,7 +622,7 @@ When using a tool:
       // Delete from database
       await storage.deleteAgent(req.params.id);
       res.json({ success: true });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Delete agent error:", error);
       res.status(500).json({ error: "Failed to delete agent" });
     }
@@ -655,7 +658,7 @@ When using a tool:
           sipTrunkAddress = await getSipTrunkOutboundAddress(req.params.id);
           logger.info(`   📞 [Transfer Config] SIP agent detected - using sip_refer transfer type (trunk: ${sipTrunkAddress})`);
         }
-      } catch (err: any) { logger.warn('SIP trunk check failed during transfer config; using conference transfer', { agentId: req.params.id, error: err?.message }, 'Routes'); }
+      } catch (err: unknown) { logger.warn('SIP trunk check failed during transfer config; using conference transfer', { agentId: req.params.id, error: (err as Error | undefined)?.message }, 'Routes'); }
 
       let numberType: "phone" | "sip_uri" = "phone";
       let destination = transferNumber;
@@ -700,7 +703,7 @@ When using a tool:
         success: true,
         message: `Call transfer configured successfully. The AI will now transfer calls to ${transferNumber} when appropriate.`
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Configure transfer error:", error);
       res.status(500).json({ error: safeErrorMessage(error, "Failed to configure call transfer") });
     }

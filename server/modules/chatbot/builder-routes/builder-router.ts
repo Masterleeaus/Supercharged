@@ -13,17 +13,24 @@
  */
 import express, { Router, type NextFunction, type Request, type RequestHandler, type Response } from "express";
 import { isCompanyId } from "../../../infrastructure/database/tenant-context.ts";
-import { builderIdParam, builderPatchSchema, saveIssues, splitPatch, toBuilderSnapshot } from "./builder-schemas.ts";
+import { builderIdParam, builderPatchSchema, saveIssues, splitPatch, toBuilderSnapshot, type SaveIssue } from "./builder-schemas.ts";
 import type { BuilderStorage } from "./builder-storage.ts";
 
 export const BUILDER_ROUTES_FLAG = "ENABLE_CHATBOT_BUILDER_ROUTES";
 
-/** Paths relative to the module base path (/api/chatbot). Order matters: /builder/avatars before /builder/:id. */
+/**
+ * Paths relative to the module base path (/api/chatbot). Order matters: /builder/avatars before /builder/:id.
+ * POST /builder creates a chatbot. POST /builder/:id/publish and /pause set its active flag. PATCH /builder/:id
+ * stays the update route for every other field.
+ */
 export const BUILDER_ROUTES: readonly { method: "GET" | "PATCH" | "POST"; path: string }[] = [
   { method: "GET", path: "/builder/avatars" },
   { method: "POST", path: "/builder/avatars" },
+  { method: "POST", path: "/builder" },
   { method: "GET", path: "/builder/:id" },
   { method: "PATCH", path: "/builder/:id" },
+  { method: "POST", path: "/builder/:id/publish" },
+  { method: "POST", path: "/builder/:id/pause" },
   { method: "POST", path: "/builder/:id/uploads" },
 ];
 
@@ -149,6 +156,52 @@ export function createBuilderRouter(deps: BuilderRouterDeps): Router {
     }, false),
   );
 
+  /** An avatar must be a preset or one of this company's uploads. A path from another company is rejected. */
+  const avatarIssues = async (companyId: string, avatar: unknown): Promise<SaveIssue[]> => {
+    if (typeof avatar !== "string") return [];
+    const known = await storage.listChatbotAvatars(companyId);
+    if (known.some((item) => item.path === avatar)) return [];
+    return [{ code: "custom", path: ["customize", "avatar"], message: "must be a preset or an avatar of this company" }];
+  };
+
+  router.post(
+    "/builder",
+    ...guard(CONFIG_ROLES, async (req, res, companyId) => {
+      const parsed = builderPatchSchema(companyId).safeParse(req.body);
+      if (!parsed.success) return invalidInput(res, parsed.error.issues);
+      const body = parsed.data;
+
+      // A new chatbot starts from nothing, so the save rule runs on the body alone. Title is required on create.
+      const title = body.configure?.title;
+      const issues: SaveIssue[] = [];
+      if (typeof title !== "string" || title.trim() === "") {
+        issues.push({ code: "custom", path: ["configure", "title"], message: "required on create" });
+      }
+      issues.push(
+        ...saveIssues({ welcomeMessage: null, instructions: null, settings: {} }, body, { demoMode }),
+        ...(await avatarIssues(companyId, body.customize?.avatar)),
+      );
+      if (issues.length > 0) return invalidInput(res, issues);
+
+      const { chatbot, settings } = splitPatch(body);
+      const state = await storage.createBuilderState(
+        companyId,
+        {
+          chatbot: {
+            title: String(title),
+            language: typeof chatbot.language === "string" ? chatbot.language : "en",
+            welcomeMessage: String(chatbot.welcomeMessage),
+            instructions: typeof chatbot.instructions === "string" ? chatbot.instructions : null,
+            active: typeof chatbot.active === "boolean" ? chatbot.active : true,
+          },
+          settings,
+        },
+        now(),
+      );
+      res.status(201).json(toBuilderSnapshot(state));
+    }, true),
+  );
+
   router.patch(
     "/builder/:id",
     ...guard(CONFIG_ROLES, async (req, res, companyId) => {
@@ -157,16 +210,8 @@ export function createBuilderRouter(deps: BuilderRouterDeps): Router {
       const parsed = builderPatchSchema(companyId).safeParse(req.body);
       if (!parsed.success) return invalidInput(res, parsed.error.issues);
 
-      // An avatar must be a preset or one of this company's uploads. A path from another company is rejected.
-      const avatar = parsed.data.customize?.avatar;
-      if (typeof avatar === "string") {
-        const known = await storage.listChatbotAvatars(companyId);
-        if (!known.some((item) => item.path === avatar)) {
-          return invalidInput(res, [
-            { code: "custom", path: ["customize", "avatar"], message: "must be a preset or an avatar of this company" },
-          ]);
-        }
-      }
+      const avatar = await avatarIssues(companyId, parsed.data.customize?.avatar);
+      if (avatar.length > 0) return invalidInput(res, avatar);
 
       // Save rule (PHP ChatbotStoreRequest): the state this patch leaves behind must have welcome and bubble
       // messages, and instructions outside demo mode. The stored state is read first, so the check sees the
@@ -190,6 +235,49 @@ export function createBuilderRouter(deps: BuilderRouterDeps): Router {
       if (!state) return notFound(res);
       res.json(toBuilderSnapshot(state));
     }, true),
+  );
+
+  /**
+   * Publish makes the chatbot live (active = true). It refuses a chatbot whose stored state would fail the save rule
+   * or has no title, so a live chatbot always has its welcome and bubble messages. Publish writes nothing else.
+   */
+  router.post(
+    "/builder/:id/publish",
+    ...guard(CONFIG_ROLES, async (req, res, companyId) => {
+      const id = parseId(req);
+      if (!id) return invalidId(res);
+      const current = await storage.findBuilderState(companyId, id);
+      if (!current) return notFound(res);
+
+      const issues: SaveIssue[] = [];
+      if (current.chatbot.title.trim() === "") {
+        issues.push({ code: "custom", path: ["configure", "title"], message: "required to publish" });
+      }
+      issues.push(
+        ...saveIssues(
+          { welcomeMessage: current.chatbot.welcomeMessage, instructions: current.chatbot.instructions, settings: current.settings },
+          {},
+          { demoMode },
+        ),
+      );
+      if (issues.length > 0) return invalidInput(res, issues);
+
+      const state = await storage.updateBuilderState(companyId, id, { chatbot: { active: true }, settings: {} }, now());
+      if (!state) return notFound(res);
+      res.json(toBuilderSnapshot(state));
+    }, false),
+  );
+
+  /** Pause takes the chatbot out of service (active = false). It needs no checks, so an unfinished chatbot can be paused. */
+  router.post(
+    "/builder/:id/pause",
+    ...guard(CONFIG_ROLES, async (req, res, companyId) => {
+      const id = parseId(req);
+      if (!id) return invalidId(res);
+      const state = await storage.updateBuilderState(companyId, id, { chatbot: { active: false }, settings: {} }, now());
+      if (!state) return notFound(res);
+      res.json(toBuilderSnapshot(state));
+    }, false),
   );
 
   router.post(

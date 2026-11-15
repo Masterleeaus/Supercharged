@@ -2,6 +2,7 @@
 // support/. Services are recording fakes, except the last test, which uses the real
 // in-memory inbox service.
 import test from 'node:test';
+import { consentingGate } from './presend-fixture.mjs';
 import assert from 'node:assert/strict';
 import { createInboxRouter } from '../../server/modules/inbox/inbox-router.ts';
 import { createInboxService, InMemoryInboxStore, InMemoryApprovalPort } from '../../server/modules/inbox/index.ts';
@@ -157,7 +158,7 @@ test('real in-memory service: the router returns only the session company thread
   const store = new InMemoryInboxStore();
   const approvals = new InMemoryApprovalPort();
   let seq = 0;
-  const service = createInboxService({ store, approvals, newId: () => `id_${++seq}` });
+  const service = createInboxService({ compliance: consentingGate(),  store, approvals, newId: () => `id_${++seq}` });
   await service.recordInbound('11111111-1111-4111-8111-111111111111', {
     channel: 'email',
     address: 'ana@example.com',

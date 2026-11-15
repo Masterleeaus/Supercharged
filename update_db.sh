@@ -1,7 +1,8 @@
 #!/bin/bash
 # Script to add classification column to ve_sessions table
 
-DB_URL="postgresql://compassapp_user:compassapp0923647423@localhost:5432/compassapp_db"
+# Read the connection URL from the environment; never commit credentials here.
+DB_URL="${COMPASSAPP_DB_URL:?Set COMPASSAPP_DB_URL to the PostgreSQL connection URL}"
 
 echo "Adding 'classification' column to 've_sessions' table..."
 psql "$DB_URL" -c "ALTER TABLE ve_sessions ADD COLUMN IF NOT EXISTS classification TEXT;"

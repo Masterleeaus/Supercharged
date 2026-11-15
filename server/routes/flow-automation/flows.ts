@@ -179,7 +179,7 @@ export function registerFlowRoutes(router: Router): void {
           });
 
           if (formNodesWithSheet.length > 0) {
-            const { ensureSheetHeaders, listSheetTabs } = await import('../services/google-sheets/google-sheets.service');
+            const { ensureSheetHeaders, listSheetTabs } = await import('../../services/google-sheets/google-sheets.service');
 
             for (const node of formNodesWithSheet) {
               const cfg = node.data?.config || node.data || {};
@@ -394,7 +394,7 @@ export function registerFlowRoutes(router: Router): void {
 
                       // Add RAG tool if agent has knowledge bases assigned
                       if (agent.knowledgeBaseIds && agent.knowledgeBaseIds.length > 0) {
-                        const { isRAGEnabled, getAskKnowledgeWebhookTool } = await import('../services/rag-elevenlabs-tool');
+                        const { isRAGEnabled, getAskKnowledgeWebhookTool } = await import('../../services/rag-elevenlabs-tool');
                         if (isRAGEnabled()) {
                           const ragTool = getAskKnowledgeWebhookTool(elevenLabsAgent.agent_id);
                           newAgentWebhookTools.push(ragTool);
@@ -405,7 +405,7 @@ export function registerFlowRoutes(router: Router): void {
                       // Add appointment booking tool if flow has appointment nodes
                       if (hasAppointmentNodes) {
                         logger.info(`📅 [Flow Save] Adding appointment booking tool to agent ${elevenLabsAgent.agent_id}`);
-                        const { getAppointmentToolForAgent } = await import('../services/appointment-elevenlabs-tool');
+                        const { getAppointmentToolForAgent } = await import('../../services/appointment-elevenlabs-tool');
                         const appointmentTool = getAppointmentToolForAgent(elevenLabsAgent.agent_id);
                         newAgentWebhookTools.push(appointmentTool);
                       }
@@ -413,7 +413,7 @@ export function registerFlowRoutes(router: Router): void {
                       // Add form submission tools if flow has form nodes
                       if (hasFormNodes && formNodes && formNodes.length > 0) {
                         logger.info(`📋 [Flow Save] Adding form submission tools (${formNodes.length} forms) to agent ${elevenLabsAgent.agent_id}`);
-                        const { getSubmitFormWebhookTool } = await import('../services/form-elevenlabs-tool');
+                        const { getSubmitFormWebhookTool } = await import('../../services/form-elevenlabs-tool');
                         for (const formInfo of formNodes) {
                           const formTool = getSubmitFormWebhookTool(
                             formInfo.formId,
@@ -429,7 +429,7 @@ export function registerFlowRoutes(router: Router): void {
 
                       // Add messaging tools for send_email/send_whatsapp nodes in the flow
                       if (hasWebhookNodes && webhookNodes && webhookNodes.length > 0) {
-                        const { buildMessagingEmailTool, buildMessagingWhatsappTool } = await import('../services/elevenlabs');
+                        const { buildMessagingEmailTool, buildMessagingWhatsappTool } = await import('../../services/elevenlabs');
                         for (const webhookNode of webhookNodes) {
                           if (webhookNode.toolId.startsWith('send_email_') && !webhookNode.url) {
                             const templateName = webhookNode.payload?.template_name || 'default';
@@ -451,7 +451,7 @@ export function registerFlowRoutes(router: Router): void {
                       // Uses universal webhook builder to automatically include caller phone, conversation data, etc.
                       if (hasWebhookNodes && webhookNodes && webhookNodes.length > 0) {
                         logger.info(`🔗 [Flow Save] Adding universal webhook tools (${webhookNodes.length} webhooks) to agent ${elevenLabsAgent.agent_id}`);
-                        const { buildUniversalWebhookTool } = await import('../services/universal-webhook-tool');
+                        const { buildUniversalWebhookTool } = await import('../../services/universal-webhook-tool');
                         for (const webhookNode of webhookNodes) {
                           if (webhookNode.url) {
                             const webhookTool = buildUniversalWebhookTool({
@@ -470,7 +470,7 @@ export function registerFlowRoutes(router: Router): void {
                       // Add play audio tools if flow has play_audio nodes
                       if (hasPlayAudioNodes && playAudioNodes && playAudioNodes.length > 0) {
                         logger.info(`🔊 [Flow Save] Adding play audio tools (${playAudioNodes.length} nodes) to agent ${elevenLabsAgent.agent_id}`);
-                        const { getPlayAudioWebhookTool } = await import('../services/play-audio-elevenlabs-tool');
+                        const { getPlayAudioWebhookTool } = await import('../../services/play-audio-elevenlabs-tool');
                         for (const playAudioNode of playAudioNodes) {
                           const playAudioTool = getPlayAudioWebhookTool(
                             playAudioNode.nodeId,
@@ -518,7 +518,7 @@ export function registerFlowRoutes(router: Router): void {
                       // Add RAG tool if agent has knowledge bases assigned
                       // This ensures KB tool is retained when flow is saved from flow editor
                       if (agent.knowledgeBaseIds && agent.knowledgeBaseIds.length > 0) {
-                        const { isRAGEnabled, getAskKnowledgeWebhookTool } = await import('../services/rag-elevenlabs-tool');
+                        const { isRAGEnabled, getAskKnowledgeWebhookTool } = await import('../../services/rag-elevenlabs-tool');
                         if (isRAGEnabled()) {
                           const ragTool = getAskKnowledgeWebhookTool(agent.elevenLabsAgentId);
                           webhookTools.push(ragTool);
@@ -527,7 +527,7 @@ export function registerFlowRoutes(router: Router): void {
                       }
 
                       if (hasAppointmentNodes) {
-                        const { getAppointmentToolForAgent } = await import('../services/appointment-elevenlabs-tool');
+                        const { getAppointmentToolForAgent } = await import('../../services/appointment-elevenlabs-tool');
                         const appointmentTool = getAppointmentToolForAgent(agent.elevenLabsAgentId);
                         webhookTools.push(appointmentTool);
                         logger.info(`📅 [Flow Save] Including appointment booking tool in update`);
@@ -536,7 +536,7 @@ export function registerFlowRoutes(router: Router): void {
                       // Add form submission tools if flow has form nodes
                       if (hasFormNodes && formNodes && formNodes.length > 0) {
                         logger.info(`📋 [Flow Save] Including form submission tools (${formNodes.length} forms) in update`);
-                        const { getSubmitFormWebhookTool } = await import('../services/form-elevenlabs-tool');
+                        const { getSubmitFormWebhookTool } = await import('../../services/form-elevenlabs-tool');
                         for (const formInfo of formNodes) {
                           const formTool = getSubmitFormWebhookTool(
                             formInfo.formId,
@@ -552,7 +552,7 @@ export function registerFlowRoutes(router: Router): void {
 
                       // Add messaging tools for send_email/send_whatsapp nodes in the flow (update path)
                       if (hasWebhookNodes && webhookNodes && webhookNodes.length > 0) {
-                        const { buildMessagingEmailTool, buildMessagingWhatsappTool } = await import('../services/elevenlabs');
+                        const { buildMessagingEmailTool, buildMessagingWhatsappTool } = await import('../../services/elevenlabs');
                         for (const webhookNode of webhookNodes) {
                           if (webhookNode.toolId.startsWith('send_email_') && !webhookNode.url) {
                             const templateName = webhookNode.payload?.template_name || 'default';
@@ -574,7 +574,7 @@ export function registerFlowRoutes(router: Router): void {
                       // Uses universal webhook builder to automatically include caller phone, conversation data, etc.
                       if (hasWebhookNodes && webhookNodes && webhookNodes.length > 0) {
                         logger.info(`🔗 [Flow Save] Including universal webhook tools (${webhookNodes.length} webhooks) in update`);
-                        const { buildUniversalWebhookTool } = await import('../services/universal-webhook-tool');
+                        const { buildUniversalWebhookTool } = await import('../../services/universal-webhook-tool');
                         for (const webhookNode of webhookNodes) {
                           if (webhookNode.url) {
                             const webhookTool = buildUniversalWebhookTool({
@@ -593,7 +593,7 @@ export function registerFlowRoutes(router: Router): void {
                       // Add play audio tools if flow has play_audio nodes
                       if (hasPlayAudioNodes && playAudioNodes && playAudioNodes.length > 0) {
                         logger.info(`🔊 [Flow Save] Including play audio tools (${playAudioNodes.length} nodes) in update`);
-                        const { getPlayAudioWebhookTool } = await import('../services/play-audio-elevenlabs-tool');
+                        const { getPlayAudioWebhookTool } = await import('../../services/play-audio-elevenlabs-tool');
                         for (const playAudioNode of playAudioNodes) {
                           const playAudioTool = getPlayAudioWebhookTool(
                             playAudioNode.nodeId,

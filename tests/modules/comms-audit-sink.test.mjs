@@ -72,6 +72,7 @@ test('the comms modules write exactly the audit action names the union holds', (
       'comms.human_override',
       'comms.message_sent',
       'comms.provider_event',
+      'comms.send_blocked',
       'comms.suppression_changed',
       'contacts_merged',
     ],

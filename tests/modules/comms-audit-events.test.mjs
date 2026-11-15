@@ -38,10 +38,11 @@ const DETAIL_FOR = {
   'comms.campaign_changed': { change: 'started' },
   'comms.provider_event': { provider: 'mailer', providerEvent: 'delivered' },
   'comms.human_override': { overridden: 'suppression', reason: 'customer asked' },
+  'comms.send_blocked': { channel: 'sms', surface: 'inbox', reason: 'suppressed' },
 };
 
 test('vocabulary covers the checklist categories and has no update or delete types', () => {
-  assert.equal(COMMS_EVENT_TYPES.length, 8);
+  assert.equal(COMMS_EVENT_TYPES.length, 9);
   for (const word of ['draft', 'approval', 'sent', 'edited', 'assignment', 'campaign', 'provider', 'override']) {
     assert.ok(COMMS_EVENT_TYPES.some((t) => t.includes(word)), `a type covers ${word}`);
   }

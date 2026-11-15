@@ -1,5 +1,5 @@
 /** ID token verification for Central sign-in. Fails closed with a reason code and never echoes token contents. */
-import {createPublicKey, verify as cryptoVerify} from 'node:crypto';
+import {createPublicKey, verify as cryptoVerify, type JsonWebKey} from 'node:crypto';
 import type {Jwk} from './discovery.ts';
 import {safeEqual} from './pkce.ts';
 
@@ -22,7 +22,9 @@ export type KeyLookup = (kid: string) => Promise<Jwk | null>;
 const b64urlJson = (part: string): unknown => JSON.parse(Buffer.from(part, 'base64url').toString('utf8'));
 const SUBJECT = /^[^\s\x00-\x1f\x7f]{1,256}$/u;
 
-function decodeParts(token: string): {header: any; payload: any; signingInput: string; signature: Buffer} | null {
+type JsonObject = Record<string, unknown>;
+
+function decodeParts(token: string): {header: JsonObject; payload: JsonObject; signingInput: string; signature: Buffer} | null {
  if (typeof token !== 'string' || token.length > 16384) return null;
  const parts = token.split('.');
  if (parts.length !== 3 || parts.some(p => !/^[A-Za-z0-9_-]*$/.test(p))) return null;
@@ -30,7 +32,7 @@ function decodeParts(token: string): {header: any; payload: any; signingInput: s
   const header = b64urlJson(parts[0]);
   const payload = b64urlJson(parts[1]);
   if (!header || typeof header !== 'object' || !payload || typeof payload !== 'object') return null;
-  return {header, payload, signingInput: `${parts[0]}.${parts[1]}`, signature: Buffer.from(parts[2], 'base64url')};
+  return {header: header as JsonObject, payload: payload as JsonObject, signingInput: `${parts[0]}.${parts[1]}`, signature: Buffer.from(parts[2], 'base64url')};
  } catch {
   return null;
  }
@@ -42,7 +44,7 @@ function verifySignature(alg: string, spec: AlgSpec, jwk: Jwk, signingInput: str
  if (spec.crv && jwk.crv !== spec.crv) return 'bad_key';
  let key;
  try {
-  key = createPublicKey({key: jwk as any, format: 'jwk'});
+  key = createPublicKey({key: jwk as JsonWebKey, format: 'jwk'});
  } catch {
   return 'bad_key';
  }

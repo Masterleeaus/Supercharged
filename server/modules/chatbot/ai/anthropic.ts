@@ -144,7 +144,7 @@ function parseMessage(json: Record<string, any>, model: string, requestId: strin
   if (!Array.isArray(json.content)) {
     throw providerFailure("anthropic", "unknown", null, "Anthropic returned a response with no content.");
   }
-  const blocks: any[] = json.content;
+  const blocks: Array<{ type?: unknown; id?: unknown; name?: unknown; text?: unknown; input?: unknown }> = json.content;
   const text = blocks
     .filter((block) => block?.type === "text" && typeof block.text === "string")
     .map((block) => block.text as string)

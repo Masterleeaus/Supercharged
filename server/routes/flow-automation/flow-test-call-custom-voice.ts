@@ -95,7 +95,7 @@ export async function placeCustomVoiceEngineFlowTestCall({
       logger.warn(`⚠️ [Flow Test] Error creating flow execution:`, flowExecError.message);
     }
 
-    const { importPlugin } = await import('../utils/plugin-import');
+    const { importPlugin } = await import('../../utils/plugin-import');
     const { EslConnection } = await importPlugin('plugins/custom-voice-engine/services/freeswitch/esl-connection');
 
     const eslHost = node.esl_host || node.eslHost;

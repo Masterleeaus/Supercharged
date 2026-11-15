@@ -24,7 +24,8 @@ export type CommsEventAction =
   | 'comms.assignment_changed'
   | 'comms.campaign_changed'
   | 'comms.provider_event'
-  | 'comms.human_override';
+  | 'comms.human_override'
+  | 'comms.send_blocked';
 
 /**
  * One comms event, already built and allowlisted by buildCommsAuditEvent. The detail is copied
@@ -55,6 +56,7 @@ export const COMMS_AUDIT_ACTIONS: readonly AuditAction[] = [
   'comms.campaign_changed',
   'comms.provider_event',
   'comms.human_override',
+  'comms.send_blocked',
 ];
 
 export type AuditWriter = (entry: AuditLogEntry) => Promise<void>;
@@ -163,6 +165,7 @@ function toAuditLogEntry(entry: CommsAuditEntry, companyId: string): AuditLogEnt
     case 'comms.campaign_changed':
     case 'comms.provider_event':
     case 'comms.human_override':
+    case 'comms.send_blocked':
       // Detail is already allowlisted by the event builder. The company and time are added here.
       return {
         action: entry.action,
