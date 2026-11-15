@@ -1,6 +1,7 @@
 // Inbox module tests (node:test). No database, no provider, no network, no real sends.
 // The approvals gate is an in-memory fake that returns pending unless a test says otherwise.
 import test from 'node:test';
+import { consentingGate } from './presend-fixture.mjs';
 import assert from 'node:assert/strict';
 import {
   createInboxService,
@@ -22,7 +23,7 @@ function build() {
   const approvals = new InMemoryApprovalPort();
   let clock = 0;
   let seq = 0;
-  const service = createInboxService({
+  const service = createInboxService({ compliance: consentingGate(), 
     store,
     approvals,
     now: () => new Date(Date.UTC(2026, 10, 2, 0, 0, clock++)),
@@ -352,7 +353,7 @@ test('send atomic: a failed message write leaves the approval not executed and t
   const approvals = new InMemoryApprovalPort();
   let clock = 0;
   let seq = 0;
-  const service = createInboxService({
+  const service = createInboxService({ compliance: consentingGate(), 
     store,
     approvals,
     transactions: createInMemoryTransactionRunner(store, approvals),
@@ -404,7 +405,7 @@ test('send atomic: the audit write runs exactly once, after the transaction comm
   };
   let clock = 0;
   let seq = 0;
-  const service = createInboxService({
+  const service = createInboxService({ compliance: consentingGate(), 
     store,
     approvals,
     transactions: runner,
@@ -430,7 +431,7 @@ test('send atomic: a failed write writes no execution audit', async () => {
   const approvals = new InMemoryApprovalPort();
   let clock = 0;
   let seq = 0;
-  const service = createInboxService({
+  const service = createInboxService({ compliance: consentingGate(), 
     store,
     approvals,
     transactions: createInMemoryTransactionRunner(store, approvals),
@@ -458,7 +459,7 @@ test('drizzle placeholder: every method throws until the migration is promoted',
   const store = createDrizzleInboxStore();
   await assert.rejects(store.findThread(CO_A, 'x'), /DRAFT_inbox\.sql/);
   await assert.rejects(store.insertMessage({ companyId: CO_A }), /DRAFT_inbox\.sql/);
-  await assert.rejects(createInboxService({ store, approvals: new InMemoryApprovalPort() }).listThreads(CO_A), /DRAFT_inbox\.sql/);
+  await assert.rejects(createInboxService({ compliance: consentingGate(),  store, approvals: new InMemoryApprovalPort() }).listThreads(CO_A), /DRAFT_inbox\.sql/);
 });
 
 test('PostgreSQL InboxStore factory is exported without activating the legacy placeholder',async()=>{
@@ -476,7 +477,7 @@ test('approval decisions resolve the transaction runner using the request compan
  const store=new InMemoryInboxStore(),approvals=new InMemoryApprovalPort();
  const base=createInMemoryTransactionRunner(store,approvals),companies=[];
  let sequence=0;
- const service=createInboxService({store,approvals,transactionsFor:companyId=>{companies.push(companyId);return base;},newId:()=>`factory-id-${++sequence}`});
+ const service=createInboxService({ compliance: consentingGate(), store,approvals,transactionsFor:companyId=>{companies.push(companyId);return base;},newId:()=>`factory-id-${++sequence}`});
  const input={channel:'sms',address:'+61400000001',body:'Hello',externalId:'factory-inbound'};
  const result=await service.recordInbound(CO_B,input);
  await service.assignThread(CO_B,AGENT,result.thread.id,{kind:'agent',id:AGENT.id});

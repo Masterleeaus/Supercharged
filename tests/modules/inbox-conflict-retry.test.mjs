@@ -12,6 +12,7 @@
 //
 // No database, no provider, no network.
 import test from 'node:test';
+import { consentingGate } from './presend-fixture.mjs';
 import assert from 'node:assert/strict';
 import { createInboxService, InMemoryInboxStore, InMemoryApprovalPort, sha256 } from '../../server/modules/inbox/index.ts';
 
@@ -30,7 +31,7 @@ function build() {
   const store = new InMemoryInboxStore();
   const approvals = new InMemoryApprovalPort();
   let seq = 0;
-  const service = createInboxService({ store, approvals, newId: () => `retry_${++seq}` });
+  const service = createInboxService({ compliance: consentingGate(),  store, approvals, newId: () => `retry_${++seq}` });
   return { store, approvals, service };
 }
 
