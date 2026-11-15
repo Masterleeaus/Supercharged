@@ -170,5 +170,10 @@ test('migration 0020 is additive and registered in the runner and the journal', 
   const runner = readFileSync(new URL('../../scripts/run-safe-migration.mjs', import.meta.url), 'utf8');
   assert.match(runner, /\{ file: '0020_scheduled_booking_mirror\.sql', required: true \}/);
   const journal = JSON.parse(readFileSync(new URL('../../migrations/meta/_journal.json', import.meta.url), 'utf8'));
-  assert.equal(journal.entries.at(-1).tag, '0020_scheduled_booking_mirror');
+  // Later migrations (e.g. 0023 Marketing) may follow the booking mirror.
+  // Assert it exists in order, not that it must be the final journal entry.
+  const mirrorPosition = journal.entries.findIndex((e) => e.tag === '0020_scheduled_booking_mirror');
+  const membershipPosition = journal.entries.findIndex((e) => e.tag === '0017_user_company_memberships');
+  assert.ok(mirrorPosition > membershipPosition, 'booking mirror follows tenant membership');
+  assert.equal(journal.entries.filter((e) => e.tag === '0020_scheduled_booking_mirror').length, 1);
 });
