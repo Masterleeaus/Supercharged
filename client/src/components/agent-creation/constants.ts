@@ -1,0 +1,250 @@
+
+import { Phone, Clock, Target, BarChart3, Users, Sparkles, Mic, Bot, MessageSquare, CheckCircle2, FileText, Check, Info } from "lucide-react";
+
+export interface SipPhoneNumber {
+  id: string;
+  phoneNumber: string;
+  label?: string;
+  trunkId: string;
+  engine: string;
+}
+
+export interface UseCase {
+  id: string;
+  title: string;
+  description: string;
+  icon: typeof Phone;
+  color: string;
+  presetVoiceTone: string;
+  presetPersonality: string;
+  suggestedPrompt: string;
+  suggestedFirstMessage: string;
+  suggestedVoiceStyle: "professional" | "friendly" | "casual" | "authoritative";
+}
+
+export const useCases: UseCase[] = [
+  {
+    id: "receptionist",
+    title: "Receptionist",
+    description: "Handle incoming calls, route to departments, answer FAQs",
+    icon: Phone,
+    color: "emerald",
+    presetVoiceTone: "professional",
+    presetPersonality: "helpful",
+    suggestedPrompt: "You are a professional virtual receptionist for {{company_name}}. Your role is to:\n- Greet callers warmly and professionally\n- Answer common questions about business hours, location, and services\n- Route calls to the appropriate department or person\n- Take messages when someone is unavailable\n- Maintain a calm and helpful demeanor at all times\n\nBe concise but friendly. If you don't know something, offer to take a message or transfer to someone who can help.",
+    suggestedFirstMessage: "Thank you for calling {{company_name}}. My name is {{agent_name}}. How may I assist you today?",
+    suggestedVoiceStyle: "professional",
+  },
+  {
+    id: "appointment",
+    title: "Appointment Setter",
+    description: "Schedule meetings, qualify leads, manage bookings",
+    icon: Clock,
+    color: "blue",
+    presetVoiceTone: "friendly",
+    presetPersonality: "professional",
+    suggestedPrompt: "You are an appointment scheduling assistant for {{company_name}}. Your responsibilities are:\n- Qualify callers to ensure they're a good fit\n- Check available time slots\n- Book appointments efficiently\n- Confirm date, time, and meeting details\n- Send confirmation information\n\nAsk qualifying questions naturally before booking. Be efficient with the caller's time while ensuring you gather all necessary information.",
+    suggestedFirstMessage: "Hi there! Thanks for your interest in scheduling a meeting with {{company_name}}. I'd love to help you find a time that works. May I start by getting your name?",
+    suggestedVoiceStyle: "friendly",
+  },
+  {
+    id: "qualification",
+    title: "Lead Qualification",
+    description: "Screen prospects, score leads, gather requirements",
+    icon: Target,
+    color: "violet",
+    presetVoiceTone: "confident",
+    presetPersonality: "inquisitive",
+    suggestedPrompt: "You are a lead qualification specialist for {{company_name}}. Your mission is to:\n- Understand the prospect's needs and pain points\n- Gather key information: budget, timeline, decision process\n- Score leads based on qualification criteria\n- Identify the best next steps for qualified leads\n- Politely disqualify poor-fit prospects\n\nAsk open-ended questions and listen carefully. Be conversational, not interrogative. Focus on understanding their situation before pitching solutions.",
+    suggestedFirstMessage: "Hello! I'm reaching out from {{company_name}}. I'd love to learn a bit about your current situation to see if we might be able to help. Do you have a few minutes to chat?",
+    suggestedVoiceStyle: "professional",
+  },
+  {
+    id: "survey",
+    title: "Survey & Feedback",
+    description: "Conduct surveys, gather insights, collect feedback",
+    icon: BarChart3,
+    color: "amber",
+    presetVoiceTone: "friendly",
+    presetPersonality: "curious",
+    suggestedPrompt: "You are a friendly survey conductor for {{company_name}}. Your goals are:\n- Make the survey feel like a natural conversation\n- Ask questions clearly and wait for complete responses\n- Probe for details when answers are vague\n- Thank respondents for their time and insights\n- Record feedback accurately\n\nKeep a warm, appreciative tone. Make respondents feel their opinions matter. Be patient and don't rush through questions.",
+    suggestedFirstMessage: "Hi! I'm calling from {{company_name}} to gather some quick feedback about your recent experience with us. Your insights really help us improve. Would you have about 5 minutes to share your thoughts?",
+    suggestedVoiceStyle: "friendly",
+  },
+  {
+    id: "service",
+    title: "Customer Service",
+    description: "Resolve issues, answer questions, provide support",
+    icon: Users,
+    color: "rose",
+    presetVoiceTone: "empathetic",
+    presetPersonality: "patient",
+    suggestedPrompt: "You are a customer service representative for {{company_name}}. Your priorities are:\n- Listen to customer concerns with empathy\n- Resolve issues quickly and effectively\n- Provide clear, accurate information\n- Escalate to a human agent when necessary\n- Follow up to ensure satisfaction\n\nAlways acknowledge the customer's feelings first. Stay calm even with frustrated callers. Focus on solutions, not blame.",
+    suggestedFirstMessage: "Thank you for contacting {{company_name}} support. I'm here to help! What can I assist you with today?",
+    suggestedVoiceStyle: "professional",
+  },
+  {
+    id: "custom",
+    title: "Custom Agent",
+    description: "Build from scratch with full customization",
+    icon: Sparkles,
+    color: "slate",
+    presetVoiceTone: "professional",
+    presetPersonality: "helpful",
+    suggestedPrompt: "",
+    suggestedFirstMessage: "",
+    suggestedVoiceStyle: "professional",
+  },
+];
+
+export const voiceToneOptions = [
+  { value: "professional", label: "Professional", description: "Formal, polished, business-appropriate" },
+  { value: "friendly", label: "Friendly", description: "Warm, approachable, personable" },
+  { value: "empathetic", label: "Empathetic", description: "Understanding, compassionate, supportive" },
+  { value: "confident", label: "Confident", description: "Assured, decisive, trustworthy" },
+  { value: "casual", label: "Casual", description: "Relaxed, conversational, laid-back" },
+];
+
+export const personalityOptions = [
+  { value: "helpful", label: "Helpful", description: "Eager to assist and solve problems" },
+  { value: "professional", label: "Professional", description: "Business-focused and efficient" },
+  { value: "patient", label: "Patient", description: "Takes time to explain and understand" },
+  { value: "inquisitive", label: "Inquisitive", description: "Asks questions to understand needs" },
+  { value: "curious", label: "Curious", description: "Interested in learning more" },
+  { value: "energetic", label: "Energetic", description: "Enthusiastic and positive" },
+];
+
+// OpenAI Realtime API voices
+export const openaiVoices = [
+  { value: "alloy", label: "Alloy", description: "Neutral and balanced" },
+  { value: "echo", label: "Echo", description: "Warm and conversational" },
+  { value: "shimmer", label: "Shimmer", description: "Clear and expressive" },
+  { value: "ash", label: "Ash", description: "Soft and gentle" },
+  { value: "ballad", label: "Ballad", description: "Melodic and soothing" },
+  { value: "coral", label: "Coral", description: "Bright and friendly" },
+  { value: "sage", label: "Sage", description: "Calm and wise" },
+  { value: "verse", label: "Verse", description: "Poetic and articulate" },
+  { value: "cedar", label: "Cedar", description: "Deep and grounded" },
+  { value: "marin", label: "Marin", description: "Fresh and lively" },
+];
+
+export const customVoiceEngineVoices = [
+  // Deepgram
+  { value: "aura-asteria-en", label: "Asteria (Deepgram)", description: "English - Female", provider: "deepgram" as const },
+  { value: "aura-luna-en", label: "Luna (Deepgram)", description: "English - Female", provider: "deepgram" as const },
+  { value: "aura-stella-en", label: "Stella (Deepgram)", description: "English - Female", provider: "deepgram" as const },
+  { value: "aura-athena-en", label: "Athena (Deepgram)", description: "English - Female", provider: "deepgram" as const },
+  { value: "aura-hera-en", label: "Hera (Deepgram)", description: "English - Female", provider: "deepgram" as const },
+  { value: "aura-orion-en", label: "Orion (Deepgram)", description: "English - Male", provider: "deepgram" as const },
+  { value: "aura-arcas-en", label: "Arcas (Deepgram)", description: "English - Male", provider: "deepgram" as const },
+  { value: "aura-perseus-en", label: "Perseus (Deepgram)", description: "English - Male", provider: "deepgram" as const },
+  { value: "aura-angus-en", label: "Angus (Deepgram)", description: "English - Male", provider: "deepgram" as const },
+  { value: "aura-orpheus-en", label: "Orpheus (Deepgram)", description: "English - Male", provider: "deepgram" as const },
+  { value: "aura-helios-en", label: "Helios (Deepgram)", description: "English - Male", provider: "deepgram" as const },
+  { value: "aura-zeus-en", label: "Zeus (Deepgram)", description: "English - Male", provider: "deepgram" as const },
+  { value: "aura-2-asteria-en", label: "Asteria Aura-2 (Deepgram)", description: "English - Female", provider: "deepgram" as const },
+  { value: "aura-2-luna-en", label: "Luna Aura-2 (Deepgram)", description: "English - Female", provider: "deepgram" as const },
+  { value: "aura-2-stella-en", label: "Stella Aura-2 (Deepgram)", description: "English - Female", provider: "deepgram" as const },
+  { value: "aura-2-athena-en", label: "Athena Aura-2 (Deepgram)", description: "English - Female", provider: "deepgram" as const },
+  { value: "aura-2-hera-en", label: "Hera Aura-2 (Deepgram)", description: "English - Female", provider: "deepgram" as const },
+  { value: "aura-2-orion-en", label: "Orion Aura-2 (Deepgram)", description: "English - Male", provider: "deepgram" as const },
+  { value: "aura-2-arcas-en", label: "Arcas Aura-2 (Deepgram)", description: "English - Male", provider: "deepgram" as const },
+  { value: "aura-2-perseus-en", label: "Perseus Aura-2 (Deepgram)", description: "English - Male", provider: "deepgram" as const },
+  { value: "aura-2-angus-en", label: "Angus Aura-2 (Deepgram)", description: "English - Male", provider: "deepgram" as const },
+  { value: "aura-2-orpheus-en", label: "Orpheus Aura-2 (Deepgram)", description: "English - Male", provider: "deepgram" as const },
+  { value: "aura-2-helios-en", label: "Helios Aura-2 (Deepgram)", description: "English - Male", provider: "deepgram" as const },
+  { value: "aura-2-zeus-en", label: "Zeus Aura-2 (Deepgram)", description: "English - Male", provider: "deepgram" as const },
+  { value: "aura-2-amira-de", label: "Amira (Deepgram)", description: "German - Female", provider: "deepgram" as const },
+  { value: "aura-2-lukas-de", label: "Lukas (Deepgram)", description: "German - Male", provider: "deepgram" as const },
+  { value: "aura-2-rhea-nl", label: "Rhea (Deepgram)", description: "Dutch - Female", provider: "deepgram" as const },
+  { value: "aura-2-nils-nl", label: "Nils (Deepgram)", description: "Dutch - Male", provider: "deepgram" as const },
+  { value: "aura-2-chloe-fr", label: "Chloe (Deepgram)", description: "French - Female", provider: "deepgram" as const },
+  { value: "aura-2-nicolas-fr", label: "Nicolas (Deepgram)", description: "French - Male", provider: "deepgram" as const },
+  { value: "aura-2-bianca-it", label: "Bianca (Deepgram)", description: "Italian - Female", provider: "deepgram" as const },
+  { value: "aura-2-giulio-it", label: "Giulio (Deepgram)", description: "Italian - Male", provider: "deepgram" as const },
+  { value: "aura-2-akira-ja", label: "Akira (Deepgram)", description: "Japanese - Female", provider: "deepgram" as const },
+  { value: "aura-2-hikari-ja", label: "Hikari (Deepgram)", description: "Japanese - Male", provider: "deepgram" as const },
+  { value: "aura-2-carmen-es", label: "Carmen (Deepgram)", description: "Spanish - Female", provider: "deepgram" as const },
+  { value: "aura-2-miguel-es", label: "Miguel (Deepgram)", description: "Spanish - Male", provider: "deepgram" as const },
+  // Sarvam — Bulbul v3
+  { value: "shubh", label: "Shubh (Sarvam)", description: "Male", provider: "sarvam" as const, model: "bulbul:v3" as const, languages: ["en", "hi", "te", "kn", "od", "ml"] },
+  { value: "aditya", label: "Aditya (Sarvam)", description: "Male", provider: "sarvam" as const, model: "bulbul:v3" as const },
+  { value: "rahul", label: "Rahul (Sarvam)", description: "Male", provider: "sarvam" as const, model: "bulbul:v3" as const },
+  { value: "rohan", label: "Rohan (Sarvam)", description: "Male", provider: "sarvam" as const, model: "bulbul:v3" as const, languages: ["ta"] },
+  { value: "amit", label: "Amit (Sarvam)", description: "Male", provider: "sarvam" as const, model: "bulbul:v3" as const },
+  { value: "dev", label: "Dev (Sarvam)", description: "Male", provider: "sarvam" as const, model: "bulbul:v3" as const },
+  { value: "ratan", label: "Ratan (Sarvam)", description: "Male", provider: "sarvam" as const, model: "bulbul:v3" as const, languages: ["en", "te", "kn", "ta", "mr", "gu"] },
+  { value: "varun", label: "Varun (Sarvam)", description: "Male — dramatic/suspense", provider: "sarvam" as const, model: "bulbul:v3" as const },
+  { value: "manan", label: "Manan (Sarvam)", description: "Male", provider: "sarvam" as const, model: "bulbul:v3" as const },
+  { value: "sumit", label: "Sumit (Sarvam)", description: "Male", provider: "sarvam" as const, model: "bulbul:v3" as const },
+  { value: "kabir", label: "Kabir (Sarvam)", description: "Male", provider: "sarvam" as const, model: "bulbul:v3" as const },
+  { value: "aayan", label: "Aayan (Sarvam)", description: "Male", provider: "sarvam" as const, model: "bulbul:v3" as const },
+  { value: "ashutosh", label: "Ashutosh (Sarvam)", description: "Male", provider: "sarvam" as const, model: "bulbul:v3" as const, languages: ["hi"] },
+  { value: "advait", label: "Advait (Sarvam)", description: "Male", provider: "sarvam" as const, model: "bulbul:v3" as const },
+  { value: "anand", label: "Anand (Sarvam)", description: "Male", provider: "sarvam" as const, model: "bulbul:v3" as const },
+  { value: "tarun", label: "Tarun (Sarvam)", description: "Male", provider: "sarvam" as const, model: "bulbul:v3" as const },
+  { value: "sunny", label: "Sunny (Sarvam)", description: "Male", provider: "sarvam" as const, model: "bulbul:v3" as const },
+  { value: "mani", label: "Mani (Sarvam)", description: "Male — best overall CER", provider: "sarvam" as const, model: "bulbul:v3" as const, languages: ["pa"] },
+  { value: "gokul", label: "Gokul (Sarvam)", description: "Male", provider: "sarvam" as const, model: "bulbul:v3" as const },
+  { value: "vijay", label: "Vijay (Sarvam)", description: "Male", provider: "sarvam" as const, model: "bulbul:v3" as const },
+  { value: "mohit", label: "Mohit (Sarvam)", description: "Male", provider: "sarvam" as const, model: "bulbul:v3" as const },
+  { value: "rehan", label: "Rehan (Sarvam)", description: "Male", provider: "sarvam" as const, model: "bulbul:v3" as const, languages: ["bn"] },
+  { value: "soham", label: "Soham (Sarvam)", description: "Male", provider: "sarvam" as const, model: "bulbul:v3" as const },
+  { value: "priya", label: "Priya (Sarvam)", description: "Female", provider: "sarvam" as const, model: "bulbul:v3" as const, languages: ["hi", "te", "mr", "gu"] },
+  { value: "neha", label: "Neha (Sarvam)", description: "Female", provider: "sarvam" as const, model: "bulbul:v3" as const, languages: ["te", "kn"] },
+  { value: "ritu", label: "Ritu (Sarvam)", description: "Female", provider: "sarvam" as const, model: "bulbul:v3" as const, languages: ["ta", "od", "mr", "gu"] },
+  { value: "pooja", label: "Pooja (Sarvam)", description: "Female", provider: "sarvam" as const, model: "bulbul:v3" as const, languages: ["od", "ml"] },
+  { value: "simran", label: "Simran (Sarvam)", description: "Female", provider: "sarvam" as const, model: "bulbul:v3" as const },
+  { value: "kavya", label: "Kavya (Sarvam)", description: "Female", provider: "sarvam" as const, model: "bulbul:v3" as const },
+  { value: "ishita", label: "Ishita (Sarvam)", description: "Female", provider: "sarvam" as const, model: "bulbul:v3" as const, languages: ["en", "kn", "ta"] },
+  { value: "shreya", label: "Shreya (Sarvam)", description: "Female", provider: "sarvam" as const, model: "bulbul:v3" as const },
+  { value: "roopa", label: "Roopa (Sarvam)", description: "Female", provider: "sarvam" as const, model: "bulbul:v3" as const, languages: ["bn", "pa"] },
+  { value: "tanya", label: "Tanya (Sarvam)", description: "Female", provider: "sarvam" as const, model: "bulbul:v3" as const },
+  { value: "shruti", label: "Shruti (Sarvam)", description: "Female", provider: "sarvam" as const, model: "bulbul:v3" as const },
+  { value: "suhani", label: "Suhani (Sarvam)", description: "Female", provider: "sarvam" as const, model: "bulbul:v3" as const, languages: ["hi", "bn", "pa"] },
+  { value: "kavitha", label: "Kavitha (Sarvam)", description: "Female", provider: "sarvam" as const, model: "bulbul:v3" as const },
+  { value: "rupali", label: "Rupali (Sarvam)", description: "Female", provider: "sarvam" as const, model: "bulbul:v3" as const },
+  // Sarvam — Bulbul v2 (7 speakers)
+  { value: "anushka", label: "Anushka (Sarvam)", description: "Female — default v2", provider: "sarvam" as const, model: "bulbul:v2" as const },
+  { value: "manisha", label: "Manisha (Sarvam)", description: "Female — warm", provider: "sarvam" as const, model: "bulbul:v2" as const },
+  { value: "vidya", label: "Vidya (Sarvam)", description: "Female — articulate", provider: "sarvam" as const, model: "bulbul:v2" as const },
+  { value: "arya", label: "Arya (Sarvam)", description: "Female — energetic", provider: "sarvam" as const, model: "bulbul:v2" as const },
+  { value: "abhilash", label: "Abhilash (Sarvam)", description: "Male — authoritative", provider: "sarvam" as const, model: "bulbul:v2" as const },
+  { value: "karun", label: "Karun (Sarvam)", description: "Male — conversational", provider: "sarvam" as const, model: "bulbul:v2" as const },
+  { value: "hitesh", label: "Hitesh (Sarvam)", description: "Male — professional", provider: "sarvam" as const, model: "bulbul:v2" as const },
+];
+
+export interface AgentCreationWizardProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
+}
+
+export type WizardStep = "useCase" | "basics" | "personality" | "prompts" | "voice" | "review";
+
+export const steps: { id: WizardStep; title: string; icon: typeof Bot }[] = [
+  { id: "useCase", title: "Use Case", icon: Target },
+  { id: "basics", title: "Basic Info", icon: Bot },
+  { id: "personality", title: "Personality", icon: MessageSquare },
+  { id: "prompts", title: "Prompts", icon: FileText },
+  { id: "voice", title: "Voice", icon: Mic },
+  { id: "review", title: "Review", icon: CheckCircle2 },
+];
+
+export interface AgentFormData {
+  useCase: string;
+  name: string;
+  elevenLabsVoiceId: string;
+  language: string;
+  voiceTone: string;
+  personality: string;
+  systemPrompt: string;
+  firstMessage: string;
+  voiceStability: number;
+  voiceSimilarityBoost: number;
+  voiceSpeed: number;
+  turnTimeout: number;
+  telephonyProvider: "twilio" | "plivo" | "twilio_openai" | "elevenlabs-sip" | "openai-sip" | "custom-voice-engine";
+  openaiVoice: string;
+  sipPhoneNumberId: string;
+}

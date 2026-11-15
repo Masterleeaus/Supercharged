@@ -1,3 +1,4 @@
+/// <reference path="../../vite-env.d.ts" />
 /**
  * Ordered step registry for the chatbot builder wizard. Order matches core StepEnum and the core edit window.
  *
