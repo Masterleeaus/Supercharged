@@ -10,3 +10,27 @@ node_modules/
 # Webhook secrets (read from the working directory at runtime; never commit)
 .appointment-webhook-secret
 .rag-webhook-secret
+
+# Build output: recreated by `npm run build` (and inside the Docker build stage); never commit
+dist/
+
+# Compiled plugin dependencies: written next to the .ts sources by scripts/build-server-deps.js during the build. Generated, never commit.
+server/db.js
+server/services/appointment-elevenlabs-tool.js
+server/services/contact-upload-service.js
+server/services/form-elevenlabs-tool.js
+server/services/google-calendar/google-calendar.service.js
+server/services/google-sheets/google-sheets.service.js
+server/services/play-audio-elevenlabs-tool.js
+server/services/rag-elevenlabs-tool.js
+server/services/rag-knowledge.js
+server/services/webhook-delivery.js
+server/storage.js
+server/storage/analytics-helpers.js
+server/storage/index.js
+server/storage/types.js
+server/utils/batch-utils.js
+server/utils/domain.js
+server/utils/logger.js
+server/utils/url-validator.js
+shared/schema.js

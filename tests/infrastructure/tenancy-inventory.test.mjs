@@ -47,10 +47,10 @@ const extensionTables = [...extension
   .join('\n')
   .matchAll(/ALTER TABLE public\.(\w+) ENABLE ROW LEVEL SECURITY;/g)].map((m) => m[1]);
 // Tenant tables created by migrations/0014_workforce_tool_tables.sql or 0015_company_quiet_hours.sql
-// with company_id NOT NULL (or as the primary key, which implies NOT NULL).
+// with company_id NOT NULL (or as the primary key, which implies NOT NULL). 0017 adds user_company_memberships (issue #130).
 // Those migrations cover them directly: they are not in any archived draft, and they need no
 // backfill because they are new. Only tables whose CREATE block has that column count.
-const ownMigrations = ['migrations/0014_workforce_tool_tables.sql', 'migrations/0015_company_quiet_hours.sql']
+const ownMigrations = ['migrations/0014_workforce_tool_tables.sql', 'migrations/0015_company_quiet_hours.sql', 'migrations/0017_user_company_memberships.sql']
   .map((rel) => read(rel))
   .join('\n');
 const ownMigrationTables = [...ownMigrations.matchAll(/CREATE TABLE IF NOT EXISTS (\w+) \(([\s\S]*?)\n\);/g)]
@@ -83,14 +83,14 @@ function tablesMatching(pattern) {
   return [...liveSql.matchAll(pattern)].map((m) => m[1]);
 }
 
-test('schema.ts declares 131 tables, all unique', () => {
-  assert.equal(schemaTables.length, 131);
-  assert.equal(new Set(schemaTables).size, 131);
+test('schema.ts declares 132 tables, all unique', () => {
+  assert.equal(schemaTables.length, 132);
+  assert.equal(new Set(schemaTables).size, 132);
 });
 
 test('inventory has exactly one row per schema table, with a valid class', () => {
   const names = rows.map((r) => r.table);
-  assert.equal(rows.length, 131, `expected 131 rows, got ${rows.length}`);
+  assert.equal(rows.length, 132, `expected 132 rows, got ${rows.length}`);
   assert.equal(new Set(names).size, names.length, 'duplicate table row');
   assert.deepEqual([...names].sort(), [...schemaTables].sort(), 'inventory and schema.ts differ');
   for (const r of rows) {
@@ -98,10 +98,10 @@ test('inventory has exactly one row per schema table, with a valid class', () =>
   }
 });
 
-test('row numbers run 1..131 in schema order', () => {
+test('row numbers run 1..132 in schema order', () => {
   assert.deepEqual(
     rows.map((r) => r.n),
-    Array.from({ length: 131 }, (_, i) => i + 1),
+    Array.from({ length: 132 }, (_, i) => i + 1),
   );
   assert.deepEqual(rows.map((r) => r.table), schemaTables);
 });
@@ -122,8 +122,8 @@ test('the counts section matches the rows', () => {
   assert.match(inventory, new RegExp(`- global: ${count('global')}\\n`));
   assert.match(inventory, new RegExp(`- ambiguous: ${count('ambiguous')}\\n`));
   assert.match(inventory, new RegExp(`- root: ${count('root')} \\(companies\\)\\n`));
-  assert.equal(count('tenant') + count('global') + count('ambiguous') + count('root'), 131);
-  assert.match(inventory, /- total: 131\n/);
+  assert.equal(count('tenant') + count('global') + count('ambiguous') + count('root'), 132);
+  assert.match(inventory, /- total: 132\n/);
 });
 
 test('draft adds company_id to exactly the tenant tables, all in STEP A', () => {

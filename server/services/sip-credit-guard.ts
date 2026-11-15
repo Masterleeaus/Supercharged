@@ -13,6 +13,11 @@ import { logger } from '../utils/logger';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
 
+/** Message text of a caught value, for log lines. */
+function errorText(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 const SIP_CREDIT_THRESHOLD = 5;
 
 interface DisconnectedSipPhone {
@@ -37,8 +42,8 @@ export async function canAssignSipAgent(userId: string): Promise<{ allowed: bool
       balance,
       threshold: SIP_CREDIT_THRESHOLD,
     };
-  } catch (error: any) {
-    logger.error(`[SIP Credit Guard] Error checking credits for user ${userId}: ${error.message}`);
+  } catch (error: unknown) {
+    logger.error(`[SIP Credit Guard] Error checking credits for user ${userId}: ${errorText(error)}`);
     return { allowed: true, balance: 0, threshold: SIP_CREDIT_THRESHOLD };
   }
 }
@@ -104,20 +109,20 @@ export async function checkAndDisconnectIfLowCredits(userId: string): Promise<vo
               null
             );
             logger.info(`   ✅ [SIP Credit Guard] Disconnected agent ${previousAgentId} from [redacted] (ElevenLabs)`);
-          } catch (elError: any) {
-            logger.warn(`   ⚠️ [SIP Credit Guard] ElevenLabs disconnect failed for [redacted]: ${elError.message}`);
+          } catch (elError: unknown) {
+            logger.warn(`   ⚠️ [SIP Credit Guard] ElevenLabs disconnect failed for [redacted]: ${errorText(elError)}`);
           }
         } else {
           logger.info(`   ✅ [SIP Credit Guard] Disconnected agent ${previousAgentId} from [redacted] (DB only)`);
         }
-      } catch (phoneError: any) {
+      } catch (phoneError: unknown) {
         logger.error(`   ❌ [SIP Credit Guard] Failed to disconnect [redacted]: [redacted]`);
       }
     }
 
     logger.info(`✅ [SIP Credit Guard] Disconnected ${sipPhones.rows.length} SIP phone(s) for user ${userId}`);
-  } catch (error: any) {
-    logger.error(`❌ [SIP Credit Guard] Error in checkAndDisconnectIfLowCredits: ${error.message}`);
+  } catch (error: unknown) {
+    logger.error(`❌ [SIP Credit Guard] Error in checkAndDisconnectIfLowCredits: ${errorText(error)}`);
   }
 }
 
@@ -182,8 +187,8 @@ export async function reconnectAfterRecharge(userId: string): Promise<void> {
               d.agent_id
             );
             logger.info(`   ✅ [SIP Credit Guard] Reconnected agent ${d.agent_id} to [redacted] (ElevenLabs)`);
-          } catch (elError: any) {
-            logger.warn(`   ⚠️ [SIP Credit Guard] ElevenLabs reconnect failed for [redacted]: ${elError.message}`);
+          } catch (elError: unknown) {
+            logger.warn(`   ⚠️ [SIP Credit Guard] ElevenLabs reconnect failed for [redacted]: ${errorText(elError)}`);
           }
         } else {
           logger.info(`   ✅ [SIP Credit Guard] Reconnected agent ${d.agent_id} to [redacted] (DB only)`);
@@ -192,14 +197,14 @@ export async function reconnectAfterRecharge(userId: string): Promise<void> {
         await db.execute(sql`
           UPDATE sip_credit_guard_disconnects SET reconnected_at = NOW() WHERE id = ${d.id}
         `);
-      } catch (phoneError: any) {
+      } catch (phoneError: unknown) {
         logger.error(`   ❌ [SIP Credit Guard] Failed to reconnect [redacted]: [redacted]`);
       }
     }
 
     logger.info(`✅ [SIP Credit Guard] Reconnection complete for user ${userId}`);
-  } catch (error: any) {
-    logger.error(`❌ [SIP Credit Guard] Error in reconnectAfterRecharge: ${error.message}`);
+  } catch (error: unknown) {
+    logger.error(`❌ [SIP Credit Guard] Error in reconnectAfterRecharge: ${errorText(error)}`);
   }
 }
 
@@ -260,16 +265,16 @@ export async function runStartupCreditGuardScan(): Promise<void> {
           );
           elClearedCount++;
           logger.info(`   ✅ [SIP Credit Guard] Cleared ElevenLabs agent from [redacted] (user ${phone.user_id}, ${phone.credits} credits)`);
-        } catch (elError: any) {
-          logger.warn(`   ⚠️ [SIP Credit Guard] Failed to clear ElevenLabs agent from [redacted]: ${elError.message}`);
+        } catch (elError: unknown) {
+          logger.warn(`   ⚠️ [SIP Credit Guard] Failed to clear ElevenLabs agent from [redacted]: ${errorText(elError)}`);
         }
       }
     }
 
     const totalUsers = (usersWithSipAgents.rows?.length || 0);
     logger.info(`✅ [SIP Credit Guard] Startup scan complete: ${totalUsers} user(s) with agents checked, ${disconnectedCount} disconnected, ${elClearedCount} ElevenLabs-side cleared`);
-  } catch (error: any) {
-    logger.error(`❌ [SIP Credit Guard] Startup scan error: ${error.message}`);
+  } catch (error: unknown) {
+    logger.error(`❌ [SIP Credit Guard] Startup scan error: ${errorText(error)}`);
   }
 }
 

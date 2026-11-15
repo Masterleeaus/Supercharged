@@ -152,8 +152,8 @@ Only flag genuine policy violations. Normal business conversations, expressions 
     logger.info(`💾 [AI Violation Detection] Stored ${createdViolations.length} violation(s) for call ${callId}`);
     return createdViolations;
 
-  } catch (error: any) {
-    logger.error(`❌ [AI Violation Detection] Error analyzing call ${callId}:`, error.message);
+  } catch (error: unknown) {
+    logger.error(`❌ [AI Violation Detection] Error analyzing call ${callId}:`, error instanceof Error ? error.message : String(error));
     return [];
   }
 }

@@ -218,13 +218,19 @@ export async function applyPlanCredits(
     }
 
     return creditsToAdd;
-  } catch (error: any) {
+  } catch (error: unknown) {
     // If duplicate, credits were already applied
-    const isDuplicate = 
-      error.code === '23505' || 
-      error.cause?.code === '23505' ||
-      error.message?.includes('unique') || 
-      error.message?.includes('duplicate');
+    const dbError: { code?: unknown; cause?: unknown; message?: unknown } =
+      typeof error === 'object' && error !== null ? error : {};
+    const causeCode = typeof dbError.cause === 'object' && dbError.cause !== null && 'code' in dbError.cause
+      ? dbError.cause.code
+      : undefined;
+    const message = typeof dbError.message === 'string' ? dbError.message : '';
+    const isDuplicate =
+      dbError.code === '23505' ||
+      causeCode === '23505' ||
+      message.includes('unique') ||
+      message.includes('duplicate');
       
     if (isDuplicate) {
       logger.info(`[Membership] Plan credits already applied for transaction ${transactionId}`);
@@ -372,8 +378,8 @@ export async function removeSystemPoolNumbersFromCampaigns(userId: string): Prom
     logger.info(`✅ [Membership] Removed system pool numbers from ${campaignIds.length} campaign(s) for user ${userId}`);
     
     return campaignIds.length;
-  } catch (error: any) {
-    logger.error(`❌ [Membership] Error removing system pool numbers from campaigns:`, error.message);
+  } catch (error: unknown) {
+    logger.error(`❌ [Membership] Error removing system pool numbers from campaigns:`, error instanceof Error ? error.message : String(error));
     return 0;
   }
 }

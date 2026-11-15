@@ -121,6 +121,11 @@ if (isMain) {
     process.exit(2);
   }
   const result = checkArea(arg);
+  // An area with no files would check nothing and pass silently, so it counts as a failure.
+  if (result.fileCount === 0) {
+    console.error(`Area ${result.area}: 0 files found. An empty area cannot pass; fix the area path.`);
+    process.exit(1);
+  }
   console.log(`Area ${result.area}: ${result.fileCount} files, ${result.errors.length} error(s).`);
   for (const e of result.errors.slice(0, 50)) {
     console.log(`${e.file}(${e.line}): TS${e.code} ${e.message}`);

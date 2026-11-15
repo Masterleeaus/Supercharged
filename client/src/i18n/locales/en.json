@@ -2796,6 +2796,8 @@
       "appointmentCompletedDesc": "When an appointment is marked complete",
       "appointmentNoShow": "Appointment No-Show",
       "appointmentNoShowDesc": "When the customer doesn't attend",
+      "appointmentReminderSent": "Appointment Reminder Sent",
+      "appointmentReminderSentDesc": "When a reminder for an upcoming appointment is sent",
       "formSubmitted": "Form Submitted",
       "formSubmittedDesc": "When a form is submitted",
       "formLeadCreated": "Lead Created",
