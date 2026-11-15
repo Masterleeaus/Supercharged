@@ -459,7 +459,7 @@ export function batchApprove(cards: unknown, actor: DecisionActor, now: Date = n
       return { decision_id: id, business_id: businessId, ok: false, card: null, error: f, audit: audit(raw, move, f) };
     }
     const outcome = approveCore(raw as DecisionCard, actor, at, 'batch_approve');
-    if (outcome.ok) {
+    if (outcome.ok === true) {
       return { decision_id: id, business_id: businessId, ok: true, card: outcome.value, error: null, audit: outcome.audit };
     }
     return { decision_id: id, business_id: businessId, ok: false, card: null, error: outcome.error, audit: outcome.audit };

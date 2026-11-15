@@ -37,6 +37,7 @@ import {
   PhoneMigrationStatus 
 } from './types';
 import { logger } from '../../utils/logger';
+import { ErrorLike, messageOf } from './error-detector';
 
 /**
  * Phone Number Migrator
@@ -238,11 +239,11 @@ export class PhoneMigrator {
               } else {
                 logger.warn(`   ⚠️  Phone number mismatch - skipping delete from old account`);
               }
-            } catch (getError: any) {
+            } catch (getError: unknown) {
               logger.warn(`   ℹ️  Phone not found in old account (may already be deleted)`);
             }
-          } catch (deleteError: any) {
-            logger.warn(`   ⚠️  Could not delete from old account: ${deleteError.message}`);
+          } catch (deleteError: unknown) {
+            logger.warn(`   ⚠️  Could not delete from old account: ${messageOf(deleteError)}`);
           }
         }
       }
@@ -276,8 +277,8 @@ export class PhoneMigrator {
             phoneRecord.phoneNumber
           );
           logger.info(`   ✅ Twilio webhook reconfigured`);
-        } catch (webhookError: any) {
-          logger.warn(`   ⚠️  Could not reconfigure Twilio webhook: ${webhookError.message}`);
+        } catch (webhookError: unknown) {
+          logger.warn(`   ⚠️  Could not reconfigure Twilio webhook: ${messageOf(webhookError)}`);
         }
       }
       
@@ -314,8 +315,8 @@ export class PhoneMigrator {
         newElevenLabsPhoneId
       };
       
-    } catch (error: any) {
-      logger.error(`📞 [Phone Migrator] Failed to migrate [redacted]: ${error.message}`);
+    } catch (error: unknown) {
+      logger.error(`📞 [Phone Migrator] Failed to migrate [redacted]: ${messageOf(error)}`);
       
       return {
         success: false,
@@ -325,7 +326,7 @@ export class PhoneMigrator {
         newCredentialId: targetCredentialId,
         oldElevenLabsPhoneId,
         newElevenLabsPhoneId: null,
-        error: error.message
+        error: messageOf(error)
       };
     } finally {
       await this.unlockPhone(phoneNumberDbId);
@@ -441,18 +442,19 @@ export class PhoneMigrator {
         } else {
           logger.info(`   ⚠️ Phone number mismatch - will re-import`);
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         // 404 means phone doesn't exist - need to re-import
-        if (error.message?.includes('404') || error.message?.includes('not found') || error.message?.includes('Phone number') || error.status === 404) {
+        const errLike = error as ErrorLike;
+        if (errLike.message?.includes("404") || errLike.message?.includes("not found") || errLike.message?.includes("Phone number") || errLike.status === 404) {
           logger.warn(`   ⚠️ Phone not found on ElevenLabs (404) - will re-import from Twilio`);
         } else {
-          logger.error(`   ❌ Error checking phone: ${error.message}`);
+          logger.error(`   ❌ Error checking phone: ${messageOf(error)}`);
           await this.unlockPhoneVerification(phoneNumberDbId);
           return {
             success: false,
             elevenLabsPhoneId: null,
             wasReimported: false,
-            error: `Failed to verify phone: ${error.message}`
+            error: `Failed to verify phone: ${messageOf(error)}`
           };
         }
       }
@@ -489,8 +491,8 @@ export class PhoneMigrator {
             phoneRecord.phoneNumber
           );
           logger.info(`   ✅ Twilio webhook reconfigured`);
-        } catch (webhookError: any) {
-          logger.warn(`   ⚠️ Could not reconfigure Twilio webhook: ${webhookError.message}`);
+        } catch (webhookError: unknown) {
+          logger.warn(`   ⚠️ Could not reconfigure Twilio webhook: ${messageOf(webhookError)}`);
         }
       }
       
@@ -504,8 +506,8 @@ export class PhoneMigrator {
             false // for outbound, not inbound
           );
           logger.info(`   ✅ Agent assigned to phone`);
-        } catch (assignError: any) {
-          logger.warn(`   ⚠️ Could not assign agent to phone: ${assignError.message}`);
+        } catch (assignError: unknown) {
+          logger.warn(`   ⚠️ Could not assign agent to phone: ${messageOf(assignError)}`);
           // Don't fail the whole operation - phone is still usable
         }
       }
@@ -529,14 +531,14 @@ export class PhoneMigrator {
         wasReimported: true
       };
       
-    } catch (error: any) {
-      logger.error(`   ❌ Failed to re-import phone: ${error.message}`);
+    } catch (error: unknown) {
+      logger.error(`   ❌ Failed to re-import phone: ${messageOf(error)}`);
       await this.unlockPhoneVerification(phoneNumberDbId);
       return {
         success: false,
         elevenLabsPhoneId: null,
         wasReimported: false,
-        error: `Failed to re-import phone from Twilio: ${error.message}`
+        error: `Failed to re-import phone from Twilio: ${messageOf(error)}`
       };
     }
   }

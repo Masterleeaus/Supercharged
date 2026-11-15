@@ -105,3 +105,16 @@ Source: `integration/VERIFICATION.md`, finding M4.
 - The second `chatbots` table in `db/builder.ts` (`chatbotBuilderTable`) is removed. Item 4 above is resolved. The builder storage reads `builder_settings` and `public_uuid` as SQL identifiers on the shared `chatbots` table in `shared/schema.ts`, and writes the settings merge as a raw `update`. Both stay until the owner promotes `builderChatbotColumns`, which then replaces the raw SQL.
 - The root `server/modules/chatbot/schema.DRAFT.ts` re-exports the shared `chatbots` table instead of defining its own.
 - Test: `tests/modules/chatbot-builder-drizzle.test.mjs` (14 of 14 pass).
+
+## Lifecycle endpoints (Refs #48)
+
+Same guard as the other builder routes: authenticate, company scope, role (config roles for writes), 404 when the flag is off.
+
+1. **POST /api/chatbot/builder creates a chatbot.** Body is the strict builder patch shape. Title is required. The save rule (welcome, bubble, instructions outside demo mode) runs on the body alone, so every stored chatbot passes it and later PATCH saves keep working. Responds 201 with the snapshot. Avatar must be a preset or this company's upload.
+2. **New chatbots start live** (`active` true) unless the body sends `configure.active: false`. This is a guess at the owner's intent; the most conservative option would be draft-by-default, which is a one-line change in the create handler.
+3. **POST /builder/:id/publish sets active to true.** There is no separate draft or published column, so publish is the active flag. It refuses with 400 when the stored chatbot has no title or would fail the save rule, so a live chatbot always has its welcome and bubble messages.
+4. **POST /builder/:id/pause sets active to false.** No checks, so an unfinished chatbot can be paused. Idempotent.
+5. **Update is the existing PATCH /builder/:id.** No second update route was added.
+6. **Storage.** `createBuilderState` is added to `BuilderStorage`. The Drizzle version inserts the classic and builder columns in one statement, with company_id from the caller. Not run against Postgres (no database here); covered by a rendered-SQL test only.
+7. **Mount is not changed here.** `wiring/mount.ts` mounts this router at `/api/chatbot/builder`, so the routes resolve one level too deep. That is the mount fix in PR #230, which is not on main.
+8. Tests: `tests/modules/chatbot-builder-routes.test.mjs` (51 of 51 pass), `tests/modules/chatbot-builder-drizzle.test.mjs` (15 of 15 pass).

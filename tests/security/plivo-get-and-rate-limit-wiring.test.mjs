@@ -7,11 +7,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { WEBHOOK_BARREL, readWebhookRouteSources } from './webhook-route-sources.mjs';
 
-const read = (rel) => fs.readFileSync(new URL('../../' + rel, import.meta.url), 'utf8');
+const read = (rel) => (rel === WEBHOOK_BARREL ? readWebhookRouteSources() : fs.readFileSync(new URL('../../' + rel, import.meta.url), 'utf8'));
 
 const PLIVO_ROUTES = 'server/engines/plivo/routes/plivo-webhooks.ts';
-const WEBHOOK_ROUTES = 'server/routes/webhook-routes.ts';
+const WEBHOOK_ROUTES = WEBHOOK_BARREL;
 
 // Every app.<method>('/api/plivo/...', ...) registration in the Plivo routes file.
 function plivoRegistrations(src) {
@@ -48,7 +49,8 @@ test('no unguarded GET remains on the Plivo transfer path', () => {
   const transferGets = plivoRegistrations(src).filter(
     (r) => r.method === 'get' && r.path === '/api/plivo/voice/transfer',
   );
-  assert.equal(transferGets.length, 2, 'expected the two existing GET registrations');
+  // The second GET registration was shadowed by the first and has been removed (issue #319).
+  assert.equal(transferGets.length, 1, 'expected the one guarded GET registration');
   for (const r of transferGets) {
     assert.match(r.rest, /^\s*verifyPlivo\s*,/);
   }
@@ -79,7 +81,7 @@ test('the inbound SMS route is guarded by verifyPlivo and delegates to the injec
 
 test('webhook-routes.ts imports the shared webhookRateLimiter and defines the in-handler guard', () => {
   const src = read(WEBHOOK_ROUTES);
-  assert.match(src, /import\s*\{\s*webhookRateLimiter\s*\}\s*from\s*'\.\.\/middleware\/rateLimiter'/);
+  assert.match(src, /import\s*\{\s*webhookRateLimiter\s*\}\s*from\s*'\.\.\/(?:\.\.\/)?middleware\/rateLimiter'/);
   assert.match(src, /async function enforceWebhookRateLimit\(req: Request, res: Response\): Promise<boolean>/);
   assert.match(src, /status\(429\)/);
 });

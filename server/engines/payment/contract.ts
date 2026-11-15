@@ -2,7 +2,7 @@
 // Sits beside the legacy engine (index.ts, gateways/*), which is not modified.
 // No runtime dependencies: node:crypto only.
 
-export const GATEWAY_IDS = ['stripe', 'razorpay', 'paypal', 'paystack', 'mercadopago', 'yookassa'] as const;
+export const GATEWAY_IDS = ['stripe', 'razorpay', 'paypal', 'paystack', 'mercadopago'] as const;
 export type GatewayId = (typeof GATEWAY_IDS)[number];
 
 // Same shape as server/engines/decision: no separator that could break composite keys.

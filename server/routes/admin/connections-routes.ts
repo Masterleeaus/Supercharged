@@ -324,33 +324,6 @@ export function registerConnectionsRoutes(router: Router) {
     }
   });
 
-  router.post('/test-connection/yookassa', requireAdminPermission('settings', 'system_settings', 'update'), async (req: AdminRequest, res: Response) => {
-    try {
-      const dbShopId = await storage.getGlobalSetting('yookassa_shop_id');
-      const dbSecretKey = await storage.getGlobalSetting('yookassa_secret_key');
-      
-      const shopId = dbShopId?.value as string;
-      const secretKey = dbSecretKey?.value as string;
-      
-      if (!shopId || !secretKey) {
-        return res.json({ connected: false, error: 'YooKassa credentials not configured' });
-      }
-      
-      const auth = Buffer.from(`${shopId}:${secretKey}`).toString('base64');
-      const response = await fetchWithTimeout('https://api.yookassa.ru/v3/payments?limit=1', { headers: { 'Authorization': `Basic ${auth}` } });
-      const { data, isJson, rawText } = await safeParseResponse(response);
-      
-      if (response.ok) {
-        res.json({ connected: true, source: 'Database' });
-      } else {
-        res.json({ connected: false, error: `YooKassa API error: ${isJson && data?.description ? data.description : response.statusText}` });
-      }
-    } catch (error: any) {
-      const isTimeout = error.name === 'AbortError';
-      res.json({ connected: false, error: isTimeout ? 'Connection timed out.' : (error.message || 'Failed to test YooKassa connection') });
-    }
-  });
-
   router.post('/test-connection/razorpay', requireAdminPermission('settings', 'system_settings', 'update'), async (req: AdminRequest, res: Response) => {
     try {
       const dbKeyId = await storage.getGlobalSetting('razorpay_key_id');

@@ -71,7 +71,7 @@ export async function withMigrationFallback<T>(
     maxRetries = 1 
   } = options;
 
-  let lastError: any;
+  let lastError: unknown;
   let attempts = 0;
 
   while (attempts <= maxRetries) {

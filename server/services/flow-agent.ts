@@ -36,12 +36,14 @@ import { EnhancedFlowCompiler } from './enhanced-flow-compiler';
 import { storage } from '../storage';
 import { db } from '../db';
 import { eq } from 'drizzle-orm';
-import { llmModels, flows, formFields, forms } from '@shared/schema';
+import { llmModels, flows, formFields, forms, type Agent, type FlowNode, type FlowEdge } from '@shared/schema';
+import type { FormFieldDefinition } from './form-elevenlabs-tool';
+import type { ElevenLabsWebhookToolDefinition, ElevenLabsWorkflowNode, ElevenLabsWorkflowEdge } from './elevenlabs';
 import { setupRAGToolForAgent, isRAGEnabled } from './rag-elevenlabs-tool';
 import { sanitizeLlmModel } from '../utils/llm-sanitize';
 
 async function convertWorkflowTransferNodesForSIP(
-  workflow: { nodes: Record<string, any>; edges: Record<string, any> },
+  workflow: CompiledWorkflow,
   agentId: string
 ): Promise<void> {
   try {
@@ -49,7 +51,8 @@ async function convertWorkflowTransferNodesForSIP(
 
     // SIP agents keep conference transfer type with direct phone numbers
     // sip_refer has known issues with ElevenLabs SIP trunks, conference works reliably
-    for (const [nodeId, node] of Object.entries(workflow.nodes)) {
+    for (const [nodeId, rawNode] of Object.entries(workflow.nodes)) {
+      const node = rawNode as WorkflowTransferNode;
       if (node.type === 'phone_number' && node.transfer_destination?.type === 'phone') {
         node.transfer_type = 'conference';
         logger.info(`   📞 [Flow SIP] Transfer node ${nodeId}: [redacted] (conference)`);
@@ -125,15 +128,34 @@ export interface FlowAgentUpdateParams {
 }
 
 interface CompiledWorkflow {
-  nodes: Record<string, any>;
-  edges: Record<string, any>;
+  nodes: Record<string, ElevenLabsWorkflowNode>;
+  edges: Record<string, ElevenLabsWorkflowEdge>;
+}
+
+/** Node data as the form enrichment reads it: a type plus a config, or config fields directly. */
+interface FormEnrichableNodeData {
+  type?: string;
+  config?: unknown;
+  [key: string]: unknown;
+}
+
+interface FormEnrichableNodeConfig {
+  formId?: string;
+  [key: string]: unknown;
+}
+
+/** Fields read when converting phone_number nodes for SIP agents. */
+interface WorkflowTransferNode {
+  type?: string;
+  transfer_destination?: { type?: string };
+  transfer_type?: string;
 }
 
 interface FormNodeInfo {
   nodeId?: string;
   formId: string;
   formName: string;
-  fields: any[];
+  fields: FormFieldDefinition[];
   googleSheetId?: string;
   googleSheetName?: string;
 }
@@ -143,7 +165,7 @@ interface WebhookNodeInfo {
   url: string;
   method: "GET" | "POST" | "PUT" | "PATCH";
   headers?: Record<string, string>;
-  payload?: Record<string, any>;
+  payload?: Record<string, unknown>;
 }
 
 interface PlayAudioNodeInfo {
@@ -190,7 +212,7 @@ export class FlowAgentService {
    * Compile a flow into ElevenLabs workflow format
    * Uses EnhancedFlowCompiler when USE_ENHANCED_COMPILER is true
    */
-  static compileFlow(flowNodes: any[], flowEdges: any[], options?: { knowledgeBases?: any[], hasRagTool?: boolean }): CompileResult {
+  static compileFlow(flowNodes: FlowNode[], flowEdges: FlowEdge[], options?: { knowledgeBases?: KnowledgeBaseItem[], hasRagTool?: boolean }): CompileResult {
     if (!flowNodes || flowNodes.length === 0) {
       return { workflow: { nodes: {}, edges: {} } };
     }
@@ -232,7 +254,7 @@ export class FlowAgentService {
    * Fetch a flow by ID and compile it
    * Also loads form fields from the database for any form nodes
    */
-  static async fetchAndCompileFlow(flowId: string, knowledgeBaseIds?: string[]): Promise<CompileResult & { flow: any }> {
+  static async fetchAndCompileFlow(flowId: string, knowledgeBaseIds?: string[]): Promise<CompileResult & { flow: typeof flows.$inferSelect }> {
     const [flow] = await db
       .select()
       .from(flows)
@@ -242,8 +264,8 @@ export class FlowAgentService {
       throw new Error(`Flow not found: ${flowId}`);
     }
 
-    let flowNodes = (flow.nodes as any[]) || [];
-    const flowEdges = (flow.edges as any[]) || [];
+    let flowNodes: FlowNode[] = flow.nodes || [];
+    const flowEdges: FlowEdge[] = flow.edges || [];
 
     logger.info(`🔄 [Flow Agent] Compiling flow: ${flow.name}`);
     logger.info(`   Flow nodes: ${flowNodes.length}, edges: ${flowEdges.length}`);
@@ -278,16 +300,17 @@ export class FlowAgentService {
    * This ensures the compiler has full form field data for webhook tool generation
    * Made public so routes can call it when syncing flows to ElevenLabs
    */
-  static async enrichFormNodesWithFields(flowNodes: any[]): Promise<any[]> {
+  static async enrichFormNodesWithFields(flowNodes: FlowNode[]): Promise<FlowNode[]> {
     logger.info(`   📋 [Form Enrichment] Processing ${flowNodes.length} nodes...`);
     const enrichedNodes = [];
 
     for (const node of flowNodes) {
-      const nodeType = node.data?.type || node.type;
+      const nodeData = node.data as FormEnrichableNodeData | undefined;
+      const nodeType = nodeData?.type || node.type;
 
       // Check if this is a form node
       if (nodeType === 'form' || nodeType === 'form_submission' || nodeType === 'collect_info') {
-        const config = node.data?.config || node.data || {};
+        const config = (nodeData?.config || nodeData || {}) as FormEnrichableNodeConfig;
         const formId = config.formId;
 
         logger.info(`   📋 [Form Enrichment] Found form node ${node.id}, formId: ${formId}`);
@@ -339,8 +362,8 @@ export class FlowAgentService {
               });
               continue;
             }
-          } catch (error: any) {
-            logger.warn(`   ⚠️ [Form Enrichment] Failed to load form ${formId}:`, error.message);
+          } catch (error: unknown) {
+            logger.warn(`   ⚠️ [Form Enrichment] Failed to load form ${formId}:`, (error as Error).message);
           }
         }
       }
@@ -385,8 +408,8 @@ export class FlowAgentService {
           title: kbItem.title,
           elevenLabsDocId: kbItem.elevenLabsDocId
         });
-      } catch (error: any) {
-        logger.error(`   ❌ Failed to fetch KB ${kbId}:`, error.message);
+      } catch (error: unknown) {
+        logger.error(`   ❌ Failed to fetch KB ${kbId}:`, (error as Error).message);
       }
     }
 
@@ -466,9 +489,10 @@ export class FlowAgentService {
     }
     if (!credential) {
       // Provide actionable error context for troubleshooting
-      const error = new Error("No ElevenLabs API keys available. Please contact your administrator to add API keys to the pool.");
-      (error as any).code = 'SERVICE_UNAVAILABLE';
-      (error as any).status = 503;
+      const error = Object.assign(
+        new Error("No ElevenLabs API keys available. Please contact your administrator to add API keys to the pool."),
+        { code: 'SERVICE_UNAVAILABLE', status: 503 }
+      );
       throw error;
     }
     logger.info(`   Using credential: ${credential.name || credential.id} (source: ${credentialSource})`);
@@ -497,7 +521,7 @@ export class FlowAgentService {
 
     // Build custom webhook tools BEFORE agent creation (they don't need agent ID)
     // Appointment and form tools need agent ID so they're added after
-    const initialWebhookTools: any[] = [];
+    const initialWebhookTools: ElevenLabsWebhookToolDefinition[] = [];
 
     if (hasWebhookNodes && webhookNodes && webhookNodes.length > 0) {
       logger.info(`🔗 [Flow Agent] Building custom webhook tools for initial creation`);
@@ -515,7 +539,7 @@ export class FlowAgentService {
 
           // Build request body schema from payload configuration
           // POST methods ALWAYS require request_body_schema (even if empty)
-          let requestBodySchema: any = undefined;
+          let requestBodySchema: Record<string, unknown> | undefined = undefined;
           if (webhookNode.payload && Object.keys(webhookNode.payload).length > 0) {
             requestBodySchema = {
               type: "object",
@@ -589,7 +613,7 @@ export class FlowAgentService {
     this.logVoicePoolInfo(params.elevenLabsVoiceId, params.name);
 
     // Build appointment and form tools AFTER creation (they need ElevenLabs agent ID for webhook URL)
-    const postCreationTools: any[] = [];
+    const postCreationTools: ElevenLabsWebhookToolDefinition[] = [];
 
     if (hasAppointmentNodes) {
       logger.info(`📅 [Flow Agent] Preparing appointment booking webhook tool for agent ${elevenLabsAgent.agent_id}`);
@@ -626,7 +650,7 @@ export class FlowAgentService {
         logger.info(`📧 [Flow Agent] Building ${messagingEmailNodes.length} email webhook tool(s) for agent ${elevenLabsAgent.agent_id}`);
         const { buildMessagingEmailTool } = await import('./elevenlabs');
         for (const emailNode of messagingEmailNodes) {
-          const templateName = emailNode.payload?.template_name || 'default';
+          const templateName = (emailNode.payload?.template_name || 'default') as string;
           const emailTool = buildMessagingEmailTool(elevenLabsAgent.agent_id, [templateName], templateName);
           emailTool.name = emailNode.toolId.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 64);
           postCreationTools.push(emailTool);
@@ -638,7 +662,7 @@ export class FlowAgentService {
         logger.info(`💬 [Flow Agent] Building ${messagingWhatsappNodes.length} WhatsApp webhook tool(s) for agent ${elevenLabsAgent.agent_id}`);
         const { buildMessagingWhatsappTool } = await import('./elevenlabs');
         for (const waNode of messagingWhatsappNodes) {
-          const templateName = waNode.payload?.template_name || 'hello_world';
+          const templateName = (waNode.payload?.template_name || 'hello_world') as string;
           const waTool = buildMessagingWhatsappTool(elevenLabsAgent.agent_id, [templateName], templateName);
           waTool.name = waNode.toolId.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 64);
           postCreationTools.push(waTool);
@@ -685,8 +709,8 @@ export class FlowAgentService {
           { webhookTools: allWebhookTools }
         );
         logger.info(`✅ [Flow Agent] Post-creation webhook tools added (${postCreationTools.length} tools)`);
-      } catch (toolError: any) {
-        logger.error(`❌ [Flow Agent] Failed to add post-creation webhook tools:`, toolError.message);
+      } catch (toolError: unknown) {
+        logger.error(`❌ [Flow Agent] Failed to add post-creation webhook tools:`, (toolError as Error).message);
         // Don't fail agent creation if tool addition fails - the agent is still functional
       }
     }
@@ -697,9 +721,16 @@ export class FlowAgentService {
   /**
    * Check if error indicates a stale/invalid agent ID (API key changed or agent deleted)
    */
-  private static isStaleAgentError(error: any): boolean {
-    const status = error?.statusCode || error?.status || error?.response?.status || error?.context?.statusCode;
-    const message = String(error?.message || '').toLowerCase();
+  private static isStaleAgentError(error: unknown): boolean {
+    const err = error as {
+      statusCode?: number;
+      status?: number;
+      response?: { status?: number };
+      context?: { statusCode?: number };
+      message?: unknown;
+    } | null | undefined;
+    const status = err?.statusCode || err?.status || err?.response?.status || err?.context?.statusCode;
+    const message = String(err?.message || '').toLowerCase();
 
     // 401: Unauthorized (API key doesn't have access)
     // 403: Forbidden (API key doesn't own this agent)
@@ -732,7 +763,7 @@ export class FlowAgentService {
   static async updateInElevenLabs(
     agentId: string,
     elevenLabsAgentId: string,
-    currentAgent: any,
+    currentAgent: Agent,
     params: FlowAgentUpdateParams
   ): Promise<{ recreated?: boolean; newElevenLabsAgentId?: string; newCredentialId?: string; messagingWhatsappTemplates?: string[] }> {
     logger.info(`🔄 [Flow Agent] Updating: ${agentId}`);
@@ -805,7 +836,7 @@ export class FlowAgentService {
     }
 
     // Build RAG webhook tools for consolidated update (if RAG is enabled and has KBs)
-    let webhookTools: any[] = [];
+    let webhookTools: ElevenLabsWebhookToolDefinition[] = [];
     if (hasKnowledgeBases && isRAGEnabled()) {
       const { getAskKnowledgeWebhookTool } = await import('./rag-elevenlabs-tool');
       const ragToolConfig = getAskKnowledgeWebhookTool(elevenLabsAgentId);
@@ -816,8 +847,8 @@ export class FlowAgentService {
       try {
         await elevenLabsService.getOrCreateWorkspaceTool(ragToolConfig);
         logger.info(`📚 [Flow] RAG workspace tool created/verified`);
-      } catch (wsError: any) {
-        logger.warn(`📚 [Flow] RAG workspace tool skipped: ${wsError.message}`);
+      } catch (wsError: unknown) {
+        logger.warn(`📚 [Flow] RAG workspace tool skipped: ${(wsError as Error).message}`);
       }
     }
 
@@ -874,7 +905,7 @@ export class FlowAgentService {
       if (messagingEmailNodes.length > 0) {
         const { buildMessagingEmailTool } = await import('./elevenlabs');
         for (const emailNode of messagingEmailNodes) {
-          const templateName = emailNode.payload?.template_name || 'default';
+          const templateName = (emailNode.payload?.template_name || 'default') as string;
           const emailTool = buildMessagingEmailTool(elevenLabsAgentId, [templateName], templateName);
           emailTool.name = emailNode.toolId.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 64);
           webhookTools.push(emailTool);
@@ -885,7 +916,7 @@ export class FlowAgentService {
       if (messagingWhatsappNodes.length > 0) {
         const { buildMessagingWhatsappTool } = await import('./elevenlabs');
         for (const waNode of messagingWhatsappNodes) {
-          const templateName = waNode.payload?.template_name || 'hello_world';
+          const templateName = (waNode.payload?.template_name || 'hello_world') as string;
           const waTool = buildMessagingWhatsappTool(elevenLabsAgentId, [templateName], templateName);
           waTool.name = waNode.toolId.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 64);
           webhookTools.push(waTool);
@@ -911,7 +942,7 @@ export class FlowAgentService {
 
           // Build request body schema from payload configuration
           // POST methods ALWAYS require request_body_schema (even if empty)
-          let requestBodySchema: any = undefined;
+          let requestBodySchema: Record<string, unknown> | undefined = undefined;
           if (webhookNode.payload && Object.keys(webhookNode.payload).length > 0) {
             requestBodySchema = {
               type: "object",
@@ -1054,10 +1085,10 @@ When using a tool:
 
       logger.info(`✅ [Flow Agent] Synced to ElevenLabs (all settings in single update)`);
       return {};
-    } catch (updateError: any) {
+    } catch (updateError: unknown) {
       // Check if this is a stale agent error (API key changed, agent doesn't exist, etc.)
       if (this.isStaleAgentError(updateError)) {
-        logger.warn(`⚠️  [Flow] Stale agent detected (${updateError.message}). Recreating agent with current API key...`);
+        logger.warn(`⚠️  [Flow] Stale agent detected (${(updateError as Error).message}). Recreating agent with current API key...`);
 
         // Recreate the agent with FULL current agent configuration merged with updates
         // Use nullish coalescing to preserve existing values unless explicitly overridden
@@ -1109,7 +1140,7 @@ When using a tool:
   private static async updateMetadataOnly(
     elevenLabsService: ElevenLabsService,
     elevenLabsAgentId: string,
-    currentAgent: any,
+    currentAgent: Agent,
     params: FlowAgentUpdateParams
   ): Promise<void> {
     logger.info(`🔄 [Flow] Syncing metadata only (no workflow)`);
@@ -1122,7 +1153,7 @@ When using a tool:
       adminTtsModel = await this.getSmartTtsModel(effectiveLanguage);
     }
 
-    const voiceUpdates: any = {};
+    const voiceUpdates: Record<string, unknown> = {};
     if (params.elevenLabsVoiceId && params.elevenLabsVoiceId !== currentAgent.elevenLabsVoiceId) {
       voiceUpdates.voice_id = params.elevenLabsVoiceId;
     }
@@ -1166,8 +1197,8 @@ When using a tool:
   static async syncFlowToAgent(
     agentId: string,
     elevenLabsAgentId: string,
-    flowNodes: any[],
-    flowEdges: any[],
+    flowNodes: FlowNode[],
+    flowEdges: FlowEdge[],
     options?: {
       maxDurationSeconds?: number;
       detectLanguageEnabled?: boolean;

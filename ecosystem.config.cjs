@@ -45,10 +45,12 @@ module.exports = {
     env: {
       NODE_ENV: 'production',
       PORT: 5000,
+      APP_PORT: 5000,
     },
     env_production: {
       NODE_ENV: 'production',
       PORT: 5000,
+      APP_PORT: 5000,
     },
     
     autorestart: true,

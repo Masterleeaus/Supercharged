@@ -154,7 +154,6 @@ test('gateways without a handler still fail with the original message', async ()
   for (const [gateway, eventType] of [
     ['paypal', 'PAYMENT.CAPTURE.COMPLETED'],
     ['mercadopago', 'payment'],
-    ['yookassa', 'payment.succeeded'],
   ]) {
     const result = await reprocess(webhook(gateway, eventType, {}));
     assert.equal(result.success, false);

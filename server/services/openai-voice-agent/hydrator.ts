@@ -54,7 +54,7 @@ async function markCallGoogleSheetsWarning(
         logger.warn(`[Sheets Warning] Wrote googleSheetsWarning to ${table} call ${callId}`);
         return;
       }
-    } catch (e: any) {
+    } catch (e) {
       // Not in this table or update failed — try next
     }
   }
@@ -261,7 +261,7 @@ function createKnowledgeBaseHandler(
       logger.info(`[KB Tool] Found ${results.length} results`);
       
       return { found: true, information: formattedResponse };
-    } catch (error: any) {
+    } catch (error) {
       logger.error(`[KB Tool] Error:`, error.message);
       return { found: false, message: 'Unable to search knowledge base.' };
     }
@@ -502,7 +502,7 @@ function createAppointmentHandler(
             logger.error(`[Appointment Tool] Google Sheet append FAILED — appointment saved locally but NOT in Google Sheets. ${errMsg}`);
             if (callId) await markCallGoogleSheetsWarning(callId, googleSheetId, sheetTab, errMsg);
           }
-        } catch (sheetErr: any) {
+        } catch (sheetErr) {
           logger.error(`[Appointment Tool] Google Sheets push failed (non-fatal):`, sheetErr.message);
           if (callId) await markCallGoogleSheetsWarning(callId, googleSheetId, sheetTab, sheetErr.message);
         }
@@ -513,7 +513,7 @@ function createAppointmentHandler(
         appointmentId,
         message: `Appointment booked for ${params.contactName} on ${params.appointmentDate} at ${params.appointmentTime}` 
       };
-    } catch (error: any) {
+    } catch (error) {
       logger.error(`[Appointment Tool] Error:`, [error.message, error.stack]);
       return { 
         success: false, 
@@ -585,7 +585,7 @@ function createFormSubmissionHandler(
         // Try different field key patterns
         const fieldKey = `field_${(field.id || '').replace(/-/g, '_')}`;
         const altKey = field.id;
-        const nameKey = (field as any).name;
+        const nameKey = (field as { name?: string }).name;
         
         // Find which key matched
         let matchedKey: string | null = null;
@@ -605,7 +605,7 @@ function createFormSubmissionHandler(
         if (value !== undefined && value !== null && matchedKey) {
           responses.push({
             fieldId: field.id,
-            question: (field as any).question || (field as any).label || field.id,
+            question: (field as { question?: string; label?: string }).question || (field as { label?: string }).label || field.id,
             answer: String(value),
           });
           // Mark all possible keys for this field as consumed
@@ -670,7 +670,7 @@ function createFormSubmissionHandler(
             logger.error(`[Form Tool] Google Sheet append FAILED — form data saved locally but NOT in Google Sheets. ${errMsg}`);
             if (callId) await markCallGoogleSheetsWarning(callId, googleSheetId, sheetTab, errMsg);
           }
-        } catch (sheetErr: any) {
+        } catch (sheetErr) {
           logger.error(`[Form Tool] Google Sheets push failed (non-fatal):`, sheetErr.message);
           if (callId) await markCallGoogleSheetsWarning(callId, googleSheetId, sheetTab, sheetErr.message);
         }
@@ -681,7 +681,7 @@ function createFormSubmissionHandler(
         submissionId,
         message: 'Your information has been saved successfully.' 
       };
-    } catch (error: any) {
+    } catch (error) {
       logger.error(`[Form Tool] Error:`, [error.message, error.stack]);
       return { 
         success: false, 
@@ -731,7 +731,7 @@ function createMessagingEmailHandler(
           ? `Email sent successfully to ${recipientEmail} using template "${template}".`
           : `Failed to send email: ${result.error || 'Unknown error'}`
       };
-    } catch (error: any) {
+    } catch (error) {
       logger.error(`[Send Email Tool] Error:`, error.message);
       return {
         success: false,
@@ -771,7 +771,7 @@ function createMessagingWhatsAppHandler(
               break;
             }
           }
-        } catch (e: any) {
+        } catch (e) {
           logger.warn(`[Send WhatsApp Tool] Could not resolve caller phone:`, e.message);
         }
       }
@@ -850,7 +850,7 @@ function createMessagingWhatsAppHandler(
           ? `WhatsApp message sent successfully to ${phoneNumber} using template "${template}".`
           : `Failed to send WhatsApp message: ${data.message || data.error || 'Unknown error'}`
       };
-    } catch (error: any) {
+    } catch (error) {
       logger.error(`[Send WhatsApp Tool] Error:`, error.message);
       return {
         success: false,
@@ -907,7 +907,7 @@ function createWebhookHandler(
       
       logger.info(`[Webhook Tool] Response received`);
       return { success: true, data };
-    } catch (error: any) {
+    } catch (error) {
       logger.error(`[Webhook Tool] Error:`, error.message);
       return { success: false, error: error.message };
     }

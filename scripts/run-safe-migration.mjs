@@ -79,6 +79,8 @@ const MIGRATIONS = [
   { file: '0017_user_company_memberships.sql', required: true },
   { file: '0018_central_sso_company_links.sql', required: true },
   { file: '0019_central_sso_pending_logins.sql', required: true },
+  { file: '0020_scheduled_booking_mirror.sql', required: true },
+  { file: '0023_marketing_tables_tenant_rls.sql', required: true },
 ];
 
 const migrationPath = (file) => resolve(rootDir, 'migrations', file);
