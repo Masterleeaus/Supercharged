@@ -38,12 +38,23 @@ export function createSqlOutbox(pool:TenantPool):OutboxRepository {
     return q.rows.map(row);
    });
   },
-  async loadBody(companyId,messageId){
+  async loadDelivery(companyId,messageId){
    const co=assertCompanyId(companyId);
    return withTenant(pool,co,async db=>{
-    const q=await db.query(`SELECT body FROM public.inbox_messages
-     WHERE company_id=$1 AND id=$2 AND direction='outbound' AND status='queued'`,[co,messageId]);
-    return q.rows[0]?.body??null;
+    const q=await db.query(`SELECT m.body,t.subject,p.address AS recipient
+     FROM public.inbox_messages m
+     JOIN public.inbox_threads t ON t.company_id=m.company_id AND t.id=m.thread_id
+     LEFT JOIN LATERAL (
+      SELECT pa.address FROM public.inbox_thread_participants tp
+       JOIN public.inbox_participants pa ON pa.company_id=tp.company_id AND pa.id=tp.participant_id
+      WHERE tp.company_id=m.company_id AND tp.thread_id=m.thread_id
+        AND pa.kind='contact' AND pa.channel=m.channel
+      ORDER BY pa.id ASC LIMIT 1
+     ) p ON true
+     WHERE m.company_id=$1 AND m.id=$2 AND m.direction='outbound' AND m.status='queued'`,[co,messageId]);
+    const row=q.rows[0];
+    if(!row)return null;
+    return{body:row.body,subject:row.subject??null,recipient:row.recipient??null};
    });
   },
   async markSent(companyId,id,leaseToken,providerId){
