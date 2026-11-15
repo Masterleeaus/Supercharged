@@ -11,7 +11,7 @@
 import { logger } from '../utils/logger';
 import type { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import { companyIdFromClaims } from "./auth";
+import { companyIdFromClaims, type AuthUser } from "./auth";
 import { lookupParentCompanyId } from "./team-member-company";
 import {
   validateUserTeamSession, 
@@ -32,13 +32,14 @@ const JWT_SECRET = process.env.JWT_SECRET || (() => {
 export interface HybridAuthRequest extends Request {
   userId?: string;
   userRole?: string;
+  user?: AuthUser;
   isTeamMember?: boolean;
   teamMember?: {
     memberId: string;
     teamId: string;
     userId: string;
     roleId: string;
-    permissions: any;
+    permissions: unknown;
     isAdminTeam?: boolean;
   };
 }
@@ -67,7 +68,7 @@ export async function authenticateHybrid(req: HybridAuthRequest, res: Response, 
     req.isTeamMember = false;
     
     // Also set req.user for backward compatibility
-    (req as any).user = {
+    req.user = {
       id: decoded.userId,
       role: decoded.role,
       companyId: companyIdFromClaims(decoded.companyId)
@@ -100,7 +101,7 @@ export async function authenticateHybrid(req: HybridAuthRequest, res: Response, 
         // Also set req.user for backward compatibility.
         // companyId comes only from the parent user's row; left unset if none.
         const parentCompanyId = await lookupParentCompanyId(teamMember.userId.toString());
-        (req as any).user = {
+        req.user = {
           id: teamMember.userId,
           role: 'user',
           companyId: parentCompanyId
@@ -131,7 +132,7 @@ export async function authenticateHybrid(req: HybridAuthRequest, res: Response, 
         };
         
         // Also set req.user for backward compatibility
-        (req as any).user = {
+        req.user = {
           id: adminMember.adminId,
           role: 'admin'
         };
@@ -167,7 +168,7 @@ export async function optionalHybridAuth(req: HybridAuthRequest, res: Response, 
     req.userRole = decoded.role;
     req.isTeamMember = false;
     
-    (req as any).user = {
+    req.user = {
       id: decoded.userId,
       role: decoded.role,
       companyId: companyIdFromClaims(decoded.companyId)
@@ -198,7 +199,7 @@ export async function optionalHybridAuth(req: HybridAuthRequest, res: Response, 
         
         // companyId comes only from the parent user's row; left unset if none.
         const parentCompanyId = await lookupParentCompanyId(teamMember.userId.toString());
-        (req as any).user = {
+        req.user = {
           id: teamMember.userId,
           role: 'user',
           companyId: parentCompanyId
@@ -226,7 +227,7 @@ export async function optionalHybridAuth(req: HybridAuthRequest, res: Response, 
           isAdminTeam: true,
         };
         
-        (req as any).user = {
+        req.user = {
           id: adminMember.adminId,
           role: 'admin'
         };
