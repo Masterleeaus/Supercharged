@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { verifiedServerMode } from "@/lib/desk-product-mode";

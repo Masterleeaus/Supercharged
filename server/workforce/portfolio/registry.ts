@@ -217,14 +217,14 @@ export function createPortfolioRegistry(deps: PortfolioRegistryDeps = {}) {
   /** Reads do not change state, so a successful read carries no audit entry. Refusals still do. */
   function getBusiness(callerCompanyId: unknown, businessId: unknown): ReadResult<ManagedBusiness> {
     const located = locate('access_refused', callerCompanyId, businessId);
-    if (!located.ok) return located;
+    if (located.ok === false) return located;
     return { ok: true, value: clone(located.record), audit: null };
   }
 
   function grantAccess(callerCompanyId: unknown, businessId: unknown, input: unknown): MutationResult<CustomerGrant> {
     const event: AuditEvent = 'grant_created';
     const located = locate(event, callerCompanyId, businessId);
-    if (!located.ok) return located;
+    if (located.ok === false) return located;
     const record = located.record;
     const at = clock();
     const grantedBy = isObject(input) ? input.grantedBy : undefined;
@@ -257,7 +257,7 @@ export function createPortfolioRegistry(deps: PortfolioRegistryDeps = {}) {
   function revokeAccess(callerCompanyId: unknown, businessId: unknown, grantId: unknown): MutationResult<CustomerGrant> {
     const event: AuditEvent = 'grant_revoked';
     const located = locate(event, callerCompanyId, businessId, { grantId });
-    if (!located.ok) return located;
+    if (located.ok === false) return located;
     const record = located.record;
     const at = clock();
     const ctx: AuditContext = { callerCompanyId, businessId, grantId, at };
@@ -274,7 +274,7 @@ export function createPortfolioRegistry(deps: PortfolioRegistryDeps = {}) {
   function suspend(callerCompanyId: unknown, businessId: unknown): MutationResult<ManagedBusiness> {
     const event: AuditEvent = 'business_suspended';
     const located = locate(event, callerCompanyId, businessId);
-    if (!located.ok) return located;
+    if (located.ok === false) return located;
     const record = located.record;
     const ctx: AuditContext = { callerCompanyId, businessId, at: clock() };
 
@@ -286,7 +286,7 @@ export function createPortfolioRegistry(deps: PortfolioRegistryDeps = {}) {
   function endAgreement(callerCompanyId: unknown, businessId: unknown): MutationResult<ManagedBusiness> {
     const event: AuditEvent = 'agreement_ended';
     const located = locate(event, callerCompanyId, businessId);
-    if (!located.ok) return located;
+    if (located.ok === false) return located;
     const record = located.record;
     const ctx: AuditContext = { callerCompanyId, businessId, at: clock() };
 
@@ -308,7 +308,7 @@ export function createPortfolioRegistry(deps: PortfolioRegistryDeps = {}) {
       actionCategory,
       at: now,
     });
-    if (!located.ok) return { allowed: false, reason: located.reason, audit: located.audit };
+    if (located.ok === false) return { allowed: false, reason: located.reason, audit: located.audit };
     return canAct(located.record, actorIdentity, actionCategory, now, callerCompanyId);
   }
 

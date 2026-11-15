@@ -304,7 +304,7 @@ export async function collectHealth(
     const business: PortfolioBusiness = { id: businessId }
     for (const collector of collectors) {
       const outcome = await collectWithTimeout(collector, business, options)
-      if (!outcome.ok) {
+      if (outcome.ok === false) {
         result.failures.push({
           business_id: businessId,
           source_id: collector.source_id,
