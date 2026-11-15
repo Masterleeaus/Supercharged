@@ -26,6 +26,9 @@ WORKDIR /app
 ENV NODE_ENV=production
 # server/index.ts reads PORT and falls back to 5000. Keep EXPOSE in step with it.
 ENV PORT=5000
+# Comms Inbox and Marketing are ON by default. The code accepts only the exact value "true".
+ENV COMMS_INBOX_ENABLED=true
+ENV COMMS_MARKETING_ENABLED=true
 
 COPY package*.json ./
 COPY packages ./packages

@@ -10,6 +10,7 @@ import {
   InMemoryApprovalPort,
 } from '../../server/modules/inbox/index.ts';
 import { SEND_ACTION } from '../../server/modules/inbox/types.ts';
+import { consentingGate } from './presend-fixture.mjs';
 import { STOP_CONFIRMATION, START_CONFIRMATION } from '../../server/modules/inbox/inbound-optout.ts';
 import { createSuppressionList } from '../../server/modules/comms/suppression.ts';
 import { processPlivoInboundSms } from '../../server/modules/comms/sms-inbound-route.ts';
@@ -39,6 +40,7 @@ function build({ suppression = createSuppressionList(), failReplies = 0 } = {}) 
   const service = createInboxService({
     store,
     approvals,
+    compliance: consentingGate(),
     suppression,
     optOutReply,
     now: () => new Date(Date.UTC(2026, 10, 2, 0, 0, clock++)),
@@ -165,6 +167,7 @@ test('inbox: a suppression list without an opt-out reply sender is refused at co
       createInboxService({
         store: new InMemoryInboxStore(),
         approvals: new InMemoryApprovalPort(),
+        compliance: consentingGate(),
         suppression: createSuppressionList(),
       }),
     RangeError,

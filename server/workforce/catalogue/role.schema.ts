@@ -56,6 +56,8 @@ export const VERTICALS = [
   "dog_walking",
   "pet_sitting",
   "pet_grooming",
+  "mobile_hairdressing",
+  "mobile_beauty",
 ] as const;
 
 export const CATEGORIES = [
