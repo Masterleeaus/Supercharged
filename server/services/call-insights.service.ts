@@ -123,10 +123,10 @@ export class CallInsightsService {
 
       return insights;
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error(`Failed to analyze transcript for call ${metadata.callId}`, {
-        error: error.message,
-        code: error.code
+        error: error instanceof Error ? error.message : undefined,
+        code: error instanceof Error && 'code' in error ? error.code : undefined
       }, source);
       return null;
     }
@@ -153,30 +153,31 @@ export class CallInsightsService {
     return message;
   }
 
-  private static validateInsights(insights: any): insights is CallInsights {
+  private static validateInsights(insights: unknown): insights is CallInsights {
     if (!insights || typeof insights !== 'object') {
       return false;
     }
-    
-    if (typeof insights.aiSummary !== 'string' || insights.aiSummary.length === 0) {
+    const fields = insights as Record<string, unknown>;
+
+    if (typeof fields.aiSummary !== 'string' || fields.aiSummary.length === 0) {
       return false;
     }
-    
+
     const validSentiments = ['positive', 'neutral', 'negative'];
-    if (!validSentiments.includes(insights.sentiment)) {
+    if (typeof fields.sentiment !== 'string' || !validSentiments.includes(fields.sentiment)) {
       return false;
     }
-    
+
     const validClassifications = ['hot', 'warm', 'neutral', 'cold', 'lost'];
-    if (!validClassifications.includes(insights.classification)) {
+    if (typeof fields.classification !== 'string' || !validClassifications.includes(fields.classification)) {
       return false;
     }
-    
-    if (insights.keyPoints !== undefined && !Array.isArray(insights.keyPoints)) {
+
+    if (fields.keyPoints !== undefined && !Array.isArray(fields.keyPoints)) {
       return false;
     }
-    
-    if (insights.nextActions !== undefined && !Array.isArray(insights.nextActions)) {
+
+    if (fields.nextActions !== undefined && !Array.isArray(fields.nextActions)) {
       return false;
     }
     
