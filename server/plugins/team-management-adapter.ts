@@ -25,7 +25,7 @@ export interface TeamMemberContext {
   userId: string | number;
   roleId: string;
   roleName?: string;
-  permissions: any;
+  permissions: unknown;
   isAdminTeam?: boolean;
 }
 
@@ -34,12 +34,44 @@ export interface AdminTeamMemberContext extends TeamMemberContext {
   adminId: string;
 }
 
+interface TeamAuthServiceLike {
+  validateSession(token: string): Promise<TeamMemberContext | null>;
+}
+
+interface AdminTeamSessionLike {
+  memberId: string;
+  teamId: string;
+  adminId: string;
+  roleId: string;
+  roleName?: string;
+  permissions: unknown;
+}
+
+interface AdminTeamServiceLike {
+  validateSession(token: string): Promise<AdminTeamSessionLike | null>;
+}
+
+/** Shape of the Team Management plugin's TeamService, as this adapter calls it. */
+export interface TeamServiceLike {
+  logActivity(
+    teamId: string,
+    memberId: string,
+    action: string,
+    targetType: string,
+    targetId: unknown,
+    metadata: unknown,
+    ip?: string,
+  ): Promise<unknown>;
+}
+
+type ApplyTeamContextFactory = () => unknown;
+
 let pluginAvailable: boolean | null = null;
 let cachedServices: {
-  TeamAuthService?: any;
-  AdminTeamService?: any;
-  TeamService?: any;
-  applyTeamContext?: any;
+  TeamAuthService?: TeamAuthServiceLike;
+  AdminTeamService?: AdminTeamServiceLike;
+  TeamService?: TeamServiceLike;
+  applyTeamContext?: ApplyTeamContextFactory;
 } = {};
 let loadAttempted = false;
 
@@ -72,7 +104,7 @@ function resolveModulePath(basePath: string): string | null {
   return null;
 }
 
-async function dynamicImport(basePath: string): Promise<any> {
+async function dynamicImport(basePath: string): Promise<Record<string, unknown>> {
   const resolvedPath = resolveModulePath(basePath);
   
   if (!resolvedPath) {
@@ -100,13 +132,13 @@ async function loadServices(): Promise<boolean> {
     ]);
     
     if (results[0].status === 'fulfilled') {
-      cachedServices.TeamAuthService = results[0].value.TeamAuthService;
+      cachedServices.TeamAuthService = results[0].value.TeamAuthService as TeamAuthServiceLike;
     }
     if (results[1].status === 'fulfilled') {
-      cachedServices.AdminTeamService = results[1].value.AdminTeamService;
+      cachedServices.AdminTeamService = results[1].value.AdminTeamService as AdminTeamServiceLike;
     }
     if (results[2].status === 'fulfilled') {
-      cachedServices.TeamService = results[2].value.TeamService;
+      cachedServices.TeamService = results[2].value.TeamService as TeamServiceLike;
     }
     
     const anyLoaded = results.some(r => r.status === 'fulfilled');
@@ -129,7 +161,7 @@ async function loadMiddleware(): Promise<boolean> {
   try {
     const middlewareBase = path.join(PLUGIN_DIR, 'middleware', 'team-auth.middleware');
     const module = await dynamicImport(middlewareBase);
-    cachedServices.applyTeamContext = module.applyTeamContext;
+    cachedServices.applyTeamContext = module.applyTeamContext as ApplyTeamContextFactory;
     logger.info('[TeamManagementAdapter] Middleware loaded successfully');
     return true;
   } catch (error) {
@@ -147,19 +179,19 @@ export async function initializeAdapter(): Promise<void> {
   await Promise.all([loadServices(), loadMiddleware()]);
 }
 
-export function getTeamAuthService(): any | null {
+export function getTeamAuthService(): TeamAuthServiceLike | null {
   return cachedServices.TeamAuthService || null;
 }
 
-export function getAdminTeamService(): any | null {
+export function getAdminTeamService(): AdminTeamServiceLike | null {
   return cachedServices.AdminTeamService || null;
 }
 
-export function getTeamService(): any | null {
+export function getTeamService(): TeamServiceLike | null {
   return cachedServices.TeamService || null;
 }
 
-export function getApplyTeamContext(): any | null {
+export function getApplyTeamContext(): ApplyTeamContextFactory | null {
   return cachedServices.applyTeamContext || null;
 }
 

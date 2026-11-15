@@ -70,7 +70,7 @@ export function verifyPlivoV2Signature(
 }
 
 /** Active auth tokens, primary credential first. Same selection as the app's other Plivo lookups. */
-async function loadActiveAuthTokens(): Promise<string[]> {
+export async function loadActiveAuthTokens(): Promise<string[]> {
   const rows = await db
     .select({ authToken: plivoCredentials.authToken, isPrimary: plivoCredentials.isPrimary })
     .from(plivoCredentials)
@@ -83,10 +83,13 @@ async function loadActiveAuthTokens(): Promise<string[]> {
 
 /**
  * Express middleware. Rejects with 403 unless the V2 signature verifies
- * against one of the active account auth tokens.
+ * against one of the auth tokens returned by loadTokens (default: active plivo_credentials).
  * baseUrl is the public domain the app is served on (the same value passed to setupPlivoWebhooks).
  */
-export function requirePlivoV2Signature(baseUrl: string) {
+export function requirePlivoV2Signature(
+  baseUrl: string,
+  loadTokens: () => Promise<string[]> = loadActiveAuthTokens,
+) {
   const publicBase = baseUrl.replace(/\/+$/, '');
 
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -98,7 +101,7 @@ export function requirePlivoV2Signature(baseUrl: string) {
         return;
       }
 
-      const tokens = await withDeadline(loadActiveAuthTokens(), CREDENTIAL_LOOKUP_DEADLINE_MS);
+      const tokens = await withDeadline(loadTokens(), CREDENTIAL_LOOKUP_DEADLINE_MS);
       if (tokens.length === 0) {
         res.status(403).send('Forbidden');
         return;

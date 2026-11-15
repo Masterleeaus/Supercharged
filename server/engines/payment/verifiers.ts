@@ -8,9 +8,6 @@
 //   paystack    HMAC-SHA512 hex over body, X-Paystack-Signature (key = API secret key)
 //   mercadopago HMAC-SHA256 over "id:<data.id>;request-id:<x-request-id>;ts:<ts>;"
 //   paypal      remote only (provider verify-webhook-signature call), injected
-//   yookassa    remote only (provider re-fetch), injected. The re-fetch is
-//               /home/claude/work/security-fixes/01-yookassa-webhook-verification/fix.diff
-//               (not duplicated here); it is not applied and not wired here.
 
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import {
@@ -178,14 +175,14 @@ const LOCAL_ADAPTERS: Partial<Record<GatewayId, GatewayAdapter>> = {
 };
 
 export function createDefaultAdapters(
-  remote: Partial<Record<'paypal' | 'yookassa', RemoteVerifier>> = {},
+  remote: Partial<Record<'paypal', RemoteVerifier>> = {},
 ): Map<GatewayId, GatewayAdapter> {
   const adapters = new Map<GatewayId, GatewayAdapter>();
   for (const id of GATEWAY_IDS) {
     const local = LOCAL_ADAPTERS[id];
     if (local) {
       adapters.set(id, local);
-    } else if (id === 'paypal' || id === 'yookassa') {
+    } else if (id === 'paypal') {
       adapters.set(id, remoteOnly(id, remote[id]));
     }
   }

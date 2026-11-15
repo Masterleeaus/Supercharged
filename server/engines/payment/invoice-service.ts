@@ -286,7 +286,7 @@ export class InvoiceService {
   private getPaymentMethodDisplay(transaction: PaymentTransaction): string {
     const gateway = transaction.gateway.charAt(0).toUpperCase() + transaction.gateway.slice(1);
     
-    const metadata = transaction.metadata as Record<string, any> | null;
+    const metadata = transaction.metadata as Record<string, unknown> | null;
     if (metadata?.paymentMethod) {
       return `${gateway} - ${metadata.paymentMethod}`;
     }

@@ -77,6 +77,9 @@ const MIGRATIONS = [
   { file: '0015_company_quiet_hours.sql', required: true },
   { file: '0016_chatbot_reminder_pipeline.sql', required: true },
   { file: '0017_user_company_memberships.sql', required: true },
+  { file: '0018_central_sso_company_links.sql', required: true },
+  { file: '0019_central_sso_pending_logins.sql', required: true },
+  { file: '0020_scheduled_booking_mirror.sql', required: true },
   { file: '0022_comms_suppressions.sql', required: true },
 ];
 

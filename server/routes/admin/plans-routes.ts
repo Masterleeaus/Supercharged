@@ -40,10 +40,6 @@ import {
   createMercadoPagoSubscriptionPlan,
   getMercadoPagoCurrency,
 } from '../../services/mercadopago-service';
-import {
-  isYookassaConfigured,
-  isYookassaEnabled,
-} from '../../engines/payment/gateways/yookassa/service';
 import { logger } from '../../utils/logger';
 
 async function getStripeClient(): Promise<Stripe | null> {
@@ -77,7 +73,7 @@ function convertPriceFields(bodyData: any): any {
   const priceFields = [
     'monthlyPrice', 'yearlyPrice', 'razorpayMonthlyPrice', 'razorpayYearlyPrice',
     'paypalMonthlyPrice', 'paypalYearlyPrice', 'paystackMonthlyPrice', 'paystackYearlyPrice',
-    'mercadopagoMonthlyPrice', 'mercadopagoYearlyPrice', 'yookassaMonthlyPrice', 'yookassaYearlyPrice'
+    'mercadopagoMonthlyPrice', 'mercadopagoYearlyPrice'
   ];
   
   for (const field of priceFields) {
@@ -385,33 +381,6 @@ export function registerPlansRoutes(router: Router) {
           gatewaySync.mercadopago = { status: 'failed', error: mercadopagoError.message };
         }
       }
-      gatewaySync.yookassa = { status: 'skipped' };
-      const yookassaConfigured = (await isYookassaEnabled()) && (await isYookassaConfigured());
-      if (yookassaConfigured) {
-        try {
-          const yookassaMonthlyAmount = planData.yookassaMonthlyPrice ? parseFloat(planData.yookassaMonthlyPrice.toString()) : 0;
-          const yookassaYearlyAmount = planData.yookassaYearlyPrice ? parseFloat(planData.yookassaYearlyPrice.toString()) : 0;
-          
-          const yookassaUpdateData: any = {};
-          if (yookassaMonthlyAmount > 0) {
-            yookassaUpdateData.yookassaMonthlyPlanId = `yookassa_monthly_${newPlan.id}`;
-          }
-          if (yookassaYearlyAmount > 0) {
-            yookassaUpdateData.yookassaYearlyPlanId = `yookassa_yearly_${newPlan.id}`;
-          }
-          
-          if (Object.keys(yookassaUpdateData).length > 0) {
-            await storage.updatePlan(newPlan.id, yookassaUpdateData);
-            const updatedPlan = await storage.getPlan(newPlan.id);
-            if (updatedPlan) newPlan = updatedPlan;
-          }
-          gatewaySync.yookassa = { status: 'success' };
-        } catch (yookassaError: any) {
-          logger.error('❌ [YooKassa] Error syncing plan to YooKassa:', yookassaError.message);
-          gatewaySync.yookassa = { status: 'failed', error: yookassaError.message };
-        }
-      }
-      
       res.json({ plan: newPlan, gatewaySync });
     } catch (error: any) {
       logger.error('Error creating plan:', error);
@@ -685,46 +654,6 @@ export function registerPlansRoutes(router: Router) {
         logger.warn('ℹ️ [Stripe] No Stripe key configured, skipping plan sync');
       }
       
-      // Sync to YooKassa if enabled and configured
-      gatewaySync.yookassa = { status: 'skipped' };
-      const yookassaConfiguredForUpdate = (await isYookassaEnabled()) && (await isYookassaConfigured());
-      if (yookassaConfiguredForUpdate) {
-        try {
-          const newMonthlyPrice = updateData.yookassaMonthlyPrice?.toString();
-          const oldMonthlyPrice = existingPlan.yookassaMonthlyPrice?.toString();
-          const effectiveMonthlyPrice = newMonthlyPrice || oldMonthlyPrice;
-          const effectiveMonthlyAmount = effectiveMonthlyPrice ? parseFloat(effectiveMonthlyPrice) : 0;
-          
-          const newYearlyPrice = updateData.yookassaYearlyPrice?.toString();
-          const oldYearlyPrice = existingPlan.yookassaYearlyPrice?.toString();
-          const effectiveYearlyPrice = newYearlyPrice || oldYearlyPrice;
-          const effectiveYearlyAmount = effectiveYearlyPrice ? parseFloat(effectiveYearlyPrice) : 0;
-          
-          const yookassaUpdateData: any = {};
-          
-          if (effectiveMonthlyAmount > 0 && !existingPlan.yookassaMonthlyPlanId) {
-            yookassaUpdateData.yookassaMonthlyPlanId = `yookassa_monthly_${planId}`;
-          } else if (effectiveMonthlyAmount === 0 && existingPlan.yookassaMonthlyPlanId) {
-            yookassaUpdateData.yookassaMonthlyPlanId = null;
-          }
-          
-          if (effectiveYearlyAmount > 0 && !existingPlan.yookassaYearlyPlanId) {
-            yookassaUpdateData.yookassaYearlyPlanId = `yookassa_yearly_${planId}`;
-          } else if (effectiveYearlyAmount === 0 && existingPlan.yookassaYearlyPlanId) {
-            yookassaUpdateData.yookassaYearlyPlanId = null;
-          }
-          
-          if (Object.keys(yookassaUpdateData).length > 0) {
-            await storage.updatePlan(planId, yookassaUpdateData);
-            Object.assign(updateData, yookassaUpdateData);
-          }
-          gatewaySync.yookassa = { status: 'success' };
-        } catch (yookassaError: any) {
-          logger.error('❌ [YooKassa] Error syncing plan update to YooKassa:', yookassaError.message);
-          gatewaySync.yookassa = { status: 'failed', error: yookassaError.message };
-        }
-      }
-      
       await storage.updatePlan(planId, updateData);
       
       // Fetch updated plan to return
@@ -734,7 +663,6 @@ export function registerPlansRoutes(router: Router) {
       gatewaySync.paypal = gatewaySync.paypal || { status: 'skipped' };
       gatewaySync.paystack = gatewaySync.paystack || { status: 'skipped' };
       gatewaySync.mercadopago = gatewaySync.mercadopago || { status: 'skipped' };
-      gatewaySync.yookassa = gatewaySync.yookassa || { status: 'skipped' };
       res.json({ success: true, plan: updatedPlan, gatewaySync });
     } catch (error: any) {
       logger.error('Error updating plan:', error);
@@ -1336,53 +1264,6 @@ export function registerPlansRoutes(router: Router) {
     } catch (error: any) {
       logger.error('Error syncing plan to MercadoPago:', error);
       res.status(500).json({ error: 'Failed to sync plan to MercadoPago' });
-    }
-  });
-
-  // YooKassa sync endpoint
-  router.post('/plans/:planId/sync/yookassa', requireAdminPermission('billing', 'plans', 'update'), async (req: AdminRequest, res: Response) => {
-    try {
-      const { planId } = req.params;
-      
-      const plan = await storage.getPlan(planId);
-      if (!plan) {
-        return res.status(404).json({ error: 'Plan not found' });
-      }
-      
-      const yookassaConfigured = (await isYookassaEnabled()) && (await isYookassaConfigured());
-      if (!yookassaConfigured) {
-        return res.status(400).json({ error: 'YooKassa is not configured' });
-      }
-      
-      const yookassaMonthlyAmount = plan.yookassaMonthlyPrice ? parseFloat(plan.yookassaMonthlyPrice.toString()) : 0;
-      const yookassaYearlyAmount = plan.yookassaYearlyPrice ? parseFloat(plan.yookassaYearlyPrice.toString()) : 0;
-      
-      let yookassaMonthlyPlanId = plan.yookassaMonthlyPlanId;
-      let yookassaYearlyPlanId = plan.yookassaYearlyPlanId;
-      
-      if (yookassaMonthlyAmount > 0 && !yookassaMonthlyPlanId) {
-        yookassaMonthlyPlanId = `yookassa_monthly_${plan.id}`;
-      } else if (yookassaMonthlyAmount === 0 && yookassaMonthlyPlanId) {
-        yookassaMonthlyPlanId = null;
-      }
-
-      if (yookassaYearlyAmount > 0 && !yookassaYearlyPlanId) {
-        yookassaYearlyPlanId = `yookassa_yearly_${plan.id}`;
-      } else if (yookassaYearlyAmount === 0 && yookassaYearlyPlanId) {
-        yookassaYearlyPlanId = null;
-      }
-      
-      await storage.updatePlan(planId, { yookassaMonthlyPlanId, yookassaYearlyPlanId });
-      
-      res.json({ 
-        success: true,
-        message: 'YooKassa pricing synchronized successfully',
-        yookassaMonthlyPlanId,
-        yookassaYearlyPlanId
-      });
-    } catch (error: any) {
-      logger.error('Error syncing plan to YooKassa:', error);
-      res.status(500).json({ error: 'Failed to sync plan to YooKassa' });
     }
   });
 }

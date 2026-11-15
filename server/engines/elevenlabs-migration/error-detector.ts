@@ -7,7 +7,7 @@
  * to trigger automatic migration to available keys.
  */
 
-import { ConcurrencyError } from './types';
+import type { ConcurrencyError } from './types';
 
 const CONCURRENCY_ERROR_PATTERNS = [
   /concurrency/i,
@@ -26,12 +26,33 @@ const CONCURRENCY_ERROR_PATTERNS = [
 const CONCURRENCY_STATUS_CODES = [429, 503, 509];
 
 /**
+ * Loose shape of errors thrown by ElevenLabs/Twilio SDKs and raw API bodies.
+ * Fields are optional because the shape is not guaranteed.
+ */
+export interface ErrorLike {
+  message?: string;
+  error?: string;
+  status?: number;
+  statusCode?: number;
+  responseBody?: string;
+  detail?: string | { message?: string };
+  details?: { statusCode?: number; responseBody?: string } & Record<string, unknown>;
+}
+
+/**
+ * Read `.message` from an unknown thrown value without changing behaviour.
+ */
+export function messageOf(error: unknown): string | undefined {
+  return (error as ErrorLike).message;
+}
+
+/**
  * Detect if an error is a concurrency limit error from ElevenLabs
- * 
+ *
  * @param error - The error object or string to analyze
  * @returns ConcurrencyError object with detection result
  */
-export function detectConcurrencyError(error: any): ConcurrencyError {
+export function detectConcurrencyError(error: unknown): ConcurrencyError {
   const result: ConcurrencyError = {
     isConcurrencyError: false,
     message: '',
@@ -52,27 +73,29 @@ export function detectConcurrencyError(error: any): ConcurrencyError {
     errorMessage = error.message;
     rawError = error.message;
     
+    const errLike = error as ErrorLike;
     if ('statusCode' in error) {
-      statusCode = (error as any).statusCode;
+      statusCode = errLike.statusCode;
     }
     if ('status' in error) {
-      statusCode = (error as any).status;
+      statusCode = errLike.status;
     }
-    if ('details' in error && typeof (error as any).details === 'object') {
-      const details = (error as any).details;
+    if ('details' in error && typeof errLike.details === 'object') {
+      const details = errLike.details;
       if (details.statusCode) statusCode = details.statusCode;
       if (details.responseBody) rawError = details.responseBody;
     }
   } else if (typeof error === 'object') {
-    errorMessage = error.message || error.error || JSON.stringify(error);
-    statusCode = error.statusCode || error.status;
-    rawError = error.responseBody || JSON.stringify(error);
-    
-    if (error.detail) {
-      if (typeof error.detail === 'string') {
-        errorMessage = error.detail;
-      } else if (error.detail.message) {
-        errorMessage = error.detail.message;
+    const errLike = error as ErrorLike;
+    errorMessage = errLike.message || errLike.error || JSON.stringify(error);
+    statusCode = errLike.statusCode || errLike.status;
+    rawError = errLike.responseBody || JSON.stringify(error);
+
+    if (errLike.detail) {
+      if (typeof errLike.detail === 'string') {
+        errorMessage = errLike.detail;
+      } else if (errLike.detail.message) {
+        errorMessage = errLike.detail.message;
       }
     }
   }
@@ -108,7 +131,7 @@ export function detectConcurrencyError(error: any): ConcurrencyError {
  * @param error - The error to check
  * @returns boolean indicating if migration could help
  */
-export function isRecoverableError(error: any): boolean {
+export function isRecoverableError(error: unknown): boolean {
   const concurrencyResult = detectConcurrencyError(error);
   
   if (concurrencyResult.isConcurrencyError) {
@@ -126,9 +149,10 @@ export function isRecoverableError(error: any): boolean {
     /validation.*error/i,
   ];
 
-  const errorMessage = typeof error === 'string' 
-    ? error 
-    : error?.message || error?.error || '';
+  const errLike = error as ErrorLike | null | undefined;
+  const errorMessage = typeof error === 'string'
+    ? error
+    : errLike?.message || errLike?.error || '';
 
   for (const pattern of unrecoverablePatterns) {
     if (pattern.test(errorMessage)) {
@@ -136,7 +160,7 @@ export function isRecoverableError(error: any): boolean {
     }
   }
 
-  const statusCode = error?.statusCode || error?.status;
+  const statusCode = errLike?.statusCode || errLike?.status;
   if (statusCode && [401, 403, 404, 422].includes(statusCode)) {
     return false;
   }
@@ -151,7 +175,7 @@ export function isRecoverableError(error: any): boolean {
  * @param error - The error to check
  * @returns boolean indicating if this is a concurrency error
  */
-export function isConcurrencyLimitError(error: any): boolean {
+export function isConcurrencyLimitError(error: unknown): boolean {
   return detectConcurrencyError(error).isConcurrencyError;
 }
 
@@ -161,13 +185,13 @@ export function isConcurrencyLimitError(error: any): boolean {
  * @param error - The error to format
  * @returns Formatted error string
  */
-export function formatErrorForLog(error: any): string {
+export function formatErrorForLog(error: unknown): string {
   if (typeof error === 'string') {
     return error;
   }
-  
+
   if (error instanceof Error) {
-    const details = (error as any).details;
+    const details = (error as ErrorLike).details;
     if (details) {
       return `${error.message} | Details: ${JSON.stringify(details)}`;
     }

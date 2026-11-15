@@ -35,7 +35,7 @@ Each status was checked with grep against the Desk tree on 2026-11-03. Table, mi
 
 | Capability | Kind | Status | Where |
 |---|---|---|---|
-| Payments (Stripe, PayPal, Razorpay, Paystack, Mercado Pago, YooKassa) | engine | Active | `server/engines/payment/` (six gateway folders); routers mounted at `/api/stripe`, `/api/razorpay`, `/api/paypal`, `/api/paystack`, `/api/mercadopago`, `/api/yookassa` in `server/routes.ts` |
+| Payments (Stripe, PayPal, Razorpay, Paystack, Mercado Pago) | engine | Active | `server/engines/payment/` (five gateway folders); routers mounted at `/api/stripe`, `/api/razorpay`, `/api/paypal`, `/api/paystack`, `/api/mercadopago` in `server/routes.ts` |
 | Membership, plans, credits, invoices | service | Active | `membership-service.ts`, `invoice-service.ts`, `credit-service.ts`; invoice router mounted at `/api/invoices`. Credit path: Unverified |
 | KYC | engine | Active | `server/engines/kyc/` (`registerKycRoutes` imported by `server/routes.ts`) |
 | CRM | engine | Active | `server/engines/crm/`; `server/routes/crm-routes.ts` mounted at `/api/crm` |

@@ -328,7 +328,7 @@ export async function placeElevenLabsTestCall({
 
     // Build necessary webhook tools for test execution
     let testWebhookTools: any[] = [];
-    const { buildMessagingEmailTool, buildMessagingWhatsappTool } = await import('../services/elevenlabs');
+    const { buildMessagingEmailTool, buildMessagingWhatsappTool } = await import('../../services/elevenlabs');
 
     if (hasWebhookNodes && webhookNodes && webhookNodes.length > 0) {
       for (const webhookNode of webhookNodes) {
@@ -345,7 +345,7 @@ export async function placeElevenLabsTestCall({
           testWebhookTools.push(whatsappTool);
           logger.info(`   💬 Prepared test WhatsApp tool: ${webhookNode.toolId}`);
         } else if (webhookNode.url) {
-          const { buildUniversalWebhookTool } = await import('../services/universal-webhook-tool');
+          const { buildUniversalWebhookTool } = await import('../../services/universal-webhook-tool');
           const webhookTool = buildUniversalWebhookTool({
             toolId: webhookNode.toolId,
             url: webhookNode.url,
@@ -360,7 +360,7 @@ export async function placeElevenLabsTestCall({
     }
 
     if (hasFormNodes && formNodes && formNodes.length > 0) {
-      const { getSubmitFormWebhookTool } = await import('../services/form-elevenlabs-tool');
+      const { getSubmitFormWebhookTool } = await import('../../services/form-elevenlabs-tool');
       for (const formInfo of formNodes) {
         const formTool = getSubmitFormWebhookTool(
           formInfo.formId,
@@ -375,7 +375,7 @@ export async function placeElevenLabsTestCall({
     }
 
     if (hasAppointmentNodes) {
-      const { getAppointmentToolForAgent } = await import('../services/appointment-elevenlabs-tool');
+      const { getAppointmentToolForAgent } = await import('../../services/appointment-elevenlabs-tool');
       const appointmentTool = getAppointmentToolForAgent(agent.elevenLabsAgentId!);
       testWebhookTools.push(appointmentTool);
       logger.info(`   📅 Prepared test appointment tool`);
@@ -386,7 +386,7 @@ export async function placeElevenLabsTestCall({
     // (the agent always uses its saved workflow). So we PATCH the agent first.
     logger.info(`   🔄 Pushing recompiled workflow to ElevenLabs agent before call...`);
     try {
-      const elevenlabsService = new (await import('../services/elevenlabs')).ElevenLabsService(credential.apiKey);
+      const elevenlabsService = new (await import('../../services/elevenlabs')).ElevenLabsService(credential.apiKey);
       await elevenlabsService.updateFlowAgentWorkflow(
         agent.elevenLabsAgentId!,
         testWorkflow,

@@ -76,6 +76,11 @@ const HANDLE_FOR_CHANNEL: Record<Channel, keyof ContactHandles> = {
   instagram: 'instagram',
 };
 
+/** The contact handle a channel reaches (e.g. 'phone' for sms). */
+export function handleForChannel(channel: Channel): keyof ContactHandles {
+  return HANDLE_FOR_CHANNEL[channel];
+}
+
 function isChannel(value: unknown): value is Channel {
   return typeof value === 'string' && (CHANNELS as readonly string[]).includes(value);
 }

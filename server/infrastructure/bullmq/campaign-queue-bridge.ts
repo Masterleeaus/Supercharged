@@ -57,7 +57,7 @@ export interface QueueableCampaignCall {
   userId: string;
   engine: 'openai' | 'sip' | 'elevenlabs';
   flowId?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export async function queueCampaignCalls(calls: QueueableCampaignCall[]): Promise<{
@@ -96,7 +96,7 @@ export async function queueCampaignCallsFromBatch(
   agentId: string,
   userId: string,
   engine: 'openai' | 'sip',
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 ): Promise<{ queued: boolean; count: number }> {
   if (!isBullMQEnabled()) {
     return { queued: false, count: 0 };

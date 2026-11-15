@@ -6,7 +6,7 @@
  * ============================================================
  */
 
-import { Queue, QueueEvents } from 'bullmq';
+import { Queue, QueueEvents, type ConnectionOptions } from 'bullmq';
 import { getRedisConnection } from './redis-connection';
 import { logger } from '../../utils/logger.ts';
 
@@ -29,7 +29,7 @@ export interface CampaignCallJob {
   engine: 'openai' | 'sip' | 'elevenlabs';
   flowId?: string;
   retryCount: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface SchedulerJob {
@@ -69,7 +69,7 @@ const defaultQueueOptions = {
 export function getCampaignCallsQueue(): Queue<CampaignCallJob> {
   if (!campaignCallsQueue) {
     campaignCallsQueue = new Queue<CampaignCallJob>(QUEUE_NAMES.CAMPAIGN_CALLS, {
-      connection: getRedisConnection() as any,
+      connection: getRedisConnection() as ConnectionOptions,
       ...defaultQueueOptions,
     });
   }
@@ -79,7 +79,7 @@ export function getCampaignCallsQueue(): Queue<CampaignCallJob> {
 export function getCampaignSchedulerQueue(): Queue<SchedulerJob> {
   if (!campaignSchedulerQueue) {
     campaignSchedulerQueue = new Queue<SchedulerJob>(QUEUE_NAMES.CAMPAIGN_SCHEDULER, {
-      connection: getRedisConnection() as any,
+      connection: getRedisConnection() as ConnectionOptions,
       defaultJobOptions: {
         attempts: 1,
         removeOnComplete: true,
@@ -96,7 +96,7 @@ export function getCampaignSchedulerQueue(): Queue<SchedulerJob> {
 export function getCampaignRecoveryQueue(): Queue<RecoveryJob> {
   if (!campaignRecoveryQueue) {
     campaignRecoveryQueue = new Queue<RecoveryJob>(QUEUE_NAMES.CAMPAIGN_RECOVERY, {
-      connection: getRedisConnection() as any,
+      connection: getRedisConnection() as ConnectionOptions,
       defaultJobOptions: {
         attempts: 2,
         backoff: {
@@ -123,7 +123,7 @@ export function getCampaignRecoveryQueue(): Queue<RecoveryJob> {
 export function getGenericJobsQueue(): Queue<unknown> {
   if (!genericJobsQueue) {
     genericJobsQueue = new Queue<unknown>(QUEUE_NAMES.GENERIC_JOBS, {
-      connection: getRedisConnection() as any,
+      connection: getRedisConnection() as ConnectionOptions,
       defaultJobOptions: {
         attempts: 3,
         backoff: {

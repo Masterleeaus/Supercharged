@@ -33,7 +33,7 @@ export interface OutboundCallParams {
   firstMessage?: string;
   dynamicData?: Record<string, string>;
   workflow?: ElevenLabsWorkflow;
-  webhookTools?: any[];
+  webhookTools?: Record<string, unknown>[];
   conversationInitiationClientData?: {
     conversationConfigOverride?: {
       agent?: {
@@ -41,11 +41,14 @@ export interface OutboundCallParams {
           prompt?: string;
         };
         first_message?: string;
-        conversation_config?: any;
+        conversation_config?: {
+          turn_taking?: { interruption_sensitivity?: number };
+          [key: string]: unknown;
+        };
       };
       workflow?: ElevenLabsWorkflow;
     };
-    webhook_tools?: any[];
+    webhook_tools?: Record<string, unknown>[];
     dynamic_variables?: Record<string, string>;
   };
 }

@@ -1,6 +1,6 @@
 import type { ProductMode, ServerDeskMode } from "./desk-product-mode.ts";
 
-export interface ModeFlags { inbox: boolean; marketing: boolean }
+export interface ModeFlags { inbox: boolean; marketing: boolean; chatbot: boolean }
 export type ModeAvailability =
   | { available: true }
   | { available: false; reason: "mode_unavailable" | "feature_disabled" | "mode_unknown" };
@@ -14,6 +14,7 @@ export function modeAvailability(
   if (serverMode !== "comms") return { available: false, reason: "mode_unavailable" };
   if (selected === "inbox" && !flags.inbox) return { available: false, reason: "feature_disabled" };
   if (selected === "marketing" && !flags.marketing) return { available: false, reason: "feature_disabled" };
+  if (selected === "chatbot" && !flags.chatbot) return { available: false, reason: "feature_disabled" };
   return { available: true };
 }
 export const MODE_UNAVAILABLE_TEXT: Record<Exclude<ModeAvailability, {available: true}>["reason"], string> = {

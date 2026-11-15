@@ -105,7 +105,7 @@ export function assertFreshForAction(items: readonly FreshnessItem[], options: F
   const reasons: FreshnessFailure[] = [];
   for (const item of items) {
     const result = checkFreshness(item, options);
-    if (result.fresh) continue;
+    if (result.fresh === true) continue;
     if ('ageMs' in result) {
       reasons.push({ item, reason: result.reason, ageMs: result.ageMs, maxAgeMs: result.maxAgeMs });
     } else {

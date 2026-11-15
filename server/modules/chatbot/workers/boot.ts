@@ -11,9 +11,10 @@
  * Services built here use the existing Drizzle adapters and the existing factories only. No business logic lives here.
  *
  * Not built here (blocked, see the report that added this file):
- * - VoiceCallService (voice-call/service.ts). It needs a production CallProvider and a CreditLedger. The module has
- *   no production provider (provider-memory.ts is a test double that places no calls) and no CreditLedger
- *   implementation. So the voice_call_limits job stays unwired and the voice-call service is not constructed.
+ * VoiceCallService (voice-call/service.ts) IS constructed when CHATBOT_WORKERS_ENABLED is "true", so the voice_call_limits
+ * job runs. It has no production CallProvider and no CreditLedger yet (owner decisions), so it is built with the
+ * fail-closed ports in voice-call/unconfigured.ts: no call can start, and the quota sweep only ends calls already in
+ * progress past their cap. The sweep is not gated by the voice flag (see voice-call/DECISIONS.md).
  * - voice_sweep (VoiceSweepService) and booking_reconcile are not part of this change.
  */
 import { randomUUID } from "node:crypto";
@@ -35,6 +36,9 @@ import { isBookingsEnabled } from "../bookings/flags.ts";
 import type { ReminderChannel } from "../bookings/types.ts";
 import type { ReminderSender } from "../contracts/index.ts";
 import { createChannelCredentialSource } from "../channels/credentials.ts";
+import { createChannelOutbox, type ChannelOutbox } from "../channels/outbox.ts";
+import { createDrizzleChannelOutboxStore, type OutboxDb } from "../channels/outbox-drizzle.ts";
+import type { ChannelRegistry, OutboundPipelineDeps } from "../channels/framework.ts";
 import { createDrizzleChannelAccountStorage, type ChannelDb } from "../channels/drizzle-storage.ts";
 import { createDrizzleProviderStore, type BookingProvidersDb } from "../booking-providers/drizzle-store.ts";
 import { createDrizzleAttemptLog } from "../booking-providers/reminder-attempt-log.ts";
@@ -46,6 +50,15 @@ import {
   type ReminderEmailSend,
 } from "../booking-providers/reminder-senders.ts";
 import { createSseHub } from "../realtime/hub.ts";
+import { DrizzleVoiceCallStorage, type VoiceCallPgDatabase } from "../voice-call/storage-drizzle.ts";
+import { VoiceCallService, type VoiceCallDeps } from "../voice-call/service.ts";
+import {
+  UnconfiguredCallProvider,
+  unconfiguredChatbotGate,
+  unconfiguredCredentials,
+  unconfiguredCredits,
+  unconfiguredQuota,
+} from "../voice-call/unconfigured.ts";
 import { createSsePublisher } from "../realtime/sse-publisher.ts";
 import {
   CHATBOT_WORKERS_FLAG,
@@ -56,15 +69,25 @@ import {
   type WorkerLogger,
 } from "./run.ts";
 
+/** Channel webhooks and the channel send drain. Off means no channel outbox service is built. */
+export const CHANNELS_FLAG = "CHATBOT_CHANNELS_ENABLED";
+
 export interface ChatbotBootDeps {
   /** Desk database handle (db in server/db.ts). */
   db: ChatbotWorkerDb & EventsExecutor;
   /** process.env in production. */
   env: FlagEnv;
-  /** Required only when CHATBOT_OUTBOUND_WEBHOOKS_ENABLED is "true". Built by the caller from the secrets module. */
+  /** Required only when CHATBOT_OUTBOUND_WEBHOOKS_ENABLED or CHATBOT_CHANNELS_ENABLED is "true". Built by the caller from the secrets module. */
   secretBox?: SecretBox;
+  /**
+   * Channel providers the send drain sends through. Used only when CHATBOT_CHANNELS_ENABLED is "true". When it is
+   * missing or has no provider registered, the channel send drain is not started (logged once at boot).
+   */
+  channelRegistry?: ChannelRegistry;
   logger?: WorkerLogger;
   clock?: () => Date;
+  /** Passed from mountChatbotModule(...).voiceCall. Only the demo cap options are read. */
+  voiceCall?: { demoMode: boolean; demoSecondsLimit?: number };
 }
 
 /**
@@ -93,12 +116,77 @@ export function buildChatbotWorkerServices(deps: ChatbotBootDeps): ChatbotWorker
     services.eventOutbox = { processor: createOutboxProcessor({ store, webhooks, publisher, events }) };
   }
 
+  // Voice-call service for the quota sweep. Fail-closed ports until a provider and a ledger exist, so no call can start.
+  services.voiceCallLimits = buildVoiceCallService(deps, clock);
+
   // Appointment reminders. Off unless CHATBOT_REMINDERS_ENABLED is exactly "true".
   if (readFlag(CONTRACT_FLAGS.REMINDERS_ENABLED, deps.env)) {
     services.reminders = buildReminderService(deps, store, events, clock);
   }
 
+  // Channel send drain. Off unless CHATBOT_CHANNELS_ENABLED is exactly "true".
+  if (readFlag(CHANNELS_FLAG, deps.env)) {
+    const channelOutbox = buildChannelOutboxService(deps, clock);
+    if (channelOutbox) services.channelOutbox = channelOutbox;
+    else deps.logger?.info("workers.channel_send_no_providers", { flag: CHANNELS_FLAG });
+  }
+
   return services;
+}
+
+/**
+ * Builds the channel send drain over the existing outbox store, credential source and pinned HTTP client. Returns
+ * undefined when no provider is registered: the drain would only fail every queued row, so it is not started.
+ * Refuses to build when no secret box was supplied, because credentials cannot be opened without it.
+ */
+export function buildChannelOutboxService(
+  deps: ChatbotBootDeps,
+  clock: () => Date,
+): { outbox: ChannelOutbox; pipeline: OutboundPipelineDeps } | undefined {
+  if (!deps.secretBox) {
+    throw new Error(`${CHANNELS_FLAG} is "true" but no secretBox was supplied. Refusing to start.`);
+  }
+  const registry = deps.channelRegistry;
+  if (!registry || registry.kinds().length === 0) return undefined;
+
+  const outbox = createChannelOutbox({
+    store: createDrizzleChannelOutboxStore(deps.db as unknown as OutboxDb),
+    clock,
+  });
+  const pipeline: OutboundPipelineDeps = {
+    registry,
+    credentials: createChannelCredentialSource({
+      storage: createDrizzleChannelAccountStorage(deps.db as unknown as ChannelDb, clock),
+      secretBox: deps.secretBox,
+    }),
+    http: createPinnedHttpClient({ resolve: systemWebhookResolver, maxBodyBytes: 65536 }),
+  };
+  return { outbox, pipeline };
+}
+
+/**
+ * Builds the voice-call service with the fail-closed ports. Storage is the existing Drizzle adapter. Nothing here runs a
+ * query at construction time.
+ */
+export function buildVoiceCallService(deps: ChatbotBootDeps, clock: () => Date): VoiceCallService {
+  const logger = deps.logger ?? { info() {}, warn() {} };
+  const voiceDeps: VoiceCallDeps = {
+    storage: new DrizzleVoiceCallStorage(deps.db as unknown as VoiceCallPgDatabase),
+    provider: new UnconfiguredCallProvider(),
+    http: createPinnedHttpClient({ resolve: systemWebhookResolver, maxBodyBytes: 65536 }),
+    quota: unconfiguredQuota,
+    chatbots: unconfiguredChatbotGate,
+    credentials: unconfiguredCredentials,
+    credits: unconfiguredCredits,
+    logger,
+    env: deps.env,
+    // No status-callback host is allowed until the provider is chosen. Empty means every callback URL is refused.
+    callbackHosts: [],
+    clock,
+    demoMode: deps.voiceCall?.demoMode ?? false,
+    demoSecondsLimit: deps.voiceCall?.demoSecondsLimit,
+  };
+  return new VoiceCallService(voiceDeps);
 }
 
 /** Channels the reminder job sends on at boot. Only email has a transport wired to a real recipient rule today. */

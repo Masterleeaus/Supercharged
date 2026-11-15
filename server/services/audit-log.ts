@@ -74,7 +74,8 @@ export type AuditAction =
   | "comms.assignment_changed"
   | "comms.campaign_changed"
   | "comms.provider_event"
-  | "comms.human_override";
+  | "comms.human_override"
+  | "comms.send_blocked";
 
 export interface AuditLogEntry {
   action: AuditAction;

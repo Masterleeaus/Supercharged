@@ -63,7 +63,7 @@ test("provider and bootstrap both validate cache age", () => {
 });
 
 test("public branding API has product fallback but preserves saved settings", () => {
-  assert.match(server, /app_name: 'Supercharged'/);
+  assert.match(server, /app_name: PRODUCT_NAME/);
   assert.match(server, /branding\[key\] = setting\.value/);
-  assert.match(server, /brandingSettings\.app_name \|\| 'Supercharged'/);
+  assert.match(server, /brandingSettings\.app_name \|\| PRODUCT_NAME/);
 });

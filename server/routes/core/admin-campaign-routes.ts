@@ -183,10 +183,10 @@ export function registerAdminCampaignRoutes(app: Express): void {
                 errors.push(`Call ${call.id}: No ownership source found (campaign: ${call.campaignId}, connection: ${call.incomingConnectionId})`);
               }
             }
-          } catch (err: any) {
+          } catch (err: unknown) {
             failed++;
             if (errors.length < 100) {
-              errors.push(`Call ${call.id}: ${err.message}`);
+              errors.push(`Call ${call.id}: ${(err as Error).message}`);
             }
           }
         }
