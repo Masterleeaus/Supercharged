@@ -296,7 +296,7 @@ const nodeTypes: NodeTypes = {
 
 export default function FlowBuilderPage() {
   const { t } = useTranslation();
-  const [, params] = useRoute("/app/flows/:id");
+  const [, params] = useRoute<{ id: string }>("/app/flows/:id");
   const [, setLocation] = useLocation();
   const flowId = params?.id;
 
