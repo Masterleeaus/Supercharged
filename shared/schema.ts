@@ -14,10 +14,29 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
-import { sql } from "drizzle-orm";
+import { sql, type Table } from "drizzle-orm";
 import { pgTable, text, varchar, uuid, integer, timestamp, boolean, jsonb, decimal, doublePrecision, serial, date, time, unique, uniqueIndex, index, foreignKey, check, primaryKey } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
+import { createInsertSchema as drizzleCreateInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+
+// Typed wrapper around drizzle-zod's createInsertSchema.
+// drizzle-zod 0.8.x decides "generated always" with `identity extends 'always'`,
+// which is true for every column when strictNullChecks is off (this repo's
+// tsconfig). That collapses every insert schema type to an object with no keys.
+// The runtime call is unchanged; only the type is rebuilt from `$inferInsert`.
+type InsertInput<TTable extends Table> = TTable["$inferInsert"];
+type InsertRequiredShape<TInput> = {
+  [K in keyof TInput as {} extends Pick<TInput, K> ? never : K]-?: z.ZodType<TInput[K]>;
+};
+type InsertOptionalShape<TInput> = {
+  [K in keyof TInput as {} extends Pick<TInput, K> ? K : never]?: z.ZodOptional<z.ZodType<TInput[K]>>;
+};
+type InsertSchemaShape<TTable extends Table> = InsertRequiredShape<InsertInput<TTable>> &
+  InsertOptionalShape<InsertInput<TTable>>;
+
+function createInsertSchema<TTable extends Table>(table: TTable): z.ZodObject<InsertSchemaShape<TTable>> {
+  return drizzleCreateInsertSchema(table) as unknown as z.ZodObject<InsertSchemaShape<TTable>>;
+}
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
