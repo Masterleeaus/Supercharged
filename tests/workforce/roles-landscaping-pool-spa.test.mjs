@@ -30,7 +30,8 @@ test('landscaping is served by garden roles, including landscape design intake',
 
 test('pool and spa servicing is served by pool roles', () => {
   assert.ok(VERTICALS.includes('pool'));
-  assert.equal(byVertical('pool').length, 8);
+  // Count pool-servicing roles by their pool- id prefix; manager roles (e.g. go-manager) may also carry the pool vertical.
+  assert.equal(byVertical('pool').filter((r) => r.id.startsWith('pool-')).length, 8);
 });
 
 test('pool enquiry reception captures spa as a pool type', () => {
