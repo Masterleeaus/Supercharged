@@ -94,7 +94,7 @@ export function createToolSimulator(definitions: readonly ToolDefinition[]): Too
       if (issues.length > 0) return outcome(tool, false, `input_invalid: ${issues.join('; ')}`, input);
 
       if (stub.access === 'write') {
-        if (raw.allowSimulatedWrite !== true) return outcome(tool, false, SIMULATED_WRITE_REFUSED, input);
+        if (!(isPlainObject(raw) && raw.allowSimulatedWrite === true)) return outcome(tool, false, SIMULATED_WRITE_REFUSED, input);
         return outcome(tool, true, 'simulated_write_recorded', input);
       }
 

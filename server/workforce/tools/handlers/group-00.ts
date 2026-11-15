@@ -185,7 +185,7 @@ export class Group00InputError extends Error {
   }
 }
 
-function parse<T>(schema: z.ZodType<T>, input: unknown): T {
+function parse<S extends z.ZodType>(schema: S, input: unknown): z.infer<S> {
   const result = schema.safeParse(input);
   if (!result.success) {
     // Field names only. Values are never echoed back.

@@ -150,6 +150,7 @@ export type RunRefusal =
   | 'illegal_transition'
   | 'budget_exhausted'
   | 'actor_invalid'
+  | 'actor_mismatch'
   | 'actor_not_in_team'
   | 'no_pending_approval'
   | 'approval_call_mismatch'

@@ -559,7 +559,7 @@ export function createToolRegistry(options: ToolRegistryOptions): ToolRegistry {
     return humanDeciders.has(namespace);
   }
 
-  async function refuse(companyId: CompanyId | null, base: AuditBase, reason: RefusalReason, message: string): Promise<ToolInvocationResult> {
+  async function refuse(companyId: CompanyId | null, base: AuditBase, reason: RefusalReason, message: string): Promise<Extract<ToolInvocationResult, { outcome: 'refused' }>> {
     await auditSafely({ companyId, runId: base.runId, data: { ...auditFields(base), outcome: 'refused', reason } });
     return { outcome: 'refused', toolId: base.toolId, reason, message };
   }
@@ -811,8 +811,8 @@ export function createToolRegistry(options: ToolRegistryOptions): ToolRegistry {
 
     if (attempted === null || !attempted.result.ok) {
       const journalFailed = attempted === null;
-      const timedOut = !journalFailed && attempted.result.error_code === 'tool_timed_out';
-      const transient = journalFailed ? false : attempted.transient;
+      const timedOut = attempted !== null && attempted.result.error_code === 'tool_timed_out';
+      const transient = attempted === null ? false : attempted.transient;
       const reason = journalFailed ? 'journal_failed' : timedOut ? 'tool_timed_out' : 'tool_failed';
       // A write that timed out, failed transiently, or whose journal could not be written may have acted on the outside
       // world. It is uncertain, never transient, and is confirmed by read-back before anyone decides (R6).
@@ -820,7 +820,7 @@ export function createToolRegistry(options: ToolRegistryOptions): ToolRegistry {
       // Reads have no side effects and keep their retry through run.ts.
       const retryable = !isWrite && (timedOut || transient);
       const message = redactedMessage(
-        journalFailed ? 'Action journal could not be written.' : attempted.failure || attempted.result.message,
+        attempted === null ? 'Action journal could not be written.' : attempted.failure || attempted.result.message,
       );
       const resolution = uncertain ? await resolveUncertain(companyId, base, definition, params) : undefined;
       const settled = resolution === undefined ? {} : { resolution };
