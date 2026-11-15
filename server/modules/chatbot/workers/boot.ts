@@ -36,6 +36,9 @@ import { isBookingsEnabled } from "../bookings/flags.ts";
 import type { ReminderChannel } from "../bookings/types.ts";
 import type { ReminderSender } from "../contracts/index.ts";
 import { createChannelCredentialSource } from "../channels/credentials.ts";
+import { createChannelOutbox, type ChannelOutbox } from "../channels/outbox.ts";
+import { createDrizzleChannelOutboxStore, type OutboxDb } from "../channels/outbox-drizzle.ts";
+import type { ChannelRegistry, OutboundPipelineDeps } from "../channels/framework.ts";
 import { createDrizzleChannelAccountStorage, type ChannelDb } from "../channels/drizzle-storage.ts";
 import { createDrizzleProviderStore, type BookingProvidersDb } from "../booking-providers/drizzle-store.ts";
 import { createDrizzleAttemptLog } from "../booking-providers/reminder-attempt-log.ts";
@@ -66,13 +69,21 @@ import {
   type WorkerLogger,
 } from "./run.ts";
 
+/** Channel webhooks and the channel send drain. Off means no channel outbox service is built. */
+export const CHANNELS_FLAG = "CHATBOT_CHANNELS_ENABLED";
+
 export interface ChatbotBootDeps {
   /** Desk database handle (db in server/db.ts). */
   db: ChatbotWorkerDb & EventsExecutor;
   /** process.env in production. */
   env: FlagEnv;
-  /** Required only when CHATBOT_OUTBOUND_WEBHOOKS_ENABLED is "true". Built by the caller from the secrets module. */
+  /** Required only when CHATBOT_OUTBOUND_WEBHOOKS_ENABLED or CHATBOT_CHANNELS_ENABLED is "true". Built by the caller from the secrets module. */
   secretBox?: SecretBox;
+  /**
+   * Channel providers the send drain sends through. Used only when CHATBOT_CHANNELS_ENABLED is "true". When it is
+   * missing or has no provider registered, the channel send drain is not started (logged once at boot).
+   */
+  channelRegistry?: ChannelRegistry;
   logger?: WorkerLogger;
   clock?: () => Date;
   /** Passed from mountChatbotModule(...).voiceCall. Only the demo cap options are read. */
@@ -113,7 +124,44 @@ export function buildChatbotWorkerServices(deps: ChatbotBootDeps): ChatbotWorker
     services.reminders = buildReminderService(deps, store, events, clock);
   }
 
+  // Channel send drain. Off unless CHATBOT_CHANNELS_ENABLED is exactly "true".
+  if (readFlag(CHANNELS_FLAG, deps.env)) {
+    const channelOutbox = buildChannelOutboxService(deps, clock);
+    if (channelOutbox) services.channelOutbox = channelOutbox;
+    else deps.logger?.info("workers.channel_send_no_providers", { flag: CHANNELS_FLAG });
+  }
+
   return services;
+}
+
+/**
+ * Builds the channel send drain over the existing outbox store, credential source and pinned HTTP client. Returns
+ * undefined when no provider is registered: the drain would only fail every queued row, so it is not started.
+ * Refuses to build when no secret box was supplied, because credentials cannot be opened without it.
+ */
+export function buildChannelOutboxService(
+  deps: ChatbotBootDeps,
+  clock: () => Date,
+): { outbox: ChannelOutbox; pipeline: OutboundPipelineDeps } | undefined {
+  if (!deps.secretBox) {
+    throw new Error(`${CHANNELS_FLAG} is "true" but no secretBox was supplied. Refusing to start.`);
+  }
+  const registry = deps.channelRegistry;
+  if (!registry || registry.kinds().length === 0) return undefined;
+
+  const outbox = createChannelOutbox({
+    store: createDrizzleChannelOutboxStore(deps.db as unknown as OutboxDb),
+    clock,
+  });
+  const pipeline: OutboundPipelineDeps = {
+    registry,
+    credentials: createChannelCredentialSource({
+      storage: createDrizzleChannelAccountStorage(deps.db as unknown as ChannelDb, clock),
+      secretBox: deps.secretBox,
+    }),
+    http: createPinnedHttpClient({ resolve: systemWebhookResolver, maxBodyBytes: 65536 }),
+  };
+  return { outbox, pipeline };
 }
 
 /**

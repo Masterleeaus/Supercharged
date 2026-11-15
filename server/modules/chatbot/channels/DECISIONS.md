@@ -135,3 +135,9 @@ Scoped strict type check on 48 files passed.
 - `workers/run.ts` now calls `drain` per company in the `channel_send_drain` job, when `channelOutbox` is wired (updated 2026-11-09).
 - The route tests use their own Express app. The wiring owner mounts the routers and runs the mount checks.
 - Instagram tables (`db/channels-instagram.ts`) and review tables (`db/reviews.ts`) have no SQL draft yet.
+
+### Channel send drain wiring (2026-11-15)
+
+- `workers/boot.ts` now builds `channelOutbox` when `CHATBOT_CHANNELS_ENABLED` and `CHATBOT_WORKERS_ENABLED` are both exactly "true". Until then the `channel_send_drain` job did not start in production.
+- The drain needs a `channelRegistry` passed in by the caller. With no registry, or an empty one, the drain is not started and `workers.channel_send_no_providers` is logged once. This avoids failing every queued row with "not registered".
+- The drain reads `chatbot_channel_outbox`, which exists only in the draft migration `db/migrations-draft/0101_channels_telegram_messenger.sql`. Until the owner promotes it, a running drain would error per company per tick. No provider is registered by default, so this does not happen by default.
