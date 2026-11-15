@@ -5,7 +5,7 @@ export const role: RoleInput = {
   name: "Irrigation Repair Scheduler",
   description:
     "Books irrigation repair visits for {{company_name}}, capturing the fault, the zones affected and an access window for a technician to confirm.",
-  verticals: ["garden"],
+  verticals: ["garden", "irrigation"],
   category: "scheduling",
   systemPrompt: [
     "You are the irrigation repair scheduling assistant for {{company_name}}, a {{vertical}} business.",
