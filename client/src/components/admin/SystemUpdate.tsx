@@ -1,3 +1,4 @@
+import type { AppError } from "@/components/app-error";
 import { useState, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -107,7 +108,16 @@ function parseProxyError(text: string, status: number): string | null {
   return null;
 }
 
-async function safeJson(res: Response, fallbackMsg: string): Promise<any> {
+/** JSON body returned by admin plugin and update endpoints. */
+interface JsonBody {
+  success?: boolean;
+  message?: string;
+  error?: string;
+  data?: unknown;
+  [key: string]: unknown;
+}
+
+async function safeJson(res: Response, fallbackMsg: string): Promise<JsonBody> {
   const text = await res.text();
   try {
     return JSON.parse(text);
@@ -268,7 +278,8 @@ export default function SystemUpdate() {
           credentials: "include",
           headers,
         });
-      } catch (networkErr: any) {
+      } catch (raw_networkErr) {
+        const networkErr = raw_networkErr as AppError;
         throw new Error("Upload failed: Could not connect to the server. Please check your server is running and try again.");
       }
       if (!res.ok) {
@@ -278,7 +289,8 @@ export default function SystemUpdate() {
         try {
           const err = JSON.parse(text);
           throw new Error(err.message || err.error || "Validation failed");
-        } catch (e: any) {
+        } catch (raw_e) {
+          const e = raw_e as AppError;
           if (e.message && e.message !== text) throw e;
           throw new Error("Validation failed");
         }
@@ -286,7 +298,7 @@ export default function SystemUpdate() {
       return safeJson(res, "Validation failed");
     },
     onSuccess: (data) => {
-      setValidationResult(data.data);
+      setValidationResult(data.data as ValidationResult);
     },
     onError: (error: Error) => {
       toast({ title: t("adminDashboard.settings.update.toasts.validationFailed"), description: error.message, variant: "destructive" });
@@ -307,7 +319,8 @@ export default function SystemUpdate() {
           credentials: "include",
           headers,
         });
-      } catch (networkErr: any) {
+      } catch (raw_networkErr) {
+        const networkErr = raw_networkErr as AppError;
         throw new Error("Upload failed: Could not connect to the server. Please check your server is running and try again.");
       }
       if (!res.ok) {
@@ -317,7 +330,8 @@ export default function SystemUpdate() {
         try {
           const err = JSON.parse(text);
           throw new Error(err.message || err.error || "Update failed");
-        } catch (e: any) {
+        } catch (raw_e) {
+          const e = raw_e as AppError;
           if (e.message && e.message !== text) throw e;
           throw new Error("Update failed");
         }

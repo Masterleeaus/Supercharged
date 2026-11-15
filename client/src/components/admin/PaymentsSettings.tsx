@@ -14,6 +14,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
+import type { AppError } from "@/components/app-error";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,11 +32,20 @@ import { StripeSettingsTab } from "@/components/admin/payments-settings/StripeSe
 import { RazorpaySettingsTab } from "@/components/admin/payments-settings/RazorpaySettingsTab";
 import { PaypalSettingsTab } from "@/components/admin/payments-settings/PaypalSettingsTab";
 import { PaystackSettingsTab } from "@/components/admin/payments-settings/PaystackSettingsTab";
+import type { AdminPaymentSettings } from "@/components/admin/payments-settings/types";
 import { MercadopagoSettingsTab } from "@/components/admin/payments-settings/MercadopagoSettingsTab";
 import { YookassaSettingsTab } from "@/components/admin/payments-settings/YookassaSettingsTab";
 import { CurrencyChangeDialog } from "@/components/admin/payments-settings/CurrencyChangeDialog";
 
 
+
+/** Result of the Razorpay/PayPal/MercadoPago webhook setup and test calls. */
+interface WebhookActionResult {
+  success?: boolean;
+  message?: string;
+  webhookId?: string;
+  error?: string;
+}
 
 export default function PaymentsSettings() {
   const { t } = useTranslation();
@@ -127,7 +137,7 @@ export default function PaymentsSettings() {
   const [showYookassaWebhookSecret, setShowYookassaWebhookSecret] = useState(false);
   const [yookassaConnectionStatus, setYookassaConnectionStatus] = useState<ConnectionStatus | null>(null);
 
-  const { data: settings, isLoading } = useQuery<any>({
+  const { data: settings, isLoading } = useQuery<AdminPaymentSettings>({
     queryKey: ["/api/admin/settings"],
   });
 
@@ -148,7 +158,7 @@ export default function PaymentsSettings() {
       });
 
       // Load stripe currency locked state
-      const toBool = (val: any): boolean => val === true || val === 'true';
+      const toBool = (val: unknown): boolean => val === true || val === 'true';
       setStripeCurrencyLocked(toBool(settings.stripe_currency_locked));
 
       // Skip gateway toggle state update if we just toggled (prevents race condition)
@@ -205,7 +215,7 @@ export default function PaymentsSettings() {
   }, [settings]);
 
   const updateSettingMutation = useMutation({
-    mutationFn: async ({ key, value }: { key: string; value: any }) => {
+    mutationFn: async ({ key, value }: { key: string; value: unknown }) => {
       const response = await apiRequest("PATCH", `/api/admin/settings/${key}`, { value });
       const data = await response.json();
       return { key, data };
@@ -222,7 +232,8 @@ export default function PaymentsSettings() {
         });
       }
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.payments.updateFailed"),
         description: error.message,
@@ -254,7 +265,8 @@ export default function PaymentsSettings() {
       toast({ title: t("adminDashboard.payments.updateSuccess") });
       setHasStripeChanges(false);
       setStripeFormData(prev => ({ ...prev, stripe_secret_key: "", stripe_webhook_secret: "" }));
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.payments.updateFailed"),
         description: error.message,
@@ -298,7 +310,8 @@ export default function PaymentsSettings() {
       toast({ title: t("adminDashboard.payments.updateSuccess") });
       setHasRazorpayChanges(false);
       setRazorpayFormData(prev => ({ ...prev, razorpay_key_secret: "", razorpay_webhook_secret: "" }));
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.payments.updateFailed"),
         description: error.message,
@@ -327,7 +340,8 @@ export default function PaymentsSettings() {
       toast({ title: t("adminDashboard.payments.updateSuccess") });
       setHasPaypalChanges(false);
       setPaypalFormData(prev => ({ ...prev, paypal_client_secret: "" }));
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.payments.updateFailed"),
         description: error.message,
@@ -355,7 +369,8 @@ export default function PaymentsSettings() {
       toast({ title: t("adminDashboard.payments.updateSuccess") });
       setHasPaystackChanges(false);
       setPaystackFormData(prev => ({ ...prev, paystack_secret_key: "", paystack_webhook_secret: "" }));
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.payments.updateFailed"),
         description: error.message,
@@ -383,7 +398,8 @@ export default function PaymentsSettings() {
       toast({ title: t("adminDashboard.payments.updateSuccess") });
       setHasMercadopagoChanges(false);
       setMercadopagoFormData(prev => ({ ...prev, mercadopago_access_token: "", mercadopago_webhook_secret: "" }));
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.payments.updateFailed"),
         description: error.message,
@@ -411,7 +427,8 @@ export default function PaymentsSettings() {
       toast({ title: t("adminDashboard.payments.updateSuccess") });
       setHasYookassaChanges(false);
       setYookassaFormData(prev => ({ ...prev, yookassa_secret_key: "", yookassa_webhook_secret: "" }));
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.payments.updateFailed"),
         description: error.message,
@@ -432,7 +449,8 @@ export default function PaymentsSettings() {
           ? t("adminDashboard.payments.toasts.stripeEnabledDesc")
           : t("adminDashboard.payments.toasts.stripeDisabledDesc")
       });
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       // Revert on error
       setStripeEnabled(!enabled);
       justToggledRef.current = false;
@@ -467,7 +485,8 @@ export default function PaymentsSettings() {
           ? t("adminDashboard.payments.toasts.razorpayEnabledDesc")
           : t("adminDashboard.payments.toasts.razorpayDisabledDesc")
       });
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       setRazorpayEnabled(!enabled);
       justToggledRef.current = false;
       toast({
@@ -489,7 +508,8 @@ export default function PaymentsSettings() {
           ? t("adminDashboard.payments.toasts.paypalEnabledDesc", { currency: paypalFormData.paypal_currency })
           : t("adminDashboard.payments.toasts.paypalDisabledDesc")
       });
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       setPaypalEnabled(!enabled);
       justToggledRef.current = false;
       toast({
@@ -511,7 +531,8 @@ export default function PaymentsSettings() {
           ? t("adminDashboard.payments.toasts.paystackEnabledDesc", { currency: paystackFormData.paystack_currency })
           : t("adminDashboard.payments.toasts.paystackDisabledDesc")
       });
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       setPaystackEnabled(!enabled);
       justToggledRef.current = false;
       toast({
@@ -533,7 +554,8 @@ export default function PaymentsSettings() {
           ? t("adminDashboard.payments.toasts.mercadopagoEnabledDesc", { currency: mercadopagoFormData.mercadopago_currency })
           : t("adminDashboard.payments.toasts.mercadopagoDisabledDesc")
       });
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       setMercadopagoEnabled(!enabled);
       justToggledRef.current = false;
       toast({
@@ -555,7 +577,8 @@ export default function PaymentsSettings() {
           ? t("adminDashboard.payments.toasts.yookassaEnabledDesc", { currency: yookassaFormData.yookassa_currency })
           : t("adminDashboard.payments.toasts.yookassaDisabledDesc")
       });
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       setYookassaEnabled(!enabled);
       justToggledRef.current = false;
       toast({
@@ -588,7 +611,8 @@ export default function PaymentsSettings() {
         description: t("adminDashboard.payments.toasts.currencyLockedDesc", { currency: stripeFormData.stripe_currency })
       });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.payments.toasts.currencyLockFailed"),
         description: error.message,
@@ -606,7 +630,8 @@ export default function PaymentsSettings() {
       const sanitizedError = sanitizeErrorMessage(data.error, 'Stripe credentials not configured');
       setStripeConnectionStatus({ ...data, error: sanitizedError });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       const sanitizedError = sanitizeErrorMessage(error.message, 'Connection test failed');
       setStripeConnectionStatus({
         connected: false,
@@ -627,7 +652,8 @@ export default function PaymentsSettings() {
         error: sanitizedError
       });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       const sanitizedError = sanitizeErrorMessage(error.message, 'Connection test failed');
       setRazorpayConnectionStatus({
         connected: false,
@@ -641,7 +667,7 @@ export default function PaymentsSettings() {
       const response = await apiRequest("POST", "/api/admin/test-webhook/razorpay");
       return response.json();
     },
-    onSuccess: (data: any) => {
+    onSuccess: (data: WebhookActionResult) => {
       if (data.success) {
         toast({
           title: t("adminDashboard.payments.razorpay.webhookVerified"),
@@ -655,7 +681,8 @@ export default function PaymentsSettings() {
         });
       }
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.payments.razorpay.webhookTestFailed"),
         description: error.message || t("adminDashboard.payments.razorpay.webhookTestError"),
@@ -677,7 +704,8 @@ export default function PaymentsSettings() {
         error: sanitizedError
       });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       const sanitizedError = sanitizeErrorMessage(error.message, 'Connection test failed');
       setPaypalConnectionStatus({
         connected: false,
@@ -698,7 +726,8 @@ export default function PaymentsSettings() {
         error: sanitizedError
       });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       const sanitizedError = sanitizeErrorMessage(error.message, 'Connection test failed');
       setPaystackConnectionStatus({
         connected: false,
@@ -719,7 +748,8 @@ export default function PaymentsSettings() {
         error: sanitizedError
       });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       const sanitizedError = sanitizeErrorMessage(error.message, 'Connection test failed');
       setMercadopagoConnectionStatus({
         connected: false,
@@ -740,7 +770,8 @@ export default function PaymentsSettings() {
         error: sanitizedError
       });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       const sanitizedError = sanitizeErrorMessage(error.message, 'Connection test failed');
       setYookassaConnectionStatus({
         connected: false,
@@ -756,7 +787,7 @@ export default function PaymentsSettings() {
       const response = await apiRequest("POST", "/api/admin/setup-webhook/paypal", { webhookUrl });
       return response.json();
     },
-    onSuccess: (data: any) => {
+    onSuccess: (data: WebhookActionResult) => {
       if (data.success) {
         toast({
           title: t("adminDashboard.payments.paypal.webhookConfigured"),
@@ -772,7 +803,8 @@ export default function PaymentsSettings() {
         });
       }
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.payments.paypal.webhookSetupFailed"),
         description: error.message || t("adminDashboard.payments.paypal.webhookSetupFailedDesc"),
@@ -787,7 +819,7 @@ export default function PaymentsSettings() {
       const response = await apiRequest("POST", "/api/admin/setup-webhook/mercadopago", { webhookUrl });
       return response.json();
     },
-    onSuccess: (data: any) => {
+    onSuccess: (data: WebhookActionResult) => {
       if (data.success) {
         toast({
           title: t("adminDashboard.payments.mercadopago.webhookConfigured"),
@@ -802,7 +834,8 @@ export default function PaymentsSettings() {
         });
       }
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.payments.mercadopago.webhookSetupFailed"),
         description: error.message || t("adminDashboard.payments.mercadopago.webhookSetupFailedDesc"),

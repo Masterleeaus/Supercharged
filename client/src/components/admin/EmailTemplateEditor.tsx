@@ -14,6 +14,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
+import type { AppError } from "@/components/app-error";
 import { useState, useEffect, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -147,7 +148,8 @@ export function EmailTemplateEditor({
       onSave(data);
       onClose();
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("admin.notifications.emailTemplates.toast.createFailed"),
         description: error.message || t("common.tryAgain"),
@@ -170,7 +172,8 @@ export function EmailTemplateEditor({
       onSave(data);
       onClose();
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("admin.notifications.emailTemplates.toast.updateFailed"),
         description: error.message || t("common.tryAgain"),

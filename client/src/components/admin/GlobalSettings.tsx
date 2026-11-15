@@ -14,6 +14,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
+import type { AppError } from "@/components/app-error";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -208,7 +209,8 @@ export default function GlobalSettings({ onSwitchTab }: GlobalSettingsProps) {
         })
       });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("admin.settings.kyc.updateFailed"),
         description: error.message,
@@ -224,7 +226,8 @@ export default function GlobalSettings({ onSwitchTab }: GlobalSettingsProps) {
       const data = await response.json();
       const sanitizedError = sanitizeErrorMessage(data.error, 'Twilio credentials not configured');
       setTwilioStatus({ connected: data.connected, error: sanitizedError, loading: false });
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       const sanitizedError = sanitizeErrorMessage(error.message, 'Connection test failed');
       setTwilioStatus({ connected: false, error: sanitizedError || "Connection test failed", loading: false });
     }
@@ -237,7 +240,8 @@ export default function GlobalSettings({ onSwitchTab }: GlobalSettingsProps) {
       const data = await response.json();
       const sanitizedError = sanitizeErrorMessage(data.error, 'ElevenLabs API key not configured');
       setElevenLabsStatus({ connected: data.connected, error: sanitizedError, loading: false });
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       const sanitizedError = sanitizeErrorMessage(error.message, 'Connection test failed');
       setElevenLabsStatus({ connected: false, error: sanitizedError || "Connection test failed", loading: false });
     }
@@ -250,7 +254,8 @@ export default function GlobalSettings({ onSwitchTab }: GlobalSettingsProps) {
       const data = await response.json();
       const sanitizedError = sanitizeErrorMessage(data.error, 'OpenAI API key not configured');
       setOpenaiStatus({ connected: data.connected, error: sanitizedError, loading: false });
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       const sanitizedError = sanitizeErrorMessage(error.message, 'Connection test failed');
       setOpenaiStatus({ connected: false, error: sanitizedError || "Connection test failed", loading: false });
     }
@@ -279,13 +284,14 @@ export default function GlobalSettings({ onSwitchTab }: GlobalSettingsProps) {
   }, [settingsError]);
 
   const updateSetting = useMutation({
-    mutationFn: async ({ key, value }: { key: string; value: any }) => {
+    mutationFn: async ({ key, value }: { key: string; value: unknown }) => {
       return apiRequest("PATCH", `/api/admin/settings/${key}`, { value });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/settings"] });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("admin.settings.updateFailed"),
         description: error.message,
@@ -294,7 +300,7 @@ export default function GlobalSettings({ onSwitchTab }: GlobalSettingsProps) {
     }
   });
 
-  const handleChange = (key: keyof Settings, value: any) => {
+  const handleChange = (key: keyof Settings, value: unknown) => {
     setFormData({
       ...formData,
       [key]: value
@@ -331,7 +337,7 @@ export default function GlobalSettings({ onSwitchTab }: GlobalSettingsProps) {
     }
     setGoogleSaving(true);
     try {
-      const tasks: Promise<any>[] = [];
+      const tasks: Promise<unknown>[] = [];
       if (googleClientId.trim()) {
         tasks.push(apiRequest("PATCH", "/api/admin/settings/google_client_id", { value: googleClientId.trim() }));
       }
@@ -343,7 +349,8 @@ export default function GlobalSettings({ onSwitchTab }: GlobalSettingsProps) {
       setGoogleClientId("");
       setGoogleClientSecret("");
       toast({ title: t("admin.settings.googleOAuth.saved") || "Google OAuth credentials saved" });
-    } catch (err: any) {
+    } catch (raw_err) {
+      const err = raw_err as AppError;
       toast({ title: t("admin.settings.googleOAuth.saveFailed") || "Failed to save Google OAuth credentials", description: err?.message, variant: "destructive" });
     } finally {
       setGoogleSaving(false);

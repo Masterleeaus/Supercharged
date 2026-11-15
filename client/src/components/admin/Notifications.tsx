@@ -14,6 +14,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
+import type { AppError } from "@/components/app-error";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -104,14 +105,16 @@ export default function Notifications() {
     }) => {
       return apiRequest("POST", "/api/admin/notifications/broadcast", data);
     },
-    onSuccess: (data: any) => {
+    onSuccess: (response: Response) => {
+      const data = response as unknown as { recipientCount?: number };
       toast({
         title: t("adminDashboard.notifications.toast.sentSuccess"),
         description: t("adminDashboard.notifications.toast.sentToUsers", { count: data.recipientCount || 0 }),
       });
       resetForm();
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.notifications.toast.sendFailed"),
         description: error.message,

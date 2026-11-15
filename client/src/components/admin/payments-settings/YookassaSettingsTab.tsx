@@ -14,6 +14,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
+import type { AdminPaymentSettings } from "@/components/admin/payments-settings/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,9 +32,9 @@ import { ConnectionStatus, YOOKASSA_CURRENCIES } from "@/components/admin/paymen
 
 export interface YookassaSettingsTabProps {
   t: TFunction<"translation", undefined>;
-  isYookassaConfigured: any;
+  isYookassaConfigured: boolean | undefined;
   yookassaConnectionStatus: ConnectionStatus;
-  settings: any;
+  settings: AdminPaymentSettings | undefined;
   yookassaFormData: { yookassa_shop_id: string; yookassa_secret_key: string; yookassa_webhook_secret: string; yookassa_currency: string; };
   handleYookassaChange: (key: "yookassa_shop_id" | "yookassa_secret_key" | "yookassa_webhook_secret" | "yookassa_currency", value: string) => void;
   showYookassaSecretKey: boolean;
@@ -41,10 +42,10 @@ export interface YookassaSettingsTabProps {
   showYookassaWebhookSecret: boolean;
   setShowYookassaWebhookSecret: Dispatch<SetStateAction<boolean>>;
   toast: ReturnType<typeof useToast>["toast"];
-  testYookassaConnectionMutation: UseMutationResult<any, any, void, unknown>;
+  testYookassaConnectionMutation: UseMutationResult<unknown, Error, void, unknown>;
   saveYookassaSettings: () => Promise<void>;
   hasYookassaChanges: boolean;
-  updateSettingMutation: UseMutationResult<{ key: string; data: any; }, any, { key: string; value: any; }, unknown>;
+  updateSettingMutation: UseMutationResult<{ key: string; data: unknown; }, Error, { key: string; value: unknown; }, unknown>;
 }
 
 export function YookassaSettingsTab({ t, isYookassaConfigured, yookassaConnectionStatus, settings, yookassaFormData, handleYookassaChange, showYookassaSecretKey, setShowYookassaSecretKey, showYookassaWebhookSecret, setShowYookassaWebhookSecret, toast, testYookassaConnectionMutation, saveYookassaSettings, hasYookassaChanges, updateSettingMutation }: YookassaSettingsTabProps) {

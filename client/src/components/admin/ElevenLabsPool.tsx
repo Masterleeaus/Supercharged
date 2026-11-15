@@ -171,7 +171,7 @@ export default function ElevenLabsPool() {
       const response = await apiRequest("POST", "/api/admin/elevenlabs-pool/test", { apiKey });
       return response.json();
     },
-    onSuccess: (data: any) => {
+    onSuccess: (data: { valid?: boolean }) => {
       if (data.valid) {
         toast({
           title: t("admin.elevenLabsPool.validApiKey"),

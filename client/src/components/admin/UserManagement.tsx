@@ -14,6 +14,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
+import type { AppError } from "@/components/app-error";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import {
@@ -193,7 +194,7 @@ export default function UserManagement() {
   const pagination = response?.pagination || { page: 1, pageSize: 25, totalItems: 0, totalPages: 1 };
 
   const updateUser = useMutation({
-    mutationFn: async ({ userId, updates }: { userId: string; updates: any }) => {
+    mutationFn: async ({ userId, updates }: { userId: string; updates: Record<string, unknown> }) => {
       return apiRequest("PATCH", `/api/admin/users/${userId}`, updates);
     },
     onSuccess: () => {
@@ -202,7 +203,8 @@ export default function UserManagement() {
       setEditDialog(false);
       refetch();
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.users.updateFailed"),
         description: error.message,
@@ -225,7 +227,8 @@ export default function UserManagement() {
       setPromoCreditsAmount(0);
       refetch();
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.users.promoFailed"),
         description: error.message,
@@ -253,7 +256,8 @@ export default function UserManagement() {
       });
       refetch();
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.users.createFailed"),
         description: error.message,
@@ -273,7 +277,8 @@ export default function UserManagement() {
       setSelectedUser(null);
       refetch();
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.users.deleteFailed"),
         description: error.message,
@@ -298,7 +303,8 @@ export default function UserManagement() {
       setKycUser(null);
       refetch();
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: "Failed to approve KYC",
         description: error.message,
@@ -324,7 +330,8 @@ export default function UserManagement() {
       setKycRejectionReason("");
       refetch();
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: "Failed to reject KYC",
         description: error.message,

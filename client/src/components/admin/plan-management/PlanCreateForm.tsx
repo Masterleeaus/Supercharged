@@ -28,7 +28,7 @@ import { Plan, PaymentGatewayConfig } from "@/components/admin/plan-management/s
 export interface PlanCreateFormProps {
   t: TFunction<"translation", undefined>;
   newPlanForm: Partial<Plan>;
-  updateNewPlanField: (field: keyof Plan, value: any) => void;
+  updateNewPlanField: (field: keyof Plan, value: unknown) => void;
   paymentGateway: PaymentGatewayConfig;
   stripeCurrency: string;
   paypalCurrency: string;
@@ -38,7 +38,7 @@ export interface PlanCreateFormProps {
   sipPluginInstalled: boolean;
   restApiPluginInstalled: boolean;
   handleCreatePlan: () => void;
-  createPlan: UseMutationResult<Response, any, Partial<Plan>, unknown>;
+  createPlan: UseMutationResult<Response, Error, Partial<Plan>, unknown>;
 }
 
 export function PlanCreateForm({ t, newPlanForm, updateNewPlanField, paymentGateway, stripeCurrency, paypalCurrency, paystackCurrency, mercadopagoCurrency, yookassaCurrency, sipPluginInstalled, restApiPluginInstalled, handleCreatePlan, createPlan }: PlanCreateFormProps) {

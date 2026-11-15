@@ -16,6 +16,7 @@
  * ============================================================
  */
 
+import type { AppError } from "@/components/app-error";
 import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -193,7 +194,8 @@ export default function TransactionsManagement() {
         title: "Invoice Downloaded",
         description: `Invoice ${invoiceNumber} has been downloaded`,
       });
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: "Download Failed",
         description: error.message || "Failed to download invoice",
@@ -234,7 +236,8 @@ export default function TransactionsManagement() {
 
       refetch();
       queryClient.invalidateQueries({ queryKey: ["/api/admin/transactions/invoices/all"] });
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: "Generation Failed",
         description: error.message || "Failed to generate invoice",
@@ -1037,9 +1040,23 @@ function TransactionDetailsDialog({ transaction, open, onClose, onRefundComplete
   );
 }
 
+/** One row of the admin invoices list. */
+interface InvoiceRow {
+  id: string;
+  invoiceNumber: string;
+  issuedAt: string;
+  status: string;
+  user?: { name?: string | null; email?: string | null } | null;
+  customerName?: string | null;
+  customerEmail?: string | null;
+  description?: string | null;
+  total: number | string;
+  currency: string;
+}
+
 function InvoicesTab() {
   const { t } = useTranslation();
-  const { data: invoicesData, isLoading } = useQuery<{ invoices: any[]; isReadOnlyAdmin: boolean }>({
+  const { data: invoicesData, isLoading } = useQuery<{ invoices: InvoiceRow[]; isReadOnlyAdmin: boolean }>({
     queryKey: ["/api/admin/transactions/invoices/all"],
   });
   const invoices = invoicesData?.invoices;
@@ -1086,7 +1103,8 @@ function InvoicesTab() {
         title: "Invoice Downloaded",
         description: `Invoice ${invoiceNumber} has been downloaded`,
       });
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: "Download Failed",
         description: error.message || "Failed to download invoice",
@@ -1137,7 +1155,8 @@ function InvoicesTab() {
         title: "Export Downloaded",
         description: "Documents have been downloaded as ZIP file",
       });
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: "Export Failed",
         description: error.message || "Failed to export documents",
@@ -1366,7 +1385,8 @@ function RefundsTab() {
         title: t("adminDashboard.transactions.toasts.refundNoteDownloaded"),
         description: t("adminDashboard.transactions.toasts.refundNoteDownloadedDesc", { number: refundNoteNumber || "" }),
       });
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.transactions.toasts.downloadFailed"),
         description: error.message || t("adminDashboard.transactions.toasts.downloadFailed"),

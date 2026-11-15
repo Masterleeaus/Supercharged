@@ -14,6 +14,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
+import type { AppError } from "@/components/app-error";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -318,7 +319,8 @@ export default function AnalyticsModule() {
       resetForm();
       setDialogOpen(false);
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("common.error"),
         description: error.message,
@@ -342,7 +344,8 @@ export default function AnalyticsModule() {
       resetForm();
       setDialogOpen(false);
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("common.error"),
         description: error.message,
@@ -366,7 +369,8 @@ export default function AnalyticsModule() {
       setDeleteDialogOpen(false);
       setScriptToDelete(null);
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("common.error"),
         description: error.message,
@@ -384,7 +388,8 @@ export default function AnalyticsModule() {
       queryClient.invalidateQueries({ queryKey: ["/api/public/analytics-scripts"] });
       refetch();
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("common.error"),
         description: error.message,
@@ -407,8 +412,8 @@ export default function AnalyticsModule() {
     setEditingScript(script);
     const placement = Array.isArray(script.placement) ? script.placement : [script.placement];
     
-    const existingHeadCode = (script as any).headCode || '';
-    const existingBodyCode = (script as any).bodyCode || '';
+    const existingHeadCode = (script as { headCode?: string; bodyCode?: string }).headCode || '';
+    const existingBodyCode = (script as { headCode?: string; bodyCode?: string }).bodyCode || '';
     const legacyCode = script.code || '';
     
     let headCodeToUse = existingHeadCode;
