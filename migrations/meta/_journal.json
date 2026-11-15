@@ -162,6 +162,13 @@
       "when": 1794600000000,
       "tag": "0020_scheduled_booking_mirror",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1794700000000,
+      "tag": "0023_marketing_tables_tenant_rls",
+      "breakpoints": true
     }
   ]
 }
