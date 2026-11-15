@@ -26,6 +26,7 @@ import path from 'path';
 import { runAllSeedsForInstaller } from '../seed-all';
 import { applyEmbedCors } from '../middleware/embed-cors';
 import { logger } from '../utils/logger';
+import { checkInstallAllowed, INSTALL_SETUP_TOKEN_HEADER } from './installer-guard';
 import { PRODUCT_NAME } from '../../shared/brand.ts';
 
 /**
@@ -196,9 +197,13 @@ export function createPublicRoutes(ctx: RouteContext): Router {
 
   router.post("/api/installer/install", async (req: Request, res: Response) => {
     try {
-      const installed = await isInstalled();
-      if (installed) {
-        return res.status(403).json({ message: "Application is already installed" });
+      const denial = await checkInstallAllowed({
+        presentedToken: req.get(INSTALL_SETUP_TOKEN_HEADER),
+        isInstalled,
+      });
+      if (denial) {
+        logger.warn(`Installer request refused: ${denial.message}`);
+        return res.status(denial.status).json({ message: denial.message });
       }
 
       const { adminEmail, adminPassword, companyName } = req.body;
