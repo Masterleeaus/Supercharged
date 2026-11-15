@@ -1,7 +1,10 @@
 # Named Managers and the Skilled Manager (issues #49, #50)
 
-Status: implemented as role definitions in the workforce catalogue, with tests. Not yet shown as a separate
-screen in the Supercharged UI. The roster API lists them once a company has agents created from them.
+Status: implemented as role definitions in the workforce catalogue, with tests. `catalogue/named-managers.ts`
+gives the Supercharged surface one directory entry per Manager (name, audience, entry point, responsibilities,
+escalation path) and fails closed if a Manager is missing or renamed. Still not a separate screen in the
+Supercharged UI: the directory is not yet rendered, and the roster API lists a Manager once a company has an
+agent created from it.
 
 ## Hub, Go and Command Managers (#50)
 
@@ -24,7 +27,9 @@ Rules that hold for all three:
 - Handoffs: Hub goes to Go and Command, Go goes to Command, Command goes to Hub and Go.
 
 Tests: `tests/workforce/named-managers.test.mjs` pins each Manager's exact tool set, its refused tools, its
-access classes, the owner-approval rule and the handoff targets.
+access classes, the owner-approval rule and the handoff targets. `tests/workforce/named-manager-surface.test.mjs`
+checks the directory against the real catalogue and that a company's Manager agents are invisible to another
+company in the roster.
 
 Escalation paths in plain words:
 
@@ -47,13 +52,23 @@ added only when `WORKFORCE_COURSE_ASSISTANTS` is on, together with the learner a
 - Startup: `loadCatalogueAtStartup` (`server/workforce/catalogue/startup.ts`) calls
   `registerCourseAssistantRoles` only when the flag is on. The default is off, so boot is unchanged.
 
+### #49 progress
+
+- `courses/knowledge/course-search-tool.ts` builds the read-only `course_knowledge.search` tool over the shared
+  retrieval path. Identity comes only from the verified context; params cannot name a learner or company. Tested
+  in `tests/workforce/course-search-tool.test.mjs` with a fake port. It is not registered yet.
+- The existing course search port (`courses/store/search-port.ts`) already re-checks enrolment, tier unlock,
+  assessment state and answer-material screening.
+
 ### Open for #49
 
-- `course_knowledge.search` has no handler in `server/workforce/tools/`. A Skilled Manager cannot answer a
-  learner until the retrieval handler exists. Learner identity and progression scope are not yet bound to that
-  handler.
+- No learner-context reader and no revision store are bound to the LMS database. The tool and port cannot
+  answer a real learner until both exist and the tool is registered. Registration also needs
+  `course_knowledge.search` added to `TOOL_ACCESS`, which the test that requires every `TOOL_ACCESS` entry to be
+  declared by a role file allows once the Skilled Manager is in the default catalogue. The Skilled Manager
+  itself is built only in the flag-on path.
 - The curriculum root (`ACADEMY_CURRICULUM_ROOT`, default `/home/claude/scan10/...`) is not in this checkout.
   The course generator and `courses.suite.mjs` cannot run here.
-- The `course_knowledge.search` tool is not in `TOOL_ACCESS`. Adding it is blocked by a test that requires every
-  `TOOL_ACCESS` entry to be declared by a role file in the default catalogue. The role's own `toolAccess` says
-  `read`, which the runtime uses.
+- Decision: the Skilled Manager stays flag-gated (`WORKFORCE_COURSE_ASSISTANTS`, default off). Its learner
+  assistants stay separately selectable and are also routed through the Skilled Manager, so a learner can reach
+  a service-group assistant either way. Both paths use the same read-only tool.
