@@ -109,8 +109,16 @@ interface FlowNodeConfig {
   templateVariables?: Array<{ position: number; source: string; value: string }>;
   headerVariable?: { type: string; url?: string; value?: string; source?: string } | null;
   buttonVariables?: Array<{ index: number; label: string; url: string; value: string }>;
-  templateComponents?: any[];
+  templateComponents?: Array<Record<string, unknown>>;
 }
+
+/** Rows the flow builder reads from its list endpoints. */
+interface FlowAgent { id: string; name?: string; type?: string; telephonyProvider?: string | null }
+interface FlowRecord { id: string; name?: string; agentId?: string | null }
+interface WaTemplateButton { type?: string; text?: string; url?: string }
+interface WaTemplateComponent { type?: string; format?: string; text?: string; buttons?: WaTemplateButton[] }
+interface EmailTemplateOption { id: string; name: string }
+interface WaTemplate { name: string; language?: string; status?: string; body?: string; components?: WaTemplateComponent[]; buttons?: WaTemplateButton[]; header?: WaTemplateComponent | null; [key: string]: unknown }
 
 interface FlowNodeData extends Record<string, unknown> {
   type: string;
@@ -214,7 +222,7 @@ const nodeTypeColors = {
 };
 
 // Custom node component with connection handles
-function FlowNode({ data, selected }: { data: any; selected?: boolean }) {
+function FlowNode({ data, selected }: { data: FlowNodeData; selected?: boolean }) {
   const Icon = nodeTypeIcons[data.type as keyof typeof nodeTypeIcons] || MessageSquare;
   const colors = nodeTypeColors[data.type as keyof typeof nodeTypeColors] || nodeTypeColors.message;
   const hasMultipleOutputs = data.type === "condition";
@@ -329,17 +337,17 @@ export default function FlowBuilderPage() {
   ];
 
   // Fetch agents for selection
-  const { data: agents, isError: agentsError } = useQuery<any[]>({
+  const { data: agents, isError: agentsError } = useQuery<FlowAgent[]>({
     queryKey: ["/api/agents"],
   });
 
   // Fetch all flows to check for agent assignments (prevent assigning one agent to multiple flows)
-  const { data: allFlows } = useQuery<any[]>({
+  const { data: allFlows } = useQuery<FlowRecord[]>({
     queryKey: ["/api/flow-automation/flows"],
   });
 
   // Check if selected agent uses ElevenLabs engine (doesn't support audio playback)
-  const selectedAgent = agents?.find((a: any) => a.id === agentId);
+  const selectedAgent = agents?.find((a: FlowAgent) => a.id === agentId);
   const isElevenLabsEngine = selectedAgent?.telephonyProvider === 'twilio' ||
     selectedAgent?.telephonyProvider === 'elevenlabs-sip' ||
     !selectedAgent?.telephonyProvider; // Default is twilio (ElevenLabs)
@@ -360,7 +368,7 @@ export default function FlowBuilderPage() {
     queryKey: ["/api/flow-automation/forms"],
   });
 
-  const { data: emailTemplatesForFlow } = useQuery<any[]>({
+  const { data: emailTemplatesForFlow } = useQuery<EmailTemplateOption[]>({
     queryKey: ["/api/messaging/email-templates"],
     select: (res: any) => Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []),
   });
@@ -375,13 +383,13 @@ export default function FlowBuilderPage() {
     select: (res: any) => res?.data || res,
   });
 
-  const { data: metaTemplatesRaw } = useQuery<any[]>({
+  const { data: metaTemplatesRaw } = useQuery<WaTemplate[]>({
     queryKey: ["/api/messaging/meta-whatsapp/templates"],
     enabled: !!metaWhatsAppSettings?.isActive,
     select: (res: any) => Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []),
   });
 
-  const { data: whatswayTemplates } = useQuery<any[]>({
+  const { data: whatswayTemplates } = useQuery<WaTemplate[]>({
     queryKey: ["/api/messaging/whatsway/templates"],
     enabled: !!whatswaySettings?.isActive,
     select: (res: any) => Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []),
@@ -389,10 +397,10 @@ export default function FlowBuilderPage() {
 
   const waTemplatesForFlow = (() => {
     if (metaWhatsAppSettings?.isActive && metaTemplatesRaw) {
-      return metaTemplatesRaw.map((tmpl: any) => {
-        const bodyComponent = (tmpl.components || []).find((c: any) => c.type === "BODY");
-        const headerComponent = (tmpl.components || []).find((c: any) => c.type === "HEADER");
-        const buttonsComponent = (tmpl.components || []).find((c: any) => c.type === "BUTTONS" || c.type === "buttons");
+      return metaTemplatesRaw.map((tmpl: WaTemplate) => {
+        const bodyComponent = (tmpl.components || []).find((c: WaTemplateComponent) => c.type === "BODY");
+        const headerComponent = (tmpl.components || []).find((c: WaTemplateComponent) => c.type === "HEADER");
+        const buttonsComponent = (tmpl.components || []).find((c: WaTemplateComponent) => c.type === "BUTTONS" || c.type === "buttons");
         return {
           name: tmpl.name,
           language: tmpl.language,
@@ -731,9 +739,9 @@ export default function FlowBuilderPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">{t("flows.noAgent")}</SelectItem>
-                  {agents?.filter((a: any) => a.type !== 'incoming' || a.telephonyProvider === 'custom-voice-engine').map((agent: any) => {
+                  {agents?.filter((a: FlowAgent) => a.type !== 'incoming' || a.telephonyProvider === 'custom-voice-engine').map((agent: FlowAgent) => {
                     // Check if this agent is assigned to another flow
-                    const otherFlow = allFlows?.find((f: any) => f.agentId === agent.id && f.id !== flowId);
+                    const otherFlow = allFlows?.find((f: FlowRecord) => f.agentId === agent.id && f.id !== flowId);
 
                     return (
                       <SelectItem
@@ -1449,7 +1457,7 @@ export default function FlowBuilderPage() {
                               <SelectValue placeholder={t("flows.nodeConfig.emailTemplatePlaceholder", "Select an email template")} />
                             </SelectTrigger>
                             <SelectContent>
-                              {(emailTemplatesForFlow || []).map((tmpl: any) => (
+                              {(emailTemplatesForFlow || []).map((tmpl: EmailTemplateOption) => (
                                 <SelectItem key={tmpl.id || tmpl.name} value={tmpl.name}>
                                   {tmpl.name}
                                 </SelectItem>
@@ -1494,19 +1502,19 @@ export default function FlowBuilderPage() {
                         <Select
                           value={selectedNode.data.config?.templateName || ""}
                           onValueChange={(val) => {
-                            const tmpl = (waTemplatesForFlow || []).find((t: any) => t.name === val);
+                            const tmpl = (waTemplatesForFlow || []).find((t: WaTemplate) => t.name === val);
                             const body = tmpl?.body || "";
                             const varMatches = body.match(/\{\{(\d+)\}\}/g) || [];
                             const positions = Array.from(new Set<number>(varMatches.map((m: string) => parseInt(m.replace(/[{}]/g, ""), 10)))).sort((a: number, b: number) => a - b);
                             const existingVars = selectedNode.data.config?.templateVariables || [];
                             const templateVariables = positions.map((pos: number) => {
-                              const existing = existingVars.find((v: any) => v.position === pos);
+                              const existing = existingVars.find((v: { position: number }) => v.position === pos);
                               return existing || { position: pos, source: "custom", value: "" };
                             });
                             const header = tmpl?.header || null;
                             const headerFormat = header?.format?.toUpperCase() || "";
                             const prevHeaderType = selectedNode.data.config?.headerVariable?.type || null;
-                            let headerConfig: any = null;
+                            let headerConfig: { type: string; url?: string; value?: string; source?: string } | null = null;
                             if (header && ["IMAGE", "VIDEO", "DOCUMENT"].includes(headerFormat)) {
                               const newType = headerFormat.toLowerCase();
                               if (prevHeaderType === newType && selectedNode.data.config?.headerVariable) {
@@ -1539,7 +1547,7 @@ export default function FlowBuilderPage() {
                             <SelectValue placeholder={t("flows.nodeConfig.whatsappTemplatePlaceholder", "Select a WhatsApp template")} />
                           </SelectTrigger>
                           <SelectContent>
-                            {(waTemplatesForFlow || []).map((tmpl: any, idx: number) => (
+                            {(waTemplatesForFlow || []).map((tmpl, idx: number) => (
                               <SelectItem key={`${tmpl.name}-${idx}`} value={tmpl.name}>
                                 {tmpl.name} ({tmpl.language})
                               </SelectItem>
