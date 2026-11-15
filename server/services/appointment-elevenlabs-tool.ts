@@ -108,7 +108,7 @@ export interface AppointmentWebhookToolConfig {
     url: string;
     method: "GET" | "POST";
     headers?: Record<string, string>;
-    request_body_schema?: Record<string, any>;
+    request_body_schema?: Record<string, unknown>;
   };
 }
 

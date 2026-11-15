@@ -66,8 +66,8 @@ async function refreshCalendarToken(userId: string, force = false): Promise<stri
       .where(eq(googleCalendarCredentials.userId, userId));
 
     return data.access_token;
-  } catch (err: any) {
-    logger.error("[GoogleCalendar] Token refresh error:", err.message);
+  } catch (err: unknown) {
+    logger.error("[GoogleCalendar] Token refresh error:", err instanceof Error ? err.message : String(err));
     return null;
   }
 }
@@ -161,8 +161,8 @@ export async function createCalendarEvent(userId: string, apt: CalendarAppointme
     const data = await resp.json() as { id: string };
     logger.info(`📅 [GoogleCalendar] Created event ${data.id} for appointment ${apt.id}`);
     return data.id;
-  } catch (err: any) {
-    logger.error("[GoogleCalendar] Create event error:", err.message);
+  } catch (err: unknown) {
+    logger.error("[GoogleCalendar] Create event error:", err instanceof Error ? err.message : String(err));
     return null;
   }
 }
@@ -201,8 +201,8 @@ export async function updateCalendarEvent(userId: string, eventId: string, apt: 
     }
     logger.info(`📅 [GoogleCalendar] Updated event ${eventId}`);
     return true;
-  } catch (err: any) {
-    logger.error("[GoogleCalendar] Update event error:", err.message);
+  } catch (err: unknown) {
+    logger.error("[GoogleCalendar] Update event error:", err instanceof Error ? err.message : String(err));
     return false;
   }
 }
@@ -234,8 +234,8 @@ export async function deleteCalendarEvent(userId: string, eventId: string): Prom
     }
     logger.info(`📅 [GoogleCalendar] Deleted event ${eventId}`);
     return true;
-  } catch (err: any) {
-    logger.error("[GoogleCalendar] Delete event error:", err.message);
+  } catch (err: unknown) {
+    logger.error("[GoogleCalendar] Delete event error:", err instanceof Error ? err.message : String(err));
     return false;
   }
 }

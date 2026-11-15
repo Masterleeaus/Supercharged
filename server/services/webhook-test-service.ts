@@ -1226,11 +1226,13 @@ export class WebhookTestService {
           message: 'Webhook endpoint returned an error',
         };
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       const responseTime = Date.now() - startTime;
-      const errorMessage = error.name === 'TimeoutError' 
+      const errorName = error instanceof Error ? error.name : undefined;
+      const errorText = error instanceof Error ? error.message : undefined;
+      const errorMessage = errorName === 'TimeoutError' 
         ? 'Request timed out after 30 seconds'
-        : error.message || 'Unknown error';
+        : errorText || 'Unknown error';
 
       logger.error(`❌ [WebhookTest] Error: ${errorMessage}`);
       
@@ -1249,7 +1251,7 @@ export class WebhookTestService {
 
   private async logDelivery(
     webhook: Webhook, 
-    payload: any, 
+    payload: unknown,
     result: WebhookTestResult
   ): Promise<void> {
     try {
