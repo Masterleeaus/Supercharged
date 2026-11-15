@@ -128,12 +128,6 @@ export default function LoginPage() {
     defaultValues: { email: "", password: "" },
   });
 
-  useEffect(() => {
-    if (isDemoMode) {
-      loginForm.reset({ email: "demo@diploy.in", password: "Demo@1234" });
-    }
-  }, [isDemoMode, loginForm]);
-
   const registerForm = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
     defaultValues: { name: "", email: "", password: "", confirmPassword: "" },
@@ -620,35 +614,6 @@ export default function LoginPage() {
 
                       <TabsContent value="login">
                         <form onSubmit={loginForm.handleSubmit(handleLogin)} className="space-y-4">
-                          {isDemoMode && (
-                            <div className="p-3.5 bg-brand/10 border border-brand/20 dark:bg-brand/5 rounded-lg text-xs space-y-2 text-gray-700 dark:text-gray-300 backdrop-blur-sm">
-                              <div className="flex items-center justify-between">
-                                <div className="font-semibold text-brand flex items-center gap-1.5">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-brand animate-pulse"></span>
-                                  Demo Credentials:
-                                </div>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => setIsVideoOpen(true)}
-                                  className="h-7 px-2.5 text-xs text-brand hover:text-brand hover:bg-brand/10 font-semibold flex items-center gap-1.5 rounded-md"
-                                >
-                                  <Play className="w-3.5 h-3.5 fill-current" />
-                                  <span>Watch Demo Video</span>
-                                </Button>
-                              </div>
-                              <div className="flex justify-between items-center flex-wrap gap-2">
-                                <div>
-                                  Email: <span className="font-mono bg-gray-100 dark:bg-[#0a1628] px-1.5 py-0.5 rounded text-gray-900 dark:text-gray-100 select-all font-semibold">demo@diploy.in</span>
-                                </div>
-                                <div>
-                                  Password: <span className="font-mono bg-gray-100 dark:bg-[#0a1628] px-1.5 py-0.5 rounded text-gray-900 dark:text-gray-100 select-all font-semibold">Demo@1234</span>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
                           <div className="space-y-2">
                             <Label htmlFor="login-email" className="text-gray-700 dark:text-gray-300">{t("loginPage.rightPanel.form.email")}</Label>
                             <Input
