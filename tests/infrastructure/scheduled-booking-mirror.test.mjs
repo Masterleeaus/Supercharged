@@ -191,8 +191,9 @@ test('the PostgreSQL store claims the key in a transaction and reports duplicate
   assert.equal(await store.apply(event), 'duplicate');
   claimRows = 1; mirrorRows = 0;
   assert.equal(await store.apply(event), 'stale');
-  assert.deepEqual(sql.slice(0, 5), ['BEGIN', 'INSERT INTO scheduled_booking_events', 'INSERT INTO scheduled_booking_mirror', 'COMMIT', 'RELEASE']);
-  assert.deepEqual(sql.slice(5, 8), ['BEGIN', 'INSERT INTO scheduled_booking_events', 'COMMIT']);
+  const SET = "SELECT set_config('app.company_id', $1,";
+  assert.deepEqual(sql.slice(0, 6), ['BEGIN', SET, 'INSERT INTO scheduled_booking_events', 'INSERT INTO scheduled_booking_mirror', 'COMMIT', 'RELEASE']);
+  assert.deepEqual(sql.slice(6, 10), ['BEGIN', SET, 'INSERT INTO scheduled_booking_events', 'COMMIT']);
 });
 
 test('the PostgreSQL mirror guard is strict on time and breaks ties by key, never <=', () => {
@@ -202,11 +203,31 @@ test('the PostgreSQL mirror guard is strict on time and breaks ties by key, neve
   assert.match(src, /last_occurred_at = EXCLUDED\.last_occurred_at\s+AND scheduled_booking_mirror\.last_event_key COLLATE "C" < EXCLUDED\.last_event_key COLLATE "C"/);
 });
 
+test('migration 0020 enables forced tenant RLS, revokes PUBLIC and grants only to desk_app, as 0018 does', () => {
+  const sql = readFileSync(new URL('../../migrations/0020_scheduled_booking_mirror.sql', import.meta.url), 'utf8');
+  for (const table of ['scheduled_booking_events', 'scheduled_booking_mirror']) {
+    assert.match(sql, new RegExp(`ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY;`));
+    assert.match(sql, new RegExp(`ALTER TABLE ${table} FORCE ROW LEVEL SECURITY;`));
+    assert.match(sql, new RegExp(`REVOKE ALL ON ${table} FROM PUBLIC;`));
+    assert.match(sql, new RegExp(`CREATE POLICY ${table}_tenant_boundary ON ${table}\\s+FOR ALL TO desk_app`));
+  }
+  // Policies key on the transaction-local company setting, the same expression 0018 uses.
+  assert.match(sql, /USING \(company_id = nullif\(current_setting\('app\.company_id', true\), ''\)::uuid\)/);
+  assert.match(sql, /WITH CHECK \(company_id = nullif\(current_setting\('app\.company_id', true\), ''\)::uuid\)/);
+  assert.match(sql, /GRANT SELECT, INSERT ON scheduled_booking_events TO desk_app;/);
+  assert.match(sql, /GRANT SELECT, INSERT, UPDATE ON scheduled_booking_mirror TO desk_app;/);
+  assert.doesNotMatch(sql, /TO PUBLIC|GRANT [^;]*\bPUBLIC\b/);
+  // The migration refuses to run without a restricted desk_app role.
+  assert.match(sql, /rolname = 'desk_app' AND NOT rolsuper AND NOT rolbypassrls/);
+});
+
 test('migration 0020 is additive and registered in the runner and the journal', () => {
   const sql = readFileSync(new URL('../../migrations/0020_scheduled_booking_mirror.sql', import.meta.url), 'utf8');
   assert.match(sql, /CREATE TABLE IF NOT EXISTS scheduled_booking_events/);
   assert.match(sql, /CREATE TABLE IF NOT EXISTS scheduled_booking_mirror/);
-  const body = sql.split('\n').filter((l) => !l.startsWith('--')).join('\n');
+  // The only ALTER allowed is turning on forced row-level security (see the RLS test below).
+  const body = sql.split('\n').filter((l) => !l.startsWith('--')).join('\n')
+    .replace(/ALTER TABLE \w+ (ENABLE|FORCE) ROW LEVEL SECURITY;/g, '');
   assert.doesNotMatch(body, /\b(DROP|ALTER|RENAME|TRUNCATE|DELETE)\b/i);
   const runner = readFileSync(new URL('../../scripts/run-safe-migration.mjs', import.meta.url), 'utf8');
   assert.match(runner, /\{ file: '0020_scheduled_booking_mirror\.sql', required: true \}/);
