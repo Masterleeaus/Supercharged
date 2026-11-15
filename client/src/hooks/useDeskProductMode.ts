@@ -8,6 +8,8 @@ const FLAGS: ModeFlags = {
   // Match deployment flags to the server configuration. Client flags never grant access.
   inbox: import.meta.env.VITE_ENABLE_CHATBOT_INBOX === "true",
   marketing: true,
+  // Same value as the server flag ENABLE_CHATBOT_BUILDER_ROUTES. Read at build time, so set both together.
+  chatbot: import.meta.env.VITE_ENABLE_CHATBOT_BUILDER_ROUTES === "true",
 };
 export function useDeskProductMode(selected: ProductMode) {
   const query = useQuery({
