@@ -77,8 +77,11 @@ const MIGRATIONS = [
   { file: '0015_company_quiet_hours.sql', required: true },
   { file: '0016_chatbot_reminder_pipeline.sql', required: true },
   { file: '0017_user_company_memberships.sql', required: true },
-  { file: '0018_central_sso_company_links.sql', required: true },
-  { file: '0019_central_sso_pending_logins.sql', required: true },
+  // 0018 (Central SSO company links) is operator-only: it assumes a verified
+  // restricted desk_app role and an audited tenant users/membership schema.
+  // 0019 (pending logins) is likewise explicitly operator-only and requires
+  // deployment-specific app-role grants. Keep both SQL files in migrations/,
+  // but NEVER run them through this unattended migration runner.
   { file: '0020_scheduled_booking_mirror.sql', required: true },
   { file: '0023_marketing_tables_tenant_rls.sql', required: true },
 ];
