@@ -4,7 +4,8 @@
 -- This migration must be applied ONLY after the existing tenant schema
 -- and restricted desk_app role are verified against the deployment.
 -- Not applied to any database by the repository. Operator action only.
-BEGIN;
+-- The runner skips this file unless it is run with --include-operator-only. The runner
+-- wraps the file in its own BEGIN/COMMIT, so this file has no transaction statements.
 CREATE TABLE IF NOT EXISTS desk_central_identity_links (
  issuer text NOT NULL CHECK(length(issuer) BETWEEN 8 AND 256),
  subject text NOT NULL CHECK(length(subject) BETWEEN 1 AND 256),
@@ -40,4 +41,3 @@ SET search_path=pg_catalog,public AS $$
 $$;
 REVOKE ALL ON FUNCTION app_central_desk_resolve_link(text,text,uuid) FROM PUBLIC;
 -- Operator: review actual users schema and grant EXECUTE to desk_app only.
-COMMIT;
