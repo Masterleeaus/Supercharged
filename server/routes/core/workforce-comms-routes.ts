@@ -111,7 +111,7 @@ export async function registerWorkforceCommsRoutes(app: Express, deps: { commsAu
       transport: campaignTransport,
       companySettings: createCompanySettingsStore({ pool: pool as unknown as TenantPool }),
       suppression: createSuppressionList({ audit: commsAudit.audit, clock: () => new Date().toISOString() }),
-      requireRole: requireRole("admin", "manager") as unknown as import('express').RequestHandler,
+      requireRole: (...roles: string[]) => requireRole(...roles) as unknown as import('express').RequestHandler,
     }),
   );
 }
