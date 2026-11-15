@@ -24,8 +24,8 @@ test('SMTP certificate verification remains mandatory, including the retired byp
 test('production and admin SMTP transports consume the single verified TLS helper', () => {
   const email = readFileSync(new URL('../../server/services/email-service.ts', import.meta.url), 'utf8');
   const admin = readFileSync(new URL('../../server/routes/admin/smtp-routes.ts', import.meta.url), 'utf8');
-  assert.match(email, /export \{ smtpTlsOptions \} from '\.\/smtp-tls';/);
-  assert.match(email, /import \{ smtpTlsOptions \} from '\.\/smtp-tls';/);
+  assert.match(email, /export \{ smtpTlsOptions \} from '\.\/smtp-tls\\.ts';/);
+  assert.match(email, /import \{ smtpTlsOptions \} from '\.\/smtp-tls\\.ts';/);
   assert.equal((email.match(/tls: smtpTlsOptions\(\)/g) || []).length, 3);
   assert.match(admin, /tls: smtpTlsOptions\(\)/);
   assert.doesNotMatch(email, /SMTP_ALLOW_SELF_SIGNED|rejectUnauthorized:\s*false/);
