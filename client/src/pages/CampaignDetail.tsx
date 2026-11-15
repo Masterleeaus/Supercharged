@@ -95,7 +95,7 @@ interface BatchJobStats {
 
 export default function CampaignDetail() {
   const { t } = useTranslation();
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const currentUser = AuthStorage.getUser();
