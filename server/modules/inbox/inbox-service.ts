@@ -14,7 +14,9 @@ import { createHash, randomUUID } from 'node:crypto';
 import { requireCompanyId } from '../chatbot/chatbot-scope.ts';
 import { isUniqueConflict } from '../comms/inbound-dedupe.ts';
 import type { PreSendBlockReason, PreSendGate } from '../comms/presend-gate.ts';
+import type { SuppressionList } from '../comms/suppression.ts';
 import type { ApprovalPort, InboxStore, InboxTransactionRunner, ThreadFilter } from './ports.ts';
+import { applyInboundKeyword, SUPPRESSIBLE_CHANNELS, type OptOutReplySender } from './inbound-optout.ts';
 import {
   CHANNELS,
   MAX_BODY_LENGTH,
@@ -63,6 +65,13 @@ export interface InboxServiceDeps {
   newId?: () => string;
   /** How long an agent's send request stays open for a decision. Default 15 minutes. */
   approvalTtlMs?: number;
+  /**
+   * Durable suppression list. When set, inbound STOP and START are recorded here, and every send to
+   * a suppressed contact is refused before anything is queued.
+   */
+  suppression?: SuppressionList;
+  /** Sends the STOP and START confirmation. Required with `suppression`. */
+  optOutReply?: OptOutReplySender;
 }
 
 export interface InboundInput {
@@ -179,6 +188,19 @@ export function createInboxService(deps: InboxServiceDeps): InboxService {
   const newId = deps.newId ?? (() => randomUUID());
   const ttlMs = deps.approvalTtlMs ?? 15 * 60 * 1000;
   if (!Number.isFinite(ttlMs) || ttlMs <= 0) throw new RangeError('inbox: approvalTtlMs must be positive');
+  const suppression = deps.suppression;
+  const optOutReply = deps.optOutReply;
+  if (suppression && typeof optOutReply !== 'function') {
+    throw new RangeError('inbox: optOutReply is required when suppression is set');
+  }
+
+  /** True when this thread's contact must not be sent to. Fails closed when the contact cannot be found. */
+  async function isOptedOut(companyId: string, thread: Thread): Promise<boolean> {
+    if (!suppression || !SUPPRESSIBLE_CHANNELS.includes(thread.channel)) return false;
+    const address = await store.findThreadContactAddress(companyId, thread.id);
+    if (address === null) return true;
+    return suppression.isSuppressed(companyId, { address, channel: thread.channel });
+  }
 
   async function loadThread(companyId: string, threadId: string): Promise<Thread> {
     const thread = await store.findThread(companyId, threadId);
@@ -246,6 +268,22 @@ export function createInboxService(deps: InboxServiceDeps): InboxService {
         const existing = await store.findMessageByExternalId(companyId, channel, externalId);
         if (existing) {
           return { thread: await loadThread(companyId, existing.threadId), message: existing, duplicate: true };
+        }
+
+        // STOP or START is recorded and confirmed before the message is stored. If either step
+        // throws, nothing is stored, so the provider's retry runs the whole delivery again.
+        if (suppression && optOutReply) {
+          const outcome = await applyInboundKeyword({
+            suppression,
+            sendReply: optOutReply,
+            companyId,
+            channel,
+            address,
+            body,
+            externalId,
+            now: at,
+          });
+          if (outcome === 'failed') throw new InboxError('Opt-out could not be recorded', 'conflict');
         }
 
         let participant: Participant | null = await store.findContactParticipant(companyId, channel, address);
@@ -364,6 +402,7 @@ export function createInboxService(deps: InboxServiceDeps): InboxService {
       const co = requireCompanyId(companyId);
       if (actor.kind !== 'human') throw new InboxError('Only a human may send without approval', 'forbidden');
       const thread = await loadThread(co, assertId(threadId, 'threadId'));
+      if (await isOptedOut(co, thread)) throw new InboxError('Recipient has opted out', 'forbidden');
       const text = assertBody(body);
       const at = now();
       const blocked = await checkThreadSend(co, thread, actor.id);
@@ -403,6 +442,8 @@ export function createInboxService(deps: InboxServiceDeps): InboxService {
         throw new InboxError('An agent may only send its own drafts', 'forbidden');
       }
       if (message.status !== 'draft') throw new InboxError(`Message is ${message.status}, not a draft`, 'conflict');
+      const thread = await loadThread(co, message.threadId);
+      if (await isOptedOut(co, thread)) throw new InboxError('Recipient has opted out', 'forbidden');
 
       const gate = await approvals.gateAction({
         companyId: co,
@@ -449,8 +490,12 @@ export function createInboxService(deps: InboxServiceDeps): InboxService {
         p.bodySha256 === message.bodySha256;
       if (!matches) throw new InboxError('Approval does not match this message', 'conflict');
 
-      // The gate runs before the approval is claimed. A blocked send leaves the approval unexecuted.
+      // An approval granted after an opt-out is not executed. The message is rejected, and the approval is left unclaimed.
       const thread = await loadThread(co, message.threadId);
+      if (await isOptedOut(co, thread)) {
+        return (await store.updateMessage(co, message.id, { status: 'rejected', updatedAt: now() })) ?? message;
+      }
+      // The gate runs before the approval is claimed. A blocked send leaves the approval unexecuted.
       const blocked = await checkThreadSend(co, thread, message.authorId ?? 'system');
       if (blocked) {
         await compliance.recordBlock(

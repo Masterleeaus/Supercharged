@@ -27,6 +27,6 @@ test('missing guards reject before querying database metadata',async()=>{
 test('Inbox flag cannot mount without verified schema security',async()=>{
  const a=app(),pool={connect:async()=>{throw Error('not used')}},schemaProbe={query:async()=>({rows:[]})};
  const approvalService={gateAction:async()=>({}),getApproval:async()=>null,recordExecuted:async()=>{}};
- await assert.rejects(registerVerifiedCommsRoutes(a,{...fake,pool,schemaProbe,approvalService,env:{COMMS_INBOX_ENABLED:'true'}}),/database security not ready/);
+ await assert.rejects(registerVerifiedCommsRoutes(a,{...fake,pool,schemaProbe,approvalService,suppression:{isSuppressed:()=>false},optOutReply:async()=>{},env:{COMMS_INBOX_ENABLED:'true'}}),/database security not ready/);
  assert.deepEqual(a.calls,[]);
 });

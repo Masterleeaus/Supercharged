@@ -64,6 +64,9 @@ export function createSqlInboxStore(pool:TenantPool):InboxStore {
    [companyId,threadId])).rows,fromParticipant));},
   listThreadParticipants(companyId:string,threadId:string){return scoped(companyId,async db=>
    (await db.query('SELECT company_id,thread_id,participant_id FROM inbox_thread_participants WHERE company_id=$1 AND thread_id=$2 ORDER BY participant_id',[companyId,threadId])).rows.map(fromLink));},
+  findThreadContactAddress(companyId:string,threadId:string){return scoped(companyId,async db=>first((await db.query(
+   `SELECT p.address FROM inbox_thread_participants tp JOIN inbox_participants p ON p.company_id=tp.company_id AND p.id=tp.participant_id
+    WHERE tp.company_id=$1 AND tp.thread_id=$2 AND p.kind='contact' ORDER BY p.id LIMIT 1`,[companyId,threadId])).rows,(r:any)=>(r.address as string|null)))??null;},
   insertMessage(m:Message){return scoped(m.companyId,async db=>{await db.query(
    'INSERT INTO inbox_messages (id,company_id,thread_id,direction,channel,status,author_kind,author_id,body,body_sha256,external_id,approval_id,created_at,updated_at,queued_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)',
    [m.id,m.companyId,m.threadId,m.direction,m.channel,m.status,m.authorKind,m.authorId,m.body,m.bodySha256,m.externalId,m.approvalId,m.createdAt,m.updatedAt,m.queuedAt]);});},

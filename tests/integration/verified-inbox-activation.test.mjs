@@ -4,13 +4,15 @@ import {fixture} from '../modules/inbox-schema-readiness.test.mjs';
 const noop=(_req,_res,next)=>next(),guards={authenticate:noop,requireCompanyScope:noop,requireRole:()=>noop,auditWrite:async()=>{}};
 const canonical={gateAction:async()=>({status:'pending',approval:{id:'ap'},decision:'route_to_human',policyId:null}),getApproval:async()=>null,recordExecuted:async()=>{}};
 const pool={connect:async()=>{throw Error('request needed')}};
+const suppression={isSuppressed:()=>false,reasonFor:()=>null,suppress:()=>({ok:true,suppressed:false,softBounces:0}),unsuppress:()=>({ok:true})};
+const optOutReply=async()=>{};
 function app(){const calls=[];return{calls,use:(...a)=>calls.push(a)};}
 test('Inbox enabled with canonical approvals mounts the real durable service',async()=>{
- const a=app(),r=await registerVerifiedCommsRoutes(a,{...guards,pool,schemaProbe:fixture(),approvalService:canonical,env:{COMMS_INBOX_ENABLED:'true'}});
+ const a=app(),r=await registerVerifiedCommsRoutes(a,{...guards,pool,schemaProbe:fixture(),approvalService:canonical,suppression,optOutReply,env:{COMMS_INBOX_ENABLED:'true'}});
  assert.deepEqual(r.mounted,['inbox']);assert.equal(a.calls.length,1);
  assert.equal(a.calls[0][0],'/api/comms/inbox');
 });
 test('failed schema validation does not mount Inbox',async()=>{
- const a=app();await assert.rejects(registerVerifiedCommsRoutes(a,{...guards,pool,schemaProbe:{query:async()=>({rows:[]})},approvalService:canonical,env:{COMMS_INBOX_ENABLED:'true'}}),/database security not ready/);
+ const a=app();await assert.rejects(registerVerifiedCommsRoutes(a,{...guards,pool,schemaProbe:{query:async()=>({rows:[]})},approvalService:canonical,suppression,optOutReply,env:{COMMS_INBOX_ENABLED:'true'}}),/database security not ready/);
  assert.deepEqual(a.calls,[]);
 });

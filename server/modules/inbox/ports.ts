@@ -35,6 +35,8 @@ export interface InboxStore {
 
   linkParticipant(link: ThreadParticipant): Promise<void>;
   listThreadParticipants(companyId: string, threadId: string): Promise<ThreadParticipant[]>;
+  /** Address of the contact linked to this thread, or null when none is linked. Never another company's contact. */
+  findThreadContactAddress(companyId: string, threadId: string): Promise<string | null>;
 
   insertMessage(message: Message): Promise<void>;
   findMessage(companyId: string, id: string): Promise<Message | null>;
