@@ -2,7 +2,7 @@
 
 **Version:** 5.4.5  
 **Last Updated:** not verified in this repo (5.4.1 was dated May 2026)  
-**License:** MIT (see LICENSE)
+**License:** MIT (see [LICENSE](LICENSE))
 
 ---
 
@@ -666,13 +666,7 @@ NODE_ENV=development npm run dev
 
 ### License Information
 
-This product is licensed under the MIT License. See the LICENSE file.
-
-Permission is granted, free of charge, to use, copy, modify, merge, publish, distribute, sublicense and sell copies of the software, subject to the MIT License conditions in the LICENSE file.
-
-### License Terms
-- Licensed under the MIT License
-- Keep the copyright and permission notice in copies of the software
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for the full text.
 
 ### Support Channels
 - **Documentation**: This README and INSTALLATION.md

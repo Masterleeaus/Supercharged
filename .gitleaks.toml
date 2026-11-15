@@ -1,0 +1,11 @@
+# Gitleaks configuration. Keeps the default rules.
+# Allowlist: the AWS documentation example access key ID. It is a public, non-secret
+# example used as a UI placeholder (client/src/components/admin/voice-engine-settings/shared.tsx).
+title = "Sorted gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "AWS documented example access key ID used as a UI placeholder"
+regexes = ['''AKIAIOSFODNN7EXAMPLE''']
