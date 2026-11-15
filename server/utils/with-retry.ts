@@ -3,7 +3,9 @@ import { logger } from './logger.ts';
 /**
  * ============================================================
  * © 2025 Diploy — a brand of Bisht Technologies Private Limited
- * Distributed under the Envato / CodeCanyon License Agreement.
+ *
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
 
