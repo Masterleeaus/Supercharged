@@ -46,11 +46,15 @@ module.exports = {
       NODE_ENV: 'production',
       PORT: 5000,
       APP_PORT: 5000,
+      COMMS_INBOX_ENABLED: 'true',
+      COMMS_MARKETING_ENABLED: 'true',
     },
     env_production: {
       NODE_ENV: 'production',
       PORT: 5000,
       APP_PORT: 5000,
+      COMMS_INBOX_ENABLED: 'true',
+      COMMS_MARKETING_ENABLED: 'true',
     },
     
     autorestart: true,
