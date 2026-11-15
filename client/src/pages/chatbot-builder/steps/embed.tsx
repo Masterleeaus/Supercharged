@@ -1,3 +1,4 @@
+/// <reference path="../../../vite-env.d.ts" />
 /**
  * Test and embed step (core: edit-step-embed.blade.php).
  *

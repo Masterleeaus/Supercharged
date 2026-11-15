@@ -7,10 +7,11 @@ on:
       - 'server/infrastructure/central-sso/**'
       - 'server/infrastructure/central-oidc/**'
       - 'tests/infrastructure/central-sso-*.test.mjs'
-      - 'tests/infrastructure/central-oidc-*.test.mjs'
-      - 'tests/infrastructure/central-oidc-fixtures.mjs'
       - 'migrations/0018_central_sso_company_links.sql'
       - 'migrations/0019_central_sso_pending_logins.sql'
+      - 'tests/infrastructure/central-oidc-*.test.mjs'
+      - 'tests/infrastructure/central-oidc-fixtures.mjs'
+      - 'docs/pending/central-sso-company-links.sql'
       - '.github/workflows/central-oidc-adapter.yml'
 permissions:
   contents: read
@@ -25,5 +26,5 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Verify Central sign-in, tenant boundaries, flags and signed events
+      - name: Verify company-scoped Central identity, tenant boundaries, flags, signed events and JWT session boundaries
         run: node --test --experimental-transform-types tests/infrastructure/central-sso-account-resolver.test.mjs tests/infrastructure/central-sso-session-gate.test.mjs tests/infrastructure/central-oidc-*.test.mjs tests/infrastructure/central-sso-oidc-flow.test.mjs tests/infrastructure/central-sso-pending-store.test.mjs tests/infrastructure/central-sso-service-client.test.mjs
