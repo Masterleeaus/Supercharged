@@ -187,6 +187,7 @@ export interface TwilioWebhookParams {
   Digits?: string;
   SpeechResult?: string;
   Confidence?: string;
+  AnsweredBy?: string;
 }
 
 export interface PendingAudioRequest {

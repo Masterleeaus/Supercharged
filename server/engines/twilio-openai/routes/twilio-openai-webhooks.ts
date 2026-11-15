@@ -26,6 +26,7 @@ import { logger } from '../../../utils/logger';
 import { webhookDeliveryService } from '../../../services/webhook-delivery';
 import { validateTwilioWebhook } from '../../../middleware/webhookValidation';
 import type { TwilioWebhookParams } from '../types';
+import type { OpenAIVoice } from '../types';
 import { scheduleContactRetry } from '../../../routes/webhooks/helpers';
 
 const router = Router();
@@ -68,8 +69,8 @@ router.post('/voice/incoming', async (req: Request, res: Response) => {
 
   // Trigger inbound_call.received early - we have the call but haven't processed it yet
   // This fires before any validation to capture ALL incoming calls
-  let phoneRecordForWebhook: any = null;
-  let agentForWebhook: any = null;
+  let phoneRecordForWebhook: typeof phoneNumbers.$inferSelect | null = null;
+  let agentForWebhook: typeof agents.$inferSelect | null = null;
 
   try {
     const normalizedTo = normalizePhoneForLookup(To);
@@ -218,7 +219,7 @@ router.post('/voice/incoming', async (req: Request, res: Response) => {
         callMetadata.firstMessage = flow.compiledFirstMessage || agent.firstMessage;
         // Store compiled tools with their _metadata intact for rehydration in stream handler
         callMetadata.compiledTools = flow.compiledTools;
-        logger.info(`Stored ${(flow.compiledTools as any[]).length} compiled flow tools for incoming call`, undefined, 'TwilioOpenAI');
+        logger.info(`Stored ${(flow.compiledTools as unknown[]).length} compiled flow tools for incoming call`, undefined, 'TwilioOpenAI');
       }
     }
     
@@ -231,7 +232,7 @@ router.post('/voice/incoming', async (req: Request, res: Response) => {
       twilioCallSid: CallSid,
       fromNumber: normalizePhoneForStorage(From),
       toNumber: normalizedTo,
-      openaiVoice: (agent.openaiVoice as any) || TWILIO_OPENAI_CONFIG.defaultVoice,
+      openaiVoice: (agent.openaiVoice as OpenAIVoice) || TWILIO_OPENAI_CONFIG.defaultVoice,
       openaiModel: TWILIO_OPENAI_CONFIG.openaiRealtimeModel,
       status: 'in-progress',
       callDirection: 'inbound',
@@ -436,7 +437,7 @@ router.post('/voice/status', async (req: Request, res: Response) => {
         }
 
         // Check for voicemail detection from Twilio AMD (Answering Machine Detection)
-        const AnsweredBy = (params as any).AnsweredBy;
+        const AnsweredBy = params.AnsweredBy;
         if (AnsweredBy === 'machine_start' || AnsweredBy === 'machine_end_beep' || AnsweredBy === 'machine_end_silence') {
           await webhookDeliveryService.triggerEvent(callRecord.companyId ?? null, callRecord.userId, 'call.voicemail', webhookPayload, callRecord.campaignId);
           logger.info(`Triggered call.voicemail webhook for call ${callRecord.id}`, undefined, 'TwilioOpenAI');
@@ -446,8 +447,8 @@ router.post('/voice/status', async (req: Request, res: Response) => {
       }
     }
 
-    const updates: any = {
-      status: CallStatus as any,
+    const updates: Partial<typeof twilioOpenaiCalls.$inferInsert> = {
+      status: CallStatus,
     };
 
     // Capture recording data if available from status callback (add .mp3 extension for direct access)
@@ -533,7 +534,7 @@ router.post('/voice/status', async (req: Request, res: Response) => {
 
       // Track attempt and schedule retry via shared helper (handles all engines uniformly)
       if (callRecord.contactId && callRecord.campaignId) {
-        scheduleContactRetry(callRecord.contactId, callRecord.campaignId, CallStatus).catch((err: any) => {
+        scheduleContactRetry(callRecord.contactId, callRecord.campaignId, CallStatus).catch((err) => {
           logger.error(`Failed to schedule contact retry: ${err.message}`, undefined, 'TwilioOpenAI');
         });
       }
@@ -620,7 +621,7 @@ router.post('/voice/status', async (req: Request, res: Response) => {
             if (CallStatus === 'completed') {
               await webhookDeliveryService.triggerEvent(callRecord.companyId ?? null, callRecord.userId, 'flow.completed', {
                 ...flowPayload,
-                nodesExecuted: flow?.nodes ? (flow.nodes as any[]).length : 0,
+                nodesExecuted: flow?.nodes ? flow.nodes.length : 0,
               });
               logger.info(`Triggered flow.completed webhook for call ${callRecord.id}`, undefined, 'TwilioOpenAI');
             } else if (CallStatus === 'failed' || CallStatus === 'busy' || CallStatus === 'no-answer') {

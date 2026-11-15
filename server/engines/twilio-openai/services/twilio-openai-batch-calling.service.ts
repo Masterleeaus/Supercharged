@@ -199,7 +199,7 @@ export class TwilioOpenAIBatchCallingService {
       this.isPaused = false;
       this.isCancelled = false;
 
-      const campaignConfig = campaign.config as Record<string, any> || {};
+      const campaignConfig = (campaign.config as { maxConcurrentCalls?: number; callDelayMs?: number } | null) || {};
       
       // Read admin-configured concurrency limit from global settings
       const globalConcurrencySetting = await storage.getGlobalSetting('campaign_batch_concurrency');
@@ -816,7 +816,7 @@ export class TwilioOpenAIBatchCallingService {
     prompt = prompt.replace(/\{\{phone\}\}/g, contact.phone);
     prompt = prompt.replace(/\{\{email\}\}/g, contact.email || '');
 
-    const customFields = contact.customFields as Record<string, any> || {};
+    const customFields = contact.customFields as Record<string, unknown> || {};
     for (const [key, value] of Object.entries(customFields)) {
       prompt = prompt.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), String(value || ''));
       prompt = prompt.replace(new RegExp(`\\{${key}\\}`, 'g'), String(value || ''));
@@ -852,7 +852,7 @@ export class TwilioOpenAIBatchCallingService {
     message = message.replace(/\{phone\}/g, contact.phone);
     message = message.replace(/\{email\}/g, contact.email || '');
 
-    const customFields = contact.customFields as Record<string, any> || {};
+    const customFields = contact.customFields as Record<string, unknown> || {};
     for (const [key, value] of Object.entries(customFields)) {
       // Support both {{key}} and {key} formats for custom fields
       message = message.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), String(value || ''));

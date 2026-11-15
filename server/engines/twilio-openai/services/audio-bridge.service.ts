@@ -178,7 +178,7 @@ export class TwilioOpenAIAudioBridge {
     const { agentConfig, openaiWs } = session;
     if (!openaiWs || openaiWs.readyState !== WebSocket.OPEN) return;
 
-    const tools: any[] = [];
+    const tools: { type: 'function'; name: string; description: string; parameters: Record<string, unknown> }[] = [];
     if (agentConfig.tools) {
       for (const tool of agentConfig.tools) {
         tools.push({
@@ -1320,15 +1320,16 @@ BACKGROUND NOISE HANDLING:
             .where(eq(twilioOpenaiCalls.twilioCallSid, session.callSid))
             .limit(1);
           if (callRecord?.metadata) {
-            const meta = callRecord.metadata as Record<string, any>;
+            const meta = callRecord.metadata as Record<string, unknown>;
             if (meta.appointmentData) {
-              const ad = meta.appointmentData;
-              if (ad.contactName) autoVars.contact_name = ad.contactName;
-              if (ad.appointmentDate) autoVars.appointment_date = ad.appointmentDate;
-              if (ad.appointmentTime) autoVars.appointment_time = ad.appointmentTime;
-              if (ad.serviceName) autoVars.service_name = ad.serviceName;
+              // Values are read as strings here; some may be numbers at runtime (see report).
+              const ad = meta.appointmentData as Record<string, string | number | undefined>;
+              if (ad.contactName) autoVars.contact_name = ad.contactName as string;
+              if (ad.appointmentDate) autoVars.appointment_date = ad.appointmentDate as string;
+              if (ad.appointmentTime) autoVars.appointment_time = ad.appointmentTime as string;
+              if (ad.serviceName) autoVars.service_name = ad.serviceName as string;
               if (ad.duration) autoVars.duration = String(ad.duration);
-              if (ad.notes) autoVars.appointment_notes = ad.notes;
+              if (ad.notes) autoVars.appointment_notes = ad.notes as string;
             }
           }
         } catch (e) {
@@ -1444,7 +1445,7 @@ BACKGROUND NOISE HANDLING:
       }
     }
 
-    let components: any[] = [];
+    let components: { type: string; parameters: { type: string; text: string }[] }[] = [];
     const sortedIndices = Object.keys(mergedVars).map(Number).sort((a, b) => a - b);
     if (sortedIndices.length > 0) {
       const parameters = sortedIndices.map(idx => ({
