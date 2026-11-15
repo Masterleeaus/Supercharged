@@ -33,7 +33,7 @@ import { useToast } from "@/hooks/use-toast";
 import AgentCreationWizard from "@/components/AgentCreationWizard";
 import { getLanguageLabel } from "@/lib/languages";
 import { usePluginStatus } from "@/hooks/use-plugin-status";
-import { SipPhoneNumber, Agent, openaiVoices, customVoiceEngineVoices, Voice, KnowledgeBaseItem, MODEL_COSTS, VOICE_COST } from "@/pages/agents/shared";
+import { SipPhoneNumber, Agent, AgentWithLegacyFields, openaiVoices, customVoiceEngineVoices, Voice, KnowledgeBaseItem, MODEL_COSTS, VOICE_COST } from "@/pages/agents/shared";
 import { AgentsPageHeader } from "@/pages/agents/AgentsPageHeader";
 import { AgentsFilterBar } from "@/pages/agents/AgentsFilterBar";
 import { AgentDeleteDialog } from "@/pages/agents/AgentDeleteDialog";
@@ -45,6 +45,10 @@ export { customVoiceEngineVoices } from "@/pages/agents/shared";
 
 
 
+
+/** WhatsApp template shape returned by the template list endpoints. */
+type WhatsAppTemplateButton = { type?: string; text?: string; url?: string };
+type WhatsAppTemplateComponent = { type?: string; format?: string; text?: string; buttons?: WhatsAppTemplateButton[] };
 
 export default function Agents() {
   const [, setLocation] = useLocation();
@@ -125,7 +129,7 @@ export default function Agents() {
   const combinedLoading = agentsLoading;
 
   // Fetch metrics data
-  const { data: metricsData } = useQuery<{ success: boolean; data: any }>({
+  const { data: metricsData } = useQuery<{ success: boolean; data: Record<string, unknown> }>({
     queryKey: ["/api/agents/metrics"],
     // Refresh less frequently to avoid DB strain
     staleTime: 60000,
@@ -246,22 +250,22 @@ export default function Agents() {
   const emailTemplates = emailTemplatesResponse?.data || [];
   const hasEmailTemplates = emailTemplates.length > 0;
 
-  const { data: whatswaySettingsResponse } = useQuery<{ success: boolean; data: any }>({
+  const { data: whatswaySettingsResponse } = useQuery<{ success: boolean; data: Record<string, unknown> }>({
     queryKey: ["/api/messaging/whatsway/settings"],
     staleTime: 60000,
   });
-  const { data: metaWhatsAppSettingsResponse } = useQuery<{ success: boolean; data: any }>({
+  const { data: metaWhatsAppSettingsResponse } = useQuery<{ success: boolean; data: Record<string, unknown> }>({
     queryKey: ["/api/messaging/meta-whatsapp/settings"],
     staleTime: 60000,
   });
   const isWhatsAppActive = !!(whatswaySettingsResponse?.data?.isActive || metaWhatsAppSettingsResponse?.data?.isActive);
 
-  const { data: whatswayTemplatesResponse } = useQuery<{ success: boolean; data: Array<{ name: string; id?: string; components?: any[] }> }>({
+  const { data: whatswayTemplatesResponse } = useQuery<{ success: boolean; data: Array<{ name: string; id?: string; components?: WhatsAppTemplateComponent[] }> }>({
     queryKey: ["/api/messaging/whatsway/templates"],
     enabled: !!(whatswaySettingsResponse?.data?.isActive),
     staleTime: 60000,
   });
-  const { data: metaTemplatesResponse } = useQuery<{ success: boolean; data: Array<{ name: string; id?: string; components?: any[] }> }>({
+  const { data: metaTemplatesResponse } = useQuery<{ success: boolean; data: Array<{ name: string; id?: string; components?: WhatsAppTemplateComponent[] }> }>({
     queryKey: ["/api/messaging/meta-whatsapp/templates"],
     enabled: !!(metaWhatsAppSettingsResponse?.data?.isActive),
     staleTime: 60000,
@@ -271,7 +275,7 @@ export default function Agents() {
   const getWhatsAppTemplateVariables = (templateName: string): number[] => {
     const template = whatsappTemplates.find(t => t.name === templateName);
     if (!template?.components) return [];
-    const bodyComponent = template.components.find((c: any) => c.type === 'BODY');
+    const bodyComponent = template.components.find((c: WhatsAppTemplateComponent) => c.type === 'BODY');
     if (!bodyComponent?.text) return [];
     const matches = bodyComponent.text.match(/\{\{(\d+)\}\}/g) || [];
     return matches.map((m: string) => parseInt(m.replace(/[{}]/g, '')));
@@ -280,7 +284,7 @@ export default function Agents() {
   const getWhatsAppTemplateHeaderInfo = (templateName: string): { format: string; hasVariable: boolean; text?: string } | null => {
     const template = whatsappTemplates.find(t => t.name === templateName);
     if (!template?.components) return null;
-    const headerComp = template.components.find((c: any) => c.type === 'HEADER');
+    const headerComp = template.components.find((c: WhatsAppTemplateComponent) => c.type === 'HEADER');
     if (!headerComp) return null;
     const format = (headerComp.format || '').toUpperCase();
     if (['IMAGE', 'VIDEO', 'DOCUMENT'].includes(format)) {
@@ -296,10 +300,10 @@ export default function Agents() {
   const getWhatsAppTemplateButtonVariables = (templateName: string): Array<{ index: number; label: string; url: string }> => {
     const template = whatsappTemplates.find(t => t.name === templateName);
     if (!template?.components) return [];
-    const buttonsComponent = template.components.find((c: any) => c.type === 'BUTTONS' || c.type === 'buttons');
+    const buttonsComponent = template.components.find((c: WhatsAppTemplateComponent) => c.type === 'BUTTONS' || c.type === 'buttons');
     if (!buttonsComponent?.buttons || !Array.isArray(buttonsComponent.buttons)) return [];
     const result: Array<{ index: number; label: string; url: string }> = [];
-    buttonsComponent.buttons.forEach((btn: any, index: number) => {
+    buttonsComponent.buttons.forEach((btn: WhatsAppTemplateButton, index: number) => {
       if (btn.type === 'URL' && btn.url && btn.url.includes('{{')) {
         result.push({ index, label: btn.text || `Button ${index + 1}`, url: btn.url });
       }
@@ -315,7 +319,7 @@ export default function Agents() {
       for (const [key, val] of Object.entries(parsed)) {
         if (typeof val === 'string') {
           result[key] = { mode: 'collect', value: val };
-        } else if (val && typeof val === 'object' && 'mode' in (val as any)) {
+        } else if (val && typeof val === 'object' && 'mode' in (val as object)) {
           result[key] = val as { mode: 'fixed' | 'collect'; value: string; componentType?: string };
         }
       }
@@ -417,7 +421,7 @@ export default function Agents() {
       }, 1500);
       toast({ title: t('agents.toast.created') });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       // Trigger error animation
       setAnimationState('error');
       setTimeout(() => setAnimationState('idle'), 600);
@@ -435,7 +439,7 @@ export default function Agents() {
       if (isCve) {
         const payload = {
           name: data.name,
-          description: (editingAgent as any)?.description || "",
+          description: (editingAgent as AgentWithLegacyFields)?.description || "",
           systemPrompt: data.systemPrompt,
           firstMessage: data.firstMessage || "Hello! How can I help you today?",
           language: data.language || "en",
@@ -492,7 +496,7 @@ export default function Agents() {
         toast({ title: t('agents.toast.updated') });
       }
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       // Trigger error animation
       setAnimationState('error');
       setTimeout(() => setAnimationState('idle'), 600);
@@ -517,7 +521,7 @@ export default function Agents() {
       setDeletingAgent(null);
       toast({ title: t('agents.toast.deleted') });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('agents.toast.deleteFailed'),
         description: error.message || t('agents.toast.tryAgain'),
@@ -537,7 +541,7 @@ export default function Agents() {
       setKnowledgeData({ title: "", type: "document", content: "" });
       toast({ title: t('agents.toast.knowledgeUploaded') });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('agents.toast.knowledgeUploadFailed'),
         description: error.message || t('agents.toast.tryAgain'),
@@ -693,20 +697,20 @@ export default function Agents() {
       llmModel: agent.llmModel || "gpt-4o-mini",
       firstMessage: agent.firstMessage || "Hello! How can I help you today?",
       temperature: agent.temperature ?? 0.5,
-      knowledgeBaseIds: agent.knowledgeBaseIds || (agent as any).knowledge_base_ids || [],
+      knowledgeBaseIds: agent.knowledgeBaseIds || (agent as AgentWithLegacyFields).knowledge_base_ids || [],
       transferNumber: agent.config?.transferRules?.number || "",
       transferKeywords: agent.config?.transferRules?.keywords || [],
       // System Tools configuration
-      transferEnabled: agent.transferEnabled ?? (agent as any).transfer_enabled ?? false,
-      transferPhoneNumber: agent.transferPhoneNumber || (agent as any).transfer_phone_number || "",
-      detectLanguageEnabled: agent.detectLanguageEnabled ?? (agent as any).detect_language_enabled ?? false,
-      endConversationEnabled: agent.endConversationEnabled ?? (agent as any).end_conversation_enabled ?? false,
-      appointmentBookingEnabled: agent.appointmentBookingEnabled ?? (agent as any).appointment_booking_enabled ?? false,
-      messagingEmailEnabled: (agent as any).messagingEmailEnabled ?? (agent as any).messaging_email_enabled ?? false,
-      messagingWhatsappEnabled: (agent as any).messagingWhatsappEnabled ?? (agent as any).messaging_whatsapp_enabled ?? false,
-      messagingEmailTemplate: (agent as any).messagingEmailTemplate || (agent as any).messaging_email_template || "",
-      messagingWhatsappTemplate: (agent as any).messagingWhatsappTemplate || (agent as any).messaging_whatsapp_template || "",
-      messagingWhatsappVariables: (agent as any).messagingWhatsappVariables || "",
+      transferEnabled: agent.transferEnabled ?? (agent as AgentWithLegacyFields).transfer_enabled ?? false,
+      transferPhoneNumber: agent.transferPhoneNumber || (agent as AgentWithLegacyFields).transfer_phone_number || "",
+      detectLanguageEnabled: agent.detectLanguageEnabled ?? (agent as AgentWithLegacyFields).detect_language_enabled ?? false,
+      endConversationEnabled: agent.endConversationEnabled ?? (agent as AgentWithLegacyFields).end_conversation_enabled ?? false,
+      appointmentBookingEnabled: agent.appointmentBookingEnabled ?? (agent as AgentWithLegacyFields).appointment_booking_enabled ?? false,
+      messagingEmailEnabled: (agent as AgentWithLegacyFields).messagingEmailEnabled ?? (agent as AgentWithLegacyFields).messaging_email_enabled ?? false,
+      messagingWhatsappEnabled: (agent as AgentWithLegacyFields).messagingWhatsappEnabled ?? (agent as AgentWithLegacyFields).messaging_whatsapp_enabled ?? false,
+      messagingEmailTemplate: (agent as AgentWithLegacyFields).messagingEmailTemplate || (agent as AgentWithLegacyFields).messaging_email_template || "",
+      messagingWhatsappTemplate: (agent as AgentWithLegacyFields).messagingWhatsappTemplate || (agent as AgentWithLegacyFields).messaging_whatsapp_template || "",
+      messagingWhatsappVariables: (agent as AgentWithLegacyFields).messagingWhatsappVariables || "",
       expressiveMode: agent.expressiveMode ?? false,
       flowId: agent.flowId || "",
       maxDurationSeconds: agent.maxDurationSeconds ?? 600,
@@ -716,12 +720,12 @@ export default function Agents() {
       turnTimeout: agent.turnTimeout ?? 1.5,
       // Telephony Provider selection
       telephonyProvider: (agent.telephonyProvider || "twilio") as "twilio" | "plivo" | "twilio_openai" | "elevenlabs-sip" | "openai-sip" | "custom-voice-engine",
-      openaiVoice: agent.openaiVoice || (agent as any).tts_voice || "alloy",
-      sttProvider: (agent as any).stt_provider || (agent as any).config?.sttProvider || "deepgram",
-      ttsProvider: (agent as any).tts_provider || (agent as any).config?.ttsProvider || "deepgram",
-      sttModel: (agent as any).stt_model || (agent as any).config?.sttModel || (((agent as any).stt_provider || (agent as any).config?.sttProvider) === 'sarvam' ? (currentSttAllowedModels[0] || 'saaras:v3') : ""),
-      ttsModel: (agent as any).tts_model || (agent as any).config?.ttsModel || (((agent as any).tts_provider || (agent as any).config?.ttsProvider) === 'sarvam' ? (currentTtsAllowedModels[0] || 'bulbul:v3') : ""),
-      sipPhoneNumberId: (agent as any).sipPhoneNumberId || "",
+      openaiVoice: agent.openaiVoice || (agent as AgentWithLegacyFields).tts_voice || "alloy",
+      sttProvider: (agent as AgentWithLegacyFields).stt_provider || (agent as AgentWithLegacyFields).config?.sttProvider || "deepgram",
+      ttsProvider: (agent as AgentWithLegacyFields).tts_provider || (agent as AgentWithLegacyFields).config?.ttsProvider || "deepgram",
+      sttModel: (agent as AgentWithLegacyFields).stt_model || (agent as AgentWithLegacyFields).config?.sttModel || (((agent as AgentWithLegacyFields).stt_provider || (agent as AgentWithLegacyFields).config?.sttProvider) === 'sarvam' ? (currentSttAllowedModels[0] || 'saaras:v3') : ""),
+      ttsModel: (agent as AgentWithLegacyFields).tts_model || (agent as AgentWithLegacyFields).config?.ttsModel || (((agent as AgentWithLegacyFields).tts_provider || (agent as AgentWithLegacyFields).config?.ttsProvider) === 'sarvam' ? (currentTtsAllowedModels[0] || 'bulbul:v3') : ""),
+      sipPhoneNumberId: (agent as AgentWithLegacyFields).sipPhoneNumberId || "",
     });
   };
 

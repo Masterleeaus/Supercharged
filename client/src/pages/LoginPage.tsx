@@ -175,8 +175,8 @@ export default function LoginPage() {
       const redirectPath = (result.user.role === 'admin' || result.user.role === 'super_admin') ? "/admin" : "/app";
       setPendingRedirect(redirectPath);
       setShowLoadingAnimation(true);
-    } catch (error: any) {
-      toast({ title: t("loginPage.errors.loginFailed"), description: error.message || t("loginPage.errors.invalidCredentials"), variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: t("loginPage.errors.loginFailed"), description: (error as Error).message || t("loginPage.errors.invalidCredentials"), variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -210,10 +210,10 @@ export default function LoginPage() {
       setOtpTimer(300); // 5 minutes countdown
       setCanResendOtp(false);
       setRegisterOtpCode("");
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: t("loginPage.errors.sendOtpFailed"),
-        description: error.message,
+        description: (error as Error).message,
         variant: "destructive",
       });
     } finally {
@@ -249,10 +249,10 @@ export default function LoginPage() {
       setOtpTimer(300);
       setCanResendOtp(false);
       setRegisterOtpCode("");
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: t("loginPage.errors.sendOtpFailed"),
-        description: error.message,
+        description: (error as Error).message,
         variant: "destructive",
       });
     } finally {
@@ -316,10 +316,10 @@ export default function LoginPage() {
       const redirectPath = result.user.role === 'admin' ? "/admin" : "/app";
       setPendingRedirect(redirectPath);
       setShowLoadingAnimation(true);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: t("loginPage.errors.genericError"),
-        description: error.message,
+        description: (error as Error).message,
         variant: "destructive",
       });
     } finally {
@@ -353,8 +353,8 @@ export default function LoginPage() {
       } else {
         toast({ title: t("loginPage.errors.sendOtpFailed"), description: result.error || t("loginPage.errors.genericError"), variant: "destructive" });
       }
-    } catch (error: any) {
-      toast({ title: t("loginPage.errors.sendOtpFailed"), description: error.message || t("loginPage.errors.genericError"), variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: t("loginPage.errors.sendOtpFailed"), description: (error as Error).message || t("loginPage.errors.genericError"), variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -378,8 +378,8 @@ export default function LoginPage() {
       } else {
         toast({ title: t("loginPage.errors.genericError"), description: result.error || t("loginPage.errors.genericError"), variant: "destructive" });
       }
-    } catch (error: any) {
-      toast({ title: t("loginPage.errors.genericError"), description: error.message || t("loginPage.errors.genericError"), variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: t("loginPage.errors.genericError"), description: (error as Error).message || t("loginPage.errors.genericError"), variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -421,8 +421,8 @@ export default function LoginPage() {
       } else {
         toast({ title: t("loginPage.errors.resetPasswordFailed"), description: resetResult.error || t("loginPage.errors.genericError"), variant: "destructive" });
       }
-    } catch (error: any) {
-      toast({ title: t("loginPage.errors.resetPasswordFailed"), description: error.message || t("loginPage.errors.genericError"), variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: t("loginPage.errors.resetPasswordFailed"), description: (error as Error).message || t("loginPage.errors.genericError"), variant: "destructive" });
     } finally {
       setIsLoading(false);
     }

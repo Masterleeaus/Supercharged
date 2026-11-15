@@ -389,5 +389,38 @@ export type VoiceModelFields = { model?: string; languages?: string[] };
 export interface AgentConfig {
   model?: string;
   transferRules?: { number?: string; keywords?: string[] };
+  sttProvider?: string;
+  ttsProvider?: string;
+  sttModel?: string;
+  ttsModel?: string;
   [key: string]: unknown;
 }
+
+/** Snake_case and legacy keys the API may still send alongside Agent. */
+export type AgentLegacyFields = {
+  knowledge_base_ids?: string[] | null;
+  transfer_enabled?: boolean | null;
+  transfer_phone_number?: string | null;
+  detect_language_enabled?: boolean | null;
+  end_conversation_enabled?: boolean | null;
+  appointment_booking_enabled?: boolean | null;
+  messagingEmailEnabled?: boolean | null;
+  messaging_email_enabled?: boolean | null;
+  messagingWhatsappEnabled?: boolean | null;
+  messaging_whatsapp_enabled?: boolean | null;
+  messagingEmailTemplate?: string | null;
+  messaging_email_template?: string | null;
+  messagingWhatsappTemplate?: string | null;
+  messaging_whatsapp_template?: string | null;
+  messagingWhatsappVariables?: string | null;
+  tts_voice?: string | null;
+  stt_provider?: string | null;
+  tts_provider?: string | null;
+  stt_model?: string | null;
+  tts_model?: string | null;
+  sipPhoneNumberId?: string | null;
+  description?: string | null;
+  config?: AgentConfig | null;
+};
+
+export type AgentWithLegacyFields = Agent & AgentLegacyFields;
