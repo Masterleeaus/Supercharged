@@ -28,7 +28,7 @@ import { validateWebhookUrl } from '../utils/url-validator';
 export interface WebhookPayload {
   event: string;
   timestamp: string;
-  data: Record<string, any>;
+  data: Record<string, unknown>;
 }
 
 export interface DeliveryResult {
@@ -294,7 +294,7 @@ export class WebhookDeliveryService {
     companyId: string,
     userId: string,
     event: string,
-    data: Record<string, any>,
+    data: Record<string, unknown>,
     campaignId?: string | null
   ): Promise<void> {
     // Fail closed: without a company there is no tenant to deliver for.

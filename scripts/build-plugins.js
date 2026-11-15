@@ -258,7 +258,7 @@ async function main() {
   const pluginFilter = args.find(arg => !arg.startsWith('--'));
 
   console.log('='.repeat(60));
-  console.log('AgentLabs Plugin Builder');
+  console.log('Supercharged Plugin Builder');
   console.log('='.repeat(60));
 
   const plugins = await getPluginsWithFrontend();

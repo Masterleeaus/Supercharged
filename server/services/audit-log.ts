@@ -16,6 +16,7 @@
  * ============================================================
  */
 
+import type { Request } from "express";
 import { logger } from '../utils/logger';
 import { db } from "../db";
 import { auditLogs } from "@shared/schema";
@@ -306,7 +307,7 @@ export async function flushAuditLogsOnShutdown(timeoutMs = 5000): Promise<void> 
   }
 }
 
-export function extractRequestInfo(req: any): { ipAddress: string; userAgent: string } {
+export function extractRequestInfo(req: Request): { ipAddress: string; userAgent: string } {
   // req.ip honours the app's trust proxy setting (TRUST_PROXY); X-Forwarded-For is not read directly.
   const ipAddress = req.ip ||
     req.socket?.remoteAddress ||
@@ -317,7 +318,7 @@ export function extractRequestInfo(req: any): { ipAddress: string; userAgent: st
   return { ipAddress, userAgent };
 }
 
-export async function logUserLogin(userId: string, req: any, success: boolean): Promise<void> {
+export async function logUserLogin(userId: string, req: Request, success: boolean): Promise<void> {
   const { ipAddress, userAgent } = extractRequestInfo(req);
   
   await logAuditEvent({
@@ -364,7 +365,7 @@ export async function logPaymentEvent(
 
 export async function logSecurityEvent(
   action: AuditAction,
-  req: any,
+  req: Request,
   userId?: string,
   metadata?: Record<string, unknown>
 ): Promise<void> {

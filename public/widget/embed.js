@@ -271,7 +271,7 @@
     var iconUrl = getAbsoluteUrl(config.iconPath || config.iconUrl);
     // User's widget icon takes priority over admin branding
     var faviconUrl = iconUrl || brandingData?.favicon_url || brandingData?.logo_url;
-    var appName = config.platformName || brandingData?.app_name || 'AgentLabs';
+    var appName = config.platformName || brandingData?.app_name || 'Supercharged';
     var primaryColor = config.primaryColor || '#ec4899';
     
     return '<div id="vw-widget">' +
@@ -509,7 +509,7 @@
     if (acceptBtn) acceptBtn.textContent = t('continue');
     
     var poweredBys = document.querySelectorAll('.vw-powered');
-    var appName = (config && config.platformName) ? config.platformName : (brandingData?.app_name || 'AgentLabs');
+    var appName = (config && config.platformName) ? config.platformName : (brandingData?.app_name || 'Supercharged');
     poweredBys.forEach(function(el) {
       el.innerHTML = escapeHtml(t('poweredBy')) + ' <span class="vw-brand">' + escapeHtml(appName) + '</span>';
     });

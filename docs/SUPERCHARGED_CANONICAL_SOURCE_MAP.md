@@ -279,3 +279,34 @@ Pass 17 refinement: runtime load errors or missing required tables take preceden
 - Preserved original donor/vendor source, existing plugin capabilities, backups and license notices. No live plugin install or database migration was performed.
 
 **Next:** verify Pass 20 CI, test archive traversal and partial-failure behaviour through an isolated installer harness, and assess a staging/atomic rename strategy that safely preserves running installations.
+
+## Pass 7 — issue #54 user-visible surfaces, and #49/#50 named Managers
+
+Branch `claude/lane-J-brand-features`. Scope limited to what can be verified in a checkout without the full dependency install.
+
+### Renamed (product name only)
+
+- Admin SEO product placeholders (`Supercharged Pro`, `Supercharged`, `SUPERCHARGED-PRO-001`) and the SMTP sender placeholder.
+- Dashboard demo caption, the Blog excerpt and the BlogPost copy (product name in sentences only).
+- Widget fallback app name in `public/widget/embed.js` (both fallbacks).
+- Console banner in `scripts/build-plugins.js` and the echo banner in `scripts/run-plugin-migrations.sh`.
+
+### Kept on purpose
+
+- Storage keys: `agentlabs-branding:v1/v3`, `agentlabs_cookie_consent`, `agentlabs_hidden_analytics_scripts`.
+- Window globals: `__AGENTLABS_PLUGIN_REGISTRY__`, `__AGENTLABS_TOAST__`, `__AGENTLABS_REACT_I18NEXT__`.
+- DOM prefix `[id^="agentlabs-"]` used by the analytics filter.
+- Diploy/Envato copyright notice, for example `server/middleware/correlation-id.ts`. Issue #37 owns this.
+- Compatibility package and plugin identifiers, `packages/diploy-core` and `plugins/titan-workforce-bridge`.
+- Legacy literal replacement in `server/routes/plugin-routes.ts`, which still catches old `AgentLabs` text in plugin HTML.
+- Provider-side name `AgentLabs Post-Call Webhook` in `server/services/elevenlabs.ts`. Renaming it would change an external webhook label; left for an owner decision.
+
+### Open for #54
+
+- Consolidation of donor and duplicate trees (`_TITAN_HANDOFF/`, `dist/public`, `client/public/chatbot-pwa/`, `Login.tsx` vs `LoginPage.tsx`) is **not done**. Each needs an import-graph and rights check first (#37) and a deployment check (#34, #35).
+- Blog and case-study copy carries claims (SOC 2 Type II, named customers) that came with the AgentLabs text. The product name is now Supercharged in those sentences. The owner must confirm the claims before publishing.
+- Root build, lint, typecheck and deploy instructions were not re-verified in this pass.
+
+### Named Managers (#49, #50)
+
+See `docs/working/named-managers.md`. Hub, Go and Command are catalogue roles with tests. The Skilled Manager is flag-gated and cannot answer until the retrieval handler exists.

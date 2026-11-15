@@ -168,6 +168,7 @@ export default function WebhookConfigPage() {
         { value: "appointment.rescheduled", label: t('webhooks.events.appointmentRescheduled'), description: t('webhooks.events.appointmentRescheduledDesc') },
         { value: "appointment.completed", label: t('webhooks.events.appointmentCompleted'), description: t('webhooks.events.appointmentCompletedDesc') },
         { value: "appointment.no_show", label: t('webhooks.events.appointmentNoShow'), description: t('webhooks.events.appointmentNoShowDesc') },
+        { value: "appointment.reminder_sent", label: t('webhooks.events.appointmentReminderSent'), description: t('webhooks.events.appointmentReminderSentDesc') },
       ]
     },
     {

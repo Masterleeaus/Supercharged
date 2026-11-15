@@ -190,7 +190,7 @@ export class CRMLeadService {
         leadData.callId = callData.callId;
       }
 
-      await db.insert(leads).values(leadData as any);
+      await db.insert(leads).values(leadData as typeof leads.$inferInsert);
 
       if (callData.transcript && callData.transcript.length > 50) {
         await this.updateLeadScore(leadId, callData.userId, callData.transcript);

@@ -2,27 +2,26 @@
  * Flag-gated registration of the learner assistant roles built from the Titan Academy LMS.
  *
  * Default OFF. With WORKFORCE_COURSE_ASSISTANTS unset, blank or false, registerCourseAssistantRoles
- * returns the catalogue it was given, as the same object. Nothing here is wired into boot: no server
- * path calls registerCourseAssistantRoles yet.
+ * returns the catalogue it was given, as the same object. It is called from loadCatalogueAtStartup
+ * (../catalogue/startup.ts) only when the flag is on, and that call imports this module dynamically.
+ *
+ * When at least one learner assistant is added, the named Skilled Manager (./skilled-manager.ts) is
+ * added too, routing to those assistants.
  *
  * Importing this module imports ./generate.ts, which builds TIER_BUILD from the curriculum at import
- * time. Keep this module off the boot path until that build is intended to run.
+ * time. Keep this module off the default boot path.
  *
  * Inputs are never mutated. The catalogue returned is a new Map.
  */
-import { featureEnabled } from "../../lib/feature-flags.ts";
 import type { RoleCatalogue } from "../catalogue/loader.ts";
 import type { RoleDefinition } from "../catalogue/role.schema.ts";
 import { validateRoleDefinition, type ValidationIssue } from "../catalogue/validate.ts";
 import { COURSE_KNOWLEDGE_TOOL_ID } from "./course-agent.template.ts";
+import { courseAssistantRolesEnabled, COURSE_ASSISTANTS_FLAG } from "./flag.ts";
 import { generateAssistantRoles, resolveCurriculumRoot } from "./generate.ts";
+import { buildSkilledManagerRole, SKILLED_MANAGER_ID } from "./skilled-manager.ts";
 
-export const COURSE_ASSISTANTS_FLAG = "WORKFORCE_COURSE_ASSISTANTS";
-
-/** True only when WORKFORCE_COURSE_ASSISTANTS is set to an on value. Unset means off. */
-export function courseAssistantRolesEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
-  return featureEnabled(COURSE_ASSISTANTS_FLAG, false, env);
-}
+export { COURSE_ASSISTANTS_FLAG, courseAssistantRolesEnabled };
 
 export interface CourseAssistantBuild {
   /** Roles that passed the catalogue validator, parsed (defaults applied). */
@@ -167,6 +166,26 @@ export function registerCourseAssistantRoles(
     });
     if (next.length === accepted.length) break;
     accepted = next;
+  }
+
+  // The Skilled Manager routes to the learner assistants added above, so it is built only when there are some.
+  // Every handoff it names is in `accepted`, so its handoffTo resolves.
+  if (accepted.length > 0) {
+    if (catalogue.has(SKILLED_MANAGER_ID)) {
+      problems.push({
+        path: `course-assistants.${SKILLED_MANAGER_ID}`,
+        message: `duplicate role id "${SKILLED_MANAGER_ID}" is already in the catalogue; not added`,
+      });
+    } else {
+      const manager = buildSkilledManagerRole(accepted.map((role) => role.id));
+      if (manager.ok) {
+        accepted = [...accepted, manager.role];
+      } else {
+        for (const error of manager.errors) {
+          problems.push({ path: `course-assistants.${SKILLED_MANAGER_ID}`, message: error });
+        }
+      }
+    }
   }
 
   const merged = new Map<string, RoleDefinition>(catalogue);

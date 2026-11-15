@@ -21,6 +21,7 @@ export const REMINDER_SENT_EVENT = "appointment.reminder_sent";
 export interface ReminderSentHookDeps {
   /** The company's outbox. Build it with createOutboxStorage over the events store. */
   outbox: Pick<OutboxStorage, "append">;
+  warn?: (message: string) => void;
   error?: (message: string) => void;
 }
 
