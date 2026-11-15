@@ -63,6 +63,7 @@ export const WEBHOOK_EVENT_TYPES = [
   'appointment.rescheduled',
   'appointment.completed',
   'appointment.no_show',
+  'appointment.reminder_sent',
   // Form events
   'form.submitted',
   'form.lead_created',
@@ -936,6 +937,27 @@ export function generateComprehensiveTestPayload(eventType: WebhookEventType = '
             email: 'robert.wilson@example.com',
           },
           followUpAction: 'Attempt to reschedule',
+        },
+      };
+
+    case 'appointment.reminder_sent':
+      return {
+        event: 'appointment.reminder_sent',
+        timestamp,
+        data: {
+          ...baseData,
+          appointment: {
+            id: `apt_test_${crypto.randomUUID().substring(0, 8)}`,
+            type: 'Consultation',
+            status: 'scheduled',
+            scheduledDate: new Date().toISOString().split('T')[0],
+            scheduledTime: '14:00',
+            timezone: 'America/New_York',
+          },
+          reminder: {
+            channel: 'email',
+            sentAt: timestamp,
+          },
         },
       };
 
