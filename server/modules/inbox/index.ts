@@ -45,3 +45,11 @@ export {createSqlDeliveryStateReader} from './sql-delivery-state.ts';
 export {mapDeliveryState,validateDeliveryOutcome} from './delivery-state.ts';
 export type {DeliveryState,DeliveryOutcome} from './delivery-state.ts';
 export type {DeliveryStateReader} from './sql-delivery-state.ts';
+
+export {OutboxSendError} from './outbox-types.ts';
+export type {OutboxDelivery,OutboxTransportJob} from './outbox-types.ts';
+export {createInboxOutboundTransport,failureFromAdapterReason} from './outbound-transport.ts';
+export type {ChannelSender,ChannelSendRequest,ChannelSenders} from './outbound-transport.ts';
+export {createEmailOutboundSender,createSmsOutboundSender,createWhatsAppOutboundSender} from './outbound-senders.ts';
+export {createInboxOutboundWorker,inboxOutboundEnabled} from './outbound-worker.ts';
+export type {InboxOutboundWorker,InboxOutboundWorkerDeps,InboxOutboundTickResult} from './outbound-worker.ts';
