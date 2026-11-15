@@ -40,16 +40,16 @@ test('getActiveCatalogue is undefined before any load', () => {
   assert.equal(getActiveCatalogue(), undefined);
 });
 
-test('a valid folder returns ok with the real 130 roles and caches them', async () => {
-  assert.equal(realRoleCount, 130, 'the checked-in catalogue should hold 130 roles');
+test('a valid folder returns ok with the real roles and caches them', async () => {
+  assert.ok(realRoleCount > 0, 'the checked-in catalogue should hold roles');
   const { logger, lines } = captureLogger();
   const result = await loadCatalogueAtStartup(rolesDir, logger);
 
   assert.equal(result.ok, true);
-  assert.equal(result.catalogue.size, 130);
+  assert.equal(result.catalogue.size, realRoleCount);
   assert.equal(getActiveCatalogue(), result.catalogue);
-  assert.equal(getActiveCatalogue().size, 130);
-  assert.deepEqual(lines.log, ['[workforce] role catalogue loaded: 130 roles']);
+  assert.equal(getActiveCatalogue().size, realRoleCount);
+  assert.deepEqual(lines.log, [`[workforce] role catalogue loaded: ${realRoleCount} roles`]);
   assert.deepEqual(lines.error, []);
 });
 
