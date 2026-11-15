@@ -137,6 +137,37 @@ async function run(routeKey, req) {
   return { res, reachedHandler: true };
 }
 
+// Express-style dispatch. Routes are tried in registration order, the first path that matches wins,
+// and a handler that does not call next() ends the request. run() above looks routes up by path, so it
+// cannot see a route-order bug. This helper can, so the route-order tests use it.
+const ordered = [];
+setupPlivoElevenLabsWebhooks({ post: (path, ...handlers) => ordered.push({ path, handlers }) }, BASE);
+
+function matchPath(pattern, url) {
+  const names = [...pattern.matchAll(/:([A-Za-z]+)/g)].map((m) => m[1]);
+  const re = new RegExp('^' + pattern.replace(/:[A-Za-z]+/g, '([^/]+)') + '$');
+  const m = re.exec(url);
+  if (!m) return null;
+  return Object.fromEntries(names.map((n, i) => [n, decodeURIComponent(m[i + 1])]));
+}
+
+async function dispatch(req) {
+  for (const route of ordered) {
+    const params = matchPath(route.path, req.originalUrl);
+    if (!params) continue;
+    const res = fakeRes();
+    req.params = params;
+    for (const mw of route.handlers.slice(0, -1)) {
+      let nextCalled = false;
+      await mw(req, res, () => { nextCalled = true; });
+      if (!nextCalled) return { route: route.path, res, reachedHandler: false };
+    }
+    await route.handlers[route.handlers.length - 1](req, res);
+    return { route: route.path, res, reachedHandler: true };
+  }
+  throw new Error(`no route matched ${req.originalUrl}`);
+}
+
 beforeEach(() => {
   globalThis.__sbx = {
     accounts: [{ authToken: ACCOUNT_TOKEN, isPrimary: true }],
@@ -266,4 +297,56 @@ test('status: valid signed completed callback does deduct credits (control)', as
   assert.equal(res.code, 200);
   assert.equal(globalThis.__sbx.credits.length, 1);
   assert.equal(globalThis.__sbx.credits[0].creditsToDeduct, 1);
+});
+
+// ---- Route order (Express matches in registration order) ----------------------
+
+const CALL_ROW = {
+  id: 'row-1', userId: 'user-1', agentId: null, fromNumber: '+1', toNumber: '+2',
+  duration: 0, callDirection: 'outbound', metadata: { engine: 'plivo-elevenlabs' },
+};
+
+test('order: verified POST to /voice/status reaches the status handler and deducts credits once', async () => {
+  globalThis.__sbx.calls = [{ ...CALL_ROW }];
+  const { route, res, reachedHandler } = await dispatch(signedReq(STATUS, STATUS_BODY));
+  assert.equal(route, STATUS, '/voice/:callId must not capture "status"');
+  assert.equal(reachedHandler, true);
+  assert.equal(res.code, 200);
+  assert.equal(res.body, '200', 'status handler answers with sendStatus(200)');
+  assert.deepEqual(globalThis.__sbx.ended, ['call-1']);
+  assert.equal(globalThis.__sbx.credits.length, 1, 'credits deducted exactly once');
+  assert.equal(globalThis.__sbx.credits[0].creditsToDeduct, 1);
+  assert.equal(globalThis.__sbx.credits[0].engine, 'plivo-elevenlabs');
+});
+
+test('order: verified POST to /voice/some-id still reaches the callId handler', async () => {
+  const path = '/api/plivo-elevenlabs/voice/call-123';
+  globalThis.__sbx.calls = [{ ...CALL_ROW }];
+  const { route, res, reachedHandler } = await dispatch(signedReq(path, ANSWER_BODY));
+  assert.equal(route, CALL_ID);
+  assert.equal(reachedHandler, true);
+  assert.match(String(res.body), /<Stream bidirectional="true"/);
+  assert.ok(globalThis.__sbx.writes.includes('update:plivoCalls'), 'callId handler attaches the CallUUID');
+  assert.deepEqual(globalThis.__sbx.credits, [], 'callId handler does not bill');
+  assert.deepEqual(globalThis.__sbx.ended, [], 'callId handler does not end a session');
+});
+
+test('order: unverified POST to /voice/status gets 403 before any handler or credit change', async () => {
+  globalThis.__sbx.calls = [{ ...CALL_ROW }];
+  const { route, res, reachedHandler } = await dispatch(unsignedReq(STATUS, STATUS_BODY));
+  assert.equal(route, STATUS);
+  assert.equal(reachedHandler, false);
+  assert.equal(res.code, 403);
+  assert.deepEqual(globalThis.__sbx.credits, []);
+  assert.deepEqual(globalThis.__sbx.ended, []);
+  assert.deepEqual(globalThis.__sbx.writes, []);
+});
+
+test('order: unverified POST to /voice/some-id gets 403 before the callId handler writes', async () => {
+  const path = '/api/plivo-elevenlabs/voice/call-123';
+  const { route, res, reachedHandler } = await dispatch(unsignedReq(path, ANSWER_BODY));
+  assert.equal(route, CALL_ID);
+  assert.equal(reachedHandler, false);
+  assert.equal(res.code, 403);
+  assert.deepEqual(globalThis.__sbx.writes, []);
 });
