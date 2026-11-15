@@ -106,14 +106,14 @@ test('fields outside the canonical set do not change the version', () => {
 test('the real catalogue gives one version per role with no duplicates', async () => {
   const catalogue = await loadRoleCatalogue(rolesDir);
   assert.equal(catalogue.size, expectedRoles);
-  assert.equal(expectedRoles, 125, 'the real catalogue should hold 125 roles');
+  assert.equal(expectedRoles, 135, 'the real catalogue should hold 135 roles');
 
   const versions = catalogueVersions(catalogue);
-  assert.equal(versions.size, 125);
+  assert.equal(versions.size, 135);
   assert.deepEqual([...versions.keys()].sort(), [...catalogue.keys()].sort());
 
   const distinct = new Set(versions.values());
-  assert.equal(distinct.size, 125, 'no two roles should share a version');
+  assert.equal(distinct.size, 135, 'no two roles should share a version');
   for (const [id, version] of versions) {
     assert.equal(version, roleVersion(catalogue.get(id)));
   }

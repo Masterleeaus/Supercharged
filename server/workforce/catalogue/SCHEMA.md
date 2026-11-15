@@ -47,7 +47,8 @@ Validate with `validateRoleDefinition(raw)` for one role, or
 ### Vertical enum
 
 `cleaning`, `pool`, `garden`, `pest`, `plumbing`, `electrical`, `hvac`, `handyman`,
-`locksmith`, `painting`, `general_field_service`, `cross_vertical`
+`locksmith`, `painting`, `tiling`, `flat_pack`, `deck_fence`, `timber_floor`, `stone_terrazzo`,
+`lawn_turf`, `irrigation`, `general_field_service`, `cross_vertical`
 
 ### Category enum
 
