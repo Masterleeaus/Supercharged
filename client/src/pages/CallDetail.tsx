@@ -40,6 +40,12 @@ interface Campaign {
 }
 
 /** Call metadata JSON. Only keys the page reads are typed. */
+interface TranscriptEntry {
+  role?: string;
+  message?: string;
+  content?: string;
+}
+
 interface CallMetadata {
   widgetName?: string;
   creditError?: string;
@@ -864,14 +870,14 @@ export default function CallDetail() {
             {call.transcript ? (
               <div className="max-h-[600px] overflow-y-auto space-y-4 pr-2">
                 {(() => {
-                  let parsed: any = call.transcript;
+                  let parsed: unknown = call.transcript;
                   if (typeof parsed === 'string') {
                     try { parsed = JSON.parse(parsed); } catch { parsed = null; }
                   }
-                  if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].role && ('message' in parsed[0] || 'content' in parsed[0])) {
+                  if (Array.isArray(parsed) && parsed.length > 0 && (parsed[0] as TranscriptEntry).role && ("message" in parsed[0] || "content" in parsed[0])) {
                     return parsed
-                      .filter((entry: any) => (entry.message || entry.content) && (entry.message || entry.content).trim())
-                      .map((entry: any, index: number) => {
+                      .filter((entry: TranscriptEntry) => (entry.message || entry.content) && (entry.message || entry.content).trim())
+                      .map((entry: TranscriptEntry, index: number) => {
                         const isAgent = entry.role === 'agent' || entry.role === 'ai' || entry.role === 'assistant';
                         const speaker = isAgent ? 'Agent' : 'User';
                         const message = entry.message || entry.content;

@@ -111,7 +111,7 @@ export default function Integrations() {
     queryKey: ['/api/webhooks'],
   });
 
-  const { data: campaigns = [] } = useQuery<any[]>({
+  const { data: campaigns = [] } = useQuery<Array<{ id: string; name: string }>>({
     queryKey: ['/api/campaigns'],
   });
 
@@ -121,7 +121,7 @@ export default function Integrations() {
   });
 
   const createWebhookMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: Record<string, unknown>) => {
       return await apiRequest('POST', '/api/webhooks', data);
     },
     onSuccess: () => {
@@ -143,7 +143,7 @@ export default function Integrations() {
   });
 
   const updateWebhookMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+    mutationFn: async ({ id, data }: { id: string; data: Record<string, unknown> }) => {
       return await apiRequest('PUT', `/api/webhooks/${id}`, data);
     },
     onSuccess: () => {
