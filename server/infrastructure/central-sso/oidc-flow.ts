@@ -17,20 +17,22 @@ const MAX_PARAM = 2048;
 export type PendingLogin = {codeVerifier: string; nonce: string};
 
 export interface PendingStore {
- put(state: string, record: PendingLogin, ttlMs: number): void | Promise<void>;
+ /** Returns false when the record could not be stored (store full). The caller must not redirect then. */
+ put(state: string, record: PendingLogin, ttlMs: number): boolean | Promise<boolean>;
  /** Single use: returns the record once, then nothing for that state. */
  take(state: string): PendingLogin | null | Promise<PendingLogin | null>;
 }
 
-/** In-memory store. Single process only; a multi-instance deploy needs a shared store. */
+/** In-memory store. Single process only. Multi-instance deploys use createDatabasePendingStore (pending-store-db.ts). */
 export function createMemoryPendingStore({clock = Date.now, maxEntries = 1000}: {clock?: () => number; maxEntries?: number} = {}): PendingStore {
  const map = new Map<string, {record: PendingLogin; expiresAt: number}>();
  return {
   put(state, record, ttlMs) {
    const now = clock();
    for (const [k, v] of map) if (v.expiresAt <= now) map.delete(k);
-   if (map.size >= maxEntries) return;
+   if (map.size >= maxEntries) return false;
    map.set(state, {record, expiresAt: now + ttlMs});
+   return true;
   },
   take(state) {
    const entry = map.get(state);
@@ -69,7 +71,8 @@ export function createCentralOidcFlow({config, discovery, jwksKeys, pending, fet
    const pkce = createPkce(random);
    const state = randomToken(random);
    const nonce = randomToken(random);
-   await pending.put(state, {codeVerifier: pkce.codeVerifier, nonce}, PENDING_TTL_MS);
+   const stored = await pending.put(state, {codeVerifier: pkce.codeVerifier, nonce}, PENDING_TTL_MS);
+   if (stored === false) return {ok: false, reason: 'session_unavailable'};
    const url = new URL(meta.authorizationEndpoint);
    url.search = new URLSearchParams({
     response_type: 'code',

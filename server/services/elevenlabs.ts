@@ -27,6 +27,7 @@ import { sanitizeLlmModel } from '../utils/llm-sanitize';
 
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
+import { PRODUCT_NAME } from '../../shared/brand.ts';
 
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 
@@ -3754,7 +3755,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
         headers: { 'xi-api-key': this.apiKey, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           url: webhookUrl,
-          name: 'AgentLabs Post-Call Webhook',
+          name: `${PRODUCT_NAME} Post-Call Webhook`,
         }),
       });
 
