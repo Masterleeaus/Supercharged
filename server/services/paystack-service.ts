@@ -78,7 +78,7 @@ export async function testPaystackConnection(): Promise<{ success: boolean; erro
       return { success: true };
     }
     return { success: false, error: 'Failed to verify Paystack connection' };
-  } catch (error: any) {
+  } catch (error) {
     logger.error('❌ [Paystack] Connection test failed:', error.message);
     return { success: false, error: error.message };
   }
