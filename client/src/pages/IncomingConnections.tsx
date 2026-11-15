@@ -1419,7 +1419,7 @@ export default function IncomingConnectionsPage() {
                       ) : (
                         <SelectItem key={phone.id} value={phone.id}>
                           <span className="font-mono">{phone.phoneNumber}</span>
-                          <span className="text-xs text-muted-foreground ml-2">({(phone as any).provider === 'plivo' ? 'Plivo' : 'Twilio'})</span>
+                          <span className="text-xs text-muted-foreground ml-2">({(phone as { provider?: string }).provider === 'plivo' ? 'Plivo' : 'Twilio'})</span>
                           {phone.friendlyName && (
                             <span className="text-xs text-muted-foreground ml-2">({phone.friendlyName})</span>
                           )}

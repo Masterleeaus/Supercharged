@@ -37,6 +37,20 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import FlowTemplatesPage from "@/pages/FlowTemplatesPage";
 import FlowExecutionLogsPage from "@/pages/FlowExecutionLogsPage";
 
+/** Flow row as listed by the flow automation API. */
+type FlowSummary = {
+  id: string;
+  name: string;
+  description?: string | null;
+  isActive?: boolean;
+  nodes?: unknown[];
+  edges?: unknown[];
+  updatedAt: string;
+  [key: string]: unknown;
+};
+/** Flow count limits from /api/usage. */
+type FlowUsage = { current: number; max: number; remaining: number };
+
 export default function FlowsPage() {
   const { t } = useTranslation();
   const { isDemoMode } = useDemoMode();
@@ -45,8 +59,8 @@ export default function FlowsPage() {
   const searchString = useSearch();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [flowToDelete, setFlowToDelete] = useState<any>(null);
-  const [flowToTest, setFlowToTest] = useState<any>(null);
+  const [flowToDelete, setFlowToDelete] = useState<FlowSummary | null>(null);
+  const [flowToTest, setFlowToTest] = useState<FlowSummary | null>(null);
   const [activeTab, setActiveTab] = useState("flows");
 
   useEffect(() => {
@@ -69,12 +83,12 @@ export default function FlowsPage() {
   };
 
   // Fetch all flows
-  const { data: flows, isLoading } = useQuery<any[]>({
+  const { data: flows, isLoading } = useQuery<FlowSummary[]>({
     queryKey: ["/api/flow-automation/flows"],
   });
 
   // Fetch flow usage limits
-  const { data: usage } = useQuery<any>({
+  const { data: usage } = useQuery<{ flows?: FlowUsage }>({
     queryKey: ["/api/usage"],
   });
   const flowUsage = usage?.flows;
@@ -149,7 +163,7 @@ export default function FlowsPage() {
       });
       return await response.json();
     },
-    onSuccess: (data: any) => {
+    onSuccess: (data: { id?: string } | undefined) => {
       queryClient.invalidateQueries({ queryKey: ["/api/flow-automation/flows"] });
       queryClient.invalidateQueries({ queryKey: ["/api/usage"] });
       if (data?.id) {
@@ -287,7 +301,7 @@ export default function FlowsPage() {
       });
       return await response.json();
     },
-    onSuccess: (data: any) => {
+    onSuccess: (data: { id?: string } | undefined) => {
       toast({
         title: t('flows.templateCreated'),
         description: t('flows.templateCreatedDescription'),
