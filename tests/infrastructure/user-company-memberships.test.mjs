@@ -37,6 +37,7 @@ test('migration documents its rollback', () => {
 test('runner and journal both register 0017 after 0016', () => {
   assert.match(runner, /\{ file: '0017_user_company_memberships\.sql', required: true \}/);
   const tags = journal.entries.map((e) => e.tag);
-  assert.equal(tags[tags.length - 1], '0017_user_company_memberships');
-  assert.equal(tags[tags.length - 2], '0016_chatbot_reminder_pipeline');
+  // 0018 (issue #127) now follows 0017, so 0017 is second-to-last.
+  assert.equal(tags[tags.length - 2], '0017_user_company_memberships');
+  assert.equal(tags[tags.length - 3], '0016_chatbot_reminder_pipeline');
 });
