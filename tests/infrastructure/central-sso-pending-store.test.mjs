@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createHash, generateKeyPairSync, sign as cryptoSign} from 'node:crypto';
+import {createHash, generateKeyPairSync, randomBytes, sign as cryptoSign} from 'node:crypto';
 import {createCentralOidcFlow, createMemoryPendingStore} from '../../server/infrastructure/central-sso/oidc-flow.ts';
 import {createDatabasePendingStore, pendingStateHash} from '../../server/infrastructure/central-sso/pending-store-db.ts';
 
@@ -34,11 +34,13 @@ class FakeDb {
 }
 
 const REC = {codeVerifier: 'v'.repeat(43), nonce: 'n-1'};
+const SEAL_KEY = randomBytes(32);
+const OTHER_KEY = randomBytes(32);
 const STATE = 'state-value-for-test-0000000000000000000000';
 
 test('a stored pending login is returned once, then gone (single use)', async () => {
  const db = new FakeDb();
- const store = createDatabasePendingStore({db});
+ const store = createDatabasePendingStore({db, sealKey: SEAL_KEY});
  assert.equal(await store.put(STATE, REC, 60_000), true);
  assert.deepEqual(await store.take(STATE), REC);
  assert.equal(await store.take(STATE), null);
@@ -46,8 +48,8 @@ test('a stored pending login is returned once, then gone (single use)', async ()
 
 test('a second process reading the same pending login consumes it, and the first process gets nothing', async () => {
  const db = new FakeDb();
- const processA = createDatabasePendingStore({db});
- const processB = createDatabasePendingStore({db});
+ const processA = createDatabasePendingStore({db, sealKey: SEAL_KEY});
+ const processB = createDatabasePendingStore({db, sealKey: SEAL_KEY});
  await processA.put(STATE, REC, 60_000);
  assert.deepEqual(await processB.take(STATE), REC);
  assert.equal(await processA.take(STATE), null);
@@ -55,7 +57,7 @@ test('a second process reading the same pending login consumes it, and the first
 
 test('an expired pending login is never returned and its row is removed', async () => {
  const db = new FakeDb();
- const store = createDatabasePendingStore({db});
+ const store = createDatabasePendingStore({db, sealKey: SEAL_KEY});
  await store.put(STATE, REC, 1_000);
  db.now += 1_000; // exactly at expiry is dead
  assert.equal(await store.take(STATE), null);
@@ -64,7 +66,7 @@ test('an expired pending login is never returned and its row is removed', async 
 
 test('put sweeps expired rows before storing new ones', async () => {
  const db = new FakeDb();
- const store = createDatabasePendingStore({db});
+ const store = createDatabasePendingStore({db, sealKey: SEAL_KEY});
  await store.put('old-state-0000000000000000000000000000000000', REC, 500);
  db.now += 501;
  await store.put(STATE, REC, 60_000);
@@ -74,7 +76,7 @@ test('put sweeps expired rows before storing new ones', async () => {
 
 test('the raw state and the raw store key are never written to the database', async () => {
  const db = new FakeDb();
- const store = createDatabasePendingStore({db});
+ const store = createDatabasePendingStore({db, sealKey: SEAL_KEY});
  await store.put(STATE, REC, 60_000);
  await store.take(STATE);
  const everything = JSON.stringify(db.seen);
@@ -83,9 +85,53 @@ test('the raw state and the raw store key are never written to the database', as
  assert.equal(/^[0-9a-f]{64}$/.test(pendingStateHash(STATE)), true);
 });
 
+test('the stored row does not contain the PKCE code_verifier, in any column or in any statement', async () => {
+ const db = new FakeDb();
+ const store = createDatabasePendingStore({db, sealKey: SEAL_KEY});
+ await store.put(STATE, REC, 60_000);
+ const row = [...db.rows.values()][0];
+ assert.equal(JSON.stringify(row).includes(REC.codeVerifier), false);
+ assert.equal(JSON.stringify(db.seen).includes(REC.codeVerifier), false);
+ assert.match(row.codeVerifier, /^v1:[A-Za-z0-9+/]+={0,2}:[A-Za-z0-9+/]+={0,2}:[A-Za-z0-9+/]+={0,2}$/);
+ assert.deepEqual(await store.take(STATE), REC);
+});
+
+test('each seal uses a fresh IV, so the same verifier never produces the same stored value', async () => {
+ const db = new FakeDb();
+ const store = createDatabasePendingStore({db, sealKey: SEAL_KEY});
+ await store.put('x1'.padEnd(43, 'x'), REC, 60_000);
+ await store.put('x2'.padEnd(43, 'x'), REC, 60_000);
+ const [a, b] = [...db.rows.values()].map((r) => r.codeVerifier);
+ assert.notEqual(a, b);
+ assert.notEqual(a.split(':')[1], b.split(':')[1]);
+});
+
+test('a sealed verifier cannot be opened with a different key, and the login is refused', async () => {
+ const db = new FakeDb();
+ await createDatabasePendingStore({db, sealKey: SEAL_KEY}).put(STATE, REC, 60_000);
+ assert.equal(await createDatabasePendingStore({db, sealKey: OTHER_KEY}).take(STATE), null);
+});
+
+test('a sealed verifier moved to another state row fails to open (state hash is bound)', async () => {
+ const db = new FakeDb();
+ const store = createDatabasePendingStore({db, sealKey: SEAL_KEY});
+ const other = 'other-state-0000000000000000000000000000000';
+ await store.put(STATE, REC, 60_000);
+ await store.put(other, {codeVerifier: 'w'.repeat(43), nonce: 'n-2'}, 60_000);
+ db.rows.get(pendingStateHash(other)).codeVerifier = db.rows.get(pendingStateHash(STATE)).codeVerifier;
+ assert.equal(await store.take(other), null);
+});
+
+test('the store refuses to build without a 32-byte seal key (no plaintext fallback)', () => {
+ const db = new FakeDb();
+ assert.throws(() => createDatabasePendingStore({db}), TypeError);
+ assert.throws(() => createDatabasePendingStore({db, sealKey: randomBytes(16)}), TypeError);
+ assert.throws(() => createDatabasePendingStore({db, sealKey: 'x'.repeat(32)}), TypeError);
+});
+
 test('a TTL above the 10 minute ceiling is clamped, and a non-positive TTL is raised to 1 ms', async () => {
  const db = new FakeDb();
- const store = createDatabasePendingStore({db});
+ const store = createDatabasePendingStore({db, sealKey: SEAL_KEY});
  await store.put('a'.repeat(43), REC, 99_999_999);
  assert.equal(db.rows.get(pendingStateHash('a'.repeat(43))).expiresAt, db.now + 600_000);
  await store.put('b'.repeat(43), REC, 0);
@@ -94,7 +140,7 @@ test('a TTL above the 10 minute ceiling is clamped, and a non-positive TTL is ra
 
 test('the store refuses new logins at the cap instead of growing without bound', async () => {
  const db = new FakeDb();
- const store = createDatabasePendingStore({db, maxEntries: 2});
+ const store = createDatabasePendingStore({db, sealKey: SEAL_KEY, maxEntries: 2});
  assert.equal(await store.put('s1'.padEnd(43, 'x'), REC, 60_000), true);
  assert.equal(await store.put('s2'.padEnd(43, 'x'), REC, 60_000), true);
  assert.equal(await store.put('s3'.padEnd(43, 'x'), REC, 60_000), false);
@@ -134,7 +180,7 @@ function makeProcess(db, tokenState) {
   config,
   discovery: async () => META,
   jwksKeys: async (kid) => (kid === 'rsa-1' ? rsaJwk : null),
-  pending: createDatabasePendingStore({db}),
+  pending: createDatabasePendingStore({db, sealKey: SEAL_KEY}),
   fetchImpl,
  });
 }
@@ -172,7 +218,7 @@ test('start fails closed with session_unavailable when the pending store is full
   config,
   discovery: async () => META,
   jwksKeys: async () => null,
-  pending: createDatabasePendingStore({db, maxEntries: 0}),
+  pending: createDatabasePendingStore({db, sealKey: SEAL_KEY, maxEntries: 0}),
   fetchImpl: async () => { throw new Error('no network in test'); },
  });
  assert.deepEqual(await flow.start(), {ok: false, reason: 'session_unavailable'});
