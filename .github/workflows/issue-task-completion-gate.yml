@@ -2,14 +2,19 @@ name: Issue task completion gate
 
 on:
   issues:
-    types: [closed]
+    types: [closed, edited]
 
 permissions:
   contents: read
   issues: write
 
+concurrency:
+  group: issue-completion-${{ github.repository }}-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
 jobs:
   reopen-incomplete:
+    if: github.event.issue.state == 'closed'
     runs-on: ubuntu-latest
     steps:
       - name: Reopen issues with missing or incomplete task lists
