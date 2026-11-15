@@ -54,56 +54,6 @@ export function setupPlivoElevenLabsWebhooks(app: Express, baseUrl: string): voi
   });
   
   /**
-   * Answer URL with call ID path (for outbound calls)
-   */
-  app.post('/api/plivo-elevenlabs/voice/:callId', verifyPlivoSignature, async (req: Request, res: Response) => {
-    try {
-      const { callId } = req.params;
-      const { CallUUID, From, To, Direction } = req.body;
-
-      logger.info(`Answer for ${callId}: ${CallUUID} from ${From} to ${To} (${Direction})`, undefined, 'PlivoElevenLabs');
-
-      // Record Plivo's real CallUUID on the outbound row so the status webhook
-      // can find it by `plivo_call_uuid`. The row was inserted at dial time
-      // with `metadata.internalId = callId` (the synthetic id from the URL).
-      if (CallUUID && callId) {
-        try {
-          await db
-            .update(plivoCalls)
-            .set({
-              plivoCallUuid: CallUUID,
-              status: 'in-progress',
-              answeredAt: new Date(),
-            })
-            .where(sql`${plivoCalls.metadata}->>'internalId' = ${callId} AND ${plivoCalls.metadata}->>'engine' = 'plivo-elevenlabs'`);
-        } catch (updErr: any) {
-          logger.warn(
-            `Failed to attach CallUUID ${CallUUID} to outbound call ${callId}: ${updErr?.message || updErr}`,
-            undefined,
-            'PlivoElevenLabs'
-          );
-        }
-      }
-
-      const streamUrl = getSipStreamUrl(CallUUID);
-      
-      const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Stream bidirectional="true" keepCallAlive="true" contentType="audio/x-mulaw;rate=8000">
-    ${streamUrl}
-  </Stream>
-</Response>`;
-      
-      res.set('Content-Type', 'text/xml');
-      res.send(xml);
-    } catch (error: any) {
-      logger.error('Answer error', error, 'PlivoElevenLabs');
-      res.set('Content-Type', 'text/xml');
-      res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Hangup/></Response>`);
-    }
-  });
-  
-  /**
    * Status callback
    */
   app.post('/api/plivo-elevenlabs/voice/status', verifyPlivoSignature, async (req: Request, res: Response) => {
@@ -265,6 +215,58 @@ export function setupPlivoElevenLabsWebhooks(app: Express, baseUrl: string): voi
     } catch (error: any) {
       logger.error('Status error', error, 'PlivoElevenLabs');
       res.sendStatus(200);
+    }
+  });
+  
+  // Registered after the literal /voice/status route above: Express matches routes in order, and
+  // /voice/:callId would otherwise capture "status" as a callId and respond before the status handler.
+  /**
+   * Answer URL with call ID path (for outbound calls)
+   */
+  app.post('/api/plivo-elevenlabs/voice/:callId', verifyPlivoSignature, async (req: Request, res: Response) => {
+    try {
+      const { callId } = req.params;
+      const { CallUUID, From, To, Direction } = req.body;
+
+      logger.info(`Answer for ${callId}: ${CallUUID} from ${From} to ${To} (${Direction})`, undefined, 'PlivoElevenLabs');
+
+      // Record Plivo's real CallUUID on the outbound row so the status webhook
+      // can find it by `plivo_call_uuid`. The row was inserted at dial time
+      // with `metadata.internalId = callId` (the synthetic id from the URL).
+      if (CallUUID && callId) {
+        try {
+          await db
+            .update(plivoCalls)
+            .set({
+              plivoCallUuid: CallUUID,
+              status: 'in-progress',
+              answeredAt: new Date(),
+            })
+            .where(sql`${plivoCalls.metadata}->>'internalId' = ${callId} AND ${plivoCalls.metadata}->>'engine' = 'plivo-elevenlabs'`);
+        } catch (updErr: any) {
+          logger.warn(
+            `Failed to attach CallUUID ${CallUUID} to outbound call ${callId}: ${updErr?.message || updErr}`,
+            undefined,
+            'PlivoElevenLabs'
+          );
+        }
+      }
+
+      const streamUrl = getSipStreamUrl(CallUUID);
+      
+      const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Stream bidirectional="true" keepCallAlive="true" contentType="audio/x-mulaw;rate=8000">
+    ${streamUrl}
+  </Stream>
+</Response>`;
+      
+      res.set('Content-Type', 'text/xml');
+      res.send(xml);
+    } catch (error: any) {
+      logger.error('Answer error', error, 'PlivoElevenLabs');
+      res.set('Content-Type', 'text/xml');
+      res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Hangup/></Response>`);
     }
   });
   
