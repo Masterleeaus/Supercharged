@@ -14,10 +14,18 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
-import { sql } from "drizzle-orm";
+import { sql, type Table } from "drizzle-orm";
 import { pgTable, text, varchar, uuid, integer, timestamp, boolean, jsonb, decimal, doublePrecision, serial, date, time, unique, uniqueIndex, index, foreignKey, check, primaryKey } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
+import { createInsertSchema as drizzleCreateInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+
+// drizzle-zod 0.7.x types are written against the zod 3 API. With the zod 4 installed
+// here, its inferred shape collapses to {}, so every .omit()/.pick() key is typed never
+// (TS2589 / TS2322). This re-types the same runtime function; behaviour is unchanged.
+// Remove this cast once drizzle-zod is upgraded to a zod 4 compatible release.
+const createInsertSchema = drizzleCreateInsertSchema as unknown as <TTable extends Table>(
+  table: TTable,
+) => z.ZodObject<Record<string, z.ZodType<any>>>;
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
