@@ -137,7 +137,7 @@ export function createCentralOidcFlow({config, discovery, jwksKeys, pending, fet
     getKey: jwksKeys,
     now,
    });
-   if (!verified.ok) return {ok: false, reason: verified.reason};
+   if (verified.ok === false) return {ok: false, reason: verified.reason};
 
    // The company must come from a verified claim, never from email or the query string.
    const companyId = verified.claims[config.companyClaim];

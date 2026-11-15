@@ -16,7 +16,7 @@ export function createCentralSignIn({complete, resolve, issueNativeToken}: {
  const gate = createDeskCentralSessionGate({resolve, issueNativeToken});
  return async function signIn(input: {query: Record<string, unknown>; cookieState: unknown}): Promise<SignInResult> {
   const flow = await complete(input);
-  if (!flow.ok) return {ok: false, reason: flow.reason as FlowFailure | string};
+  if (flow.ok === false) return {ok: false, reason: flow.reason as FlowFailure | string};
   const selection: VerifiedDeskCentralSelection = flow.selection;
   const token = await gate(selection);
   // Local account is required. A missing or revoked link fails closed with a fixed reason.
