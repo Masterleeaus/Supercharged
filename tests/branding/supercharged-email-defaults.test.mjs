@@ -7,7 +7,7 @@ const emailSeeds = readFileSync(new URL("../../server/seed-email-templates.ts", 
 const settingsSeeds = readFileSync(new URL("../../server/seed-global-settings.ts", import.meta.url), "utf8");
 
 test("email service defaults to Supercharged without overriding configured sender identity", () => {
-  assert.match(emailService, /const DEFAULT_COMPANY_NAME = 'Supercharged';/);
+  assert.match(emailService, /const DEFAULT_COMPANY_NAME = PRODUCT_NAME;/);
   assert.match(emailService, /const appName = \(appNameSetting\?\.value as string\) \|\| DEFAULT_COMPANY_NAME;/);
   assert.match(emailService, /fromName: \(fromNameSetting\?\.value as string\) \|\| appName,/);
   assert.match(emailService, /fromName: DEFAULT_COMPANY_NAME,/);
