@@ -52,6 +52,7 @@ jobs:
           - client/src/widget
           - client/src/i18n
           - client/src/pages
+          - shared
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
