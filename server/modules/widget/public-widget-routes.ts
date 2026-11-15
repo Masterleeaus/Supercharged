@@ -552,7 +552,12 @@ router.post('/widget/session/start', async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Widget is not active' });
     }
     
-    if (visitorDomain && !widgetService.validateDomain(widget, visitorDomain)) {
+    // A visitorDomain in the JSON body is caller-controlled. Enforce the same
+    // fail-closed Origin/Referer allowlist as /widget/config before spending
+    // credits or allocating a session. This is an embedding policy, not auth:
+    // non-browser clients can forge Origin and still need normal abuse controls.
+    const requestDomain = widgetRequestDomain(req.headers);
+    if (!isWidgetDomainAllowed(widget.allowedDomains, requestDomain)) {
       return res.status(403).json({ error: 'Domain not allowed' });
     }
     
@@ -597,7 +602,8 @@ router.post('/widget/session/start', async (req: Request, res: Response) => {
       userId: widget.userId,
       sessionToken,
       visitorIp: cleanedIp,
-      visitorDomain: visitorDomain || null,
+      // Record the observed request domain, not an untrusted body claim, when available.
+      visitorDomain: requestDomain || (typeof visitorDomain === 'string' ? visitorDomain : null),
       status: 'pending',
     });
     
