@@ -1028,7 +1028,7 @@ Disallow: /api/`}
                         <Input
                           value={formData.structuredDataProduct?.name || ""}
                           onChange={(e) => handleProductChange("name", e.target.value)}
-                          placeholder="AgentLabs Pro"
+                          placeholder="Supercharged Pro"
                           data-testid="input-product-name"
                         />
                       </div>
@@ -1037,7 +1037,7 @@ Disallow: /api/`}
                         <Input
                           value={formData.structuredDataProduct?.brand || ""}
                           onChange={(e) => handleProductChange("brand", e.target.value)}
-                          placeholder="AgentLabs"
+                          placeholder="Supercharged"
                           data-testid="input-product-brand"
                         />
                       </div>
@@ -1065,7 +1065,7 @@ Disallow: /api/`}
                         <Input
                           value={formData.structuredDataProduct?.sku || ""}
                           onChange={(e) => handleProductChange("sku", e.target.value)}
-                          placeholder="AGENTLABS-PRO-001"
+                          placeholder="SUPERCHARGED-PRO-001"
                           data-testid="input-product-sku"
                         />
                       </div>

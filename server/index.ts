@@ -22,6 +22,7 @@ import compression from "compression";
 import helmet from "helmet";
 import { registerRoutes } from "./routes";
 import { resolveTrustProxy } from "./middleware/trust-proxy";
+import { publicRouteRateLimit } from "./middleware/public-route-rate-limit";
 import { isChatbotWebhookPath } from "./middleware/raw-body";
 import { perRouteBodyParser } from "./middleware/body-limits";
 import { db } from "./db";
@@ -77,6 +78,10 @@ const app = express();
 // Set TRUST_PROXY to the hop count or proxy address list that matches the front proxy.
 // Never set it to true. See server/middleware/trust-proxy.ts and docs/proxy/desk-modes.nginx.conf.
 app.set('trust proxy', resolveTrustProxy(process.env.TRUST_PROXY));
+
+// General per-IP limit on auth and public routes. Mounted before body parsing so refused
+// requests are not parsed. Webhooks and /api/health are exempt. See server/middleware/public-route-rate-limit.ts.
+app.use(publicRouteRateLimit);
 
 // Enable gzip compression for all responses (improves load times by 60-80%)
 app.use(compression({

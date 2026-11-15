@@ -97,7 +97,8 @@ export interface RosterRefusal {
 }
 
 /** The run engine as the runtime exposes it. startRun is replaced: no run can start without a model. handoff may refuse on the roster. */
-export interface WorkforceEngine extends Omit<RunEngine, 'startRun' | 'handoff'> {
+// beginModelTurn is internal to the run engine: compose does not expose it, so it is omitted from this type.
+export interface WorkforceEngine extends Omit<RunEngine, 'startRun' | 'handoff' | 'beginModelTurn'> {
   startRun(companyId: unknown, runId: string): Promise<ModelRefusal>;
   handoff(companyId: unknown, runId: string, input: { actor: unknown; toRole: string }): Promise<RunResult | RosterRefusal>;
 }

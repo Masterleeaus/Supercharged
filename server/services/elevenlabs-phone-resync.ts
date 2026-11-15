@@ -326,7 +326,7 @@ export async function resyncSipPhoneCredentials(
       ? normalizedNumber
       : `+${normalizedNumber}`;
 
-    const outboundConfig: Record<string, any> = {
+    const outboundConfig: Record<string, unknown> = {
       address: `${sipHost}:${sipPort}`,
       transport: outboundTransport,
       media_encryption: mediaEncryption,

@@ -33,7 +33,7 @@ export interface WebhookNodeConfig {
   url: string;
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   headers?: Record<string, string>;
-  payload?: Record<string, any>;
+  payload?: Record<string, unknown>;
   description?: string;
 }
 
@@ -47,7 +47,7 @@ export interface UniversalWebhookTool {
     request_headers: Record<string, string>;
     request_body_schema?: {
       type: "object";
-      properties: Record<string, any>;
+      properties: Record<string, unknown>;
       required?: string[];
     };
   };
@@ -80,7 +80,7 @@ export function buildUniversalWebhookTool(config: WebhookNodeConfig): UniversalW
   }
   
   // Core properties always included in every POST webhook
-  const coreProperties: Record<string, any> = {
+  const coreProperties: Record<string, unknown> = {
     // Caller information
     caller_phone: {
       type: "string",
@@ -116,7 +116,7 @@ export function buildUniversalWebhookTool(config: WebhookNodeConfig): UniversalW
   };
 
   // Add any custom payload fields from the flow builder config
-  const customProperties: Record<string, any> = {};
+  const customProperties: Record<string, unknown> = {};
   if (config.payload && Object.keys(config.payload).length > 0) {
     for (const [key, value] of Object.entries(config.payload)) {
       // Determine type from the configured value

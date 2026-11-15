@@ -123,8 +123,8 @@ function buildPromRecorder(prom: PromClientModule, logger: Pick<Console, 'warn'>
   // One collector per metric name; repeated calls return the same handle.
   const collectors = new Map<string, CounterHandle & HistogramHandle>();
 
-  const safe = <T extends (...args: any[]) => void>(fn: T): T =>
-    ((...args: any[]) => {
+  const safe = <T extends (...args: never[]) => void>(fn: T): T =>
+    ((...args: never[]) => {
       try {
         fn(...args);
       } catch (err) {

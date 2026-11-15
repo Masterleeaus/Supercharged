@@ -10,6 +10,14 @@ import { users, creditTransactions, globalSettings } from '@shared/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { logger } from '../utils/logger';
 
+/** Reads the code and message of a caught value without assuming it is an Error. */
+function errorDetails(error: unknown): { code: unknown; message: string } {
+  if (typeof error !== 'object' || error === null) return { code: undefined, message: '' };
+  const code = 'code' in error ? error.code : undefined;
+  const message = 'message' in error && typeof error.message === 'string' ? error.message : '';
+  return { code, message };
+}
+
 export type CreditEngine = 'elevenlabs-twilio' | 'plivo-openai' | 'twilio-openai' | 'elevenlabs-sip' | 'openai-sip' | 'plivo-elevenlabs' | 'custom-voice-engine';
 
 /**
@@ -26,8 +34,8 @@ export async function checkUserCreditBalance(userId: string): Promise<{ hasCredi
     
     const balance = Number(result[0]?.credits) || 0;
     return { hasCredits: balance > 0, balance };
-  } catch (error: any) {
-    logger.error(`Failed to check credit balance for user ${userId}: ${error.message}`, error, 'CreditService');
+  } catch (error: unknown) {
+    logger.error(`Failed to check credit balance for user ${userId}: ${errorDetails(error).message}`, error, 'CreditService');
     return { hasCredits: false, balance: 0 };
   }
 }
@@ -222,9 +230,9 @@ export async function deductCallCredits(params: CreditDeductionParams): Promise<
 
     return result;
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Handle unique constraint violation (double submission caught by DB)
-    if (error.code === '23505' || error.message?.includes('duplicate')) {
+    if (errorDetails(error).code === '23505' || errorDetails(error).message.includes('duplicate')) {
       logger.info(`Credits already deducted for ${reference} (caught by constraint)`, undefined, 'CreditService');
       return {
         success: true,
@@ -233,11 +241,11 @@ export async function deductCallCredits(params: CreditDeductionParams): Promise<
       };
     }
 
-    logger.error(`Failed to deduct credits for ${reference}: ${error.message}`, error, 'CreditService');
+    logger.error(`Failed to deduct credits for ${reference}: ${errorDetails(error).message}`, error, 'CreditService');
     return {
       success: false,
       creditsDeducted: 0,
-      error: error.message,
+      error: error instanceof Error ? error.message : undefined,
     };
   }
 }
@@ -271,9 +279,9 @@ export function notifyCreditFailure(params: {
         currentBalance,
         durationSeconds,
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error(
-        `Failed to create call credit-failed notification for user ${userId}: ${err?.message || err}`,
+        `Failed to create call credit-failed notification for user ${userId}: ${errorDetails(err).message || String(err)}`,
         undefined,
         'CreditService'
       );
@@ -297,9 +305,9 @@ export function notifyCreditFailure(params: {
         currentBalance,
         durationSeconds,
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error(
-        `Failed to send call credit-failed email for user ${userId}: ${err?.message || err}`,
+        `Failed to send call credit-failed email for user ${userId}: ${errorDetails(err).message || String(err)}`,
         undefined,
         'CreditService'
       );
@@ -332,8 +340,8 @@ export async function checkSufficientCredits(userId: string, requiredCredits: nu
       .limit(1);
 
     return (user?.credits || 0) >= requiredCredits;
-  } catch (error: any) {
-    logger.error(`Failed to check credits for user ${userId}: ${error.message}`, error, 'CreditService');
+  } catch (error: unknown) {
+    logger.error(`Failed to check credits for user ${userId}: ${errorDetails(error).message}`, error, 'CreditService');
     return false;
   }
 }
@@ -350,8 +358,8 @@ export async function getUserCredits(userId: string): Promise<number> {
       .limit(1);
 
     return user?.credits || 0;
-  } catch (error: any) {
-    logger.error(`Failed to get credits for user ${userId}: ${error.message}`, error, 'CreditService');
+  } catch (error: unknown) {
+    logger.error(`Failed to get credits for user ${userId}: ${errorDetails(error).message}`, error, 'CreditService');
     return 0;
   }
 }
@@ -466,9 +474,9 @@ export async function applyRefund(params: RefundParams): Promise<RefundResult> {
 
     return result;
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Handle unique constraint violation (double submission caught by DB)
-    if (error.code === '23505' || error.message?.includes('duplicate')) {
+    if (errorDetails(error).code === '23505' || errorDetails(error).message.includes('duplicate')) {
       logger.info(`Refund already processed for ${reference} (caught by constraint)`, undefined, 'CreditService');
       return {
         success: true,
@@ -477,11 +485,11 @@ export async function applyRefund(params: RefundParams): Promise<RefundResult> {
       };
     }
 
-    logger.error(`Failed to apply refund for ${reference}: ${error.message}`, error, 'CreditService');
+    logger.error(`Failed to apply refund for ${reference}: ${errorDetails(error).message}`, error, 'CreditService');
     return {
       success: false,
       creditsReversed: 0,
-      error: error.message,
+      error: error instanceof Error ? error.message : undefined,
     };
   }
 }
@@ -574,8 +582,8 @@ export async function deductSipCallCredits(
     }
     
     return result;
-  } catch (error: any) {
-    logger.error(`SIP Credit deduction error: ${error.message}`, error, 'CreditService');
-    return { success: false, creditsDeducted: 0, error: error.message || 'Unknown error' };
+  } catch (error: unknown) {
+    logger.error(`SIP Credit deduction error: ${errorDetails(error).message}`, error, 'CreditService');
+    return { success: false, creditsDeducted: 0, error: errorDetails(error).message || 'Unknown error' };
   }
 }

@@ -34,8 +34,8 @@ const entries = [...runnerSource.matchAll(/\{ file: '([^']+)', required: (true|f
 
 // Committed migration files that the runner intentionally does not run.
 // 0000_damp_spectrum.sql is the base schema, applied by db:push or manually before the runner.
-// add_missing_columns.sql (no number prefix) is not registered; owner decision pending.
-const NOT_RUN_BY_RUNNER = new Set(['0000_damp_spectrum.sql', 'add_missing_columns.sql']);
+// The unnumbered add_missing_columns.sql was removed (issue #131, owner decision: drop it).
+const NOT_RUN_BY_RUNNER = new Set(['0000_damp_spectrum.sql']);
 
 test('runner declares entries in the expected order', () => {
   assert.ok(entries.length >= 17, `expected at least 17 entries, found ${entries.length}`);
