@@ -361,7 +361,7 @@ export class TwilioOpenAICallService {
           campaign: campaignId ? { id: campaignId } : null,
         });
         logger.info(`Triggered call.started webhook for call ${callId}`, undefined, 'TwilioOpenAICall');
-      } catch (webhookError: any) {
+      } catch (webhookError) {
         logger.error(`Failed to trigger call.started webhook: ${webhookError.message}`, undefined, 'TwilioOpenAICall');
       }
 
@@ -385,7 +385,7 @@ export class TwilioOpenAICallService {
             }, campaignId);
             logger.info(`Triggered flow.started webhook for call ${callId}, flow ${flow.name}`, undefined, 'TwilioOpenAICall');
           }
-        } catch (flowWebhookError: any) {
+        } catch (flowWebhookError) {
           logger.error(`Failed to trigger flow.started webhook: ${flowWebhookError.message}`, undefined, 'TwilioOpenAICall');
         }
       }
@@ -396,7 +396,7 @@ export class TwilioOpenAICallService {
         twilioCallSid: call.sid,
       };
 
-    } catch (error: any) {
+    } catch (error) {
       logger.error('Error initiating call', error.message, 'TwilioOpenAICall');
       return { success: false, error: error.message };
     }
@@ -423,7 +423,7 @@ export class TwilioOpenAICallService {
       logger.info(`Call hung up: ${callSid}`, undefined, 'TwilioOpenAICall');
       return true;
 
-    } catch (error: any) {
+    } catch (error) {
       logger.error('Error hanging up call', error.message, 'TwilioOpenAICall');
       return false;
     }

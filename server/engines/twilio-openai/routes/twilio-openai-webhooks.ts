@@ -96,7 +96,7 @@ router.post('/voice/incoming', async (req: Request, res: Response) => {
           phoneNumberId: phoneRecord.id,
         });
         logger.info(`Triggered inbound_call.received webhook for incoming call ${CallSid}`, undefined, 'TwilioOpenAI');
-      } catch (webhookError: any) {
+      } catch (webhookError) {
         logger.error(`Failed to trigger inbound_call.received webhook: ${webhookError.message}`, undefined, 'TwilioOpenAI');
       }
     }
@@ -268,7 +268,7 @@ router.post('/voice/incoming', async (req: Request, res: Response) => {
         campaign: null,
       });
       logger.info(`Triggered call.started webhook for incoming call ${callId}`, undefined, 'TwilioOpenAI');
-    } catch (webhookError: any) {
+    } catch (webhookError) {
       logger.error(`Failed to trigger call.started webhook: ${webhookError.message}`, undefined, 'TwilioOpenAI');
     }
 
@@ -285,7 +285,7 @@ router.post('/voice/incoming', async (req: Request, res: Response) => {
         phoneNumberId: phoneRecord.id,
       });
       logger.info(`Triggered inbound_call.answered webhook for call ${callId}`, undefined, 'TwilioOpenAI');
-    } catch (webhookError: any) {
+    } catch (webhookError) {
       logger.error(`Failed to trigger inbound_call.answered webhook: ${webhookError.message}`, undefined, 'TwilioOpenAI');
     }
 
@@ -303,7 +303,7 @@ router.post('/voice/incoming', async (req: Request, res: Response) => {
     res.type('text/xml');
     res.send(twiml);
 
-  } catch (error: any) {
+  } catch (error) {
     logger.error('Error handling incoming call', error, 'TwilioOpenAI');
     res.type('text/xml');
     res.send(`<?xml version="1.0" encoding="UTF-8"?>
@@ -375,7 +375,7 @@ router.post('/voice/answer', async (req: Request, res: Response) => {
     res.type('text/xml');
     res.send(twiml);
 
-  } catch (error: any) {
+  } catch (error) {
     logger.error('Error handling answer', error, 'TwilioOpenAI');
     res.type('text/xml');
     res.send(`<?xml version="1.0" encoding="UTF-8"?>
@@ -441,7 +441,7 @@ router.post('/voice/status', async (req: Request, res: Response) => {
           await webhookDeliveryService.triggerEvent(callRecord.companyId ?? null, callRecord.userId, 'call.voicemail', webhookPayload, callRecord.campaignId);
           logger.info(`Triggered call.voicemail webhook for call ${callRecord.id}`, undefined, 'TwilioOpenAI');
         }
-      } catch (webhookError: any) {
+      } catch (webhookError) {
         logger.error(`Failed to trigger status webhook for call ${callRecord.id}: ${webhookError.message}`, webhookError, 'TwilioOpenAI');
       }
     }
@@ -521,7 +521,7 @@ router.post('/voice/status', async (req: Request, res: Response) => {
               updates.status = 'credit_failed';
               updates.metadata = sql`COALESCE(metadata, '{}'::jsonb) || ${JSON.stringify({ creditError: creditResult.error, creditsRequired: creditsToDeduct })}::jsonb`;
             }
-          } catch (creditErr: any) {
+          } catch (creditErr) {
             logger.error(
               `Unexpected error during credit deduction for call ${callRecord.id}: ${creditErr.message}`,
               creditErr,
@@ -559,7 +559,7 @@ router.post('/voice/status', async (req: Request, res: Response) => {
             campaign: callRecord.campaignId ? { id: callRecord.campaignId } : null,
           });
           logger.info(`Triggered call.completed webhook for call ${callRecord.id}`, undefined, 'TwilioOpenAI');
-        } catch (webhookError: any) {
+        } catch (webhookError) {
           logger.error(`Failed to trigger call.completed webhook: ${webhookError.message}`, undefined, 'TwilioOpenAI');
         }
       }
@@ -586,7 +586,7 @@ router.post('/voice/status', async (req: Request, res: Response) => {
             await webhookDeliveryService.triggerEvent(callRecord.companyId ?? null, callRecord.userId, 'inbound_call.missed', inboundPayload);
             logger.info(`Triggered inbound_call.missed webhook for call ${callRecord.id}`, undefined, 'TwilioOpenAI');
           }
-        } catch (webhookError: any) {
+        } catch (webhookError) {
           logger.error(`Failed to trigger inbound call webhook: ${webhookError.message}`, undefined, 'TwilioOpenAI');
         }
       }
@@ -634,7 +634,7 @@ router.post('/voice/status', async (req: Request, res: Response) => {
               logger.info(`Triggered flow.failed webhook for call ${callRecord.id}`, undefined, 'TwilioOpenAI');
             }
           }
-        } catch (flowWebhookError: any) {
+        } catch (flowWebhookError) {
           logger.error(`Failed to trigger flow webhook: ${flowWebhookError.message}`, undefined, 'TwilioOpenAI');
         }
       }
@@ -658,7 +658,7 @@ router.post('/voice/status', async (req: Request, res: Response) => {
         } else if (result) {
           logger.info(`Outbound call ${callRecord.id} did not qualify for CRM lead`, undefined, 'TwilioOpenAI');
         }
-      } catch (crmError: any) {
+      } catch (crmError) {
         logger.error(`Failed to create CRM lead from outbound call: ${crmError.message}`, crmError, 'TwilioOpenAI');
       }
     }
@@ -676,14 +676,14 @@ router.post('/voice/status', async (req: Request, res: Response) => {
           callId: callRecord.id,
         }).catch(err => logger.error(`Post-call messaging error: ${err.message}`, err, 'TwilioOpenAI'));
         logger.info(`Triggered post-call messaging for call ${callRecord.id}`, undefined, 'TwilioOpenAI');
-      } catch (msgErr: any) {
+      } catch (msgErr) {
         logger.error(`Post-call messaging setup error: ${msgErr.message}`, msgErr, 'TwilioOpenAI');
       }
     }
 
     res.sendStatus(200);
 
-  } catch (error: any) {
+  } catch (error) {
     logger.error('Error handling status', error, 'TwilioOpenAI');
     res.sendStatus(200);
   }
@@ -730,7 +730,7 @@ router.post('/voice/recording', async (req: Request, res: Response) => {
 
     res.sendStatus(200);
 
-  } catch (error: any) {
+  } catch (error) {
     logger.error('Error handling recording status', error, 'TwilioOpenAI');
     res.sendStatus(200);
   }
