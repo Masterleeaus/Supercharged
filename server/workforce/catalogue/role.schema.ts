@@ -51,6 +51,8 @@ export const VERTICALS = [
   "real_estate_portfolio_management",
   "short_stay_host_management",
   "high_risk_cleaning",
+  "mobile_hairdressing",
+  "mobile_beauty",
 ] as const;
 
 export const CATEGORIES = [
