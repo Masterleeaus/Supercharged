@@ -19,6 +19,8 @@ export function createPgScheduledBookingStore(pool: SqlPool): ScheduledBookingSt
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
+        // Tenant context for the forced RLS policies in migration 0020 (transaction-local).
+        await client.query("SELECT set_config('app.company_id', $1, true)", [event.companyId]);
         const claim = await client.query(
           `INSERT INTO scheduled_booking_events
              (company_id, idempotency_key, event_id, event_type, booking_id, occurred_at)
