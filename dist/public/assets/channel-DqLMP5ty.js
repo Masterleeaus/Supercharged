@@ -1,0 +1,1 @@
+import{r as n}from"./index-DnosBAG_.js";const o=!1;function e(){return{enabled:!1,connected:!1,pending:null,notice:null,typed:{},secretSaved:{},replacing:{}}}function a(){return{telegram:e(),whatsapp:e(),messenger:e(),instagram:e()}}function u(t){const{chatbotId:r,disabled:s}=t,[l,c]=n.useState(a);return null}export{o as CHANNEL_STEP_ENABLED,u as default};
