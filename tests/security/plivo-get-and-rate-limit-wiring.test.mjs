@@ -49,7 +49,8 @@ test('no unguarded GET remains on the Plivo transfer path', () => {
   const transferGets = plivoRegistrations(src).filter(
     (r) => r.method === 'get' && r.path === '/api/plivo/voice/transfer',
   );
-  assert.equal(transferGets.length, 2, 'expected the two existing GET registrations');
+  // The second GET registration was shadowed by the first and has been removed (issue #319).
+  assert.equal(transferGets.length, 1, 'expected the one guarded GET registration');
   for (const r of transferGets) {
     assert.match(r.rest, /^\s*verifyPlivo\s*,/);
   }
