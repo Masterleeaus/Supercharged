@@ -74,14 +74,14 @@ export async function resyncSipTrunkConfigs(): Promise<void> {
         );
         updated++;
         logger.info(`   [SIP Config Resync] Updated [redacted] (media_encryption: ${phone.media_encryption})`);
-      } catch (error: any) {
+      } catch (error) {
         failed++;
         logger.warn(`   [SIP Config Resync] Failed [redacted]: ${error.message}`);
       }
     }
 
     logger.info(`[SIP Config Resync] Complete: ${updated} updated, ${failed} failed`);
-  } catch (error: any) {
+  } catch (error) {
     logger.warn(`[SIP Config Resync] Failed: ${error.message}`);
   }
 }
@@ -144,13 +144,13 @@ export async function resyncSipAgentTransferTools(): Promise<void> {
           });
           logger.info(`   ✅ Resynced agent tools: ${agent.name}`);
         }
-      } catch (error: any) {
+      } catch (error) {
         logger.warn(`   ⚠️  Failed to resync agent ${agent.name}: ${error.message}`);
       }
     }
 
     logger.info(`📞 [SIP Resync] Complete`);
-  } catch (error: any) {
+  } catch (error) {
     logger.warn(`⚠️  [SIP Resync] Failed: ${error.message}`);
   }
 }
@@ -195,14 +195,14 @@ export async function resyncAppointmentWebhookUrls(): Promise<void> {
         await elevenLabsService.refreshAppointmentToolWithCurrentDate(agent.eleven_labs_agent_id);
         updated++;
         logger.info(`   ✅ Resynced appointment webhook URL: ${agent.name}`);
-      } catch (error: any) {
+      } catch (error) {
         failed++;
         logger.warn(`   ⚠️ Failed to resync appointment for ${agent.name}: ${error.message}`);
       }
     }
 
     logger.info(`📅 [Appointment Resync] Complete: ${updated} updated, ${failed} failed`);
-  } catch (error: any) {
+  } catch (error) {
     logger.warn(`⚠️ [Appointment Resync] Failed: ${error.message}`);
   }
 }
@@ -314,8 +314,8 @@ export async function resyncFormWebhookUrls(): Promise<void> {
               options: f.options,
               order: f.order ?? 0,
             }));
-          } catch (fieldErr: any) {
-            logger.warn(`   ⚠️ [Form Resync] Failed to load fields for form ${formId}: ${(fieldErr as any).message}, skipping node`);
+          } catch (fieldErr) {
+            logger.warn(`   ⚠️ [Form Resync] Failed to load fields for form ${formId}: ${fieldErr.message}, skipping node`);
             continue;
           }
 
@@ -334,14 +334,14 @@ export async function resyncFormWebhookUrls(): Promise<void> {
 
         updated++;
         logger.info(`   ✅ Resynced form webhook URL(s) for: ${agent.name} (${newFormTools.length} form tool(s))`);
-      } catch (error: any) {
+      } catch (error) {
         failed++;
         logger.warn(`   ⚠️ Failed to resync form webhooks for ${agent.name}: ${error.message}`);
       }
     }
 
     logger.info(`📋 [Form Resync] Complete: ${updated} updated, ${skipped} skipped, ${failed} failed`);
-  } catch (error: any) {
+  } catch (error) {
     logger.warn(`⚠️ [Form Resync] Failed: ${error.message}`);
   }
 }
@@ -442,14 +442,14 @@ export async function resyncMessagingWebhookUrls(): Promise<void> {
 
         updated++;
         logger.info(`   ✅ Resynced messaging webhook URLs for: ${agent.name}`);
-      } catch (error: any) {
+      } catch (error) {
         failed++;
         logger.warn(`   ⚠️ Failed to resync messaging for ${agent.name}: ${error.message}`);
       }
     }
 
     logger.info(`💬 [Messaging Resync] Complete: ${updated} updated, ${skipped} skipped, ${failed} failed`);
-  } catch (error: any) {
+  } catch (error) {
     logger.warn(`⚠️ [Messaging Resync] Failed: ${error.message}`);
   }
 }
