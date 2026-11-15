@@ -937,7 +937,7 @@ export function createToolRegistry(options: ToolRegistryOptions): ToolRegistry {
       // R8: a predictive agent may only stage a write. A direct write is refused, and staged when the tool can be staged.
       if (actor.kind === 'agent' && actor.autonomy === 'predictive') {
         const gateDecision = refusePredictiveDirectWrite(definition.access ?? 'write');
-        if (!gateDecision.allowed) return stagePredictive(companyId, base, definition, actor, params, runId, gateDecision.detail);
+        if (gateDecision.allowed === false) return stagePredictive(companyId, base, definition, actor, params, runId, gateDecision.detail);
       }
 
       const autonomy = actor.kind === 'agent' ? actor.autonomy : 'user_only';
@@ -964,7 +964,7 @@ export function createToolRegistry(options: ToolRegistryOptions): ToolRegistry {
         } catch {
           return refuse(companyId, base, 'freshness_error', 'Freshness check failed. Nothing ran.');
         }
-        if (!verdict.ok) {
+        if (verdict.ok === false) {
           const refusal = await refuse(companyId, base, 'stale_data', 'Input depends on stale or undated context. Nothing ran.');
           return { ...refusal, reasons: verdict.reasons.map((f) => ({ kind: f.item.kind, reason: f.reason })) };
         }
