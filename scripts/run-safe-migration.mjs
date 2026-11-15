@@ -4,6 +4,7 @@
  * Applies migrations in order:
  *   - 0001_add_missing_columns.sql   — ADD COLUMN IF NOT EXISTS for missing agent/call columns
  *   - 0002_add_google_sheets_credentials.sql — CREATE TABLE IF NOT EXISTS for Google Sheets OAuth
+ *   - 0017_user_company_memberships.sql — user to company membership table (issue #130)
  *
  * Usage:  node scripts/run-safe-migration.mjs
  *         node scripts/run-safe-migration.mjs --dry-run   (prints the ordered list; no DB needed)
@@ -75,6 +76,7 @@ const MIGRATIONS = [
   { file: '0014_workforce_tool_tables.sql', required: true },
   { file: '0015_company_quiet_hours.sql', required: true },
   { file: '0016_chatbot_reminder_pipeline.sql', required: true },
+  { file: '0017_user_company_memberships.sql', required: true },
 ];
 
 const migrationPath = (file) => resolve(rootDir, 'migrations', file);

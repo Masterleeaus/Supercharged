@@ -134,6 +134,13 @@
       "when": 1794185130000,
       "tag": "0016_chatbot_reminder_pipeline",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1794300000000,
+      "tag": "0017_user_company_memberships",
+      "breakpoints": true
     }
   ]
 }

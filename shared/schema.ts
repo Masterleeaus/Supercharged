@@ -596,6 +596,16 @@ export const companyQuietHours = pgTable("company_quiet_hours", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// User to company membership (migration 0017, issue #130). A user can belong to several companies.
+export const userCompanyMemberships = pgTable("user_company_memberships", {
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  companyId: uuid("company_id").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.userId, table.companyId] }),
+  companyIdIdx: index("user_company_memberships_company_id_idx").on(table.companyId),
+}));
+
 // LLM Models - Available models with tier restrictions
 export const llmModels = pgTable("llm_models", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
