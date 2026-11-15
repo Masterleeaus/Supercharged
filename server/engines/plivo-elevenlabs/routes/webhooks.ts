@@ -17,14 +17,19 @@ import { eq, sql } from 'drizzle-orm';
 import { deductCallCredits } from '../../../services/credit-service';
 import { logger } from '../../../utils/logger';
 import { ElevenLabsPoolService } from '../../../services/elevenlabs-pool';
+import { requirePlivoV2Signature } from '../../plivo/plivo-signature';
+import { loadPlivoElevenLabsAuthTokens } from '../webhook-auth-tokens';
 
 export function setupPlivoElevenLabsWebhooks(app: Express, baseUrl: string): void {
-  
+  // Every route below verifies X-Plivo-Signature-V2 before its handler runs. A missing or
+  // invalid signature gets 403 and the handler never reads the body or touches credits.
+  const verifyPlivoSignature = requirePlivoV2Signature(baseUrl, loadPlivoElevenLabsAuthTokens);
+
   /**
    * Answer URL for SIP trunk calls
    * Returns XML with Stream instruction to connect to our WebSocket
    */
-  app.post('/api/plivo-elevenlabs/voice/answer', async (req: Request, res: Response) => {
+  app.post('/api/plivo-elevenlabs/voice/answer', verifyPlivoSignature, async (req: Request, res: Response) => {
     try {
       const { CallUUID, From, To, Direction } = req.body;
       
@@ -51,7 +56,7 @@ export function setupPlivoElevenLabsWebhooks(app: Express, baseUrl: string): voi
   /**
    * Answer URL with call ID path (for outbound calls)
    */
-  app.post('/api/plivo-elevenlabs/voice/:callId', async (req: Request, res: Response) => {
+  app.post('/api/plivo-elevenlabs/voice/:callId', verifyPlivoSignature, async (req: Request, res: Response) => {
     try {
       const { callId } = req.params;
       const { CallUUID, From, To, Direction } = req.body;
@@ -101,7 +106,7 @@ export function setupPlivoElevenLabsWebhooks(app: Express, baseUrl: string): voi
   /**
    * Status callback
    */
-  app.post('/api/plivo-elevenlabs/voice/status', async (req: Request, res: Response) => {
+  app.post('/api/plivo-elevenlabs/voice/status', verifyPlivoSignature, async (req: Request, res: Response) => {
     try {
       const { CallUUID, CallStatus, Duration, HangupCause } = req.body;
       
@@ -266,7 +271,7 @@ export function setupPlivoElevenLabsWebhooks(app: Express, baseUrl: string): voi
   /**
    * Incoming call handler for SIP trunk
    */
-  app.post('/api/plivo-elevenlabs/incoming', async (req: Request, res: Response) => {
+  app.post('/api/plivo-elevenlabs/incoming', verifyPlivoSignature, async (req: Request, res: Response) => {
     try {
       const { CallUUID, From, To, Direction } = req.body;
       
