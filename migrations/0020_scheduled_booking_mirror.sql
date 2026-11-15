@@ -1,6 +1,6 @@
 
 -- ============================================================
--- Migration 0018: read-only mirror of Scheduled bookings (Sc3, Central integration).
+-- Migration 0020: read-only mirror of Scheduled bookings (Sc3, Central integration).
 --
 -- Scheduled owns bookings. This migration only adds a local copy of the booking
 -- state that Scheduled announces through Central's signed events
