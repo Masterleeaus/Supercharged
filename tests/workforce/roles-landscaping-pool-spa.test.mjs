@@ -30,8 +30,8 @@ test('landscaping is served by garden roles, including landscape design intake',
 
 test('pool and spa servicing is served by pool roles', () => {
   assert.ok(VERTICALS.includes('pool'));
-  // Cross-vertical managers (for example go-manager) also list 'pool'. Count only the pool intake roles.
-  const poolIntake = byVertical('pool').filter((r) => !r.id.endsWith('-manager'));
+  // Count pool intake roles: pool- id prefix, excluding manager roles (e.g. go-manager) that also carry the pool vertical.
+  const poolIntake = byVertical('pool').filter((r) => r.id.startsWith('pool-') && !r.id.endsWith('-manager'));
   assert.equal(poolIntake.length, 8);
 });
 
