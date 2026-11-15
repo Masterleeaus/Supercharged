@@ -161,14 +161,14 @@ test('the PostgreSQL store claims the key in a transaction and reports duplicate
   assert.deepEqual(sql.slice(5, 8), ['BEGIN', 'INSERT INTO scheduled_booking_events', 'COMMIT']);
 });
 
-test('migration 0018 is additive and registered in the runner and the journal', () => {
-  const sql = readFileSync(new URL('../../migrations/0018_scheduled_booking_mirror.sql', import.meta.url), 'utf8');
+test('migration 0020 is additive and registered in the runner and the journal', () => {
+  const sql = readFileSync(new URL('../../migrations/0020_scheduled_booking_mirror.sql', import.meta.url), 'utf8');
   assert.match(sql, /CREATE TABLE IF NOT EXISTS scheduled_booking_events/);
   assert.match(sql, /CREATE TABLE IF NOT EXISTS scheduled_booking_mirror/);
   const body = sql.split('\n').filter((l) => !l.startsWith('--')).join('\n');
   assert.doesNotMatch(body, /\b(DROP|ALTER|RENAME|TRUNCATE|DELETE)\b/i);
   const runner = readFileSync(new URL('../../scripts/run-safe-migration.mjs', import.meta.url), 'utf8');
-  assert.match(runner, /\{ file: '0018_scheduled_booking_mirror\.sql', required: true \}/);
+  assert.match(runner, /\{ file: '0020_scheduled_booking_mirror\.sql', required: true \}/);
   const journal = JSON.parse(readFileSync(new URL('../../migrations/meta/_journal.json', import.meta.url), 'utf8'));
-  assert.equal(journal.entries.at(-1).tag, '0018_scheduled_booking_mirror');
+  assert.equal(journal.entries.at(-1).tag, '0020_scheduled_booking_mirror');
 });
