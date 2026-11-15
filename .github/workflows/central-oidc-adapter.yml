@@ -22,4 +22,4 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Verify company-scoped Central identity and JWT session boundaries
-        run: node --test --experimental-transform-types tests/infrastructure/central-sso-account-resolver.test.mjs tests/infrastructure/central-sso-session-gate.test.mjs
+        run: node --test --experimental-transform-types tests/infrastructure/central-sso-account-resolver.test.mjs tests/infrastructure/central-sso-session-gate.test.mjs tests/infrastructure/central-sso-oidc-flow.test.mjs tests/infrastructure/central-sso-service-client.test.mjs
