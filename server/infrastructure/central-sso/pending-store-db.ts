@@ -17,7 +17,7 @@ export const PENDING_MAX_ENTRIES = 1000;
 const MAX_TTL_MS = 10 * 60 * 1000;
 
 export function pendingStateHash(state: string): string {
- return createHash('sha256').update(state, 'utf8').digest('hex');
+ return createHash('sha256').update(state).digest('hex');
 }
 
 export function createDatabasePendingStore({db, maxEntries = PENDING_MAX_ENTRIES}: {db: PendingQueryable; maxEntries?: number}): PendingStore {
