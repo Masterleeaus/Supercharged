@@ -61,3 +61,23 @@ Files: conversation-store.ts (storage port and memory store), conversation-runti
 - 2026-11-09. Conversation events (chatbot.conversation.created, archived, merged) are published by store-events.ts after the store call returns, so only committed changes are published. The events processor relays only inbox topics (events/outbox.ts isInboxTopic), so there is no double publish.
 - 2026-11-09. Voice idle end reason: voice/voice-service.ts already ends idle sessions with the reason "idle" (VOICE_END_REASONS). The PHP reference has no idle end reason, so no PHP name exists to match. No change made in voice/. The DB check constraint (db/voice.ts sessionEndReasonCheck and migrations-draft/0002_voice.sql) now allows idle, added 2026-11-09 (UNVERIFIED against Postgres.)
 - 2026-11-09. Outbox: channels/outbox.ts was not changed. enqueue already takes the transaction handle. The channel outbox does not emit per-row sent or failed events, so there is nothing to wire to realtime yet. Change request if the owner wants delivery status pushed.
+
+## Widget and channel reply path (2026-11-15, issue #22)
+
+Files: runtime/customer-turn.ts, runtime/channel-receipts.ts, runtime/widget-message-port.ts, runtime/reply-storage.ts, wiring/reply-stack.ts. Tests: tests/modules/chatbot-reply-path.test.mjs.
+
+- 2026-11-15. The stubs in server/routes/core/chatbot-wiring-routes.ts are replaced by createChatbotReplyStack (wiring/reply-stack.ts). It is built only when the widget or channels flag is on and a secret box exists. Reason: flags-off startup stays unchanged.
+- 2026-11-15. Inbound and reply paths both use the conversation store (Drizzle in production). The reply runtime reads through an adapter (reply-storage.ts) that maps conversation-store rows to the chatbot storage shapes. Reason: one store for the reply transaction, so a reply and its channel send commit together.
+- 2026-11-15. ConversationStore gains findConversationByThread (chatbot, channel, thread), memory and Drizzle. Newest row wins. Status is not filtered; the caller decides.
+- 2026-11-15. Channel conversation thread = "<accountId>|<external thread id>". Account ids containing "|" are refused. Reason: avoids a schema change and keeps two accounts from sharing a conversation. The send recipient is the part after the first "|".
+- 2026-11-15. Customer message id from a channel message is derived from company, channel, account and external message id (sha256). A redelivered webhook finds the row and stores nothing twice. The reply runtime's turn claim then answers duplicate, so no second reply or send row.
+- 2026-11-15. Chatbot for a channel account = the company's only active chatbot. Zero or several means no reply and a log line. Owner decision: a per-account chatbot link is not in the schema.
+- 2026-11-15. Non-text inbound messages (image, audio, interactive, unknown) are logged and skipped. Not stored, not answered. Reason: no media handling exists in the reply path.
+- 2026-11-15. A conversation that is archived or merged keeps the new customer message but gets no reply. Reason: staff must still see it.
+- 2026-11-15. Model per provider comes from CHATBOT_REPLY_MODEL_OPENAI, CHATBOT_REPLY_MODEL_ANTHROPIC and CHATBOT_REPLY_MODEL_GEMINI. Unset means that provider is skipped; with none, every reply is provider_unavailable and nothing is stored. Owner to confirm these names and any default models.
+- 2026-11-15. Reply timeout 30 seconds (REPLY_TIMEOUT_MS). Provider responses are read up to 2 MB through the pinned HTTP client with the webhook address resolver.
+- 2026-11-15. Writer lock is passThroughLock (database deployment). Thread creation is serialised in process only. Gap: two processes can create two conversations for the same thread at the same moment. A unique index would close it; it is not in the draft migrations.
+- 2026-11-15. Replies are text only. A WhatsApp reply outside the 24-hour window is sent as text and may be refused by the provider; template sends are not chosen here.
+- 2026-11-15. Not done: the channel outbox drain is not started by any worker. Replies are stored with their send row, but nothing sends them until the drain is wired.
+- 2026-11-15. Not done: the tables these paths use (chatbot_reply_turns, chatbot_channel_outbox, chatbot_channel_accounts, widget tables) exist only in db/migrations-draft. Promotion needs owner approval and a number. Until then flags-on requests fail at the database.
+- 2026-11-15. Telegram gate: wiring/mount.ts already mounts the Telegram router only when CHATBOT_TELEGRAM_CHANNEL_ENABLED is "true", and the router checks it again. The HANDOFF note saying otherwise was stale. Covered by existing mount and router tests.

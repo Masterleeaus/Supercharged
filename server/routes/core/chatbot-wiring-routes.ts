@@ -6,11 +6,21 @@ import { mountChatbotModule, WIRING_FLAGS } from "../../modules/chatbot/wiring/m
 import { resolveAgentStaffIdentity } from "../../modules/chatbot/agent-routes/staff-identity.ts";
 import { CONTRACT_FLAGS, readFlag } from "../../modules/chatbot/contracts/flags.ts";
 import { createSecretBox } from "../../modules/chatbot/secrets/secret-box.ts";
+import { createChatbotReplyStack } from "../../modules/chatbot/wiring/reply-stack.ts";
 import { startChatbotWorkersFromEnv } from "../../modules/chatbot/workers/boot.ts";
 import { captureChatbotWebhookRawBody } from "../../middleware/raw-body.ts";
 import { registerApprovalModule } from "../../modules/approvals/index.ts";
 import { requireCompanyScope } from "../../middleware/company-scope";
 import type { RouteContext } from "./shared";
+
+const unavailableWidgetMessages = {
+  send: async () => {
+    throw new Error("chatbot widget reply stack is not available");
+  },
+};
+const unavailableReceipt = async () => {
+  throw new Error("chatbot channel reply stack is not available");
+};
 
 export function registerChatbotWiringRoutes(app: Express, deps: { routeContext: RouteContext }): void {
   const { routeContext } = deps;
@@ -28,6 +38,11 @@ export function registerChatbotWiringRoutes(app: Express, deps: { routeContext: 
     readFlag(flag, process.env),
   );
   const chatbotSecretBox = chatbotSecretsOn ? createSecretBox({ env: process.env }) : undefined;
+  // The reply stack is built only when a surface that uses it is on, so flags-off startup is unchanged.
+  const replyOn = readFlag(WIRING_FLAGS.WIDGET, process.env) || readFlag(WIRING_FLAGS.CHANNELS, process.env);
+  const replyStack = replyOn && chatbotSecretBox
+    ? createChatbotReplyStack({ db, env: process.env, secretBox: chatbotSecretBox })
+    : undefined;
   mountChatbotModule(app, {
     db,
     env: process.env,
@@ -38,12 +53,14 @@ export function registerChatbotWiringRoutes(app: Express, deps: { routeContext: 
     // come from that user only, never from headers or body. A user with no company gets 403, no identity gets 401.
     agentAuthenticate: resolveAgentStaffIdentity,
     secretBox: chatbotSecretBox,
-    // No reply runtime or receipt store is wired yet. These stubs keep startup working and refuse the work itself.
+    // Widget and channel replies come from the reply stack over the Desk db. Without a secret box the stack cannot be
+    // built; mountChatbotModule then refuses to mount those surfaces when their flags are on, so the fallback below is
+    // only reached when the surfaces are off.
     widget: {
-      messages: { send: async () => { throw new Error("chatbot widget reply runtime is not wired"); } },
+      messages: replyStack?.widget ?? unavailableWidgetMessages,
       assetBaseUrl: process.env.CHATBOT_WIDGET_ASSET_BASE_URL ?? "",
     },
-    channels: { onReceipt: async () => { throw new Error("chatbot channel receipt store is not wired"); } },
+    channels: { onReceipt: replyStack?.channels.onReceipt ?? unavailableReceipt },
   });
   // Chatbot background workers. Off unless CHATBOT_WORKERS_ENABLED is exactly "true"; then only the services whose own
   // flag is on are built and passed in (see workers/boot.ts). Voice-call limits are not built: no production provider.
