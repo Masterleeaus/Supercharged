@@ -51,6 +51,7 @@ jobs:
           - client/src/lib
           - client/src/widget
           - client/src/i18n
+          - client/src/pages
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
