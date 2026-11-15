@@ -779,7 +779,7 @@ function VoiceAIPanel() {
           : t("adminDashboard.voiceAI.toasts.plivoDisabled")
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t("adminDashboard.voiceAI.toasts.updateFailed"),
         description: error.message,
@@ -806,7 +806,7 @@ function VoiceAIPanel() {
           : t("adminDashboard.voiceAI.toasts.twilioDisabled")
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t("adminDashboard.voiceAI.toasts.updateFailed"),
         description: error.message,

@@ -151,7 +151,7 @@ export default function FormsPage() {
       toast({ title: t("forms.toast.created") });
       handleCloseCreate();
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t("forms.toast.createFailed"),
         description: error.message,
@@ -168,7 +168,7 @@ export default function FormsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/flow-automation/forms"] });
       toast({ title: t("forms.toast.deleted") });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t("forms.toast.deleteFailed"),
         description: error.message,
@@ -206,7 +206,7 @@ export default function FormsPage() {
       toast({ title: "Form updated successfully" });
       handleCloseEdit();
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: "Failed to update form",
         description: error.message,
@@ -236,10 +236,10 @@ export default function FormsPage() {
       
       setEditFields(mappedFields);
       setEditDialogOpen(true);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Failed to load form details",
-        description: error.message,
+        description: (error as Error).message,
         variant: "destructive",
       });
     }

@@ -190,7 +190,7 @@ export default function CampaignDetail() {
         description: t('campaignDetail.toast.batchCancelledDesc'),
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('campaignDetail.toast.batchCancelFailed'),
         description: error.message || t('common.tryAgain'),
@@ -209,7 +209,7 @@ export default function CampaignDetail() {
         description: t('campaignDetail.toast.retryInitiatedDesc'),
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('campaignDetail.toast.retryFailed'),
         description: error.message || t('common.tryAgain'),

@@ -588,7 +588,7 @@ export default function WidgetsPage() {
       resetForm();
       toast({ title: t('widgetsPage.toasts.created', 'Widget created'), description: t('widgetsPage.toasts.createdDesc', 'Your website widget has been created successfully.') });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       const message = error?.message || t('common.error', 'Error');
       toast({ title: t('common.error', 'Error'), description: message, variant: "destructive" });
     },
@@ -651,7 +651,7 @@ export default function WidgetsPage() {
       resetForm();
       toast({ title: t('widgetsPage.toasts.updated', 'Widget updated'), description: t('widgetsPage.toasts.updatedDesc', 'Your widget has been updated successfully.') });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({ title: t('common.error', 'Error'), description: error.message || t('widgetsPage.toasts.updatedFailed', 'Failed to update widget'), variant: "destructive" });
     },
   });
@@ -664,7 +664,7 @@ export default function WidgetsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/widgets-limits"] });
       toast({ title: t('widgetsPage.toasts.deleted', 'Widget deleted'), description: t('widgetsPage.toasts.deletedDesc', 'Your widget has been deleted.') });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({ title: t('common.error', 'Error'), description: error.message || t('widgetsPage.toasts.deleteFailed', 'Failed to delete widget'), variant: "destructive" });
     },
   });
@@ -675,7 +675,7 @@ export default function WidgetsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/widgets"] });
       toast({ title: t('widgetsPage.toasts.tokenRegenerated', 'Token regenerated'), description: t('widgetsPage.toasts.tokenRegeneratedDesc', 'A new embed token has been generated.') });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({ title: t('common.error', 'Error'), description: error.message || t('widgetsPage.toasts.regenerateFailed', 'Failed to regenerate token'), variant: "destructive" });
     },
   });

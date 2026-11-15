@@ -525,7 +525,7 @@ export default function FlowBuilderPage() {
         setLocation(`/app/flows/${data.id}`);
       }
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t("flows.toast.saveError"),
         description: error.message,

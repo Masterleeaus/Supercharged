@@ -258,7 +258,7 @@ export default function WebhookConfigPage() {
       toast({ title: t('webhooks.toast.created') });
       handleCloseCreate();
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('webhooks.toast.createFailed'),
         description: error.message,
@@ -276,7 +276,7 @@ export default function WebhookConfigPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/webhooks/limits"] });
       toast({ title: t('webhooks.toast.deleted') });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('webhooks.toast.deleteFailed'),
         description: error.message,
@@ -294,7 +294,7 @@ export default function WebhookConfigPage() {
       toast({ title: t('webhooks.toast.testSent') });
       queryClient.invalidateQueries({ queryKey: ["/api/webhooks", id, "logs"] });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('webhooks.toast.testFailed'),
         description: error.message,
@@ -313,7 +313,7 @@ export default function WebhookConfigPage() {
         queryClient.invalidateQueries({ queryKey: ["/api/webhooks", selectedWebhook.id, "logs"] });
       }
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('webhooks.toast.retryFailed'),
         description: error.message,

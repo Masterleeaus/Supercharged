@@ -273,7 +273,7 @@ export default function IncomingConnectionsPage() {
       setSelectedAgentId("");
       setSelectedPhoneId("");
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: "destructive",
         title: t("incomingConnections.toast.createFailed"),
@@ -294,7 +294,7 @@ export default function IncomingConnectionsPage() {
       });
       setDeleteConnection(null);
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: "destructive",
         title: t("incomingConnections.toast.deleteFailed"),
@@ -318,7 +318,7 @@ export default function IncomingConnectionsPage() {
       setSelectedCveAgentId("");
       setSelectedCvePhoneId("");
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: "destructive",
         title: "Failed to Create Connection",
@@ -339,7 +339,7 @@ export default function IncomingConnectionsPage() {
       });
       setCveDeleteConnection(null);
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: "destructive",
         title: "Failed to Remove Connection",
@@ -395,7 +395,7 @@ export default function IncomingConnectionsPage() {
       setSelectedPlivoAgentId("");
       setSelectedPlivoPhoneId("");
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: "destructive",
         title: "Failed to Create Connection",
@@ -416,7 +416,7 @@ export default function IncomingConnectionsPage() {
       });
       setPlivoDeleteConnection(null);
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: "destructive",
         title: "Failed to Remove Connection",
@@ -464,7 +464,7 @@ export default function IncomingConnectionsPage() {
       setSelectedTwilioOpenaiAgentId("");
       setSelectedTwilioOpenaiPhoneId("");
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: "destructive",
         title: "Failed to Create Connection",
@@ -485,7 +485,7 @@ export default function IncomingConnectionsPage() {
       });
       setTwilioOpenaiDeleteConnection(null);
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: "destructive",
         title: "Failed to Remove Connection",

@@ -179,7 +179,7 @@ function UpdateStatusModal({ appointment, onClose }: UpdateStatusModalProps) {
       toast({ title: "Status updated successfully" });
       onClose();
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({ title: "Failed to update status", description: error.message, variant: "destructive" });
     },
   });
@@ -489,7 +489,7 @@ export default function AppointmentsPage() {
       toast({ title: t("appointments.toast.settingsSaved") });
       setSettingsOpen(false);
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({ title: t("appointments.toast.settingsFailed"), description: error.message, variant: "destructive" });
     },
   });

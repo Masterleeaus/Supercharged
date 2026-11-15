@@ -155,6 +155,15 @@ interface PlivoIncomingConnection {
   agent?: { id: string; name: string; type?: string; telephonyProvider?: string; } | null;
 }
 
+/** Purchase error body the API returns for missing address, bundle or KYC. */
+type PurchaseErrorData = {
+  addressRequired?: boolean;
+  bundleRequired?: boolean;
+  kycRequired?: boolean;
+  country?: string;
+  [key: string]: unknown;
+};
+
 export default function PhoneNumbers() {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -363,9 +372,9 @@ export default function PhoneNumbers() {
       setTwilioSearchType("local");
       toast({ title: t('phoneNumbers.toast.purchaseSuccess'), description: t('phoneNumbers.toast.creditsDeducted', { credits: MONTHLY_CREDITS }) });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       // ApiError includes 'data' field with full JSON response from server
-      const errorData = error.data || error;
+      const errorData = ((error as Error & { data?: PurchaseErrorData }).data || error) as PurchaseErrorData;
       
       // Check if the error response indicates address is required
       if (errorData.addressRequired) {
@@ -412,7 +421,7 @@ export default function PhoneNumbers() {
       setNumberToRelease(null);
       toast({ title: t('phoneNumbers.toast.releaseSuccess') });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('phoneNumbers.toast.releaseFailed'),
         description: error.message || t('common.tryAgain'),
@@ -435,7 +444,7 @@ export default function PhoneNumbers() {
       setPlivoSearchRegion("");
       toast({ title: "Plivo Number Purchased", description: "Your new phone number has been added to your account." });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: "Purchase Failed",
         description: error.message || t('common.tryAgain'),
@@ -456,7 +465,7 @@ export default function PhoneNumbers() {
       setPlivoNumberToRelease(null);
       toast({ title: "Number Released", description: "The phone number has been released." });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: "Release Failed",
         description: error.message || t('common.tryAgain'),

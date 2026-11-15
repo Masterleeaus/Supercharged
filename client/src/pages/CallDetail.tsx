@@ -201,9 +201,9 @@ export default function CallDetail() {
           } else {
             console.error('Failed to fetch recording:', response.statusText);
           }
-        } catch (error: any) {
+        } catch (error: unknown) {
           // Ignore abort errors
-          if (error.name !== 'AbortError') {
+          if ((error as Error).name !== 'AbortError') {
             console.error('Failed to fetch recording:', error);
           }
         }

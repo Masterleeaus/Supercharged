@@ -133,7 +133,7 @@ export default function Integrations() {
       setIsCreateDialogOpen(false);
       setFormData({ name: '', url: '', campaignId: '' });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('integrations.toast.createFailed'),
         description: error.message || t('integrations.toast.createFailedDesc'),
@@ -153,7 +153,7 @@ export default function Integrations() {
         description: t('integrations.toast.updatedDesc'),
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('integrations.toast.updateFailed'),
         description: error.message || t('integrations.toast.updateFailedDesc'),
@@ -174,7 +174,7 @@ export default function Integrations() {
       });
       setWebhookToDelete(null);
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('integrations.toast.deleteFailed'),
         description: error.message || t('integrations.toast.deleteFailedDesc'),
@@ -193,7 +193,7 @@ export default function Integrations() {
         description: t('integrations.toast.testSentDesc'),
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('integrations.toast.testFailed'),
         description: error.message || t('integrations.toast.testFailedDesc'),

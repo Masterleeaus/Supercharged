@@ -106,7 +106,7 @@ export default function FlowsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/usage"] });
       setFlowToDelete(null);
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('flows.errorDeleting'),
         description: error.message,
@@ -128,7 +128,7 @@ export default function FlowsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/flow-automation/flows"] });
       queryClient.invalidateQueries({ queryKey: ["/api/usage"] });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('flows.errorUpdating'),
         description: error.message,
@@ -156,7 +156,7 @@ export default function FlowsPage() {
         setLocation(`/app/flows/${data.id}`);
       }
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('flows.errorCreating'),
         description: error.message,
@@ -298,7 +298,7 @@ export default function FlowsPage() {
         setLocation(`/app/flows/${data.id}`);
       }
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('flows.errorCreatingTemplate'),
         description: error.message,
