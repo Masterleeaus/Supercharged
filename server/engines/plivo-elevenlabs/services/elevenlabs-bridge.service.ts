@@ -22,6 +22,19 @@ import type { CallSession, TranscriptPart, ElevenLabsAgentConfig, ElevenLabsWebS
 import { PlivoElevenLabsConfig } from '../config/config';
 import { logger } from '../../../utils/logger';
 
+interface ElevenLabsInitMessage {
+  type: string;
+  conversation_config_override: {
+    agent: {
+      first_message?: string;
+      language: string;
+      prompt: { prompt: string };
+    };
+    tts: { voice_id?: string };
+  };
+  dynamic_data?: Record<string, string>;
+}
+
 const SESSION_PREFIX = 'plivo-elevenlabs:';
 const SESSION_MAX_AGE_MS = 30 * 60 * 1000;
 const SESSION_CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
@@ -61,8 +74,8 @@ export class ElevenLabsBridgeService {
       const age = now - session.startedAt.getTime();
       if (age > SESSION_MAX_AGE_MS) {
         logger.warn(`Cleaning up stale session ${key} (age: ${Math.round(age / 1000)}s)`, undefined, 'PlivoElevenLabsBridge');
-        if (session.elevenLabsWs && (session.elevenLabsWs as any).readyState === WebSocket.OPEN) {
-          (session.elevenLabsWs as any).close();
+        if (session.elevenLabsWs && session.elevenLabsWs.readyState === WebSocket.OPEN) {
+          session.elevenLabsWs.close();
         }
         this.activeSessions.delete(key);
         cleaned++;
@@ -106,7 +119,7 @@ export class ElevenLabsBridgeService {
     try {
       await this.connectToElevenLabs(session, elevenLabsApiKey, agentConfig);
       return session;
-    } catch (error: any) {
+    } catch (error) {
       logger.error('Failed to create session', error.message, 'PlivoElevenLabsBridge');
       session.status = 'error';
       this.activeSessions.delete(sessionKey);
@@ -134,7 +147,7 @@ export class ElevenLabsBridgeService {
         },
       });
       
-      session.elevenLabsWs = ws as any;
+      session.elevenLabsWs = ws;
       
       ws.on('open', () => {
         logger.info(`ElevenLabs WebSocket connected for ${session.callUuid}`, undefined, 'PlivoElevenLabsBridge');
@@ -150,7 +163,7 @@ export class ElevenLabsBridgeService {
           finalPrompt = `Today's date is ${todayStr}.`;
         }
 
-        const initMessage: any = {
+        const initMessage: ElevenLabsInitMessage = {
           type: 'conversation_initiation_client_data',
           conversation_config_override: {
             agent: {
@@ -250,8 +263,8 @@ export class ElevenLabsBridgeService {
               type: 'pong',
               event_id: message.ping_event.event_id,
             };
-            if (session.elevenLabsWs && (session.elevenLabsWs as any).readyState === WebSocket.OPEN) {
-              (session.elevenLabsWs as any).send(JSON.stringify(pongMessage));
+            if (session.elevenLabsWs && session.elevenLabsWs.readyState === WebSocket.OPEN) {
+              session.elevenLabsWs.send(JSON.stringify(pongMessage));
             }
           }
           break;
@@ -263,7 +276,7 @@ export class ElevenLabsBridgeService {
         default:
           break;
       }
-    } catch (error: any) {
+    } catch (error) {
       logger.error('Error handling message', error.message, 'PlivoElevenLabsBridge');
     }
   }
@@ -272,7 +285,7 @@ export class ElevenLabsBridgeService {
    * Send audio to Plivo stream
    */
   private static sendToPlivoStream(session: CallSession, audioBase64: string): void {
-    if (!session.plivoWs || (session.plivoWs as any).readyState !== WebSocket.OPEN) {
+    if (!session.plivoWs || session.plivoWs.readyState !== WebSocket.OPEN) {
       return;
     }
     
@@ -284,7 +297,7 @@ export class ElevenLabsBridgeService {
       },
     };
     
-    (session.plivoWs as any).send(JSON.stringify(mediaMessage));
+    session.plivoWs.send(JSON.stringify(mediaMessage));
   }
   
   /**
@@ -298,7 +311,7 @@ export class ElevenLabsBridgeService {
       return;
     }
     
-    if (!session.elevenLabsWs || (session.elevenLabsWs as any).readyState !== WebSocket.OPEN) {
+    if (!session.elevenLabsWs || session.elevenLabsWs.readyState !== WebSocket.OPEN) {
       return;
     }
     
@@ -311,8 +324,8 @@ export class ElevenLabsBridgeService {
         user_audio_chunk: pcmBase64,
       };
       
-      (session.elevenLabsWs as any).send(JSON.stringify(audioMessage));
-    } catch (error: any) {
+      session.elevenLabsWs.send(JSON.stringify(audioMessage));
+    } catch (error) {
       logger.error('Error processing audio', error.message, 'PlivoElevenLabsBridge');
     }
   }
@@ -325,7 +338,7 @@ export class ElevenLabsBridgeService {
     const session = this.activeSessions.get(sessionKey);
     
     if (session) {
-      session.plivoWs = plivoWs as any;
+      session.plivoWs = plivoWs;
       session.streamSid = streamSid;
       logger.info(`Plivo WebSocket set for ${callUuid}, streamSid: ${streamSid}`, undefined, 'PlivoElevenLabsBridge');
     } else {
@@ -368,8 +381,8 @@ export class ElevenLabsBridgeService {
     session.status = 'disconnected';
     session.endedAt = new Date();
     
-    if (session.elevenLabsWs && (session.elevenLabsWs as any).readyState === WebSocket.OPEN) {
-      (session.elevenLabsWs as any).close();
+    if (session.elevenLabsWs && session.elevenLabsWs.readyState === WebSocket.OPEN) {
+      session.elevenLabsWs.close();
     }
     
     const duration = Math.floor((session.endedAt.getTime() - session.startedAt.getTime()) / 1000);

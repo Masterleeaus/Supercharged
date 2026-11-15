@@ -134,7 +134,7 @@ function handleStreamConnection(ws: WebSocket, callUuid: string): void {
         default:
           break;
       }
-    } catch (error: any) {
+    } catch (error) {
       logger.error(`[Plivo-ElevenLabs Stream] Error processing message:`, error.message);
     }
   });
@@ -148,7 +148,7 @@ function handleStreamConnection(ws: WebSocket, callUuid: string): void {
       try {
         const result = await ElevenLabsBridgeService.endSession(callUuid);
         logger.info(`[Plivo-ElevenLabs Stream] Session ended: duration=${result.duration}s, transcript parts=${result.transcript.length}`);
-      } catch (err: any) {
+      } catch (err) {
         logger.error(`[Plivo-ElevenLabs Stream] Error ending session:`, err.message);
       }
     }

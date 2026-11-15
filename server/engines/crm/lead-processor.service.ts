@@ -24,10 +24,34 @@
  */
 
 import { db } from '../../db';
-import { leads, calls, plivoCalls, twilioOpenaiCalls, sipCalls, appointments, AI_LEAD_CATEGORIES, type AILeadCategory } from '@shared/schema';
+import { leads, calls, plivoCalls, twilioOpenaiCalls, sipCalls, appointments, AI_LEAD_CATEGORIES, type AILeadCategory, type Appointment, type InsertLead } from '@shared/schema';
 import { CRMStorage } from '../../storage/crm-storage';
 import { eq, and, or, sql } from 'drizzle-orm';
 import { logger } from '../../utils/logger';
+
+/** Row shape read from ve_sessions (Custom Voice Engine). */
+interface VeSessionRow {
+  id: string;
+  user_id: string;
+  company_id?: string | null;
+  status?: string | null;
+  direction?: string | null;
+  from_number?: string | null;
+  to_number?: string | null;
+  duration_seconds?: number | null;
+  metadata?: string | Record<string, unknown> | null;
+  transcript?: string | unknown[] | null;
+  ai_summary?: string | null;
+  sentiment?: string | null;
+  classification?: string | null;
+}
+
+/** One turn of a stored call transcript. */
+interface TranscriptTurn {
+  role?: string;
+  content?: string;
+  message?: string;
+}
 
 export interface CallData {
   id: string;
@@ -351,7 +375,7 @@ export class CRMLeadProcessor {
           description: `Lead auto-created from ${callData.engine} ${callData.callDirection} call`,
           metadata: {
             callId: callData.id,
-          } as any,
+          },
         });
       } catch (activityError) {
         logger.error(`${this.LOG_PREFIX} Failed to create activity:`, activityError);
@@ -389,7 +413,7 @@ export class CRMLeadProcessor {
         }, callData.campaignId);
         
         logger.info(`${this.LOG_PREFIX} Triggered form.lead_created webhook event for lead ${lead.id}`);
-      } catch (webhookError: any) {
+      } catch (webhookError) {
         logger.error(`${this.LOG_PREFIX} Failed to trigger form.lead_created webhook:`, webhookError.message);
       }
 
@@ -495,8 +519,8 @@ export class CRMLeadProcessor {
       aiInsights.engagementScore,
       aiInsights.leadScore,
       aiInsights.score,
-      (callData.metadata as any)?.leadScore,
-      (callData.metadata as any)?.engagementScore,
+      callData.metadata?.leadScore,
+      callData.metadata?.engagementScore,
     ];
 
     for (const source of sources) {
@@ -623,7 +647,7 @@ export class CRMLeadProcessor {
 
   private static async checkAppointmentInDatabase(callData: CallData): Promise<Record<string, unknown> | null> {
     try {
-      const formatAppt = (appt: any, matchedBy: string) => {
+      const formatAppt = (appt: Appointment, matchedBy: string) => {
         logger.info(`${this.LOG_PREFIX} Found appointment ${appt.id} in database for call ${callData.id} (matched by: ${matchedBy})`);
         return {
           appointmentId: appt.id,
@@ -650,7 +674,7 @@ export class CRMLeadProcessor {
       // This handles incoming calls where the call record didn't exist when the appointment was created
       const conversationId = callData.metadata?.elevenLabsConversationId
         || callData.metadata?.conversationId
-        || (callData.metadata as any)?.webhookMetadata?.conversation_id;
+        || (callData.metadata?.webhookMetadata as { conversation_id?: string } | undefined)?.conversation_id;
       
       if (conversationId) {
         try {
@@ -667,7 +691,7 @@ export class CRMLeadProcessor {
           if (byConversationId.length > 0) {
             return formatAppt(byConversationId[0], `conversationId(${conversationId})`);
           }
-        } catch (convErr: any) {
+        } catch (convErr) {
           logger.warn(`${this.LOG_PREFIX} Conversation ID appointment lookup failed: ${convErr.message}`);
         }
       }
@@ -694,7 +718,7 @@ export class CRMLeadProcessor {
       }
 
       return null;
-    } catch (error: any) {
+    } catch (error) {
       logger.warn(`${this.LOG_PREFIX} Appointment DB check failed for call ${callData.id}: ${error.message}`);
       return null;
     }
@@ -749,7 +773,7 @@ export class CRMLeadProcessor {
    */
   private static extractAppointmentData(metadata: Record<string, unknown>): Record<string, unknown> | undefined {
     return (metadata.appointmentDetails || metadata.appointmentData || 
-            (metadata.aiInsights as any)?.appointmentDetails) as Record<string, unknown> | undefined;
+            (metadata.aiInsights as Record<string, unknown> | undefined)?.appointmentDetails) as Record<string, unknown> | undefined;
   }
 
   /**
@@ -757,8 +781,8 @@ export class CRMLeadProcessor {
    */
   private static extractFormData(metadata: Record<string, unknown>): Record<string, unknown> | undefined {
     return (metadata.formData || metadata.collectedData || 
-            (metadata.aiInsights as any)?.formData || 
-            (metadata.aiInsights as any)?.collectedData) as Record<string, unknown> | undefined;
+            (metadata.aiInsights as Record<string, unknown> | undefined)?.formData || 
+            (metadata.aiInsights as Record<string, unknown> | undefined)?.collectedData) as Record<string, unknown> | undefined;
   }
 
   /**
@@ -844,7 +868,7 @@ export class CRMLeadProcessor {
     // Determine source type and IDs
     const sourceType = callData.campaignId ? 'campaign' : 'incoming';
 
-    const leadData = {
+    const leadData: InsertLead = {
       userId: callData.userId,
       sourceType,
       campaignId: callData.campaignId || null,
@@ -875,7 +899,7 @@ export class CRMLeadProcessor {
       veSessionId: callData.engine === 'custom-voice-engine' ? callData.id : null,
     };
 
-    return CRMStorage.createLead(leadData as any);
+    return CRMStorage.createLead(leadData);
   }
 
   /**
@@ -1239,7 +1263,7 @@ export class CRMLeadProcessor {
       const result = await db.execute(sql`
         SELECT * FROM ve_sessions WHERE id = ${sessionId} LIMIT 1
       `);
-      const call = (result.rows as any[])[0];
+      const call = (result.rows as unknown as VeSessionRow[])[0];
 
       if (!call || !call.user_id) {
         logger.warn(`${this.LOG_PREFIX} Custom Voice Engine session not found or no user: ${sessionId}`);
@@ -1259,7 +1283,7 @@ export class CRMLeadProcessor {
         ? JSON.parse(call.transcript) 
         : (call.transcript || []);
       const transcriptText = Array.isArray(turns)
-        ? turns.map((t: any) => `${t.role === 'assistant' ? 'Agent' : 'Customer'}: ${t.content || t.message || ''}`).join('\n')
+        ? turns.map((t: TranscriptTurn) => `${t.role === 'assistant' ? 'Agent' : 'Customer'}: ${t.content || t.message || ''}`).join('\n')
         : '';
 
       let aiSummary = call.ai_summary;
@@ -1328,7 +1352,7 @@ Return ONLY the JSON object. No explanation, no markdown formatting.`;
               logger.info(`💼 [CRM Lead Processor] Extracted call details: Summary="${aiSummary}", Classification="${classification}", Company="${extractedCompany}"`);
             }
           }
-        } catch (err: any) {
+        } catch (err) {
           logger.error('💼 [CRM Lead Processor] Error analyzing transcript with OpenAI:', err.message);
         }
       }
@@ -1344,7 +1368,7 @@ Return ONLY the JSON object. No explanation, no markdown formatting.`;
                 updated_at = NOW()
             WHERE id = ${sessionId}
           `);
-        } catch (updateErr: any) {
+        } catch (updateErr) {
           logger.error('💼 [CRM Lead Processor] Failed to update ve_sessions with AI analysis:', updateErr.message);
         }
       }
@@ -1379,7 +1403,7 @@ Return ONLY the JSON object. No explanation, no markdown formatting.`;
       };
 
       return this.processCall(callData);
-    } catch (error: any) {
+    } catch (error) {
       logger.error(`${this.LOG_PREFIX} Error processing Custom Voice Engine session ${sessionId}:`, error.message);
       return null;
     }

@@ -8,6 +8,8 @@
  * ============================================================
  */
 
+import type WebSocket from 'ws';
+
 export interface PlivoElevenLabsConfig {
   plivoAuthId: string;
   plivoAuthToken: string;

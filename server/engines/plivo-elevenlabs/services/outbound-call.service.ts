@@ -15,6 +15,7 @@ import { getSipWebhookUrl } from '../config/config';
 import { db } from '../../../db';
 import { plivoCalls, type InsertPlivoCall } from '@shared/schema';
 import { logger } from '../../../utils/logger';
+import type { Client as PlivoClient } from 'plivo';
 
 export interface OutboundCallParams {
   toNumber: string;
@@ -95,7 +96,7 @@ export class PlivoElevenLabsOutboundService {
       };
       const [row] = await db.insert(plivoCalls).values(insertValues).returning({ id: plivoCalls.id });
       callRecordId = row?.id;
-    } catch (dbErr: any) {
+    } catch (dbErr) {
       logger.error(`[Plivo-ElevenLabs Outbound] Failed to insert call record for ${callUuid}:`, dbErr?.message || dbErr);
     }
 
@@ -139,7 +140,7 @@ export class PlivoElevenLabsOutboundService {
         callRecordId,
       };
       
-    } catch (error: any) {
+    } catch (error) {
       logger.error(`[Plivo-ElevenLabs Outbound] Call failed:`, error.message);
       
       await ElevenLabsBridgeService.endSession(callUuid);
@@ -154,7 +155,7 @@ export class PlivoElevenLabsOutboundService {
   /**
    * Get Plivo client instance
    */
-  private static async getPlivoClient(authId: string, authToken: string): Promise<any> {
+  private static async getPlivoClient(authId: string, authToken: string): Promise<PlivoClient> {
     const plivo = await import('plivo');
     return new plivo.Client(authId, authToken);
   }
