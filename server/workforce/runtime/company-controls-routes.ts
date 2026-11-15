@@ -260,7 +260,7 @@ export function createCompanyControlsRouter(deps: CompanyControlsDeps, guards: C
       return;
     }
     const parsed = parseCompanyControls(body.controls, roleSet.caps);
-    if (!parsed.ok) {
+    if (parsed.ok === false) {
       res.status(400).json({ error: 'invalid_controls', reason: parsed.reason });
       return;
     }

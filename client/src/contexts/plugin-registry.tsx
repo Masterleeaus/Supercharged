@@ -14,12 +14,18 @@
 
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
 
+/**
+ * Plugin-supplied component. Plugins are loaded at runtime, so the registry
+ * cannot know their props; callers render them with arbitrary props.
+ */
+export type PluginComponent = React.ComponentType<Record<string, unknown>>;
+
 export interface PluginSettingsTab {
   id: string;
   pluginName: string;
   label: string;
   icon?: string;
-  component: React.ComponentType<any>;
+  component: PluginComponent;
   order?: number;
 }
 
@@ -27,7 +33,7 @@ export interface PluginRoute {
   id: string;
   pluginName: string;
   path: string;
-  component: React.ComponentType<any>;
+  component: PluginComponent;
   label?: string;
   icon?: string;
 }
@@ -37,7 +43,7 @@ export interface PluginPhoneNumbersTab {
   pluginName: string;
   label: string;
   icon?: string;
-  component: React.ComponentType<any>;
+  component: PluginComponent;
   order?: number;
 }
 
@@ -47,7 +53,7 @@ export interface PluginAdminMenuItem {
   label: string;
   icon?: string;
   path: string;
-  component: React.ComponentType<any>;
+  component: PluginComponent;
   order?: number;
 }
 
@@ -56,7 +62,7 @@ export interface PluginAdminSettingsTab {
   pluginName: string;
   label: string;
   icon?: string;
-  component: React.ComponentType<any>;
+  component: PluginComponent;
   order?: number;
 }
 

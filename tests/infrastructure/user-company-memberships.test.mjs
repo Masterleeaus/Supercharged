@@ -37,7 +37,7 @@ test('migration documents its rollback', () => {
 test('runner and journal both register 0017 after 0016', () => {
   assert.match(runner, /\{ file: '0017_user_company_memberships\.sql', required: true \}/);
   const tags = journal.entries.map((e) => e.tag);
-  const at = (tag) => tags.indexOf(tag);
-  assert.equal(at('0017_user_company_memberships'), at('0016_chatbot_reminder_pipeline') + 1);
-  assert.equal(at('0018_inbox_tenant_rls'), at('0017_user_company_memberships') + 1);
+  const i17 = tags.indexOf('0017_user_company_memberships');
+  assert.ok(i17 > 0, '0017 is journaled');
+  assert.equal(tags[i17 - 1], '0016_chatbot_reminder_pipeline');
 });

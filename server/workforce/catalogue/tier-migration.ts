@@ -47,7 +47,7 @@ export function migrateAutonomy(value: unknown): MigrateAutonomyResult {
  */
 export function migrateRecord<T extends { autonomy: unknown }>(record: T): T & { autonomy: AutonomyTier } {
   const result = migrateAutonomy(record.autonomy);
-  if (!result.ok) {
+  if (result.ok === false) {
     const error = new TypeError(`unknown autonomy value: ${String(record.autonomy)}`);
     (error as TypeError & { reason: string }).reason = result.reason;
     throw error;

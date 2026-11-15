@@ -52,7 +52,7 @@ The existing numbered `0010a_inbox.sql` schema is now supported by the opt-in `c
 
 ## Pass 15: real PostgreSQL RLS verification
 
-The RLS migration at `migrations/0018_inbox_tenant_rls.sql` (promoted from `migrations/candidates/`, registered in the runner after 0017) enables and forces RLS on the four Inbox tables already created by `0010a_inbox.sql`. A dedicated disposable PostgreSQL CI job uses the actual SQL store to exercise tenant access, link FKs, external-ID uniqueness, inbound locks and rollback. Neither the original migration manifest nor Inbox activation is changed.
+The RLS migration at `migrations/0021_inbox_tenant_rls.sql` (promoted from `migrations/candidates/`, registered in the runner after 0017) enables and forces RLS on the four Inbox tables already created by `0010a_inbox.sql`. A dedicated disposable PostgreSQL CI job uses the actual SQL store to exercise tenant access, link FKs, external-ID uniqueness, inbound locks and rollback. Neither the original migration manifest nor Inbox activation is changed.
 
 ## Pass 16: fail-closed database readiness
 

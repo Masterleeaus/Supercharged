@@ -167,7 +167,7 @@ async function filterSensitiveDataMiddleware(req: Request, res: Response, next: 
       const originalJson = res.json.bind(res);
       const originalSend = res.send.bind(res);
 
-      res.json = function (data: any) {
+      res.json = function (data: unknown) {
         try {
           const filtered = deepFilterSensitiveData(data);
           return originalJson(filtered);
@@ -177,7 +177,7 @@ async function filterSensitiveDataMiddleware(req: Request, res: Response, next: 
         }
       };
 
-      res.send = function (data: any) {
+      res.send = function (data: unknown) {
         try {
           if (typeof data === 'object' && data !== null) {
             const filtered = deepFilterSensitiveData(data);
@@ -238,7 +238,7 @@ function isPiiAddressField(keyLower: string): boolean {
     keyLower === 'shippingaddress';
 }
 
-function deepFilterSensitiveData(data: any, depth: number = 0): any {
+function deepFilterSensitiveData(data: unknown, depth: number = 0): unknown {
   if (depth > 10) return data;
   if (data === null || data === undefined) return data;
 
@@ -250,8 +250,8 @@ function deepFilterSensitiveData(data: any, depth: number = 0): any {
 
   if (typeof data !== 'object') return data;
 
-  const result: any = {};
-  for (const [key, value] of Object.entries(data)) {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
     const keyLower = key.toLowerCase().replace(/[-_]/g, '');
 
     if (value instanceof Date) {
@@ -300,8 +300,8 @@ export function initDemoMode(app: Express): void {
         );
       `);
       logger.info('[Demo Mode] demo_call_limit_logs table ready');
-    } catch (err: any) {
-      logger.error('[Demo Mode] Failed to create demo_call_limit_logs table:', err.message);
+    } catch (err) {
+      logger.error('[Demo Mode] Failed to create demo_call_limit_logs table:', (err as Error).message);
     }
   })();
 
@@ -411,8 +411,8 @@ export async function checkDemoCallLimit(userId: string, clientIp: string): Prom
     // }
 
     return { allowed: true };
-  } catch (err: any) {
-    logger.error('[Demo Mode] Error checking demo call limit:', err.message);
+  } catch (err) {
+    logger.error('[Demo Mode] Error checking demo call limit:', (err as Error).message);
     return { allowed: true }; // Allow in case of DB error
   }
 }
@@ -440,7 +440,7 @@ export async function logDemoCall(userId: string, clientIp: string): Promise<voi
       `);
       logger.info(`[Demo Mode] Logged outbound call for demo account from IP: ${cleanIp}`);
     }
-  } catch (err: any) {
-    logger.error('[Demo Mode] Error logging demo call:', err.message);
+  } catch (err) {
+    logger.error('[Demo Mode] Error logging demo call:', (err as Error).message);
   }
 }

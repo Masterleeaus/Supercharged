@@ -1,5 +1,5 @@
 /**
- * Tenant isolation for the promoted Inbox RLS migration (migrations/0018_inbox_tenant_rls.sql).
+ * Tenant isolation for the promoted Inbox RLS migration (migrations/0021_inbox_tenant_rls.sql).
  *
  * Runs against a fresh database created for this file and dropped afterwards. Requires a disposable
  * PostgreSQL server: INBOX_PG_DISPOSABLE=true and INBOX_PG_INTEGRATION_URL pointing at a role that can
@@ -42,7 +42,7 @@ async function withFreshDatabase(run) {
     // 0010a creates the Inbox tables; 0018 is the migration under test. Each runs in its own transaction, as the runner does.
     const migrator = await pool.connect();
     try {
-      for (const file of ['0010a_inbox.sql', '0018_inbox_tenant_rls.sql']) {
+      for (const file of ['0010a_inbox.sql', '0021_inbox_tenant_rls.sql']) {
         await migrator.query('BEGIN');
         await migrator.query(migrationSql(file));
         await migrator.query('COMMIT');

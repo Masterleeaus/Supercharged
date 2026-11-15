@@ -60,8 +60,8 @@ export async function initializeBullMQ(): Promise<boolean> {
     logger.info('[BullMQ] Initialization complete');
     return true;
     
-  } catch (error: any) {
-    logger.error('[BullMQ] Initialization failed:', error.message);
+  } catch (error: unknown) {
+    logger.error('[BullMQ] Initialization failed:', (error as Error).message);
     return false;
   }
 }
@@ -81,8 +81,8 @@ export async function shutdownBullMQ(): Promise<void> {
     
     isInitialized = false;
     logger.info('[BullMQ] Shutdown complete');
-  } catch (error: any) {
-    logger.error('[BullMQ] Shutdown error:', error.message);
+  } catch (error: unknown) {
+    logger.error('[BullMQ] Shutdown error:', (error as Error).message);
   }
 }
 

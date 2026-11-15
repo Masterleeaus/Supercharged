@@ -83,7 +83,7 @@ export class GeminiModelProvider implements ModelProvider {
       timeoutMs: request.timeoutMs,
       secrets: [apiKey],
     });
-    const items: any[] = Array.isArray(json.embeddings) ? json.embeddings : [];
+    const items: Array<{ values?: unknown }> = Array.isArray(json.embeddings) ? json.embeddings : [];
     const vectors: number[][] = items.map((item) => (Array.isArray(item?.values) ? item.values.map(Number) : []));
     const dimensions = vectors[0]?.length ?? 0;
     const consistent = vectors.length === request.inputs.length && dimensions > 0 && vectors.every((v) => v.length === dimensions);
@@ -166,7 +166,8 @@ function parseGenerate(json: Record<string, any>, model: string, requestId: stri
     throw providerFailure("gemini", "unknown", null, "Gemini returned a response with no candidates.");
   }
 
-  const parts: any[] = Array.isArray(candidate.content?.parts) ? candidate.content.parts : [];
+  type GeminiPart = { text?: unknown; functionCall?: { name?: unknown; args?: unknown } };
+  const parts: GeminiPart[] = Array.isArray(candidate.content?.parts) ? candidate.content.parts : [];
   const text = parts.filter((part) => typeof part?.text === "string").map((part) => part.text as string).join("");
   const toolCalls: ModelToolCall[] = parts
     .filter((part) => part?.functionCall && typeof part.functionCall.name === "string")

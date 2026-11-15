@@ -70,8 +70,25 @@ export interface BuilderStorage {
     patch: BuilderStatePatch,
     now: Date,
   ): Promise<BuilderStateRecord | null>;
+  /**
+   * Creates a chatbot for this company with its builder settings, in one write. The company id is the first
+   * argument, so a new row can only belong to the caller's company. Returns the stored state.
+   */
+  createBuilderState(companyId: string, input: BuilderStateCreate, now: Date): Promise<BuilderStateRecord>;
   /** Presets (companyId null) first, then this company's uploads. */
   listChatbotAvatars(companyId: string): Promise<BuilderAvatarRecord[]>;
+}
+
+/** Values for a new chatbot. The router has already checked the save rule before this is called. */
+export interface BuilderStateCreate {
+  chatbot: {
+    title: string;
+    language: string;
+    welcomeMessage: string;
+    instructions: string | null;
+    active: boolean;
+  };
+  settings: Record<string, unknown>;
 }
 
 /** In-memory storage with seeding helpers for tests. Not used by the router at runtime. */
@@ -115,6 +132,22 @@ export function createMemoryBuilderStorage(): MemoryBuilderStorage {
       if (!row) return null;
       Object.assign(row.chatbot, patch.chatbot, { updatedAt: now });
       Object.assign(row.settings, patch.settings);
+      return view(row);
+    },
+
+    async createBuilderState(companyId, input, now) {
+      const id = randomUUID();
+      const chatbot: BuilderChatbotRecord = {
+        id,
+        title: input.chatbot.title,
+        language: input.chatbot.language,
+        welcomeMessage: input.chatbot.welcomeMessage,
+        instructions: input.chatbot.instructions,
+        active: input.chatbot.active,
+        updatedAt: now,
+      };
+      const row: MemoryRow = { companyId, chatbot, settings: { ...input.settings }, publicUuid: randomUUID() };
+      rows.set(id, row);
       return view(row);
     },
 
@@ -210,6 +243,18 @@ export const builderQueries = {
     return db.execute(sql`update ${schema.chatbots} set ${sql.identifier("builder_settings")} = ${sql.identifier("builder_settings")} || ${JSON.stringify(settings)}::jsonb where ${and(eq(schema.chatbots.companyId, companyId), eq(schema.chatbots.id, id))}`);
   },
 
+  /**
+   * Inserts the classic columns and the builder columns in one statement. company_id comes from the caller, never
+   * from the request. builder_settings and public_uuid are raw SQL, as in the other builder statements.
+   */
+  insertChatbot(
+    db: BuilderOps,
+    companyId: string,
+    values: BuilderStateCreate["chatbot"] & { id: string; publicUuid: string; settings: Record<string, unknown>; now: Date },
+  ) {
+    return db.execute(sql`insert into ${schema.chatbots} (id, company_id, title, language, welcome_message, instructions, active, updated_at, builder_settings, public_uuid) values (${values.id}, ${companyId}, ${values.title}, ${values.language}, ${values.welcomeMessage}, ${values.instructions}, ${values.active}, ${values.now}, ${JSON.stringify(values.settings)}::jsonb, ${values.publicUuid}::uuid)`);
+  },
+
   /** Presets (company_id null) first, then this company's uploads. Nothing from another company. */
   avatars(db: BuilderOps, companyId: string) {
     return db
@@ -283,6 +328,17 @@ export class DrizzleBuilderStorage implements BuilderStorage {
         await builderQueries.settingsMerge(tx, companyId, id, patch.settings);
       }
       return readState(tx, companyId, id);
+    });
+  }
+
+  async createBuilderState(companyId: string, input: BuilderStateCreate, now: Date): Promise<BuilderStateRecord> {
+    const id = randomUUID();
+    const publicUuid = randomUUID();
+    return this.db.transaction(async (tx) => {
+      await builderQueries.insertChatbot(tx, companyId, { ...input.chatbot, id, publicUuid, settings: input.settings, now });
+      const state = await readState(tx, companyId, id);
+      if (!state) throw new Error("chatbot builder: created chatbot not readable in its company");
+      return state;
     });
   }
 

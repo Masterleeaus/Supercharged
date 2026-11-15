@@ -1,7 +1,7 @@
 /** Static candidate audit only; does not connect to PostgreSQL. */
 import {readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
-export const CANDIDATE=fileURLToPath(new URL('../migrations/0018_inbox_tenant_rls.sql',import.meta.url));
+export const CANDIDATE=fileURLToPath(new URL('../migrations/0021_inbox_tenant_rls.sql',import.meta.url));
 export const INBOX_TABLES=["inbox_participants","inbox_threads","inbox_thread_participants","inbox_messages"];
 export function validateInboxRls(sql){
  const issues=[];

@@ -455,9 +455,9 @@ export function prepareRetrieval(
   questionText?: string,
 ): AgentReply {
   const page = guardAssessmentPage(ctx);
-  if (!page.allowed) return redirect('PAGE_IN_ASSESSMENT', page.redirect);
+  if (page.allowed === false) return redirect('PAGE_IN_ASSESSMENT', page.redirect);
   const access = canRetrieve(ctx, revision, { allowDraftRevisions: internalDraftAccessEnabled() });
-  if (!access.allowed) return denyToRedirect(access);
+  if (access.allowed === false) return denyToRedirect(access);
   const unlocked = new Set(unlockedLessonIds(ctx, ctx.roleScope));
   if (!unlocked.has(revision.lessonId)) {
     const step = nextTierStep(ctx, ctx.roleScope);
@@ -465,7 +465,7 @@ export function prepareRetrieval(
   }
   if (questionText !== undefined) {
     const guard = guardAssessmentQuestion(ctx, revision, questionText);
-    if (!guard.allowed) return denyToRedirect(guard);
+    if (guard.allowed === false) return denyToRedirect(guard);
   }
   const secrets = answerMaterial(revision.body);
   const screened: CandidatePassage[] = [];
@@ -477,7 +477,7 @@ export function prepareRetrieval(
   }
   const limited = limitPassages(screened);
   const citations = buildCitations(limited.passages.map((p) => ({ ...p, contentHash: revision.contentHash })));
-  if (!citations.ok) return redirect(citations.code, REDIRECT_MESSAGE.CITATION_MISSING);
+  if (citations.ok === false) return redirect(citations.code, REDIRECT_MESSAGE.CITATION_MISSING);
   const answer: RetrievalAnswer = { passages: limited.passages, citations: citations.value, limited: limited.limited };
   return { kind: 'answer', ...answer, assessmentContentWithheld: page.suppressAssessmentContent };
 }

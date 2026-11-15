@@ -5,7 +5,8 @@ import {createHash} from 'node:crypto';
 test('PostgreSQL: verified service stores and deduplicates inbound messages atomically',{skip:!enabled},async()=>{
  const f=fixture();try{
   const approval={gateAction:async()=>{throw Error('outbound disabled')},getApproval:async()=>null,markExecuted:async()=>null};
-  const service=await createVerifiedInboxService({pool:f.pool,schemaProbe:f.pool,approvals:approval});
+  const suppression={isSuppressed:()=>false,reasonFor:()=>null,suppress:()=>({ok:true,suppressed:false,softBounces:0}),unsuppress:()=>({ok:true})};
+  const service=await createVerifiedInboxService({pool:f.pool,schemaProbe:f.pool,approvals:approval,suppression,optOutReply:async()=>{}});
   const external=id('inbound'),address='contact-'+id('a')+'@example.test';
   const first=await service.recordInbound(A,{channel:'email',address,body:'Hello Inbox',externalId:external});
   const second=await service.recordInbound(A,{channel:'email',address,body:'Hello Inbox',externalId:external});

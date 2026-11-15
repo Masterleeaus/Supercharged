@@ -26,7 +26,6 @@ export { razorpayRouter } from './gateways/razorpay';
 export { paystackRouter } from './gateways/paystack';
 export { paypalRouter } from './gateways/paypal';
 export { mercadopagoRouter } from './gateways/mercadopago';
-export { yookassaRouter } from './gateways/yookassa';
 
 export { invoiceService, generateInvoiceForTransaction } from './invoice-service';
 
@@ -37,7 +36,7 @@ export const PAYMENT_ENGINE_VERSION = '1.0.0';
 export function getPaymentEngineInfo() {
   return {
     version: PAYMENT_ENGINE_VERSION,
-    gateways: ['stripe', 'razorpay', 'paypal', 'paystack', 'mercadopago', 'yookassa'],
+    gateways: ['stripe', 'razorpay', 'paypal', 'paystack', 'mercadopago'],
     features: [
       'Multi-gateway support',
       'Webhook management with DB secrets',

@@ -130,7 +130,7 @@ export async function testPayPalConnection(): Promise<{ success: boolean; error?
     
     await getAccessToken();
     return { success: true };
-  } catch (error: any) {
+  } catch (error) {
     logger.error('❌ [PayPal] Connection test failed:', error.message);
     return { success: false, error: error.message };
   }
@@ -448,7 +448,7 @@ export async function verifyPayPalWebhookSignature(
       logger.warn('⚠️ [PayPal] Webhook signature verification failed');
     }
     return verified;
-  } catch (error: any) {
+  } catch (error) {
     logger.error('[PayPal] Webhook signature verification error:', error.message);
     return false;
   }
