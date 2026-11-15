@@ -44,6 +44,9 @@ if (existsSync(envPath)) {
 // --dry-run: check the files and print the ordered list. No DATABASE_URL and no connection needed.
 const dryRun = process.argv.includes('--dry-run');
 
+// --include-operator-only: apply the operator-only entries listed below. Without it they are skipped.
+const includeOperatorOnly = process.argv.includes('--include-operator-only');
+
 const dbUrl = process.env.DATABASE_URL;
 if (!dbUrl && !dryRun) {
   console.error('❌ DATABASE_URL environment variable is not set.');
@@ -82,6 +85,13 @@ const MIGRATIONS = [
   { file: '0020_scheduled_booking_mirror.sql', required: true },
 ];
 
+// Operator-only entries are skipped by default. They need a database role or grant that only the
+// operator creates (for example desk_app), so running them without that role stops the whole run.
+// Pass --include-operator-only to apply them after the operator has set up the role.
+const OPERATOR_ONLY = new Set([
+  '0018_central_sso_company_links.sql', // CREATE POLICY ... TO desk_app
+]);
+
 const migrationPath = (file) => resolve(rootDir, 'migrations', file);
 
 // Check every entry before touching the database. A missing required file is fatal.
@@ -110,6 +120,11 @@ if (dryRun) {
   MIGRATIONS.forEach((m, i) => {
     console.log(`${String(i + 1).padStart(2, ' ')}. ${m.file}${m.required ? '' : ' (optional)'}`);
   });
+  for (const m of MIGRATIONS.filter((x) => OPERATOR_ONLY.has(x.file))) {
+    console.log(includeOperatorOnly
+      ? `Operator-only, WILL APPLY (--include-operator-only): ${m.file}`
+      : `Operator-only, SKIPPED (pass --include-operator-only to apply): ${m.file}`);
+  }
   process.exit(0);
 }
 
@@ -179,8 +194,16 @@ async function runMigrations() {
   try {
     const client = await pool.connect();
     try {
+      const skippedOperatorOnly = [];
       for (const entry of MIGRATIONS) {
         const migrationFile = migrationPath(entry.file);
+        if (OPERATOR_ONLY.has(entry.file) && !includeOperatorOnly) {
+          // Plain log line only. No __MIGRATION_RESULT__ line, because the system-update parser would record it as applied.
+          console.warn(`!!! OPERATOR-ONLY migration skipped (pass --include-operator-only to apply): ${entry.file}`);
+          console.log('');
+          skippedOperatorOnly.push(entry.file);
+          continue;
+        }
         if (!existsSync(migrationFile)) {
           // Only optional entries reach here (required ones were checked above).
           console.warn(`!!! OPTIONAL migration not present, skipping: ${entry.file}`);
@@ -235,6 +258,9 @@ async function runMigrations() {
       }
 
       console.log('✅ Migration complete. Your database is up to date.');
+      if (skippedOperatorOnly.length > 0) {
+        console.warn(`!!! Operator-only migrations NOT applied: ${skippedOperatorOnly.join(', ')}`);
+      }
     } finally {
       client.release();
     }
