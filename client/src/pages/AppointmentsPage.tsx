@@ -37,6 +37,7 @@ import {
   AlertCircle, CalendarDays, CalendarCheck, Phone, Mail, Briefcase,
   Timer, FileText, X, CheckCircle2, XCircle, RefreshCw, CalendarClock,
   Link2, Link2Off, Upload,
+  type LucideIcon,
 } from "lucide-react";
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth,
@@ -287,7 +288,7 @@ function AppointmentCard({ apt, onUpdateStatus, calendarConnected }: Appointment
       queryClient.invalidateQueries({ queryKey: ["/api/flow-automation/appointments"] });
       toast({ title: "Synced to Google Calendar" });
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       toast({ title: "Sync failed", description: err.message, variant: "destructive" });
     },
   });
@@ -418,8 +419,7 @@ function AppointmentCard({ apt, onUpdateStatus, calendarConnected }: Appointment
     </Card>
   );
 }
-
-function EmptyState({ icon: Icon, title, description }: { icon: any; title: string; description: string }) {
+function EmptyState({ icon: Icon, title, description }: { icon: LucideIcon; title: string; description: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
       <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center mb-4">
@@ -504,7 +504,7 @@ export default function AppointmentsPage() {
     onSuccess: ({ url }) => {
       window.location.href = url;
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       toast({ title: "Failed to connect Google Calendar", description: err.message, variant: "destructive" });
     },
   });
@@ -519,7 +519,7 @@ export default function AppointmentsPage() {
       setSettingsData((prev) => ({ ...prev, syncToGoogleCalendar: false }));
       toast({ title: "Google Calendar disconnected" });
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       toast({ title: "Failed to disconnect", description: err.message, variant: "destructive" });
     },
   });
@@ -715,7 +715,7 @@ export default function AppointmentsPage() {
                 {format(currentDate, "MMMM yyyy")}
               </h2>
             </div>
-            <Tabs value={calendarView} onValueChange={(v: any) => setCalendarView(v)}>
+            <Tabs value={calendarView} onValueChange={(v: string) => setCalendarView(v as typeof calendarView)}>
               <TabsList>
                 <TabsTrigger value="day" data-testid="tab-day">{t("appointments.calendar.day")}</TabsTrigger>
                 <TabsTrigger value="week" data-testid="tab-week">{t("appointments.calendar.week")}</TabsTrigger>

@@ -234,7 +234,7 @@ export default function WebhookConfigPage() {
         }
       }
 
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         name: formData.name,
         url: formData.url,
         description: formData.description || null,
@@ -842,7 +842,7 @@ export default function WebhookConfigPage() {
                       <Label htmlFor="auth-type">{t('webhooks.labels.authType')}</Label>
                       <Select
                         value={formData.authType}
-                        onValueChange={(value: any) => setFormData({ ...formData, authType: value })}
+                        onValueChange={(value: "custom" | "none" | "basic" | "bearer") => setFormData({ ...formData, authType: value })}
                       >
                         <SelectTrigger data-testid="select-auth-type">
                           <SelectValue />

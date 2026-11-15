@@ -39,6 +39,18 @@ interface Campaign {
   name: string;
 }
 
+/** Call metadata JSON. Only keys the page reads are typed. */
+interface CallMetadata {
+  widgetName?: string;
+  creditError?: string;
+  creditDeductionError?: string;
+  creditsRequired?: number;
+  incomingAgentName?: string;
+  calledNumber?: string;
+  twilioCallSid?: string;
+  [key: string]: unknown;
+}
+
 interface Call {
   id: string;
   campaignId: string | null;
@@ -56,7 +68,7 @@ interface Call {
   aiSummary: string | null;
   classification: string | null;
   sentiment: string | null;
-  metadata: Record<string, any> | null;
+  metadata: CallMetadata | null;
   startedAt: string | null;
   endedAt: string | null;
   createdAt: string;
@@ -339,15 +351,15 @@ export default function CallDetail() {
   
   // For widget calls, show widget name instead of Unknown
   const contactName = call.widgetId 
-    ? (call.widget?.name || (call.metadata as any)?.widgetName || 'Website Widget')
+    ? (call.widget?.name || call.metadata?.widgetName || 'Website Widget')
     : (contact && contact.firstName && contact.firstName.toLowerCase() !== 'unknown'
       ? `${contact.firstName} ${contact.lastName || ""}`.trim()
       : primaryNumber);
 
-  const creditError = (call.metadata as any)?.creditError
-    || (call.metadata as any)?.creditDeductionError
+  const creditError = call.metadata?.creditError
+    || call.metadata?.creditDeductionError
     || 'Insufficient credits';
-  const creditsRequired = (call.metadata as any)?.creditsRequired;
+  const creditsRequired = call.metadata?.creditsRequired;
 
   return (
     <div className="space-y-6">

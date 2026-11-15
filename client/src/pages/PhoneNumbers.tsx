@@ -67,7 +67,7 @@ interface PhoneNumber {
   twilioSid: string;
   friendlyName?: string;
   country: string;
-  capabilities?: any;
+  capabilities?: Record<string, boolean> | null;
   status: string;
   purchasedAt: string;
   isSystemPool?: boolean;
