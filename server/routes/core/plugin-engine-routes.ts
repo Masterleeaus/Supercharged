@@ -1,5 +1,7 @@
 import { logger } from "../../utils/logger";
 import type { Express, RequestHandler } from "express";
+import type { PlivoCallService } from "../../engines/plivo/services/plivo-call.service";
+import type { TwilioOpenAICallService } from "../../engines/twilio-openai/services/twilio-openai-call.service";
 import { authenticateToken } from "../../middleware/auth";
 import { ElevenLabsService } from "../../services/elevenlabs";
 import { ElevenLabsPoolService } from "../../services/elevenlabs-pool";
@@ -28,7 +30,7 @@ export async function registerPluginEngineRoutes(app: Express): Promise<void> {
     });
     markPluginAsRegistered('sip-engine');
     logger.info('✅ SIP Engine Plugin initialized with service injection');
-  } catch (err: any) {
+  } catch (err: unknown) {
     logger.info('[SIP Engine Plugin] Not installed - skipping direct registration');
   }
 
@@ -38,16 +40,16 @@ export async function registerPluginEngineRoutes(app: Express): Promise<void> {
     const restApiPlugin = await importRestPlugin('plugins/rest-api/index.ts');
 
     const { OutboundCallService } = await import("../../services/outbound-call-service");
-    let PlivoCallServiceRef: any = null;
-    let TwilioOpenAICallServiceRef: any = null;
+    let PlivoCallServiceRef: typeof PlivoCallService | null = null;
+    let TwilioOpenAICallServiceRef: typeof TwilioOpenAICallService | null = null;
     try {
       const plivoMod = await import("../../engines/plivo/services/plivo-call.service");
       PlivoCallServiceRef = plivoMod.PlivoCallService;
-    } catch (err: any) { logger.warn('Plivo call service not loaded for outbound rest-api calls; continuing without it', { code: err?.code }, 'Routes'); }
+    } catch (err: unknown) { logger.warn('Plivo call service not loaded for outbound rest-api calls; continuing without it', { code: (err as { code?: string } | undefined)?.code }, 'Routes'); }
     try {
       const twilioMod = await import("../../engines/twilio-openai/services/twilio-openai-call.service");
       TwilioOpenAICallServiceRef = twilioMod.TwilioOpenAICallService;
-    } catch (err: any) { logger.warn('Twilio OpenAI call service not loaded for outbound rest-api calls; continuing without it', { code: err?.code }, 'Routes'); }
+    } catch (err: unknown) { logger.warn('Twilio OpenAI call service not loaded for outbound rest-api calls; continuing without it', { code: (err as { code?: string } | undefined)?.code }, 'Routes'); }
 
     await restApiPlugin.registerRestApiRoutes(app, {
       sessionAuthMiddleware: authenticateToken as unknown as import('express').RequestHandler,
@@ -62,7 +64,7 @@ export async function registerPluginEngineRoutes(app: Express): Promise<void> {
     });
     markPluginAsRegistered('rest-api');
     logger.info('✅ REST API Plugin initialized');
-  } catch (err: any) {
+  } catch (err: unknown) {
     logger.info('[REST API Plugin] Not installed - skipping direct registration');
   }
 }
