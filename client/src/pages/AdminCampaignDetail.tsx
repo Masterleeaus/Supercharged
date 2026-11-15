@@ -83,7 +83,7 @@ interface BatchJobStats {
 
 export default function AdminCampaignDetail() {
   const { t } = useTranslation();
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
 
   const { data: campaign, isLoading: campaignLoading } = useQuery<Campaign>({

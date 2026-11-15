@@ -141,6 +141,20 @@
       "when": 1794300000000,
       "tag": "0017_user_company_memberships",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1794400000000,
+      "tag": "0018_central_sso_company_links",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1794500000000,
+      "tag": "0019_central_sso_pending_logins",
+      "breakpoints": true
     }
   ]
 }

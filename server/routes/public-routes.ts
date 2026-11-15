@@ -27,6 +27,7 @@ import { runAllSeedsForInstaller } from '../seed-all';
 import { applyEmbedCors } from '../middleware/embed-cors';
 import { logger } from '../utils/logger';
 import { checkInstallAllowed, INSTALL_SETUP_TOKEN_HEADER } from './installer-guard';
+import { PRODUCT_NAME } from '../../shared/brand.ts';
 
 /**
  * Creates public routes for unauthenticated endpoints.
@@ -39,9 +40,9 @@ export function createPublicRoutes(ctx: RouteContext): Router {
   async function getAppNameFallback(): Promise<string> {
     try {
       const setting = await storage.getGlobalSetting('app_name');
-      return (setting?.value as string) || 'Supercharged';
+      return (setting?.value as string) || PRODUCT_NAME;
     } catch {
-      return 'Supercharged';
+      return PRODUCT_NAME;
     }
   }
 
@@ -110,7 +111,7 @@ export function createPublicRoutes(ctx: RouteContext): Router {
         success: true,
         installed,
         branding: {
-          app_name: brandingSettings.app_name || 'Supercharged',
+          app_name: brandingSettings.app_name || PRODUCT_NAME,
           app_tagline: brandingSettings.app_tagline || '',
           logo_url: brandingSettings.logo_url || null,
           logo_url_light: brandingSettings.logo_url_light || null,
@@ -128,7 +129,7 @@ export function createPublicRoutes(ctx: RouteContext): Router {
       res.json({
         success: false,
         installed: false,
-        branding: { app_name: 'Supercharged', app_tagline: '', logo_url: null, favicon_url: null },
+        branding: { app_name: PRODUCT_NAME, app_tagline: '', logo_url: null, favicon_url: null },
         seo: null,
         version
       });
@@ -620,7 +621,7 @@ export function createPublicRoutes(ctx: RouteContext): Router {
     try {
       const brandingKeys = ['app_name', 'app_tagline', 'logo_url', 'logo_url_light', 'logo_url_dark', 'favicon_url', 'branding_updated_at', 'admin_email', 'app_location', 'social_twitter_url', 'social_linkedin_url', 'social_github_url', 'theme_primary', 'theme_primary_foreground', 'theme_accent', 'theme_background', 'theme_sidebar', 'theme_website_accent', 'theme_website_foreground'];
       const branding: Record<string, any> = {
-        app_name: 'Supercharged',
+        app_name: PRODUCT_NAME,
         app_tagline: '',
         logo_url: null,
         logo_url_light: null,
@@ -655,7 +656,7 @@ export function createPublicRoutes(ctx: RouteContext): Router {
     } catch (error) {
       logger.error('Error fetching branding:', error);
       res.json({
-        app_name: 'Supercharged',
+        app_name: PRODUCT_NAME,
         app_tagline: '',
         logo_url: null,
         favicon_url: null,
@@ -1007,7 +1008,7 @@ ${allUrls.map(u => {
       const adminEmail = (adminEmailSetting?.value as string) || (smtpFromEmail?.value as string) || process.env.SMTP_USER;
 
       const appNameSetting = await storage.getGlobalSetting('app_name');
-      const appName = (appNameSetting?.value as string) || 'Supercharged';
+      const appName = (appNameSetting?.value as string) || PRODUCT_NAME;
 
       if (!adminEmail) {
         logger.error('No admin email configured for contact form');
