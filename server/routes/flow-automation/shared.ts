@@ -1,3 +1,4 @@
+import type { CaughtError } from '../common';
 /**
  * Shared helpers and constants for the flow-automation routes.
  * Moved verbatim from server/routes/flow-automation-routes.ts.
@@ -42,10 +43,10 @@ export const APPOINTMENT_EDITABLE_FIELDS = [
  * Copies only the allowlisted keys present in the body. Returns null when the body is not an object
  * or holds no editable key, so the caller can answer 400.
  */
-export function pickEditableFields(body: unknown, allowed: readonly string[]): Record<string, any> | null {
+export function pickEditableFields(body: unknown, allowed: readonly string[]): Record<string, unknown> | null {
   if (!body || typeof body !== "object" || Array.isArray(body)) return null;
   const source = body as Record<string, unknown>;
-  const picked: Record<string, any> = {};
+  const picked: Record<string, unknown> = {};
   for (const key of allowed) {
     if (Object.prototype.hasOwnProperty.call(source, key) && source[key] !== undefined) {
       picked[key] = source[key];
@@ -170,8 +171,8 @@ export async function validateWorkingHours(
 
     logger.info(`📅 [Working Hours] Validated: ${appointmentTime} is within ${daySettings.start} - ${daySettings.end}`);
     return { valid: true };
-  } catch (error: any) {
-    logger.error(`📅 [Working Hours] Validation error:`, error.message);
+  } catch (error: unknown) {
+    logger.error(`📅 [Working Hours] Validation error:`, (error as CaughtError).message);
     return {
       valid: false,
       message: `I'm having trouble validating the appointment time. Please provide the time in HH:MM format (like "14:00" or "2:30 PM").`
