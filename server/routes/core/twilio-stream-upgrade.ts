@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request } from "express";
 import { type Server } from "http";
 import { WebSocketServer } from "ws";
 import { db } from "../../db";
@@ -23,7 +23,7 @@ export function registerTwilioStreamUpgrade(app: Express, deps: { httpServer: Se
 
       const wss = new WebSocketServer({ noServer: true });
 
-      wss.handleUpgrade(request, socket, head, async (ws: any) => {
+      wss.handleUpgrade(request, socket, head, async (ws) => {
         logger.info(`✅ [WebSocket] Upgrade successful for Twilio stream`);
         logger.info(`   Waiting for Twilio 'start' event to determine routing...`);
 
@@ -114,7 +114,7 @@ export function registerTwilioStreamUpgrade(app: Express, deps: { httpServer: Se
               const contactName = customParams.contactName;
 
               // Create mock request with full parameter set for handlers
-              const mockReq: any = {
+              const mockReq = {
                 url: request.url,
                 headers: request.headers,
                 query: {
@@ -134,7 +134,7 @@ export function registerTwilioStreamUpgrade(app: Express, deps: { httpServer: Se
               if (agent.type === 'flow') {
                 logger.info(`   Flow context: flowId=${flowId}, executionId=${executionId}`);
               }
-              handleTwilioStreamWebSocket(ws, mockReq);
+              handleTwilioStreamWebSocket(ws, mockReq as unknown as Request);
 
               // Delay replay slightly to allow handlers to attach listeners
               // Then replay all buffered messages as raw Buffers
