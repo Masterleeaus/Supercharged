@@ -35,7 +35,7 @@ export function isPhpList(value: unknown): boolean {
 }
 
 /** Own-property read. Returns undefined for missing keys and for non-object containers. */
-export function readKey(container: unknown, key: string): any {
+export function readKey(container: unknown, key: string): unknown {
   return isPlainObject(container) && OWN.call(container, key) ? container[key] : undefined;
 }
 

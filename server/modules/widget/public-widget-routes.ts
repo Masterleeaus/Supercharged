@@ -5,6 +5,9 @@ import { nanoid } from "nanoid";
 import { randomBytes } from "crypto";
 import { db } from "../../db";
 import { creditTransactions, users, calls, agents, appointments, appointmentSettings, elevenLabsCredentials, openaiCredentials } from "@shared/schema";
+
+/** Agent columns selected by the widget routes. Every field is optional because the query picks a subset. */
+type AgentSelectRow = Partial<typeof agents.$inferSelect> & Record<string, unknown>;
 import { eq, sql, and } from "drizzle-orm";
 import { OpenAIPoolService } from "../../engines/plivo/services/openai-pool.service";
 import { OpenAIAgentFactory } from "../../engines/plivo/services/openai-agent-factory";
@@ -163,7 +166,7 @@ function getEngineLanguages(engine: 'elevenlabs' | 'openai'): typeof ELEVENLABS_
 }
 
 // Get languages supported by the specific agent
-function getAgentSupportedLanguages(agent: any, engine: 'elevenlabs' | 'openai' | 'none'): typeof ELEVENLABS_LANGUAGES {
+function getAgentSupportedLanguages(agent: AgentSelectRow | null | undefined, engine: 'elevenlabs' | 'openai' | 'none'): typeof ELEVENLABS_LANGUAGES {
   const allLanguages = getEngineLanguages(engine === 'none' ? 'openai' : engine);
   
   // If agent has detectLanguageEnabled, show all languages for the engine
@@ -183,12 +186,12 @@ function getAgentSupportedLanguages(agent: any, engine: 'elevenlabs' | 'openai' 
 
 // Helper to determine engine type for an agent
 // Uses explicit column selection to avoid errors when production DB is missing newer columns
-async function getAgentEngineType(agentId: string | null): Promise<{ engine: 'elevenlabs' | 'openai' | 'custom-voice-engine' | 'none', agent: any }> {
+async function getAgentEngineType(agentId: string | null): Promise<{ engine: 'elevenlabs' | 'openai' | 'custom-voice-engine' | 'none', agent: AgentSelectRow | null }> {
   if (!agentId) {
     return { engine: 'none', agent: null };
   }
   
-  let agent: any = null;
+  let agent: AgentSelectRow | null = null;
   
   try {
     const [result] = await db.select({
@@ -205,9 +208,9 @@ async function getAgentEngineType(agentId: string | null): Promise<{ engine: 'el
       telephonyProvider: agents.telephonyProvider,
     }).from(agents).where(eq(agents.id, agentId));
     agent = result;
-  } catch (err: any) {
-    if (err?.code === '42703') {
-      logger.warn(`[Widget] Column missing in agents table, using minimal query: ${err.message}`);
+  } catch (err: unknown) {
+    if ((err as { code?: unknown } | null)?.code === '42703') {
+      logger.warn(`[Widget] Column missing in agents table, using minimal query: ${(err as Error).message}`);
       const [result] = await db.select({
         id: agents.id,
         name: agents.name,
@@ -242,7 +245,7 @@ async function getAgentEngineType(agentId: string | null): Promise<{ engine: 'el
         agent = veResult.rows[0];
         agent.telephonyProvider = 'custom-voice-engine';
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error(`[Widget] Failed to query ve_voice_agents fallback:`, err);
     }
   }
@@ -514,7 +517,7 @@ router.get('/widget/config/:token', async (req: Request, res: Response) => {
       buttonLabel: widget.buttonLabel,
       platformName,
       iconUrl: widget.iconUrl,
-      iconPath: (widget as any).iconPath,
+      iconPath: widget.iconPath,
       primaryColor: widget.primaryColor,
       accentColor: widget.accentColor,
       backgroundColor: widget.backgroundColor,
@@ -832,7 +835,7 @@ router.post('/widget/session/:sessionId/end', async (req: Request, res: Response
               const elService = new ElevenLabsService(credential.apiKey);
               const conversationDetails = await elService.getConversationDetails(conversationId);
               
-              const transcriptText = conversationDetails.transcript?.map((entry: any) =>
+              const transcriptText = conversationDetails.transcript?.map((entry: { role: string; time_in_call_secs: number; message: string }) =>
                 `${entry.role.toUpperCase()} (${entry.time_in_call_secs}s): ${entry.message}`
               ).join('\n') || '';
               
@@ -852,8 +855,8 @@ router.post('/widget/session/:sessionId/end', async (req: Request, res: Response
               } else {
                 logger.info(`[Widget] No transcript/summary available from ElevenLabs yet for session ${session.id}`);
               }
-            } catch (fetchError: any) {
-              logger.warn(`[Widget] Failed to fetch ElevenLabs conversation details (non-fatal):`, fetchError?.message || fetchError);
+            } catch (fetchError: unknown) {
+              logger.warn(`[Widget] Failed to fetch ElevenLabs conversation details (non-fatal):`, (fetchError as { message?: string } | null)?.message || fetchError);
             }
           }, 5000);
         });
@@ -959,11 +962,11 @@ router.post('/widget/session/:sessionId/ephemeral-token', async (req: Request, r
           signed_url: wsAuth.signed_url,
           agent_id: agent.elevenLabsAgentId,
           maxDuration: widget.maxCallDuration,
-          appointmentBookingEnabled: (agent as any).appointmentBookingEnabled || (widget as any).appointmentBookingEnabled || false,
+          appointmentBookingEnabled: (agent as AgentSelectRow).appointmentBookingEnabled || widget.appointmentBookingEnabled || false,
           language: agent.language || 'en',
         });
         
-      } catch (elevenLabsError: any) {
+      } catch (elevenLabsError: unknown) {
         logger.error('[Widget] ElevenLabs signed URL error:', elevenLabsError);
         return res.status(500).json({ error: 'Failed to connect to ElevenLabs. Please try again.' });
       }
@@ -1002,10 +1005,10 @@ router.post('/widget/session/:sessionId/ephemeral-token', async (req: Request, r
           ws_url: wsUrl,
           sessionId: session.id,
           maxDuration: widget.maxCallDuration,
-          appointmentBookingEnabled: (agent as any).appointmentBookingEnabled || (widget as any).appointmentBookingEnabled || false,
+          appointmentBookingEnabled: (agent as AgentSelectRow).appointmentBookingEnabled || widget.appointmentBookingEnabled || false,
           language: agent.language || 'en',
         });
-      } catch (cveError: any) {
+      } catch (cveError: unknown) {
         logger.error('[Widget] Custom Voice Engine session setup error:', cveError);
         return res.status(500).json({ error: 'Failed to connect to Custom Voice Engine. Please try again.' });
       }
@@ -1029,12 +1032,12 @@ router.post('/widget/session/:sessionId/ephemeral-token', async (req: Request, r
     if (agent) {
       systemPrompt = agent.systemPrompt || systemPrompt;
       voice = agent.openaiVoice || voice;
-      agentAppointmentBookingEnabled = (agent as any).appointmentBookingEnabled || false;
+      agentAppointmentBookingEnabled = (agent as AgentSelectRow).appointmentBookingEnabled || false;
       knowledgeBaseIds = agent.knowledgeBaseIds || [];
     }
     
-    const appointmentEnabled = (widget as any).appointmentBookingEnabled || agentAppointmentBookingEnabled;
-    const tools: any[] = [];
+    const appointmentEnabled = widget.appointmentBookingEnabled || agentAppointmentBookingEnabled;
+    const tools: Array<Record<string, unknown>> = [];
     
     if (appointmentEnabled) {
       tools.push({
@@ -1106,10 +1109,10 @@ router.post('/widget/session/:sessionId/ephemeral-token', async (req: Request, r
       'gpt-4o-realtime-preview-2024-12-17': 'gpt-realtime-1.5',
       'gpt-4o-mini-realtime-preview-2024-12-17': 'gpt-realtime-mini',
     };
-    const rawModel = agent?.openaiModel || 'gpt-realtime-1.5';
+    const rawModel = String(agent?.openaiModel || 'gpt-realtime-1.5');
     const openaiModel = modelMapping[rawModel] || rawModel;
     
-    const sessionConfig: any = {
+    const sessionConfig: Record<string, unknown> = {
       type: 'realtime',
       model: openaiModel,
       instructions: systemPrompt,

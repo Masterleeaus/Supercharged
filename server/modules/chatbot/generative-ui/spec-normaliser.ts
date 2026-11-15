@@ -175,10 +175,11 @@ export function repairSpec(
       const kept: Obj = {};
       for (const [event, bindings] of Object.entries(bindingsByEvent)) {
         const safe = bindingList(bindings).filter(
-          (binding): binding is Obj =>
-            isPhpArray(binding) &&
-            typeof readKey(binding, "action") === "string" &&
-            actionIds.has(readKey(binding, "action")),
+          (binding): binding is Obj => {
+            if (!isPhpArray(binding)) return false;
+            const action = readKey(binding, "action");
+            return typeof action === "string" && actionIds.has(action);
+          },
         );
         if (safe.length === 0) {
           changes.push({
