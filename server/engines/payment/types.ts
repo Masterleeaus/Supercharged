@@ -45,7 +45,7 @@ export interface PaymentResult {
   gatewayTransactionId?: string;
   error?: string;
   errorCode?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface RefundResult {
@@ -123,7 +123,7 @@ export interface PaymentWebhookData {
   packageId?: string;
   planId?: string;
   subscriptionId?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface RefundWebhookData {
@@ -144,7 +144,7 @@ export interface DisputeWebhookData {
   status: DisputeStatus;
   reason?: string;
   userId?: string;
-  evidence?: Record<string, any>;
+  evidence?: Record<string, unknown>;
 }
 
 export interface DunningConfig {
@@ -174,7 +174,7 @@ export interface AuditLogEntry {
   refundId?: string;
   disputeId?: string;
   adminId?: string;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
   ipAddress?: string;
   timestamp: Date;
 }
