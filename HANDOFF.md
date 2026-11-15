@@ -48,8 +48,8 @@ Bookings token CHECK (chatbot_booking_settings_token_chk) was relaxed on 2026-11
 - Agent surface (CHATBOT_AGENT_ENABLED): no staff identity resolver exists, so agent calls answer 401.
 - Channels and widget (CHATBOT_CHANNELS_ENABLED, CHATBOT_WIDGET_ENABLED): the reply runtime and receipt store are not wired; they are stubs that refuse requests. Enabling them starts the server but serves no replies.
 - CHATBOT_TELEGRAM_CHANNEL_ENABLED is defined in contracts/flags.ts but the telegram router is still gated only by CHATBOT_CHANNELS_ENABLED.
-- Workers: the expiry sweep and voice-limits job run only when services are passed to startChatbotWorkers; nothing in server/ constructs the structuredActions or voiceCallLimits services yet.
-- Voice-call service: nothing in server/ constructs it yet; use result.voiceCall from mountChatbotModule.
+- Workers: built at boot in server/routes/core/chatbot-wiring-routes.ts through workers/boot.ts. The expiry sweep, the outbox drain (webhooks, behind CHATBOT_OUTBOUND_WEBHOOKS_ENABLED) and the voice-call quota sweep run when CHATBOT_WORKERS_ENABLED is "true".
+- Voice-call service: constructed at boot with fail-closed ports (voice-call/unconfigured.ts). No call can start until an owner-chosen CallProvider, CreditLedger, plan lookup and credential source are wired.
 - Webhook dispatch: no caller in server/ yet; the pinned default applies when http is not passed.
 - BNPL (commerce/money/bnpl*): status names, webhook body fields, rejected-webhook storage, replay and cancel idempotency differ from the PHP source. Decisions needed.
 - Object-form secret writers converted in r3 (calendar-secrets, retry stores, conversational credentials); the Drizzle paths for those were tested with a stand-in db, not Postgres.
