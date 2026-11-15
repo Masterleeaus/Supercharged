@@ -207,7 +207,7 @@ export function createWorkforceAdminRouter(deps: WorkforceAdminDeps, guards: Wor
       const result = action === 'pause'
         ? pauseAgent(deps.controls.state, companyId, agentId, actor)
         : resumeAgent(deps.controls.state, companyId, agentId, actor);
-      if (!result.ok) {
+      if (result.ok === false) {
         res.status(409).json({ error: result.reason });
         return;
       }
@@ -248,7 +248,7 @@ export function createWorkforceAdminRouter(deps: WorkforceAdminDeps, guards: Wor
     };
     try {
       const result: RosterResult = await deps.roster.createAgent(input);
-      if (!result.ok) {
+      if (result.ok === false) {
         res.status(rosterRefusalStatus(result.reason)).json({ error: result.reason });
         return;
       }
@@ -279,7 +279,7 @@ export function createWorkforceAdminRouter(deps: WorkforceAdminDeps, guards: Wor
         req.params.agentId as string,
         patch as AgentPatch,
       );
-      if (!result.ok) {
+      if (result.ok === false) {
         res.status(rosterRefusalStatus(result.reason)).json({ error: result.reason });
         return;
       }
@@ -325,14 +325,14 @@ export function createWorkforceAdminRouter(deps: WorkforceAdminDeps, guards: Wor
         return runs.some((run) => run.agentId === aid && !(TERMINAL_RUN_STATUSES as readonly string[]).includes(run.status));
       };
       const updated = await retireInRoster(companyId, agentId, { actor: actor.userId, isRunning });
-      if (!updated.ok) {
+      if (updated.ok === false) {
         res.status(rosterRefusalStatus(updated.reason)).json({ error: updated.reason });
         return;
       }
 
       // Then the control state, so work is refused at once. An already-retired control entry is not an error.
       const control = retireAgent(deps.controls.state, companyId, agentId, actor);
-      if (!control.ok && control.reason !== 'agent_retired') {
+      if (control.ok === false && control.reason !== 'agent_retired') {
         res.status(409).json({ error: control.reason });
         return;
       }

@@ -3,7 +3,8 @@ import {randomUUID} from 'node:crypto';
 import {assertCompanyId,withTenant,type TenantPool} from '../../infrastructure/database/tenant-context.ts';
 import type {OutboxJob,OutboxRepository} from './outbox-types.ts';
 const whole=(n:number,min:number,max:number,label:string)=>{if(!Number.isSafeInteger(n)||n<min||n>max)throw Error('outbox: invalid '+label);return n;};
-const row=(r:any):OutboxJob=>({id:r.id,companyId:r.company_id,messageId:r.message_id,channel:r.channel,status:r.status,attempts:r.attempts,nextAttemptAt:new Date(r.next_attempt_at),leasedUntil:r.leased_until?new Date(r.leased_until):null,leaseToken:r.lease_token??null,providerId:r.provider_id??null,lastError:r.last_error??null});
+type OutboxRow={id:string;company_id:string;message_id:string;channel:OutboxJob['channel'];status:OutboxJob['status'];attempts:number;next_attempt_at:string|Date;leased_until:string|Date|null;lease_token:string|null;provider_id:string|null;last_error:string|null};
+const row=(r:OutboxRow):OutboxJob=>({id:r.id,companyId:r.company_id,messageId:r.message_id,channel:r.channel,status:r.status,attempts:r.attempts,nextAttemptAt:new Date(r.next_attempt_at),leasedUntil:r.leased_until?new Date(r.leased_until):null,leaseToken:r.lease_token??null,providerId:r.provider_id??null,lastError:r.last_error??null});
 export function createSqlOutbox(pool:TenantPool):OutboxRepository {
  if(!pool||typeof pool.connect!=='function')throw Error('outbox: PostgreSQL pool required');
  return {
@@ -38,12 +39,23 @@ export function createSqlOutbox(pool:TenantPool):OutboxRepository {
     return q.rows.map(row);
    });
   },
-  async loadBody(companyId,messageId){
+  async loadDelivery(companyId,messageId){
    const co=assertCompanyId(companyId);
    return withTenant(pool,co,async db=>{
-    const q=await db.query(`SELECT body FROM public.inbox_messages
-     WHERE company_id=$1 AND id=$2 AND direction='outbound' AND status='queued'`,[co,messageId]);
-    return q.rows[0]?.body??null;
+    const q=await db.query(`SELECT m.body,t.subject,p.address AS recipient
+     FROM public.inbox_messages m
+     JOIN public.inbox_threads t ON t.company_id=m.company_id AND t.id=m.thread_id
+     LEFT JOIN LATERAL (
+      SELECT pa.address FROM public.inbox_thread_participants tp
+       JOIN public.inbox_participants pa ON pa.company_id=tp.company_id AND pa.id=tp.participant_id
+      WHERE tp.company_id=m.company_id AND tp.thread_id=m.thread_id
+        AND pa.kind='contact' AND pa.channel=m.channel
+      ORDER BY pa.id ASC LIMIT 1
+     ) p ON true
+     WHERE m.company_id=$1 AND m.id=$2 AND m.direction='outbound' AND m.status='queued'`,[co,messageId]);
+    const row=q.rows[0];
+    if(!row)return null;
+    return{body:row.body,subject:row.subject??null,recipient:row.recipient??null};
    });
   },
   async markSent(companyId,id,leaseToken,providerId){

@@ -188,7 +188,7 @@ export async function placeFlowTestCall({
       }
 
       let currentSipPhoneElevenLabsId = sipPhone.externalElevenLabsPhoneId;
-      const { verifySipPhoneExists, resyncSipPhoneCredentials } = await import('../services/elevenlabs-phone-resync');
+      const { verifySipPhoneExists, resyncSipPhoneCredentials } = await import('../../services/elevenlabs-phone-resync');
 
       // SIP PRE-FLIGHT CHECK 1: Credential mismatch
       if (sipPhone.elevenLabsCredentialId && agent.elevenLabsCredentialId &&
@@ -251,7 +251,7 @@ export async function placeFlowTestCall({
 
       try {
         // Use the plugin's ElevenLabsSipService.makeOutboundCall
-        const { importPlugin } = await import('../utils/plugin-import');
+        const { importPlugin } = await import('../../utils/plugin-import');
         const { ElevenLabsSipService } = await importPlugin('plugins/sip-engine/services/elevenlabs-sip.service.ts');
 
         logger.info(`📞 [Flow Test] Initiating SIP test call via ElevenLabs SIP Trunk API`);

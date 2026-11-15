@@ -7,6 +7,7 @@
  * between ElevenLabs API keys.
  */
 
+import type { TransferToNumberTool } from '../../services/elevenlabs';
 import { db } from '../../db';
 import { agents, phoneNumbers } from '@shared/schema';
 import { eq, and } from 'drizzle-orm';
@@ -92,7 +93,7 @@ export async function migrateAgent(
       voiceStability: ttsConfig?.stability ?? 0.5,
       voiceSimilarityBoost: ttsConfig?.similarity_boost ?? 0.85,
       voiceSpeed: ttsConfig?.speed ?? 1.0,
-      tools: agentConfig?.prompt?.tools,
+      tools: agentConfig?.prompt?.tools as TransferToNumberTool[] | undefined,
       skipWorkflow: true,
     });
     

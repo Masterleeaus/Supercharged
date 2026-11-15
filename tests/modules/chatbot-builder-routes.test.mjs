@@ -41,6 +41,7 @@ function createSpyStorage() {
     calls,
     findBuilderState: wrap("findBuilderState"),
     updateBuilderState: wrap("updateBuilderState"),
+    createBuilderState: wrap("createBuilderState"),
     listChatbotAvatars: wrap("listChatbotAvatars"),
   };
 }
@@ -618,15 +619,214 @@ test("the demo flag defaults to off, so instructions are required", async () => 
 
 /* ---------- route table ---------- */
 
-test("the route table lists exactly the five builder routes, avatars before the id route", () => {
+test("the route table lists exactly the eight builder routes, avatars before the id route", () => {
   assert.deepEqual(
     BUILDER_ROUTES.map((r) => `${r.method} ${r.path}`),
     [
       "GET /builder/avatars",
       "POST /builder/avatars",
+      "POST /builder",
       "GET /builder/:id",
       "PATCH /builder/:id",
+      "POST /builder/:id/publish",
+      "POST /builder/:id/pause",
       "POST /builder/:id/uploads",
     ],
   );
+});
+
+/* ---------- create, publish, pause ---------- */
+
+const GOOD_CREATE = {
+  configure: { title: "Front desk", welcomeMessage: "Hi there", instructions: "Answer from the price list", bubbleMessage: "Ask us" },
+};
+
+test("flag off: create, publish and pause answer 404 and reach no storage", async () => {
+  await withServer({ env: {} }, async ({ request, storage }) => {
+    const seeded = seedA(storage);
+    for (const [method, path, body] of [
+      ["POST", "/builder", GOOD_CREATE],
+      ["POST", `/builder/${seeded.chatbot.id}/publish`],
+      ["POST", `/builder/${seeded.chatbot.id}/pause`],
+    ]) {
+      const res = await request(method, path, { user: ADMIN_A, body });
+      assert.equal(res.status, 404, `${method} ${path}`);
+    }
+    assert.equal(storage.calls.length, 0);
+  });
+});
+
+test("create: unauthenticated and agent callers are refused before any write", async () => {
+  await withServer({}, async ({ request, storage }) => {
+    const anon = await request("POST", "/builder", { body: GOOD_CREATE });
+    assert.equal(anon.status, 401);
+    const agent = await request("POST", "/builder", { user: AGENT_A, body: GOOD_CREATE });
+    assert.equal(agent.status, 403);
+    assert.equal(storage.calls.filter((c) => c.name === "createBuilderState").length, 0);
+  });
+});
+
+test("create: an admin creates a chatbot for their own company, with the snapshot shape", async () => {
+  await withServer({}, async ({ request, storage }) => {
+    const res = await request("POST", "/builder", { user: ADMIN_A, body: { ...GOOD_CREATE, customize: { color: "#3B82F6" } } });
+    assert.equal(res.status, 201);
+    assert.equal(res.json.state.configure.title, "Front desk");
+    assert.equal(res.json.state.configure.active, true, "a new chatbot starts live unless it is sent inactive");
+    assert.equal(res.json.state.customize.color, "#3B82F6");
+    assert.match(res.json.state.embed.uuid, /^[0-9a-f-]{36}$/);
+    const stored = await storage.inner.findBuilderState(CO_A, res.json.id);
+    assert.equal(stored.chatbot.title, "Front desk");
+    assert.equal(stored.chatbot.active, true, "a new chatbot starts live unless it is sent inactive");
+    assert.equal(stored.settings.bubbleMessage, "Ask us");
+    assert.equal(stored.chatbot.instructions, "Answer from the price list");
+  });
+});
+
+test("create: the new chatbot is invisible to another company", async () => {
+  await withServer({}, async ({ request }) => {
+    const created = await request("POST", "/builder", { user: ADMIN_A, body: GOOD_CREATE });
+    const other = await request("GET", `/builder/${created.json.id}`, { user: ADMIN_B });
+    assert.equal(other.status, 404);
+  });
+});
+
+test("create: title, welcome and bubble message are required, and nothing is written", async () => {
+  await withServer({}, async ({ request, storage }) => {
+    const noTitle = await request("POST", "/builder", {
+      user: ADMIN_A,
+      body: { configure: { welcomeMessage: "Hi", instructions: "x", bubbleMessage: "b" } },
+    });
+    assert.equal(noTitle.status, 400);
+    assert.ok(noTitle.json.issues.some((i) => i.path.join(".") === "configure.title"));
+
+    const blank = await request("POST", "/builder", {
+      user: ADMIN_A,
+      body: { configure: { title: "T", welcomeMessage: "   ", instructions: "x", bubbleMessage: "b" } },
+    });
+    assert.equal(blank.status, 400);
+    assert.ok(blank.json.issues.some((i) => i.path.join(".") === "configure.welcomeMessage"));
+
+    const noBubble = await request("POST", "/builder", {
+      user: ADMIN_A,
+      body: { configure: { title: "T", welcomeMessage: "Hi", instructions: "x" } },
+    });
+    assert.equal(noBubble.status, 400);
+    assert.ok(noBubble.json.issues.some((i) => i.path.join(".") === "configure.bubbleMessage"));
+
+    assert.equal(storage.calls.filter((c) => c.name === "createBuilderState").length, 0);
+  });
+});
+
+test("create: instructions are required outside demo mode and optional in demo mode", async () => {
+  const body = { configure: { title: "T", welcomeMessage: "Hi", bubbleMessage: "b" } };
+  await withServer({}, async ({ request }) => {
+    const res = await request("POST", "/builder", { user: ADMIN_A, body });
+    assert.equal(res.status, 400);
+    assert.ok(res.json.issues.some((i) => i.path.join(".") === "configure.instructions"));
+  });
+  await withServer({ demoMode: true }, async ({ request }) => {
+    const res = await request("POST", "/builder", { user: ADMIN_A, body });
+    assert.equal(res.status, 201);
+  });
+});
+
+test("create: a companyId in the body, or a foreign avatar, is refused with 400", async () => {
+  await withServer({}, async ({ request, storage }) => {
+    const spoof = await request("POST", "/builder", { user: ADMIN_A, body: { ...GOOD_CREATE, companyId: CO_B } });
+    assert.equal(spoof.status, 400);
+
+    const foreign = storage.inner.seedAvatar(CO_B, "/uploads/avatars/22222222/secret.png");
+    const avatar = await request("POST", "/builder", {
+      user: ADMIN_A,
+      body: { ...GOOD_CREATE, customize: { avatar: foreign.path } },
+    });
+    assert.equal(avatar.status, 400);
+    assert.equal(storage.calls.filter((c) => c.name === "createBuilderState").length, 0);
+  });
+});
+
+test("publish: makes a paused chatbot live, and the snapshot says so", async () => {
+  await withServer({}, async ({ request, storage }) => {
+    const seeded = seedA(storage, { active: false });
+    const res = await request("POST", `/builder/${seeded.chatbot.id}/publish`, { user: ADMIN_A });
+    assert.equal(res.status, 200);
+    assert.equal((await storage.inner.findBuilderState(CO_A, seeded.chatbot.id)).chatbot.active, true);
+  });
+});
+
+test("publish: refused with 400 when the stored state would fail the save rule, and stays inactive", async () => {
+  await withServer({}, async ({ request, storage }) => {
+    const seeded = seedA(storage, { active: false, instructions: null }, { bubbleMessage: "Hello" });
+    const res = await request("POST", `/builder/${seeded.chatbot.id}/publish`, { user: ADMIN_A });
+    assert.equal(res.status, 400);
+    assert.ok(res.json.issues.some((i) => i.path.join(".") === "configure.instructions"));
+    assert.equal((await storage.inner.findBuilderState(CO_A, seeded.chatbot.id)).chatbot.active, false);
+  });
+});
+
+test("publish: another company's chatbot answers 404 and is not changed", async () => {
+  await withServer({}, async ({ request, storage }) => {
+    const theirs = storage.inner.seedChatbot(CO_B, { title: "B", active: false, welcomeMessage: "Hi", instructions: "x" }, { bubbleMessage: "b" });
+    const res = await request("POST", `/builder/${theirs.chatbot.id}/publish`, { user: ADMIN_A });
+    assert.equal(res.status, 404);
+    assert.equal((await storage.inner.findBuilderState(CO_B, theirs.chatbot.id)).chatbot.active, false);
+  });
+});
+
+test("publish: an agent is refused with 403, and a bad id with 400", async () => {
+  await withServer({}, async ({ request, storage }) => {
+    const seeded = seedA(storage, { active: false });
+    const agent = await request("POST", `/builder/${seeded.chatbot.id}/publish`, { user: AGENT_A });
+    assert.equal(agent.status, 403);
+    const bad = await request("POST", "/builder/not%20valid!/publish", { user: ADMIN_A });
+    assert.equal(bad.status, 400);
+    assert.equal((await storage.inner.findBuilderState(CO_A, seeded.chatbot.id)).chatbot.active, false);
+  });
+});
+
+test("pause: takes a live chatbot out of service, and a second pause is still 200", async () => {
+  await withServer({}, async ({ request, storage }) => {
+    const seeded = seedA(storage, { active: true });
+    const first = await request("POST", `/builder/${seeded.chatbot.id}/pause`, { user: ADMIN_A });
+    assert.equal(first.status, 200);
+    assert.equal((await storage.inner.findBuilderState(CO_A, seeded.chatbot.id)).chatbot.active, false);
+    const second = await request("POST", `/builder/${seeded.chatbot.id}/pause`, { user: ADMIN_A });
+    assert.equal(second.status, 200);
+  });
+});
+
+test("pause: needs no save checks, so an unfinished chatbot can be paused", async () => {
+  await withServer({}, async ({ request, storage }) => {
+    const seeded = storage.inner.seedChatbot(CO_A, { title: "Draft", active: true, welcomeMessage: null, instructions: null }, {});
+    const res = await request("POST", `/builder/${seeded.chatbot.id}/pause`, { user: ADMIN_A });
+    assert.equal(res.status, 200);
+  });
+});
+
+test("pause: another company's chatbot answers 404 and is not changed; an agent gets 403", async () => {
+  await withServer({}, async ({ request, storage }) => {
+    const theirs = storage.inner.seedChatbot(CO_B, { title: "B", active: true }, {});
+    const cross = await request("POST", `/builder/${theirs.chatbot.id}/pause`, { user: ADMIN_A });
+    assert.equal(cross.status, 404);
+    assert.equal((await storage.inner.findBuilderState(CO_B, theirs.chatbot.id)).chatbot.active, true);
+
+    const mine = seedA(storage, { active: true });
+    const agent = await request("POST", `/builder/${mine.chatbot.id}/pause`, { user: AGENT_A });
+    assert.equal(agent.status, 403);
+    assert.equal((await storage.inner.findBuilderState(CO_A, mine.chatbot.id)).chatbot.active, true);
+  });
+});
+
+test("lifecycle: create, pause, publish, then PATCH update, all through the same company", async () => {
+  await withServer({}, async ({ request, storage }) => {
+    const created = await request("POST", "/builder", { user: ADMIN_A, body: GOOD_CREATE });
+    const id = created.json.id;
+    assert.equal((await request("POST", `/builder/${id}/pause`, { user: ADMIN_A })).status, 200);
+    assert.equal((await request("POST", `/builder/${id}/publish`, { user: ADMIN_A })).status, 200);
+    const patched = await request("PATCH", `/builder/${id}`, { user: ADMIN_A, body: { configure: { title: "Renamed" } } });
+    assert.equal(patched.status, 200);
+    const read = await request("GET", `/builder/${id}`, { user: ADMIN_A });
+    assert.equal(read.json.state.configure.title, "Renamed");
+    assert.equal((await storage.inner.findBuilderState(CO_A, id)).chatbot.active, true);
+  });
 });

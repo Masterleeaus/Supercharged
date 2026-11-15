@@ -63,7 +63,7 @@ export class ConversationStatesCompiler {
   private static getNodeType(node: FlowNode): string {
     const data = node.data || {};
     // Check data.type first, then data.config.type, then fall back to node.type
-    return (data.type as string) || (data.config as any)?.type || node.type || 'unknown';
+    return (data.type as string) || (data.config as { type?: string } | undefined)?.type || node.type || 'unknown';
   }
 
   /**
@@ -72,9 +72,9 @@ export class ConversationStatesCompiler {
    */
   private static getNodeContent(node: FlowNode, field: string): string {
     const data = node.data || {};
-    const config = (data.config as any) || {};
+    const config = (data.config as Record<string, string | undefined>) || {};
     // Check config first (more specific), then data directly
-    return config[field] || (data as any)[field] || '';
+    return config[field] || (data as Record<string, string | undefined>)[field] || '';
   }
 
   /**
@@ -82,7 +82,7 @@ export class ConversationStatesCompiler {
    */
   private static getNodeLabel(node: FlowNode): string {
     const data = node.data || {};
-    return (data.label as string) || (data.config as any)?.label || '';
+    return (data.label as string) || (data.config as { label?: string } | undefined)?.label || '';
   }
 
   /**

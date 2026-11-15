@@ -19,7 +19,12 @@ import { logger } from '../utils/logger';
 import type { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
+import type { SignOptions } from "jsonwebtoken";
 import { isCompanyId } from "../infrastructure/database/tenant-context";
+import type { IStorage } from "../storage";
+
+/** Storage methods the auth middleware uses. Typed from IStorage so callers keep their checks. */
+export type AuthStorage = Pick<IStorage, "getUser" | "getGlobalSetting" | "getUserSubscription">;
 
 const JWT_SECRET = process.env.JWT_SECRET || (() => {
   if (process.env.NODE_ENV === "production") {
@@ -46,9 +51,28 @@ export function companyIdFromClaims(value: unknown): string | undefined {
 const REFRESH_TOKEN_EXPIRY_DAYS = 30;
 const ACTIVITY_TIMEOUT_MINUTES = 30; // Session expires after 30 mins of inactivity
 
+/** Identity set on req.user by the JWT middleware. */
+export interface AuthUser {
+  /** String for JWT users. Team-member rows can carry a numeric userId, passed through unchanged. */
+  id: string | number;
+  role: string;
+  companyId?: string;
+}
+
+/** Admin team member set on req.adminTeamMember by authenticateAnyToken. */
+export interface AuthAdminTeamMember {
+  memberId: string;
+  teamId: string;
+  roleId: string;
+  roleName: string;
+  email: string;
+}
+
 export interface AuthRequest extends Request {
   userId?: string;
   userRole?: string;
+  user?: AuthUser;
+  adminTeamMember?: AuthAdminTeamMember;
 }
 
 export function authenticateToken(req: AuthRequest, res: Response, next: NextFunction) {
@@ -65,7 +89,7 @@ export function authenticateToken(req: AuthRequest, res: Response, next: NextFun
     req.userRole = decoded.role;
     
     // Also set req.user for backward compatibility with routes expecting req.user
-    (req as any).user = {
+    req.user = {
       id: decoded.userId,
       role: decoded.role,
       companyId: companyIdFromClaims(decoded.companyId)
@@ -97,7 +121,7 @@ export async function authenticateAnyToken(req: AuthRequest, res: Response, next
     const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; role: string; companyId?: unknown };
     req.userId = decoded.userId;
     req.userRole = decoded.role;
-    (req as any).user = {
+    req.user = {
       id: decoded.userId,
       role: decoded.role,
       companyId: companyIdFromClaims(decoded.companyId)
@@ -115,7 +139,7 @@ export async function authenticateAnyToken(req: AuthRequest, res: Response, next
     if (isValidSessionTokenFormat(token)) {
       const adminTeamMember = await tryAdminTeamToken(token);
       if (adminTeamMember) {
-        (req as any).adminTeamMember = adminTeamMember;
+        req.adminTeamMember = adminTeamMember;
         return next();
       }
     }
@@ -131,7 +155,7 @@ export async function authenticateAnyToken(req: AuthRequest, res: Response, next
  * Requires authenticateToken to run first
  * Returns 403 if user account is suspended
  */
-export function checkUserActive(storage: any) {
+export function checkUserActive(storage: AuthStorage) {
   return async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
       if (!req.userId) {
@@ -153,7 +177,7 @@ export function checkUserActive(storage: any) {
       }
 
       next();
-    } catch (error: any) {
+    } catch (error) {
       logger.error("User active check error:", error);
       return res.status(500).json({ error: "Failed to verify account status" });
     }
@@ -180,7 +204,7 @@ let jwtExpiryCacheTime: number = 0;
 const JWT_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 // Preload JWT expiry from database on server startup
-export async function preloadJwtExpiry(storage: any): Promise<void> {
+export async function preloadJwtExpiry(storage: AuthStorage): Promise<void> {
   try {
     const setting = await storage.getGlobalSetting('jwt_expiry_days');
     const days = typeof setting?.value === 'number' ? setting.value : 7;
@@ -192,7 +216,7 @@ export async function preloadJwtExpiry(storage: any): Promise<void> {
   }
 }
 
-async function getJwtExpiry(storage: any): Promise<string> {
+async function getJwtExpiry(storage: AuthStorage): Promise<string> {
   const now = Date.now();
   if ((now - jwtExpiryCacheTime) < JWT_CACHE_TTL) {
     return cachedJwtExpiry;
@@ -210,9 +234,9 @@ async function getJwtExpiry(storage: any): Promise<string> {
   }
 }
 
-export async function generateTokenAsync(userId: string, role: string, storage: any, companyId?: string | null): Promise<string> {
+export async function generateTokenAsync(userId: string, role: string, storage: AuthStorage, companyId?: string | null): Promise<string> {
   const expiry = await getJwtExpiry(storage);
-  return jwt.sign({ userId, role, ...companyClaim(companyId) }, JWT_SECRET, { expiresIn: expiry as any });
+  return jwt.sign({ userId, role, ...companyClaim(companyId) }, JWT_SECRET, { expiresIn: expiry as SignOptions["expiresIn"] });
 }
 
 /**
@@ -220,7 +244,7 @@ export async function generateTokenAsync(userId: string, role: string, storage: 
  * Requires authenticateToken to run first
  * Skips check in development mode for testing
  */
-export function checkActiveMembership(storage: any) {
+export function checkActiveMembership(storage: AuthStorage) {
   return async (req: AuthRequest, res: Response, next: NextFunction) => {
     // Skip in development mode for testing
     if (process.env.NODE_ENV === 'development') {
@@ -258,7 +282,7 @@ export function checkActiveMembership(storage: any) {
       return res.status(403).json({ 
         error: 'Active Pro membership required. Please subscribe to a plan to access this feature.' 
       });
-    } catch (error: any) {
+    } catch (error) {
       logger.error('Membership check error:', error);
       return res.status(500).json({ error: 'Failed to verify membership status' });
     }

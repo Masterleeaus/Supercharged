@@ -26,6 +26,7 @@ import type {
   StoredMessage,
 } from "./conversation-store.ts";
 import type { OutboxTx } from "../channels/outbox.ts";
+import { withTenantTransaction } from "../../../infrastructure/database/tenant-transaction.ts";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type ConversationDb = PgDatabase<any, any, any>;
@@ -223,17 +224,17 @@ export function createDrizzleConversationStore(db: ConversationDb): Conversation
 
   return {
     async chatbotBelongsTo(companyId, chatbotId) {
-      const rows = await buildChatbotBelongs(db, companyId, chatbotId);
+      const rows = await withTenantTransaction(db, companyId, (tx) => buildChatbotBelongs(tx, companyId, chatbotId));
       return rows.length === 1;
     },
 
     async conversationOfMessage(companyId, messageId) {
-      const [row] = await buildConversationOfMessage(db, companyId, messageId);
+      const [row] = await withTenantTransaction(db, companyId, (tx) => buildConversationOfMessage(tx, companyId, messageId));
       return row?.conversationId ?? null;
     },
 
     async insertConversation(companyId, record, event) {
-      return db.transaction(async (raw) => {
+      return withTenantTransaction(db, companyId, async (raw) => {
         const tx = raw as unknown as ConversationDb;
         const [row] = await tx
           .insert(c)
@@ -260,12 +261,12 @@ export function createDrizzleConversationStore(db: ConversationDb): Conversation
     },
 
     async findConversation(companyId, id) {
-      const [row] = await buildFindConversation(db, companyId, id);
+      const [row] = await withTenantTransaction(db, companyId, (tx) => buildFindConversation(tx, companyId, id));
       return row ? toConversationRecord(row) : null;
     },
 
     async insertMessage(companyId, conversationId, message) {
-      return db.transaction(async (raw) => {
+      return withTenantTransaction(db, companyId, async (raw) => {
         const tx = raw as unknown as ConversationDb;
         const [owner] = await buildFindConversation(tx, companyId, conversationId);
         if (!owner) return null;
@@ -276,7 +277,7 @@ export function createDrizzleConversationStore(db: ConversationDb): Conversation
 
     async insertReply(companyId, conversationId, reply, enqueueSend) {
       // One unit: the message row, the conversation timestamp and the channel send row commit or roll back together.
-      return db.transaction(async (raw) => {
+      return withTenantTransaction(db, companyId, async (raw) => {
         const tx = raw as unknown as ConversationDb;
         const [owner] = await buildFindConversation(tx, companyId, conversationId);
         if (!owner) return null;
@@ -303,12 +304,12 @@ export function createDrizzleConversationStore(db: ConversationDb): Conversation
     },
 
     async listMessages(companyId, conversationId) {
-      const rows = await buildListMessages(db, companyId, conversationId);
+      const rows = await withTenantTransaction(db, companyId, (tx) => buildListMessages(tx, companyId, conversationId));
       return rows.map(toStoredMessage);
     },
 
     async setStatus(companyId, id, status, now, event) {
-      return db.transaction(async (raw) => {
+      return withTenantTransaction(db, companyId, async (raw) => {
         const tx = raw as unknown as ConversationDb;
         const [row] = await buildSetStatus(tx, companyId, id, status, now);
         if (!row) return null;
@@ -318,7 +319,7 @@ export function createDrizzleConversationStore(db: ConversationDb): Conversation
     },
 
     async mergeConversations(companyId, targetId, sourceId, now, event): Promise<MergeOutcome> {
-      return db.transaction(async (raw): Promise<MergeOutcome> => {
+      return withTenantTransaction(db, companyId, async (raw): Promise<MergeOutcome> => {
         const tx = raw as unknown as ConversationDb;
         if (targetId === sourceId) return { kind: "conflict" };
 
@@ -360,12 +361,12 @@ export function createDrizzleConversationStore(db: ConversationDb): Conversation
     },
 
     async setSummary(companyId, id, summary, now) {
-      const [row] = await buildSetSummary(db, companyId, id, summary, now);
+      const [row] = await withTenantTransaction(db, companyId, (tx) => buildSetSummary(tx, companyId, id, summary, now));
       return row ? toConversationRecord(row) : null;
     },
 
     async searchConversations(companyId, query) {
-      const rows = await buildSearchConversations(db, companyId, query);
+      const rows = await withTenantTransaction(db, companyId, (tx) => buildSearchConversations(tx, companyId, query));
       return rows.map((row) => toConversationRecord(row));
     },
   };
