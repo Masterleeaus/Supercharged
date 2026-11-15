@@ -176,6 +176,36 @@ jobs:
       - name: Verify company quiet-hours isolation on real PostgreSQL
         run: node --test --experimental-transform-types tests/postgres/tenant-postgres-*.test.mjs
 
+  approvals-postgres:
+    name: Approvals PostgreSQL tenant isolation
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: ci-only-throwaway-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      APPROVALS_PG_DISPOSABLE: 'true'
+      APPROVALS_PG_INTEGRATION_URL: postgres://postgres:ci-only-throwaway-password@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build disposable Approvals schema (migrations 0010b and 0013)
+        run: node scripts/approvals-postgres-prepare.mjs
+      - name: Verify company isolation of approvals and rules on real PostgreSQL
+        run: node --test --experimental-transform-types tests/postgres/approvals-postgres-tenant.test.mjs
+
   boot-fresh-db:
     # Gating (issue #124). Applies the base schema and every manifest migration, in order,
     # to an empty native PostgreSQL 16, then boots the built server until /health answers.
