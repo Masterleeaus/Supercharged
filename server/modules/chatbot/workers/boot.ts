@@ -11,9 +11,10 @@
  * Services built here use the existing Drizzle adapters and the existing factories only. No business logic lives here.
  *
  * Not built here (blocked, see the report that added this file):
- * - VoiceCallService (voice-call/service.ts). It needs a production CallProvider and a CreditLedger. The module has
- *   no production provider (provider-memory.ts is a test double that places no calls) and no CreditLedger
- *   implementation. So the voice_call_limits job stays unwired and the voice-call service is not constructed.
+ * VoiceCallService (voice-call/service.ts) IS constructed when CHATBOT_WORKERS_ENABLED is "true", so the voice_call_limits
+ * job runs. It has no production CallProvider and no CreditLedger yet (owner decisions), so it is built with the
+ * fail-closed ports in voice-call/unconfigured.ts: no call can start, and the quota sweep only ends calls already in
+ * progress past their cap. The sweep is not gated by the voice flag (see voice-call/DECISIONS.md).
  * - voice_sweep (VoiceSweepService) and booking_reconcile are not part of this change.
  */
 import { randomUUID } from "node:crypto";
@@ -46,6 +47,15 @@ import {
   type ReminderEmailSend,
 } from "../booking-providers/reminder-senders.ts";
 import { createSseHub } from "../realtime/hub.ts";
+import { DrizzleVoiceCallStorage, type VoiceCallPgDatabase } from "../voice-call/storage-drizzle.ts";
+import { VoiceCallService, type VoiceCallDeps } from "../voice-call/service.ts";
+import {
+  UnconfiguredCallProvider,
+  unconfiguredChatbotGate,
+  unconfiguredCredentials,
+  unconfiguredCredits,
+  unconfiguredQuota,
+} from "../voice-call/unconfigured.ts";
 import { createSsePublisher } from "../realtime/sse-publisher.ts";
 import {
   CHATBOT_WORKERS_FLAG,
@@ -65,6 +75,8 @@ export interface ChatbotBootDeps {
   secretBox?: SecretBox;
   logger?: WorkerLogger;
   clock?: () => Date;
+  /** Passed from mountChatbotModule(...).voiceCall. Only the demo cap options are read. */
+  voiceCall?: { demoMode: boolean; demoSecondsLimit?: number };
 }
 
 /**
@@ -93,12 +105,40 @@ export function buildChatbotWorkerServices(deps: ChatbotBootDeps): ChatbotWorker
     services.eventOutbox = { processor: createOutboxProcessor({ store, webhooks, publisher, events }) };
   }
 
+  // Voice-call service for the quota sweep. Fail-closed ports until a provider and a ledger exist, so no call can start.
+  services.voiceCallLimits = buildVoiceCallService(deps, clock);
+
   // Appointment reminders. Off unless CHATBOT_REMINDERS_ENABLED is exactly "true".
   if (readFlag(CONTRACT_FLAGS.REMINDERS_ENABLED, deps.env)) {
     services.reminders = buildReminderService(deps, store, events, clock);
   }
 
   return services;
+}
+
+/**
+ * Builds the voice-call service with the fail-closed ports. Storage is the existing Drizzle adapter. Nothing here runs a
+ * query at construction time.
+ */
+export function buildVoiceCallService(deps: ChatbotBootDeps, clock: () => Date): VoiceCallService {
+  const logger = deps.logger ?? { info() {}, warn() {} };
+  const voiceDeps: VoiceCallDeps = {
+    storage: new DrizzleVoiceCallStorage(deps.db as unknown as VoiceCallPgDatabase),
+    provider: new UnconfiguredCallProvider(),
+    http: createPinnedHttpClient({ resolve: systemWebhookResolver, maxBodyBytes: 65536 }),
+    quota: unconfiguredQuota,
+    chatbots: unconfiguredChatbotGate,
+    credentials: unconfiguredCredentials,
+    credits: unconfiguredCredits,
+    logger,
+    env: deps.env,
+    // No status-callback host is allowed until the provider is chosen. Empty means every callback URL is refused.
+    callbackHosts: [],
+    clock,
+    demoMode: deps.voiceCall?.demoMode ?? false,
+    demoSecondsLimit: deps.voiceCall?.demoSecondsLimit,
+  };
+  return new VoiceCallService(voiceDeps);
 }
 
 /** Channels the reminder job sends on at boot. Only email has a transport wired to a real recipient rule today. */

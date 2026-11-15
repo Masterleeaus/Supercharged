@@ -7,7 +7,8 @@ const localesFolder = new URL("../../client/src/i18n/locales/", import.meta.url)
 const localeFiles = readdirSync(localesFolder).filter((name) => name.endsWith(".json"));
 
 test("notification app name defaults to Supercharged and keeps configured nonblank names", () => {
-  assert.match(notification, /const DEFAULT_APP_NAME = 'Supercharged';/);
+  assert.match(notification, /const DEFAULT_APP_NAME = PRODUCT_NAME;/);
+  assert.match(notification, /import \{ PRODUCT_NAME \} from '[./]*shared\/brand\.ts';/);
   assert.match(notification, /storage\.getGlobalSetting\('app_name'\)/);
   assert.match(notification, /typeof setting\?\.value === 'string' && setting\.value\.trim\(\) \? setting\.value : DEFAULT_APP_NAME/);
   assert.match(notification, /return DEFAULT_APP_NAME;/);
