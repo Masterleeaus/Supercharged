@@ -33,7 +33,7 @@ import { ElevenLabsPoolService } from './elevenlabs-pool';
 import { storage } from '../storage';
 import { db } from '../db';
 import { eq } from 'drizzle-orm';
-import { llmModels } from '@shared/schema';
+import { llmModels, type Agent } from '@shared/schema';
 import { setupRAGToolForAgent, isRAGEnabled } from './rag-elevenlabs-tool';
 import { sanitizeLlmModel } from '../utils/llm-sanitize';
 
@@ -92,7 +92,7 @@ export interface IncomingAgentUpdateParams {
   messagingWhatsappTemplates?: string[];
   messagingEmailSelectedTemplate?: string;
   messagingWhatsappSelectedTemplate?: string;
-  messagingWhatsappVariables?: Record<string, any>;
+  messagingWhatsappVariables?: Record<string, unknown>;
   expressiveMode?: boolean;
   voiceStability?: number;
   voiceSimilarityBoost?: number;
@@ -154,8 +154,8 @@ export class IncomingAgentService {
           title: kbItem.title,
           elevenLabsDocId: kbItem.elevenLabsDocId
         });
-      } catch (error: any) {
-        logger.error(`   ❌ Failed to fetch KB ${kbId}:`, error.message);
+      } catch (error: unknown) {
+        logger.error(`   ❌ Failed to fetch KB ${kbId}:`, (error as Error).message);
       }
     }
 
@@ -284,9 +284,10 @@ export class IncomingAgentService {
   /**
    * Check if error indicates a stale/invalid agent ID (API key changed or agent deleted)
    */
-  private static isStaleAgentError(error: any): boolean {
-    const status = error?.status || error?.response?.status;
-    const message = String(error?.message || '').toLowerCase();
+  private static isStaleAgentError(error: unknown): boolean {
+    const err = error as { status?: number; response?: { status?: number }; message?: unknown } | null | undefined;
+    const status = err?.status || err?.response?.status;
+    const message = String(err?.message || '').toLowerCase();
 
     // 401: Unauthorized (API key doesn't have access)
     // 403: Forbidden (API key doesn't own this agent)
@@ -319,7 +320,7 @@ export class IncomingAgentService {
   static async updateInElevenLabs(
     agentId: string,
     elevenLabsAgentId: string,
-    currentAgent: any,
+    currentAgent: Agent,
     params: IncomingAgentUpdateParams
   ): Promise<{ recreated?: boolean; newElevenLabsAgentId?: string; newCredentialId?: string }> {
     logger.info(`🔄 [Incoming Agent] Updating: ${agentId}`);
@@ -346,7 +347,7 @@ export class IncomingAgentService {
     const adminTtsModel = await this.getSmartTtsModel(effectiveLanguage || 'en');
 
     // Build update payload
-    const elevenLabsUpdates: any = {};
+    const elevenLabsUpdates: Record<string, unknown> = {};
 
     if (params.name) elevenLabsUpdates.name = params.name;
     // Always include system prompt (resolved from params or fallback to currentAgent) to ensure it gets enhanced with tool instructions
@@ -479,10 +480,10 @@ export class IncomingAgentService {
       try {
         await elevenLabsService.updateAgent(elevenLabsAgentId, elevenLabsUpdates);
         logger.info(`✅ [Incoming] ElevenLabs sync complete`);
-      } catch (updateError: any) {
+      } catch (updateError: unknown) {
         // Check if this is a stale agent error (API key changed, agent doesn't exist, etc.)
         if (this.isStaleAgentError(updateError)) {
-          logger.warn(`⚠️  [Incoming] Stale agent detected (${updateError.message}). Recreating agent with current API key...`);
+          logger.warn(`⚠️  [Incoming] Stale agent detected (${(updateError as Error).message}). Recreating agent with current API key...`);
 
           // Get a fresh credential from the pool (may be new if API key was changed)
           const freshCredential = await ElevenLabsPoolService.getAvailableCredential();
@@ -540,7 +541,7 @@ export class IncomingAgentService {
     // IMPORTANT: Pass system tools as ARRAY to preserve when linking RAG webhook tools
     // Build the system tools ARRAY to preserve when setting up RAG
     // Per ElevenLabs API: All tools go in prompt.tools array with type: "system"
-    const systemTools: any[] = [];
+    const systemTools: Record<string, unknown>[] = [];
 
     // Transfer to Number tool
     // SIP phone numbers require sip_refer; native Twilio/Plivo use conference
@@ -553,9 +554,9 @@ export class IncomingAgentService {
           sipTrunkAddress = await getSipTrunkOutboundAddress(agentId);
           logger.info(`   📞 [Incoming] SIP agent detected - using sip_refer transfer type (trunk: ${sipTrunkAddress})`);
         }
-      } catch (err: any) { logger.warn('SIP trunk check failed for incoming agent; using conference transfer', { agentId, error: err?.message }, 'IncomingAgent'); }
+      } catch (err: unknown) { logger.warn('SIP trunk check failed for incoming agent; using conference transfer', { agentId, error: (err as Error)?.message }, 'IncomingAgent'); }
 
-      let transferDestination: any;
+      let transferDestination: Record<string, string>;
       if (transferType === "sip_refer" && sipTrunkAddress) {
         const phoneNumber = effectiveTransferPhone.startsWith('+')
           ? effectiveTransferPhone
