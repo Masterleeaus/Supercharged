@@ -116,6 +116,13 @@ export class InMemoryInboxStore implements InboxStore {
     return this.links.filter((l) => l.companyId === requireCo(companyId) && l.threadId === threadId).map((l) => ({ ...l }));
   }
 
+  async findThreadContactAddress(companyId: string, threadId: string): Promise<string | null> {
+    const co = requireCo(companyId);
+    const linked = new Set(this.links.filter((l) => l.companyId === co && l.threadId === threadId).map((l) => l.participantId));
+    const contact = this.participants.find((p) => p.companyId === co && p.kind === 'contact' && linked.has(p.id));
+    return contact?.address ?? null;
+  }
+
   async insertMessage(message: Message): Promise<void> {
     requireCo(message.companyId);
     // Mirror the DB unique key: one inbound row per (company, channel, externalId).
