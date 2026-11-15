@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {createHash, generateKeyPairSync, sign as cryptoSign} from 'node:crypto';
 import {createCentralOidcFlow, createMemoryPendingStore} from '../../server/infrastructure/central-sso/oidc-flow.ts';
 import {createDatabasePendingStore, pendingStateHash} from '../../server/infrastructure/central-sso/pending-store-db.ts';
+import {createCentralSsoFlow} from '../../server/infrastructure/central-sso/flow-wiring.ts';
+import {loadCentralSsoConfig} from '../../server/infrastructure/central-sso/config.ts';
 
 // Fixtures only. No real database, Logto, or Central endpoint is contacted.
 // FakeDb models one shared table, the way two app processes share one Postgres table.
@@ -111,10 +113,13 @@ test('memory store reports a full table as a refused put', async () => {
 const ISSUER = 'https://central.example';
 const COMPANY = '00000000-0000-4000-8000-000000000001';
 const META = {issuer: ISSUER, authorizationEndpoint: 'https://central.example/authorize', tokenEndpoint: 'https://central.example/token', jwksUri: 'https://central.example/jwks'};
-const config = {
- enabled: true, issuer: ISSUER, clientId: 'desk-client-test', clientSecret: 'test-only-client-secret',
- redirectUri: 'https://desk.example/auth/central/callback', audience: 'desk-audience-test', companyClaim: 'company_id',
+// Config comes from the same env path the app uses, so the CENTRAL_SSO_ENABLED flag is exercised.
+const ENV_ON = {
+ CENTRAL_SSO_ENABLED: 'true', CENTRAL_OIDC_ISSUER: ISSUER, CENTRAL_OIDC_CLIENT_ID: 'desk-client-test',
+ CENTRAL_OIDC_CLIENT_SECRET: 'test-only-client-secret', CENTRAL_OIDC_REDIRECT_URI: 'https://desk.example/auth/central/callback',
+ TITAN_DESK_AUDIENCE: 'desk-audience-test', CENTRAL_COMPANY_CLAIM: 'company_id',
 };
+const config = loadCentralSsoConfig(ENV_ON);
 const rsa = generateKeyPairSync('rsa', {modulusLength: 2048});
 const rsaJwk = {...rsa.publicKey.export({format: 'jwk'}), kid: 'rsa-1', alg: 'RS256', use: 'sig'};
 const b64u = (x) => Buffer.from(x).toString('base64url');
@@ -130,11 +135,11 @@ function makeProcess(db, tokenState) {
   if (url !== META.tokenEndpoint) throw new Error(`unexpected fetch ${url}`);
   return new Response(JSON.stringify({id_token: tokenState.idToken, access_token: 'x'}), {status: 200, headers: {'content-type': 'application/json'}});
  };
- return createCentralOidcFlow({
+ return createCentralSsoFlow({
   config,
   discovery: async () => META,
   jwksKeys: async (kid) => (kid === 'rsa-1' ? rsaJwk : null),
-  pending: createDatabasePendingStore({db}),
+  db,
   fetchImpl,
  });
 }
@@ -176,4 +181,52 @@ test('start fails closed with session_unavailable when the pending store is full
   fetchImpl: async () => { throw new Error('no network in test'); },
  });
  assert.deepEqual(await flow.start(), {ok: false, reason: 'session_unavailable'});
+});
+
+test('with CENTRAL_SSO_ENABLED unset, the wired flow is disabled and never touches the database', async () => {
+ const config = loadCentralSsoConfig({});
+ const touched = [];
+ const flow = createCentralSsoFlow({
+  config,
+  discovery: async () => META,
+  jwksKeys: async () => null,
+  db: {query: async (text) => { touched.push(text); throw new Error('must not run'); }},
+ });
+ assert.deepEqual(await flow.start(), {ok: false, reason: 'disabled'});
+ assert.deepEqual(await flow.complete({query: {code: 'c', state: 's'}, cookieState: 's'}), {ok: false, reason: 'disabled'});
+ assert.equal(touched.length, 0);
+});
+
+test('with the flag on, the wired flow refuses to build without a database handle', () => {
+ assert.throws(
+  () => createCentralSsoFlow({config, discovery: async () => META, jwksKeys: async () => null}),
+  /database handle is required/,
+ );
+});
+
+test('a database error at start fails closed as session_unavailable, and a callback fails closed as unknown_state', async () => {
+ const broken = {query: async () => { throw new Error('relation does not exist'); }};
+ const flow = createCentralSsoFlow({
+  config,
+  discovery: async () => META,
+  jwksKeys: async () => null,
+  db: broken,
+  fetchImpl: async () => { throw new Error('no network in test'); },
+ });
+ assert.deepEqual(await flow.start(), {ok: false, reason: 'session_unavailable'});
+ const late = await flow.complete({query: {code: 'c', state: 'x'.repeat(43)}, cookieState: 'x'.repeat(43)});
+ assert.deepEqual(late, {ok: false, reason: 'unknown_state'});
+});
+
+test('a callback whose cookie does not match the state is refused and does not consume the stored login', async () => {
+ const db = new FakeDb();
+ const tokenState = {idToken: null};
+ const flow = makeProcess(db, tokenState);
+ const s = await flow.start();
+ tokenState.idToken = makeIdToken(new URL(s.redirectUrl).searchParams.get('nonce'));
+ const forged = await flow.complete({query: {code: 'auth-code-1', state: s.state}, cookieState: 'other-cookie-value-0000000000000000000'});
+ assert.deepEqual(forged, {ok: false, reason: 'state_mismatch'});
+ assert.equal(db.rows.size, 1);
+ const done = await flow.complete({query: {code: 'auth-code-1', state: s.state}, cookieState: s.state});
+ assert.equal(done.ok, true);
 });
