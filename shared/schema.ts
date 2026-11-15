@@ -1042,7 +1042,6 @@ export const insertCreditPackageSchema = createInsertSchema(creditPackages).omit
   paypalPrice: z.union([z.string(), z.number()]).transform(v => v != null ? String(v) : null).nullable().optional(),
   paystackPrice: z.union([z.string(), z.number()]).transform(v => v != null ? String(v) : null).nullable().optional(),
   mercadopagoPrice: z.union([z.string(), z.number()]).transform(v => v != null ? String(v) : null).nullable().optional(),
-  yookassaPrice: z.union([z.string(), z.number()]).transform(v => v != null ? String(v) : null).nullable().optional(),
 });
 
 export const insertUserSubscriptionSchema = createInsertSchema(userSubscriptions).omit({

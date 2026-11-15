@@ -62,7 +62,7 @@ These files define routes, but nothing imports them, so no request reaches them.
 | `/api/admin/plugins/installer`, `/api/admin/plugins` | `routes/plugin-installer.ts`, `routes/plugin-routes.ts` default router | `checkAdminOrTeamMember` (+ `requireAdminPermission`) | n/a | checked |
 | `/api/plugins` | `routes/plugin-routes.ts` `userPluginRouter` | `authenticateAnyToken` | n/a | checked |
 | `/api/plugins` | `routes/plugin-routes.ts` `publicPluginRouter` | none (health, docs, bundle) | n/a | not applicable (public) |
-| `/api/stripe`, `/api/razorpay`, `/api/paypal`, `/api/paystack`, `/api/mercadopago`, `/api/yookassa` | `engines/payment/gateways/*/routes.ts` | per route (`authenticateToken`), webhooks verified in handler | yes | checked |
+| `/api/stripe`, `/api/razorpay`, `/api/paypal`, `/api/paystack`, `/api/mercadopago` | `engines/payment/gateways/*/routes.ts` | per route (`authenticateToken`), webhooks verified in handler | yes | checked |
 | `/api/admin` | `routes/admin-routes.ts` | `router.use(checkAdminOrTeamMember)` (line 49) | n/a | checked |
 | `/api/admin` | `routes/admin-team-access.routes.ts` | per route | yes | checked |
 | `/api/admin/llm-models` | `routes/llm-models-routes.ts` | `checkAdminOrTeamMember` | n/a | checked |
@@ -145,7 +145,7 @@ Columns: line in the file, method, route, auth middleware (as in the code), perm
 | 232 | POST | `/create-subscription` | authenticateToken (inline) | owner from session | checked | Per-route auth. |
 | 286 | POST | `/confirm-subscription` | authenticateToken (inline) | owner from session | checked | Per-route auth. |
 | 405 | POST | `/cancel-subscription` | authenticateToken (inline) | owner from session | checked | Per-route auth. |
-| 465 | POST | `/webhook` | provider signature or API re-fetch in handler (stripe-signature, x-razorpay-signature, PayPal verify, x-signature, x-paystack-signature, YooKassa API re-fetch) | none | checked | Own verification. |
+| 465 | POST | `/webhook` | provider signature or API re-fetch in handler (stripe-signature, x-razorpay-signature, PayPal verify, x-signature, x-paystack-signature) | none | checked | Own verification. |
 
 ### `server/engines/payment/gateways/paypal/routes.ts`
 
@@ -158,7 +158,7 @@ Columns: line in the file, method, route, auth middleware (as in the code), perm
 | 321 | POST | `/create-subscription` | authenticateToken (inline) | owner from session | checked | Per-route auth. |
 | 388 | POST | `/confirm-subscription` | authenticateToken (inline) | owner from session | checked | Per-route auth. |
 | 507 | POST | `/cancel-subscription` | authenticateToken (inline) | owner from session | checked | Per-route auth. |
-| 567 | POST | `/webhook` | provider signature or API re-fetch in handler (stripe-signature, x-razorpay-signature, PayPal verify, x-signature, x-paystack-signature, YooKassa API re-fetch) | none | checked | Own verification. |
+| 567 | POST | `/webhook` | provider signature or API re-fetch in handler (stripe-signature, x-razorpay-signature, PayPal verify, x-signature, x-paystack-signature) | none | checked | Own verification. |
 
 ### `server/engines/payment/gateways/paystack/routes.ts`
 
@@ -172,7 +172,7 @@ Columns: line in the file, method, route, auth middleware (as in the code), perm
 | 457 | POST | `/verify-transaction` | authenticateToken (inline) | owner from session | checked | Per-route auth. |
 | 520 | POST | `/cancel-subscription` | authenticateToken (inline) | owner from session | checked | Per-route auth. |
 | 580 | POST | `/refund` | authenticateToken (inline) | owner from session | checked | Per-route auth. |
-| 603 | POST | `/webhook` | provider signature or API re-fetch in handler (stripe-signature, x-razorpay-signature, PayPal verify, x-signature, x-paystack-signature, YooKassa API re-fetch) | none | checked | Own verification. |
+| 603 | POST | `/webhook` | provider signature or API re-fetch in handler (stripe-signature, x-razorpay-signature, PayPal verify, x-signature, x-paystack-signature) | none | checked | Own verification. |
 | 705 | POST | `/verify-payment` | authenticateToken (inline) | owner from session | checked | Per-route auth. |
 
 ### `server/engines/payment/gateways/razorpay/routes.ts`
@@ -187,7 +187,7 @@ Columns: line in the file, method, route, auth middleware (as in the code), perm
 | 433 | POST | `/verify-payment` | authenticateToken (inline) | owner from session | checked | Per-route auth. |
 | 503 | POST | `/cancel-subscription` | authenticateToken (inline) | owner from session | checked | Per-route auth. |
 | 541 | POST | `/refund` | authenticateToken (inline) | owner from session | checked | Per-route auth. |
-| 564 | POST | `/webhook` | provider signature or API re-fetch in handler (stripe-signature, x-razorpay-signature, PayPal verify, x-signature, x-paystack-signature, YooKassa API re-fetch) | none | checked | Own verification. |
+| 564 | POST | `/webhook` | provider signature or API re-fetch in handler (stripe-signature, x-razorpay-signature, PayPal verify, x-signature, x-paystack-signature) | none | checked | Own verification. |
 
 ### `server/engines/payment/gateways/stripe/routes.ts`
 
@@ -202,15 +202,7 @@ Columns: line in the file, method, route, auth middleware (as in the code), perm
 | 518 | POST | `/reactivate-subscription` | authenticateToken (inline) | owner from session | checked | Per-route auth. |
 | 556 | POST | `/cancel-subscription` | authenticateToken (inline) | owner from session | checked | Per-route auth. |
 | 588 | POST | `/refund` | authenticateToken (inline) | owner from session | checked | Per-route auth. |
-| 611 | POST | `/webhook` | provider signature or API re-fetch in handler (stripe-signature, x-razorpay-signature, PayPal verify, x-signature, x-paystack-signature, YooKassa API re-fetch) | none | checked | Own verification. |
-
-### `server/engines/payment/gateways/yookassa/routes.ts`
-
-| Line | Method | Route | Auth middleware | Permission check | Status | Reason |
-|---|---|---|---|---|---|---|
-| 31 | GET | `/config` | none | none | not applicable | Public by design (checkout config). Payload not re-read in this pass. |
-| 45 | POST | `/create-checkout-session` | authenticateToken (inline) | owner from session | checked | Per-route auth. |
-| 140 | POST | `/webhook` | provider signature or API re-fetch in handler (stripe-signature, x-razorpay-signature, PayPal verify, x-signature, x-paystack-signature, YooKassa API re-fetch) | none | checked | Own verification. |
+| 611 | POST | `/webhook` | provider signature or API re-fetch in handler (stripe-signature, x-razorpay-signature, PayPal verify, x-signature, x-paystack-signature) | none | checked | Own verification. |
 
 ### `server/engines/plivo-elevenlabs/routes/webhooks.ts`
 
@@ -600,7 +592,6 @@ Columns: line in the file, method, route, auth middleware (as in the code), perm
 | 244 | POST | `/test-connection/paypal` | requireAdminPermission('settings', 'system_settings', 'updat | requireAdminPermission('settings', 'syst | checked | Per-route auth. |
 | 280 | POST | `/test-connection/paystack` | requireAdminPermission('settings', 'system_settings', 'updat | requireAdminPermission('settings', 'syst | checked | Per-route auth. |
 | 304 | POST | `/test-connection/mercadopago` | requireAdminPermission('settings', 'system_settings', 'updat | requireAdminPermission('settings', 'syst | checked | Per-route auth. |
-| 327 | POST | `/test-connection/yookassa` | requireAdminPermission('settings', 'system_settings', 'updat | requireAdminPermission('settings', 'syst | checked | Per-route auth. |
 | 354 | POST | `/test-connection/razorpay` | requireAdminPermission('settings', 'system_settings', 'updat | requireAdminPermission('settings', 'syst | checked | Per-route auth. |
 | 381 | POST | `/validate-credentials/razorpay` | requireAdminPermission('settings', 'system_settings', 'updat | requireAdminPermission('settings', 'syst | checked | Per-route auth. |
 
@@ -679,7 +670,6 @@ Columns: line in the file, method, route, auth middleware (as in the code), perm
 | 1051 | POST | `/plans/:planId/sync/paypal` | requireAdminPermission('billing', 'plans', 'update') | requireAdminPermission('billing', 'plans | checked | Per-route auth. |
 | 1211 | POST | `/plans/:planId/sync/paystack` | requireAdminPermission('billing', 'plans', 'update') | requireAdminPermission('billing', 'plans | checked | Per-route auth. |
 | 1272 | POST | `/plans/:planId/sync/mercadopago` | requireAdminPermission('billing', 'plans', 'update') | requireAdminPermission('billing', 'plans | checked | Per-route auth. |
-| 1343 | POST | `/plans/:planId/sync/yookassa` | requireAdminPermission('billing', 'plans', 'update') | requireAdminPermission('billing', 'plans | checked | Per-route auth. |
 
 ### `server/routes/admin/seo-routes.ts`
 

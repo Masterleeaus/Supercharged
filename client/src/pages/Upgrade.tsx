@@ -46,7 +46,7 @@ const PaystackIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-type GatewayType = 'stripe' | 'razorpay' | 'paypal' | 'paystack' | 'mercadopago' | 'yookassa';
+type GatewayType = 'stripe' | 'razorpay' | 'paypal' | 'paystack' | 'mercadopago';
 
 // Plan tier hierarchy for upgrade/downgrade comparison
 const PLAN_TIER_ORDER: Record<string, number> = {
@@ -87,8 +87,6 @@ interface Plan {
   paystackYearlyPrice: string | null;
   mercadopagoMonthlyPrice: string | null;
   mercadopagoYearlyPrice: string | null;
-  yookassaMonthlyPrice: string | null;
-  yookassaYearlyPrice: string | null;
   stripeMonthlyPriceId: string | null;
   stripeYearlyPriceId: string | null;
   razorpayPlanId: string | null;
@@ -100,8 +98,6 @@ interface Plan {
   paystackYearlyPlanCode: string | null;
   mercadopagoMonthlyPlanId: string | null;
   mercadopagoYearlyPlanId: string | null;
-  yookassaMonthlyPlanId: string | null;
-  yookassaYearlyPlanId: string | null;
   maxAgents: number;
   maxCampaigns: number;
   maxContactsPerCampaign: number;
@@ -155,7 +151,6 @@ interface PaymentGatewayConfig {
   paypalEnabled: boolean;
   paystackEnabled: boolean;
   mercadopagoEnabled: boolean;
-  yookassaEnabled: boolean;
   razorpayKeyId?: string;
   stripeCurrency?: string;
   stripeCurrencySymbol?: string;
@@ -169,9 +164,6 @@ interface PaymentGatewayConfig {
   mercadopagoCurrency?: string;
   mercadopagoCurrencySymbol?: string;
   mercadopagoCurrencies?: string[];
-  yookassaCurrency?: string;
-  yookassaCurrencySymbol?: string;
-  yookassaCurrencies?: string[];
 }
 
 interface RazorpayConfig {
@@ -270,11 +262,6 @@ export function UpgradePlansContent() {
       currencyMap.set(curr, [...(currencyMap.get(curr) || []), 'mercadopago']);
     }
 
-    if (paymentGateway.yookassaEnabled) {
-      const curr = (paymentGateway.yookassaCurrency || 'RUB').toUpperCase();
-      currencyMap.set(curr, [...(currencyMap.get(curr) || []), 'yookassa']);
-    }
-    
     return Array.from(currencyMap.entries()).map(([code, gateways]) => ({
       code,
       symbol: currencySymbols[code] || code,
@@ -297,7 +284,6 @@ export function UpgradePlansContent() {
       plan.razorpayMonthlyPrice, plan.razorpayYearlyPrice,
       plan.paystackMonthlyPrice, plan.paystackYearlyPrice,
       plan.mercadopagoMonthlyPrice, plan.mercadopagoYearlyPrice,
-      plan.yookassaMonthlyPrice, plan.yookassaYearlyPrice,
     ].every(p => !p || parseFloat(p) === 0);
     const isFreePlan = allPricesZero || plan.name === 'free';
     if (isFreePlan) return gateways;
@@ -314,8 +300,6 @@ export function UpgradePlansContent() {
           return period === 'monthly' ? !!plan.paystackMonthlyPlanCode : !!plan.paystackYearlyPlanCode;
         case 'mercadopago':
           return period === 'monthly' ? !!plan.mercadopagoMonthlyPlanId : !!plan.mercadopagoYearlyPlanId;
-        case 'yookassa':
-          return period === 'monthly' ? !!plan.yookassaMonthlyPlanId : !!plan.yookassaYearlyPlanId;
         default:
           return false;
       }
@@ -335,7 +319,6 @@ export function UpgradePlansContent() {
       paypal: { icon: SiPaypal, name: 'PayPal' },
       paystack: { icon: PaystackIcon, name: 'Paystack' },
       mercadopago: { icon: MercadoPagoIcon, name: 'MercadoPago' },
-      yookassa: { icon: CreditCard, name: 'YooKassa' },
     };
     return info[gateway];
   };
@@ -545,26 +528,6 @@ export function UpgradePlansContent() {
     },
   });
 
-  const yookassaSubscription = useMutation({
-    mutationFn: async ({ planId, billingPeriod }: { planId: string; billingPeriod: string }) => {
-      const response = await apiRequest("POST", "/api/yookassa/create-checkout-session", { planId, billingPeriod });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || t('upgradePage.subscriptionFailed', 'Failed to create YooKassa checkout session'));
-      }
-      return response.json();
-    },
-    onSuccess: (data) => {
-      if (data.url) {
-        window.location.href = data.url;
-      }
-    },
-    onError: (error: any) => {
-      toast({ title: t('upgradePage.subscriptionFailed', 'Subscription Failed'), description: error.message, variant: "destructive" });
-      setProcessingGateway(null);
-    },
-  });
-
   const handleUpgradeClick = (plan: Plan) => {
     setSelectedPlan(plan);
     setBillingPeriod("monthly");
@@ -602,9 +565,6 @@ export function UpgradePlansContent() {
         break;
       case 'mercadopago':
         mercadopagoSubscription.mutate({ planId: selectedPlan.id, billingPeriod });
-        break;
-      case 'yookassa':
-        yookassaSubscription.mutate({ planId: selectedPlan.id, billingPeriod });
         break;
     }
   };
