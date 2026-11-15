@@ -55,16 +55,16 @@ export function getFormWebhookSecret(): string {
             formWebhookSecret = fs.readFileSync(secretPath, 'utf-8').trim();
             logger.info(`📋 [Form Tool] Loaded persisted webhook secret from file`);
           }
-        } catch (err: any) {
-          logger.warn('Could not read persisted form webhook secret; a new one is generated', { code: err?.code }, 'FormTool');
+        } catch (err) {
+          logger.warn('Could not read persisted form webhook secret; a new one is generated', { code: (err as NodeJS.ErrnoException | undefined)?.code }, 'FormTool');
         }
 
         if (!formWebhookSecret) {
           formWebhookSecret = crypto.randomBytes(32).toString('hex');
           try {
             fs.writeFileSync(secretPath, formWebhookSecret, { mode: 0o600 });
-          } catch (err: any) {
-            logger.error('Could not persist form webhook secret to file; it will change on restart', { code: err?.code }, 'FormTool');
+          } catch (err) {
+            logger.error('Could not persist form webhook secret to file; it will change on restart', { code: (err as NodeJS.ErrnoException | undefined)?.code }, 'FormTool');
           }
           logger.info(`📋 [Form Tool] Generated and persisted new webhook secret`);
         }

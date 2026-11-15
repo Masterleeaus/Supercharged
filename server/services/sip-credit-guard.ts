@@ -20,6 +20,39 @@ function errorText(error: unknown): string {
 
 const SIP_CREDIT_THRESHOLD = 5;
 
+// Row shapes for the raw SQL results read in this file.
+type SipPhoneRow = {
+  id: string;
+  agent_id: string | null;
+  phone_number: string;
+  external_elevenlabs_phone_id: string | null;
+  engine: string | null;
+};
+
+type SipDisconnectRow = {
+  id: string;
+  sip_phone_number_id: string;
+  agent_id: string | null;
+  phone_number: string;
+  agent_exists: boolean;
+  engine: string | null;
+  external_elevenlabs_phone_id: string | null;
+};
+
+type SipCreditUserRow = {
+  user_id: string;
+  credits: string | number | null;
+};
+
+type LowCreditSipPhoneRow = {
+  id: string;
+  user_id: string;
+  phone_number: string;
+  external_elevenlabs_phone_id: string | null;
+  engine: string | null;
+  credits: string | number | null;
+};
+
 interface DisconnectedSipPhone {
   sipPhoneId: string;
   agentId: string;
@@ -79,7 +112,7 @@ export async function checkAndDisconnectIfLowCredits(userId: string): Promise<vo
     }
 
     for (const row of sipPhones.rows) {
-      const phone = row as any;
+      const phone = row as SipPhoneRow;
       try {
         const previousAgentId = phone.agent_id;
 
@@ -160,7 +193,7 @@ export async function reconnectAfterRecharge(userId: string): Promise<void> {
     logger.info(`🔄 [SIP Credit Guard] User ${userId} recharged to ${balance} credits - reconnecting ${disconnects.rows.length} SIP phone(s)`);
 
     for (const row of disconnects.rows) {
-      const d = row as any;
+      const d = row as SipDisconnectRow;
       try {
         if (!d.agent_exists) {
           logger.warn(`   ⚠️ [SIP Credit Guard] Agent ${d.agent_id} no longer exists, skipping [redacted]`);
@@ -228,7 +261,7 @@ export async function runStartupCreditGuardScan(): Promise<void> {
     let disconnectedCount = 0;
     if (usersWithSipAgents.rows && usersWithSipAgents.rows.length > 0) {
       for (const row of usersWithSipAgents.rows) {
-        const user = row as any;
+        const user = row as SipCreditUserRow;
         const balance = Number(user.credits) || 0;
         if (balance < SIP_CREDIT_THRESHOLD) {
           logger.info(`   ⚠️ [SIP Credit Guard] User ${user.user_id} has ${balance} credits (below ${SIP_CREDIT_THRESHOLD}) - disconnecting SIP agents`);
@@ -254,7 +287,7 @@ export async function runStartupCreditGuardScan(): Promise<void> {
     let elClearedCount = 0;
     if (lowCreditSipPhones.rows && lowCreditSipPhones.rows.length > 0) {
       for (const row of lowCreditSipPhones.rows) {
-        const phone = row as any;
+        const phone = row as LowCreditSipPhoneRow;
         try {
           const { importPlugin: importPlugin3 } = await import('../utils/plugin-import');
           const { ElevenLabsSipService } = await importPlugin3('plugins/sip-engine/services/elevenlabs-sip.service.ts');
