@@ -60,13 +60,11 @@ Verified against the public docs. Each item gives the source page.
     Source: https://cal.com/docs/api-reference/v2/slots/get-available-time-slots-for-an-event-type.md
   - cancel: `POST /v2/bookings/{bookingUid}/cancel`, `cal-api-version: 2026-02-25` (was 2024-08-13 in the code; now fixed).
     Body `cancellationReason`. Source: https://cal.com/docs/api-reference/v2/bookings/cancel-a-booking.md
-  - list: `GET /v2/bookings`, `cal-api-version: 2026-05-01` (was 2024-08-13; now fixed). **UNVERIFIED** (checked 2026-11-09):
-    the official `get-all-bookings` page could not be fetched (not on the session allowlist). The official API v2 reference
-    (https://cal.com/docs/_llms/api-v2-reference.md) names no version for this endpoint. The versioning page
-    (https://cal.com/docs/enterprise-features/api/versioning) and the v1-v2 differences page
-    (https://cal.com/docs/api-reference/v2/v1-v2-differences) name only `2024-08-13`, with no endpoint-specific value. The
-    2026-05-01 value and the Nexla connector's `2026-02-25` have no official confirmation. Owner to confirm on the official page. Query: `status` (`upcoming`,
-    `recurring`, `past`, `cancelled`, `unconfirmed`), `eventTypeIds`, `afterStart`, `beforeEnd`, `limit` (1 to 100),
+  - list: `GET /v2/bookings`, `cal-api-version: 2026-05-01` (was 2024-08-13; now fixed). **Verified** (checked 2026-11-15
+    against https://cal.com/docs/api-reference/v2/bookings/get-all-bookings: header is required, default `2026-05-01`).
+    Create and cancel `2026-02-25` were re-checked the same day and match the official pages. The Nexla connector's
+    `2026-02-25` is not a Cal.com source and was not used. Query: `status` (one value per request: `upcoming`,
+    `recurring`, `past`, `cancelled`, `unconfirmed`; the code loops over the four it lists), `eventTypeIds`, `afterStart`, `beforeEnd`, `limit` (1 to 100),
     `cursor`. The docs do not have `take` or `skip` (the code used them; now fixed). Reply `pagination.nextCursor` and
     `hasMore`. Booking `status` is `cancelled`, `accepted`, `rejected`, `pending` or `awaiting_host`. `eventTypeId` is
     deprecated; `eventType.id` is used. Source: https://cal.com/docs/api-reference/v2/bookings/get-all-bookings.md
