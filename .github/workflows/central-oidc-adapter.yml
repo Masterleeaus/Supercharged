@@ -6,7 +6,8 @@ on:
     paths:
       - 'server/infrastructure/central-sso/**'
       - 'tests/infrastructure/central-sso-*.test.mjs'
-      - 'docs/pending/central-sso-company-links.sql'
+      - 'migrations/0018_central_sso_company_links.sql'
+      - 'migrations/0019_central_sso_pending_logins.sql'
       - '.github/workflows/central-oidc-adapter.yml'
 permissions:
   contents: read
@@ -22,4 +23,4 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Verify company-scoped Central identity and JWT session boundaries
-        run: node --test --experimental-transform-types tests/infrastructure/central-sso-account-resolver.test.mjs tests/infrastructure/central-sso-session-gate.test.mjs tests/infrastructure/central-sso-oidc-flow.test.mjs tests/infrastructure/central-sso-service-client.test.mjs
+        run: node --test --experimental-transform-types tests/infrastructure/central-sso-account-resolver.test.mjs tests/infrastructure/central-sso-session-gate.test.mjs tests/infrastructure/central-sso-oidc-flow.test.mjs tests/infrastructure/central-sso-pending-store.test.mjs tests/infrastructure/central-sso-service-client.test.mjs
