@@ -68,11 +68,12 @@ test('the batch validates as a catalogue (unique ids, handoffs resolve inside th
   assert.equal(result.roles.length, 25);
 });
 
-test('batch has 25 roles, all verticals garden or pest, and companyScope required', async () => {
+test('batch has 25 roles, all verticals garden, pest, lawn_turf or irrigation, and companyScope required', async () => {
   const modules = await Promise.all(BATCH.map((id) => import(new URL(`${id}.ts`, rolesDir).href)));
   assert.equal(new Set(BATCH).size, 25);
+  const allowed = new Set(['garden', 'pest', 'lawn_turf', 'irrigation']);
   for (const { role } of modules) {
-    assert.ok(role.verticals.every((v) => v === 'garden' || v === 'pest'), role.id);
+    assert.ok(role.verticals.every((v) => allowed.has(v)), role.id);
     assert.equal(role.companyScope, 'required');
   }
 });
