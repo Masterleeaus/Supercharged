@@ -41,8 +41,7 @@ export function registerSettingsRoutes(router: Router) {
         'paypal_client_id', 'paypal_client_secret', 'paypal_mode', 'paypal_webhook_id', 'paypal_currency',
         'paystack_public_key', 'paystack_secret_key', 'paystack_webhook_secret', 'paystack_currency',
         'mercadopago_access_token', 'mercadopago_public_key', 'mercadopago_webhook_secret', 'mercadopago_webhook_id', 'mercadopago_currency',
-        'yookassa_shop_id', 'yookassa_secret_key', 'yookassa_webhook_secret', 'yookassa_currency',
-        'payment_gateway', 'stripe_enabled', 'razorpay_enabled', 'paypal_enabled', 'paystack_enabled', 'mercadopago_enabled', 'yookassa_enabled',
+        'payment_gateway', 'stripe_enabled', 'razorpay_enabled', 'paypal_enabled', 'paystack_enabled', 'mercadopago_enabled',
         'auto_restart_enabled', 'auto_restart_ram_percent', 'auto_restart_cpu_percent',
         'system_timezone'
       ];
@@ -84,7 +83,6 @@ export function registerSettingsRoutes(router: Router) {
       settings.paypal_configured = !!(settings.paypal_client_id && settings.paypal_client_secret);
       settings.paystack_configured = !!(settings.paystack_public_key && settings.paystack_secret_key);
       settings.mercadopago_configured = !!settings.mercadopago_access_token;
-      settings.yookassa_configured = !!(settings.yookassa_shop_id && settings.yookassa_secret_key);
 
       const dbGoogleClientId = settings.google_client_id;
       const dbGoogleClientSecret = settings.google_client_secret;
@@ -109,7 +107,6 @@ export function registerSettingsRoutes(router: Router) {
         'stripe_secret_key', 'twilio_auth_token', 'plivo_auth_token', 'openai_api_key', 'razorpay_key_secret',
         'razorpay_webhook_secret', 'paypal_client_secret', 'paystack_secret_key',
         'paystack_webhook_secret', 'mercadopago_access_token', 'mercadopago_webhook_secret',
-        'yookassa_secret_key', 'yookassa_webhook_secret',
         'google_client_secret'
       ];
       for (const key of secretKeys) {
@@ -209,8 +206,7 @@ export function registerSettingsRoutes(router: Router) {
         'paypal_client_id', 'paypal_client_secret', 'paypal_mode', 'paypal_webhook_id', 'paypal_currency',
         'paystack_public_key', 'paystack_secret_key', 'paystack_webhook_secret',
         'mercadopago_access_token', 'mercadopago_public_key', 'mercadopago_webhook_secret', 'mercadopago_webhook_id', 'mercadopago_currency',
-        'yookassa_shop_id', 'yookassa_secret_key', 'yookassa_webhook_secret', 'yookassa_currency',
-        'payment_gateway', 'stripe_enabled', 'razorpay_enabled', 'paypal_enabled', 'paystack_enabled', 'mercadopago_enabled', 'yookassa_enabled', 'password_reset_expiry_minutes'
+        'payment_gateway', 'stripe_enabled', 'razorpay_enabled', 'paypal_enabled', 'paystack_enabled', 'mercadopago_enabled', 'password_reset_expiry_minutes'
       ];
       if (!allowedCredentials.includes(key) && (key.includes('api_key') || key.includes('secret') || key.includes('password') || key.includes('token'))) {
         return res.status(400).json({ error: 'API keys must be configured as environment variables' });

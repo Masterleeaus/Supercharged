@@ -1,5 +1,5 @@
 import type { Express } from "express";
-import { stripeRouter, razorpayRouter, paypalRouter, paystackRouter, mercadopagoRouter, yookassaRouter } from "../../engines/payment";
+import { stripeRouter, razorpayRouter, paypalRouter, paystackRouter, mercadopagoRouter } from "../../engines/payment";
 
 export function registerPaymentRoutes(app: Express): void {
   // Stripe routes
@@ -16,7 +16,4 @@ export function registerPaymentRoutes(app: Express): void {
 
   // MercadoPago routes (Latin America payment gateway - BRL, MXN, ARS, CLP, COP)
   app.use("/api/mercadopago", mercadopagoRouter);
-
-  // YooKassa routes
-  app.use("/api/yookassa", yookassaRouter);
 }

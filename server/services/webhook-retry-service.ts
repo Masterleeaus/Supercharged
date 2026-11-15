@@ -195,8 +195,7 @@ async function reprocessPaystack(eventType: string, data: any): Promise<Reproces
 }
 
 // A Map rather than a plain object, so lookups like 'constructor' cannot hit Object.prototype.
-// Absent on purpose: PayPal and MercadoPago have no handler module here, and YooKassa's route
-// never queues failed events, so no dead-letter rows exist for it to retry.
+// Absent on purpose: PayPal and MercadoPago have no handler module here, so no dead-letter rows exist for them to retry.
 const REPROCESSORS = new Map<string, Reprocessor>([
   ['stripe', reprocessStripe],
   ['razorpay', reprocessRazorpay],

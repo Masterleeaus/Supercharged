@@ -4,7 +4,7 @@
  * Shared types and interfaces for all payment gateways
  */
 
-export type PaymentGateway = 'stripe' | 'razorpay' | 'paypal' | 'paystack' | 'mercadopago' | 'yookassa';
+export type PaymentGateway = 'stripe' | 'razorpay' | 'paypal' | 'paystack' | 'mercadopago';
 
 export type PaymentType = 'subscription' | 'credits' | 'one_time';
 
@@ -262,13 +262,6 @@ export const GLOBAL_SETTINGS_KEYS = {
   MERCADOPAGO_ENABLED: 'mercadopago_enabled',
   MERCADOPAGO_CURRENCY: 'mercadopago_currency',
   MERCADOPAGO_LAST_WEBHOOK_AT: 'mercadopago_last_webhook_at',
-
-  YOOKASSA_SHOP_ID: 'yookassa_shop_id',
-  YOOKASSA_SECRET_KEY: 'yookassa_secret_key',
-  YOOKASSA_WEBHOOK_SECRET: 'yookassa_webhook_secret',
-  YOOKASSA_ENABLED: 'yookassa_enabled',
-  YOOKASSA_CURRENCY: 'yookassa_currency',
-  YOOKASSA_LAST_WEBHOOK_AT: 'yookassa_last_webhook_at',
 
   ELEVENLABS_HMAC_SECRET: 'elevenlabs_hmac_secret',
   ELEVENLABS_LAST_WEBHOOK_AT: 'elevenlabs_last_webhook_at',
