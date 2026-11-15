@@ -1,3 +1,5 @@
+import type { NextFunction, Request, Response } from "express";
+
 /**
  * Exact exemptions from the /api hybrid auth gate. A route listed here authenticates itself
  * (the RAG tool webhook checks WEBHOOK_TOKEN), and the gate would otherwise return 401 for it.
@@ -14,6 +16,6 @@ export function isHybridGateExempt(method: string | undefined, path: string | un
 }
 
 /** Wraps the hybrid gate so only exempt requests skip it. Every other request reaches the gate unchanged. */
-export function hybridGateUnlessExempt(gate: (req: any, res: any, next: any) => unknown) {
-  return (req: any, res: any, next: any) => (isHybridGateExempt(req.method, req.path) ? next() : gate(req, res, next));
+export function hybridGateUnlessExempt(gate: (req: Request, res: Response, next: NextFunction) => unknown) {
+  return (req: Request, res: Response, next: NextFunction) => (isHybridGateExempt(req.method, req.path) ? next() : gate(req, res, next));
 }
