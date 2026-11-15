@@ -22,6 +22,7 @@ export const VERTICALS = [
   "handyman",
   "locksmith",
   "painting",
+  "dog_training",
   "general_field_service",
   "cross_vertical",
 ] as const;
