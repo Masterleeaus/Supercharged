@@ -11,7 +11,7 @@
  * ============================================================
  */
 import { logger } from '../utils/logger';
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction, RequestHandler } from 'express';
 import jwt from 'jsonwebtoken';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
@@ -96,6 +96,21 @@ function markTokenAsRejected(token: string): void {
  * - Token format validation before DB lookup
  * - In-memory cache for recently rejected tokens
  */
+/** Row shape of the admin team session lookup in tryAdminTeamToken. */
+interface AdminTeamSessionRow extends Record<string, unknown> {
+  member_id: string;
+  admin_team_id: string;
+  email: string;
+  role_id: string;
+  role_name: string;
+  display_name: string | null;
+}
+
+/** Row shape of the admin team permission lookup. */
+interface AdminPermissionRow extends Record<string, unknown> {
+  has_permission: unknown;
+}
+
 export async function tryAdminTeamToken(token: string): Promise<{
   memberId: string;
   teamId: string;
@@ -130,7 +145,7 @@ export async function tryAdminTeamToken(token: string): Promise<{
       return null;
     }
 
-    const session = result.rows[0] as any;
+    const session = result.rows[0] as AdminTeamSessionRow;
     
     await db.execute(sql`
       UPDATE admin_team_sessions SET last_activity_at = NOW() WHERE token = ${token}
@@ -346,7 +361,7 @@ export function requireAdminPermission(
   section: string, 
   subsection: string, 
   action: PermissionAction
-): any {
+): RequestHandler {
   return async (req: AdminRequest, res: Response, next: NextFunction) => {
     try {
       // Platform admins always have full access
@@ -371,7 +386,7 @@ export function requireAdminPermission(
             AND subsection = ${subsection}
         `);
 
-        if (permResult.rows.length > 0 && (permResult.rows[0] as any).has_permission === true) {
+        if (permResult.rows.length > 0 && (permResult.rows[0] as AdminPermissionRow).has_permission === true) {
           return next();
         }
 
@@ -398,7 +413,7 @@ export function requireAdminPermission(
  */
 export function requireAnyAdminPermission(
   permissions: Array<[string, string, PermissionAction]>
-): any {
+): RequestHandler {
   return async (req: AdminRequest, res: Response, next: NextFunction) => {
     try {
       // Platform admins always have full access
@@ -424,7 +439,7 @@ export function requireAnyAdminPermission(
               AND subsection = ${subsection}
           `);
 
-          if (permResult.rows.length > 0 && (permResult.rows[0] as any).has_permission === true) {
+          if (permResult.rows.length > 0 && (permResult.rows[0] as AdminPermissionRow).has_permission === true) {
             return next();
           }
         }

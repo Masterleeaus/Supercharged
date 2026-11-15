@@ -109,7 +109,7 @@ app.use(perRouteBodyParser((limit) => express.urlencoded({
   limit,
   // Chatbot channel webhooks (Twilio form posts) verify over the exact bytes. Other paths are unchanged.
   verify: (req, _res, buf) => {
-    if (isChatbotWebhookPath(req.originalUrl ?? req.url)) {
+    if (isChatbotWebhookPath((req as typeof req & { originalUrl?: string }).originalUrl ?? req.url)) {
       req.rawBody = buf;
     }
   }

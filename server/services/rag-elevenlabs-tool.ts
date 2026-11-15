@@ -67,7 +67,7 @@ export function getRAGWebhookSecret(): string {
           logger.info(`📚 [RAG Tool] Derived stable webhook secret from server key`);
           try {
             fs.writeFileSync(PERSISTED_SECRET_PATH, ragWebhookSecret, { mode: 0o600 });
-          } catch (err: any) {
+          } catch (err) {
             logger.error('Could not persist derived RAG webhook secret; it will change on restart', { code: err?.code }, 'RagTool');
           }
         }
@@ -79,7 +79,7 @@ export function getRAGWebhookSecret(): string {
         logger.info(`📚 [RAG Tool] Generated new webhook secret`);
         try {
           fs.writeFileSync(PERSISTED_SECRET_PATH, ragWebhookSecret, { mode: 0o600 });
-        } catch (err: any) {
+        } catch (err) {
           logger.error('Could not persist generated RAG webhook secret; it will change on restart', { code: err?.code }, 'RagTool');
         }
       }
@@ -114,9 +114,9 @@ export interface RAGWebhookToolConfig {
     url: string;
     method: "GET" | "POST";
     headers?: Record<string, string>;
-    path_params_schema?: Record<string, any>;
-    query_params_schema?: Record<string, any>;
-    request_body_schema?: Record<string, any>;
+    path_params_schema?: Record<string, unknown>;
+    query_params_schema?: Record<string, unknown>;
+    request_body_schema?: Record<string, unknown>;
   };
 }
 
@@ -210,7 +210,7 @@ export async function handleAskKnowledgeToolCall(
         relevance: r.score
       }))
     };
-  } catch (error: any) {
+  } catch (error) {
     logger.error("[RAG Tool] Error:", error.message);
     return {
       response: "I encountered an error searching the knowledge base. Please try again.",
@@ -267,7 +267,7 @@ export async function setupRAGToolForAgent(
   let agent: any = null;
   try {
     agent = await elevenLabsService.getAgent(elevenLabsAgentId);
-  } catch (err: any) {
+  } catch (err) {
     logger.warn(`📚 [RAG Tool] Failed to fetch agent details: ${err.message}`);
   }
 
@@ -293,7 +293,7 @@ export async function setupRAGToolForAgent(
             }
           });
           logger.info(`✅ [RAG Tool] Corrected system prompt saved to ElevenLabs`);
-        } catch (patchErr: any) {
+        } catch (patchErr) {
           logger.warn(`❌ [RAG Tool] Failed to update prompt with corrected tool name: ${patchErr.message}`);
         }
       }
@@ -323,7 +323,7 @@ export async function setupRAGToolForAgent(
         }
       });
       logger.info(`✅ [RAG Tool] Appointment tool attached via tool_ids`);
-    } catch (appointmentError: any) {
+    } catch (appointmentError) {
       logger.warn(`❌ [RAG Tool] Failed to attach appointment tool via tool_ids: ${appointmentError.message}`);
     }
   }
@@ -337,7 +337,7 @@ export async function setupRAGToolForAgent(
     }
     try {
       await elevenLabsService.linkToolsToAgent(elevenLabsAgentId, webhookTools, systemTools);
-    } catch (error: any) {
+    } catch (error) {
       logger.warn(`📚 [RAG Tool] Failed to update tools: ${error.message}`);
     }
     return;
@@ -357,7 +357,7 @@ export async function setupRAGToolForAgent(
     try {
       await elevenLabsService.getOrCreateWorkspaceTool(toolConfig);
       logger.info(`📚 [RAG Tool] Workspace tool created/verified for dashboard visibility`);
-    } catch (wsError: any) {
+    } catch (wsError) {
       logger.warn(`📚 [RAG Tool] Workspace tool creation skipped: ${wsError.message}`);
       // Continue - the inline config will still work
     }
@@ -368,7 +368,7 @@ export async function setupRAGToolForAgent(
     await elevenLabsService.linkToolsToAgent(elevenLabsAgentId, webhookTools, systemTools);
 
     logger.info(`✅ [RAG Tool] Tool added to agent successfully`);
-  } catch (error: any) {
+  } catch (error) {
     logger.error(`❌ [RAG Tool] Failed to setup RAG tool: ${error.message}`);
     // Don't throw - let agent creation/update continue
   }

@@ -29,14 +29,13 @@ export interface PlanCreateFormProps {
   paypalCurrency: string;
   paystackCurrency: string;
   mercadopagoCurrency: string;
-  yookassaCurrency: string;
   sipPluginInstalled: boolean;
   restApiPluginInstalled: boolean;
   handleCreatePlan: () => void;
   createPlan: UseMutationResult<Response, any, Partial<Plan>, unknown>;
 }
 
-export function PlanCreateForm({ t, newPlanForm, updateNewPlanField, paymentGateway, stripeCurrency, paypalCurrency, paystackCurrency, mercadopagoCurrency, yookassaCurrency, sipPluginInstalled, restApiPluginInstalled, handleCreatePlan, createPlan }: PlanCreateFormProps) {
+export function PlanCreateForm({ t, newPlanForm, updateNewPlanField, paymentGateway, stripeCurrency, paypalCurrency, paystackCurrency, mercadopagoCurrency, sipPluginInstalled, restApiPluginInstalled, handleCreatePlan, createPlan }: PlanCreateFormProps) {
   return (
     <Card>
           <CardHeader>
@@ -198,31 +197,6 @@ export function PlanCreateForm({ t, newPlanForm, updateNewPlanField, paymentGate
                     value={newPlanForm.mercadopagoYearlyPrice ?? 0}
                     onChange={(e) => updateNewPlanField("mercadopagoYearlyPrice", parseFloat(e.target.value))}
                     data-testid="input-new-plan-yearly-mercadopago"
-                  />
-                </div>
-              </div>
-            )}
-
-            {paymentGateway?.yookassaEnabled && (
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Monthly Price ({yookassaCurrency} - YooKassa)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={newPlanForm.yookassaMonthlyPrice ?? 0}
-                    onChange={(e) => updateNewPlanField("yookassaMonthlyPrice", parseFloat(e.target.value))}
-                    data-testid="input-new-plan-monthly-yookassa"
-                  />
-                </div>
-                <div>
-                  <Label>Yearly Price ({yookassaCurrency} - YooKassa)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={newPlanForm.yookassaYearlyPrice ?? 0}
-                    onChange={(e) => updateNewPlanField("yookassaYearlyPrice", parseFloat(e.target.value))}
-                    data-testid="input-new-plan-yearly-yookassa"
                   />
                 </div>
               </div>

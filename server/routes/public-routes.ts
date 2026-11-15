@@ -21,6 +21,8 @@ import path from 'path';
 import { runAllSeedsForInstaller } from '../seed-all';
 import { applyEmbedCors } from '../middleware/embed-cors';
 import { logger } from '../utils/logger';
+import { checkInstallAllowed, INSTALL_SETUP_TOKEN_HEADER } from './installer-guard';
+import { PRODUCT_NAME } from '../../shared/brand.ts';
 
 /**
  * Creates public routes for unauthenticated endpoints.
@@ -33,9 +35,9 @@ export function createPublicRoutes(ctx: RouteContext): Router {
   async function getAppNameFallback(): Promise<string> {
     try {
       const setting = await storage.getGlobalSetting('app_name');
-      return (setting?.value as string) || 'Supercharged';
+      return (setting?.value as string) || PRODUCT_NAME;
     } catch {
-      return 'Supercharged';
+      return PRODUCT_NAME;
     }
   }
 
@@ -104,7 +106,7 @@ export function createPublicRoutes(ctx: RouteContext): Router {
         success: true,
         installed,
         branding: {
-          app_name: brandingSettings.app_name || 'Supercharged',
+          app_name: brandingSettings.app_name || PRODUCT_NAME,
           app_tagline: brandingSettings.app_tagline || '',
           logo_url: brandingSettings.logo_url || null,
           logo_url_light: brandingSettings.logo_url_light || null,
@@ -122,7 +124,7 @@ export function createPublicRoutes(ctx: RouteContext): Router {
       res.json({
         success: false,
         installed: false,
-        branding: { app_name: 'Supercharged', app_tagline: '', logo_url: null, favicon_url: null },
+        branding: { app_name: PRODUCT_NAME, app_tagline: '', logo_url: null, favicon_url: null },
         seo: null,
         version
       });
@@ -190,9 +192,13 @@ export function createPublicRoutes(ctx: RouteContext): Router {
 
   router.post("/api/installer/install", async (req: Request, res: Response) => {
     try {
-      const installed = await isInstalled();
-      if (installed) {
-        return res.status(403).json({ message: "Application is already installed" });
+      const denial = await checkInstallAllowed({
+        presentedToken: req.get(INSTALL_SETUP_TOKEN_HEADER),
+        isInstalled,
+      });
+      if (denial) {
+        logger.warn(`Installer request refused: ${denial.message}`);
+        return res.status(denial.status).json({ message: denial.message });
       }
 
       const { adminEmail, adminPassword, companyName } = req.body;
@@ -488,31 +494,24 @@ export function createPublicRoutes(ctx: RouteContext): Router {
       const dbMercadopagoPublicKey = await storage.getGlobalSetting('mercadopago_public_key');
       const mercadopagoConfigured = !!dbMercadopagoAccessToken?.value;
 
-      const dbYookassaShopId = await storage.getGlobalSetting('yookassa_shop_id');
-      const dbYookassaSecretKey = await storage.getGlobalSetting('yookassa_secret_key');
-      const yookassaConfigured = !!(dbYookassaShopId?.value && dbYookassaSecretKey?.value);
-
       const stripeEnabledSetting = await storage.getGlobalSetting('stripe_enabled');
       const razorpayEnabledSetting = await storage.getGlobalSetting('razorpay_enabled');
       const paypalEnabledSetting = await storage.getGlobalSetting('paypal_enabled');
       const paystackEnabledSetting = await storage.getGlobalSetting('paystack_enabled');
       const mercadopagoEnabledSetting = await storage.getGlobalSetting('mercadopago_enabled');
-      const yookassaEnabledSetting = await storage.getGlobalSetting('yookassa_enabled');
 
       const stripeEnabled = stripeConfigured && toBool(stripeEnabledSetting?.value) === true;
       const razorpayEnabled = razorpayConfigured && toBool(razorpayEnabledSetting?.value) === true;
       const paypalEnabled = paypalConfigured && toBool(paypalEnabledSetting?.value) === true;
       const paystackEnabled = paystackConfigured && toBool(paystackEnabledSetting?.value) === true;
       const mercadopagoEnabled = mercadopagoConfigured && toBool(mercadopagoEnabledSetting?.value) === true;
-      const yookassaEnabled = yookassaConfigured && toBool(yookassaEnabledSetting?.value) === true;
 
       const result: any = {
         stripeEnabled,
         razorpayEnabled,
         paypalEnabled,
         paystackEnabled,
-        mercadopagoEnabled,
-        yookassaEnabled
+        mercadopagoEnabled
       };
 
       if (stripeEnabled) {
@@ -563,15 +562,6 @@ export function createPublicRoutes(ctx: RouteContext): Router {
         result.mercadopagoCurrencies = ['BRL', 'MXN', 'ARS', 'CLP', 'COP', 'PEN', 'UYU'];
       }
 
-      if (yookassaEnabled) {
-        result.yookassaShopId = dbYookassaShopId?.value || null;
-        const yookassaCurrencySetting = await storage.getGlobalSetting('yookassa_currency');
-        const yookassaCurrency = (yookassaCurrencySetting?.value as string) || 'RUB';
-        result.yookassaCurrency = yookassaCurrency.toUpperCase();
-        result.yookassaCurrencySymbol = currencySymbols[yookassaCurrency.toUpperCase()] || '₽';
-        result.yookassaCurrencies = ['RUB', 'USD', 'EUR'];
-      }
-
       res.json(result);
     } catch (error) {
       logger.error('Error fetching payment gateway config:', error);
@@ -581,7 +571,6 @@ export function createPublicRoutes(ctx: RouteContext): Router {
         paypalEnabled: false,
         paystackEnabled: false,
         mercadopagoEnabled: false,
-        yookassaEnabled: false,
         stripePublicKey: null
       });
     }
@@ -610,7 +599,7 @@ export function createPublicRoutes(ctx: RouteContext): Router {
     try {
       const brandingKeys = ['app_name', 'app_tagline', 'logo_url', 'logo_url_light', 'logo_url_dark', 'favicon_url', 'branding_updated_at', 'admin_email', 'app_location', 'social_twitter_url', 'social_linkedin_url', 'social_github_url', 'theme_primary', 'theme_primary_foreground', 'theme_accent', 'theme_background', 'theme_sidebar', 'theme_website_accent', 'theme_website_foreground'];
       const branding: Record<string, any> = {
-        app_name: 'Supercharged',
+        app_name: PRODUCT_NAME,
         app_tagline: '',
         logo_url: null,
         logo_url_light: null,
@@ -645,7 +634,7 @@ export function createPublicRoutes(ctx: RouteContext): Router {
     } catch (error) {
       logger.error('Error fetching branding:', error);
       res.json({
-        app_name: 'Supercharged',
+        app_name: PRODUCT_NAME,
         app_tagline: '',
         logo_url: null,
         favicon_url: null,
@@ -997,7 +986,7 @@ ${allUrls.map(u => {
       const adminEmail = (adminEmailSetting?.value as string) || (smtpFromEmail?.value as string) || process.env.SMTP_USER;
 
       const appNameSetting = await storage.getGlobalSetting('app_name');
-      const appName = (appNameSetting?.value as string) || 'Supercharged';
+      const appName = (appNameSetting?.value as string) || PRODUCT_NAME;
 
       if (!adminEmail) {
         logger.error('No admin email configured for contact form');

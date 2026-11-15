@@ -22,8 +22,154 @@ import { sanitizeLlmModel } from '../utils/llm-sanitize';
 
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
+import { PRODUCT_NAME } from '../../shared/brand.ts';
 
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
+
+/** Request schema for a webhook tool attached to an ElevenLabs agent. */
+export type ElevenLabsWebhookApiSchema = {
+  url: string;
+  method: "GET" | "POST";
+  headers?: Record<string, string>;
+  path_params_schema?: Record<string, unknown>;
+  query_params_schema?: Record<string, unknown>;
+  request_body_schema?: Record<string, unknown>;
+  /** Legacy header field still read when registering workflow tools. */
+  request_headers?: Record<string, string>;
+};
+
+/** Webhook tool as sent in an ElevenLabs agent's prompt tools list. */
+export type ElevenLabsWebhookToolDefinition = {
+  type: "webhook";
+  name: string;
+  description: string;
+  pre_tool_speech?: string;
+  api_schema: ElevenLabsWebhookApiSchema;
+};
+
+/** System tool entry in prompt.tools (transfer, language detection, end call). */
+export type ElevenLabsSystemTool = {
+  type: "system";
+  name: string;
+  description: string;
+  params?: Record<string, unknown>;
+};
+
+/** Prompt block of an ElevenLabs agent's conversation_config. */
+export type ElevenLabsPromptConfig = {
+  prompt?: string;
+  llm?: string;
+  temperature?: number;
+  knowledge_base?: ElevenLabsKnowledgeBaseRecord[];
+  tools?: ElevenLabsToolRecord[];
+  [key: string]: unknown;
+};
+
+/** conversation_config.agent of an ElevenLabs agent create or update body. */
+export type ElevenLabsAgentSettings = {
+  prompt: ElevenLabsPromptConfig;
+  first_message?: string;
+  language?: string;
+  dynamic_variables?: Record<string, unknown>;
+  [key: string]: unknown;
+};
+
+/** Request body for ElevenLabs agent create calls. */
+export type ElevenLabsAgentRequestBody = {
+  name?: string;
+  conversation_config: {
+    agent: ElevenLabsAgentSettings;
+    tts: { voice_id?: string; suggested_audio_tags?: unknown; [key: string]: unknown };
+    safety?: unknown;
+    [key: string]: unknown;
+  };
+  tools?: unknown[];
+  tool_error_handling_mode?: string;
+  [key: string]: unknown;
+};
+
+/** Tool entry as returned by ElevenLabs on an agent (system, webhook or client). */
+export type ElevenLabsToolRecord = {
+  id?: string;
+  name?: string;
+  type?: string;
+  tool_id?: string;
+  [key: string]: unknown;
+};
+
+/** Knowledge base entry on an agent prompt. */
+export type ElevenLabsKnowledgeBaseRecord = {
+  id?: string;
+  [key: string]: unknown;
+};
+
+/** Prompt block of an agent as returned by ElevenLabs. */
+export type ElevenLabsPromptRecord = {
+  prompt?: string;
+  tools?: ElevenLabsToolRecord[];
+  tool_ids?: string[];
+  knowledge_base?: ElevenLabsKnowledgeBaseRecord[];
+  [key: string]: unknown;
+};
+
+/** Agent as returned by ElevenLabs GET calls. Only the fields the service reads are typed. */
+export type ElevenLabsAgentRecord = {
+  agent_id?: string;
+  name?: string;
+  workflow?: unknown;
+  conversation_config?: {
+    agent?: { prompt?: ElevenLabsPromptRecord; [key: string]: unknown };
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+};
+
+/** Partial agent body sent with PATCH calls. Nested settings are optional because each call sends only some of them. */
+export type ElevenLabsAgentPatchBody = {
+  name?: string;
+  workflow?: unknown;
+  conversation_config?: {
+    agent?: { prompt?: ElevenLabsPromptRecord; dynamic_variables?: Record<string, unknown>; [key: string]: unknown };
+    tts?: Record<string, unknown>;
+    asr?: Record<string, unknown>;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+};
+
+/** Body for POST /twilio/outbound-call. */
+export type OutboundCallRequestBody = {
+  agent_id: string;
+  agent_phone_number_id: string;
+  to_number: string;
+  conversation_initiation_client_data?: {
+    conversation_config_override?: Record<string, unknown>;
+    webhook_tools?: ElevenLabsWebhookToolDefinition[];
+    dynamic_variables?: Record<string, string>;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+};
+
+/** Node and edge shapes for an ElevenLabs agent workflow. */
+export type ElevenLabsWorkflowNode = {
+  type: string;
+  label?: string;
+  edge_order: string[];
+  tools?: Array<{ tool_id: string; webhook_url?: string; method?: string }>;
+  additional_tool_ids?: string[];
+};
+
+export type ElevenLabsWorkflowEdge = {
+  source: string;
+  target: string;
+  forward_condition: { type: string; condition?: string };
+};
+
+export type ElevenLabsWorkflowConfig = {
+  nodes: Record<string, ElevenLabsWorkflowNode>;
+  edges: Record<string, ElevenLabsWorkflowEdge>;
+};
 
 export async function isAgentOnSipPhoneNumber(agentId: string): Promise<boolean> {
   try {
@@ -36,7 +182,7 @@ export async function isAgentOnSipPhoneNumber(agentId: string): Promise<boolean>
   }
 }
 
-export function buildCollectCallerEmailTool(elevenLabsAgentId: string): any {
+export function buildCollectCallerEmailTool(elevenLabsAgentId: string): ElevenLabsWebhookToolDefinition {
   const domain = getDomain();
   const secret = getAppointmentWebhookSecret();
   const webhookUrl = `${domain}/api/webhooks/messaging/collect-email/${secret}/${elevenLabsAgentId}`;
@@ -68,7 +214,7 @@ export function buildCollectCallerEmailTool(elevenLabsAgentId: string): any {
   };
 }
 
-export function buildMessagingEmailTool(elevenLabsAgentId: string, templateNames: string[], selectedTemplate?: string): any {
+export function buildMessagingEmailTool(elevenLabsAgentId: string, templateNames: string[], selectedTemplate?: string): ElevenLabsWebhookToolDefinition {
   const domain = getDomain();
   const secret = getAppointmentWebhookSecret();
   const webhookUrl = `${domain}/api/webhooks/messaging/send-email/${secret}/${elevenLabsAgentId}`;
@@ -119,7 +265,7 @@ export function buildMessagingEmailTool(elevenLabsAgentId: string, templateNames
   };
 }
 
-export function buildMessagingWhatsappTool(elevenLabsAgentId: string, templateNames: string[], selectedTemplate?: string, variableConfig?: string, preToolSpeech?: string): any {
+export function buildMessagingWhatsappTool(elevenLabsAgentId: string, templateNames: string[], selectedTemplate?: string, variableConfig?: string, preToolSpeech?: string): ElevenLabsWebhookToolDefinition {
   const domain = getDomain();
   const secret = getAppointmentWebhookSecret();
   const webhookUrl = `${domain}/api/webhooks/messaging/send-whatsapp/${secret}/${elevenLabsAgentId}`;
@@ -139,8 +285,8 @@ export function buildMessagingWhatsappTool(elevenLabsAgentId: string, templateNa
     try {
       const parsed = JSON.parse(variableConfig);
       for (const [key, val] of Object.entries(parsed)) {
-        if (val && typeof val === 'object' && (val as any).mode === 'collect' && !(val as any).componentType) {
-          const desc = (val as any).value || `Variable {{${key}}}`;
+        if (val && typeof val === 'object' && (val as { mode?: unknown }).mode === 'collect' && !(val as { componentType?: unknown }).componentType) {
+          const desc = (val as { value?: string }).value || `Variable {{${key}}}`;
           collectVarDescriptions.push(`{{${key}}}: ${desc}`);
         }
       }
@@ -232,7 +378,7 @@ export async function getSipTrunkOutboundAddress(agentId: string): Promise<strin
       LIMIT 1
     `);
     if (result.rows?.length > 0) {
-      const row = result.rows[0] as any;
+      const row = result.rows[0] as { sip_host?: string; sip_port?: string | number | null; transport?: string };
       const host = row.sip_host;
       if (host) {
         const defaultPort = row.transport === 'tls' ? 5061 : 5060;
@@ -323,7 +469,7 @@ export interface ElevenLabsWorkspaceTool {
       url: string;
       method: string;
       headers?: Record<string, string>;
-      request_body_schema?: any;
+      request_body_schema?: Record<string, unknown>;
     };
   };
 }
@@ -341,11 +487,11 @@ export interface TransferRule {
   operator_message?: string;
 }
 
-export interface TransferToNumberTool {
+export type TransferToNumberTool = {
   type: "transfer_to_number";
   description?: string;
   transfer_rules: TransferRule[];
-}
+};
 
 interface KnowledgeBaseItem {
   type: string;
@@ -396,19 +542,7 @@ interface CreateAgentParams {
   turnTimeout?: number;  // Turn timeout in seconds (default 1.5)
   maxDurationSeconds?: number;  // Maximum duration in seconds
   // Webhook tools (like RAG knowledge base tool) - added at agent root level
-  webhookTools?: Array<{
-    type: "webhook";
-    name: string;
-    description: string;
-    api_schema: {
-      url: string;
-      method: "GET" | "POST";
-      headers?: Record<string, string>;
-      path_params_schema?: Record<string, any>;
-      query_params_schema?: Record<string, any>;
-      request_body_schema?: Record<string, any>;
-    };
-  }>;
+  webhookTools?: ElevenLabsWebhookToolDefinition[];
   // V3 Features - all optional, additive only
   customGuardrails?: string[];
   toolErrorHandlingMode?: "default" | "relaxed" | "strict";
@@ -416,7 +550,7 @@ interface CreateAgentParams {
   suggestedAudioTags?: boolean;
 }
 
-interface ElevenLabsAgent {
+type ElevenLabsAgent = {
   agent_id: string;
   name: string;
   prompt: string;
@@ -425,7 +559,7 @@ interface ElevenLabsAgent {
   };
   language: string;
   model: string;
-}
+};
 
 interface ElevenLabsVoice {
   voice_id: string;
@@ -530,20 +664,20 @@ export class ElevenLabsService {
             try {
               // 1. Fetch current agent to get existing state of tools, tool_ids and knowledge_base
               logger.info(`   🔄 Fetching current configuration for agent ${agentId} to purge stale references...`);
-              const currentAgent = await this.request<any>(`/convai/agents/${agentId}`, { method: 'GET' }, useV2, timeoutMs, retryDepth + 1);
+              const currentAgent = await this.request<ElevenLabsAgentRecord>(`/convai/agents/${agentId}`, { method: 'GET' }, useV2, timeoutMs, retryDepth + 1);
 
               const currentTools = currentAgent?.conversation_config?.agent?.prompt?.tools || [];
               const currentToolIds = currentAgent?.conversation_config?.agent?.prompt?.tool_ids || [];
               const currentKb = currentAgent?.conversation_config?.agent?.prompt?.knowledge_base || [];
 
-              const payload = JSON.parse(options.body as string);
+              const payload: { conversation_config?: { agent?: { prompt?: ElevenLabsPromptRecord; [key: string]: unknown }; [key: string]: unknown }; [key: string]: unknown } = JSON.parse(options.body as string);
               payload.conversation_config = payload.conversation_config || {};
               payload.conversation_config.agent = payload.conversation_config.agent || {};
               payload.conversation_config.agent.prompt = payload.conversation_config.agent.prompt || {};
 
               // Clean tools
-              const cleanTools = (toolsArray: any[]) => toolsArray.filter(
-                (t: any) => !brokenIds.has(t.id) && !brokenIds.has(t.name) && !brokenIds.has(t.tool_id)
+              const cleanTools = (toolsArray: ElevenLabsToolRecord[]) => toolsArray.filter(
+                (t: ElevenLabsToolRecord) => !brokenIds.has(t.id) && !brokenIds.has(t.name) && !brokenIds.has(t.tool_id)
               );
 
               const mergedTools = [...(payload.conversation_config.agent.prompt.tools || []), ...currentTools];
@@ -551,7 +685,7 @@ export class ElevenLabsService {
 
               // Deduplicate tools by id/name
               const seenTools = new Set();
-              payload.conversation_config.agent.prompt.tools = payload.conversation_config.agent.prompt.tools.filter((t: any) => {
+              payload.conversation_config.agent.prompt.tools = (payload.conversation_config.agent.prompt.tools || []).filter((t: ElevenLabsToolRecord) => {
                 const key = t.id || t.name;
                 if (!key || seenTools.has(key)) return false;
                 seenTools.add(key);
@@ -567,8 +701,8 @@ export class ElevenLabsService {
               payload.conversation_config.agent.prompt.tool_ids = Array.from(new Set(cleanToolIds(mergedToolIds)));
 
               // Clean knowledge_base
-              const cleanKb = (kbArray: any[]) => kbArray.filter(
-                (kb: any) => !brokenIds.has(kb.id)
+              const cleanKb = (kbArray: ElevenLabsKnowledgeBaseRecord[]) => kbArray.filter(
+                (kb: ElevenLabsKnowledgeBaseRecord) => !brokenIds.has(kb.id)
               );
 
               const mergedKb = [...(payload.conversation_config.agent.prompt.knowledge_base || []), ...currentKb];
@@ -585,8 +719,8 @@ export class ElevenLabsService {
 
               clearTimeout(timeoutId);
               return this.request<T>(endpoint, newOptions, useV2, timeoutMs, retryDepth + 1);
-            } catch (err: any) {
-              logger.error(`   ❌ Stale ID recovery failed:`, err.message);
+            } catch (err: unknown) {
+              logger.error(`   ❌ Stale ID recovery failed:`, (err as Error).message);
             }
           }
         }
@@ -604,8 +738,8 @@ export class ElevenLabsService {
       }
 
       return response.json();
-    } catch (error: any) {
-      if (error.name === 'AbortError') {
+    } catch (error: unknown) {
+      if ((error as Error).name === 'AbortError') {
         throw new ExternalServiceError(
           'ElevenLabs',
           `ElevenLabs API timeout after ${timeoutMs}ms: ${endpoint}`,
@@ -638,13 +772,13 @@ export class ElevenLabsService {
     appointmentBookingEnabled?: boolean;
     transferType?: "conference" | "sip_refer";
     sipTrunkOutboundAddress?: string | null;
-  }): any[] {
-    const systemTools: any[] = [];
+  }): ElevenLabsSystemTool[] {
+    const systemTools: ElevenLabsSystemTool[] = [];
 
     if (agentConfig.transferEnabled && agentConfig.transferPhoneNumber) {
       const transferType = agentConfig.transferType || "conference";
 
-      let transferDestination: any;
+      let transferDestination: Record<string, string>;
       if (transferType === "sip_refer" && agentConfig.sipTrunkOutboundAddress) {
         const phoneNumber = agentConfig.transferPhoneNumber.startsWith('+')
           ? agentConfig.transferPhoneNumber
@@ -717,7 +851,7 @@ export class ElevenLabsService {
     transferPhoneNumber?: string;
     detectLanguageEnabled?: boolean;
     endConversationEnabled?: boolean;
-  }): any | null {
+  }): ElevenLabsWorkflowConfig | null {
     // Build list of enabled tools that need workflow nodes
     const hasTransfer = agentConfig.transferEnabled && agentConfig.transferPhoneNumber;
     const hasDetectLanguage = agentConfig.detectLanguageEnabled;
@@ -731,7 +865,7 @@ export class ElevenLabsService {
     logger.info(`   🔄 Building node-based workflow for enabled tools`);
 
     // Build nodes - start with conversation node
-    const nodes: any = {
+    const nodes: Record<string, ElevenLabsWorkflowNode> = {
       start_node: {
         type: "start",
         edge_order: ["start_to_convo"]
@@ -743,7 +877,7 @@ export class ElevenLabsService {
       }
     };
 
-    const edges: any = {
+    const edges: Record<string, ElevenLabsWorkflowEdge> = {
       start_to_convo: {
         source: "start_node",
         target: "convo_node",
@@ -994,7 +1128,7 @@ IMPORTANT: Do NOT ask the caller for their phone number - you already have it fr
     }
 
     // Build prompt config - system tools go in prompt.tools array (NOT built_in_tools)
-    const promptConfig: any = {
+    const promptConfig: ElevenLabsPromptConfig = {
       prompt: enhancedPrompt,
       llm: params.model || "gpt-4o-mini",
       temperature: params.temperature !== undefined ? params.temperature : 0.5,
@@ -1014,7 +1148,7 @@ IMPORTANT: Do NOT ask the caller for their phone number - you already have it fr
     // Per ElevenLabs API: All tools (system and webhook) go in prompt.tools
     // Note: Appointment booking tools are added via updateAgent after creation
     // since we need the ElevenLabs agent ID for the webhook URL
-    const allPromptTools: any[] = [...systemTools];
+    const allPromptTools: ElevenLabsToolRecord[] = [...systemTools];
     if (params.tools && params.tools.length > 0) {
       allPromptTools.push(...params.tools);
     }
@@ -1024,13 +1158,13 @@ IMPORTANT: Do NOT ask the caller for their phone number - you already have it fr
       logger.info(`   Prompt tools: ${allPromptTools.length} (${systemTools.length} system + ${params.tools?.length || 0} custom)`);
     }
 
-    const agentConfig: any = {
+    const agentConfig: ElevenLabsAgentSettings = {
       prompt: promptConfig,
       first_message: params.first_message || "Hello! How can I help you today?",
       language: params.language || "en",
     };
 
-    const requestBody: any = {
+    const requestBody: ElevenLabsAgentRequestBody = {
       name: params.name,
       conversation_config: {
         agent: agentConfig,
@@ -1124,11 +1258,8 @@ IMPORTANT: Do NOT ask the caller for their phone number - you already have it fr
     toolErrorHandlingMode?: "default" | "relaxed" | "strict";
     customGuardrails?: string[];
     dynamicVariableSanitize?: boolean;
-    workflow: {
-      nodes: Record<string, any>;
-      edges: Record<string, any>;
-    };
-    webhookTools?: any[];
+    workflow: ElevenLabsWorkflowConfig;
+    webhookTools?: ElevenLabsWebhookToolDefinition[];
   }): Promise<ElevenLabsAgent> {
     logger.info(`📝 Creating ElevenLabs Flow Agent: ${params.name}`);
     logger.info(`   Voice ID: ${params.voice_id}`);
@@ -1150,12 +1281,12 @@ IMPORTANT: Do NOT ask the caller for their phone number - you already have it fr
 
     // Detect if workflow has transfer nodes (phone_number type) for logging purposes
     // Note: ElevenLabs handles transfers via workflow nodes directly, not via prompt.tools
-    const hasTransferNodes = Object.values(workflowNodes).some((node: any) => node.type === 'phone_number');
+    const hasTransferNodes = Object.values(workflowNodes).some((node) => node.type === 'phone_number');
 
     // Extract tool nodes for custom webhook tool definitions
     // ElevenLabs expects server tools with tool_id matching the workflow node reference
     // ONLY auto-generate if webhookTools are NOT provided (they have full config from compiler)
-    let webhookTools: any[] = [];
+    let webhookTools: ElevenLabsWebhookToolDefinition[] = [];
 
     if (params.webhookTools && params.webhookTools.length > 0) {
       // Use provided webhook tools (they have correct URLs from the flow compiler)
@@ -1165,10 +1296,10 @@ IMPORTANT: Do NOT ask the caller for their phone number - you already have it fr
       // Fallback: Auto-generate from workflow tool nodes (legacy behavior)
       // IMPORTANT: Skip tools that are handled in phase 2 (they need agent ID for valid webhook URLs)
       const phase2Prefixes = ['play_audio', 'appointment', 'form_submit', 'submit_form', 'send_email', 'send_whatsapp', 'collect_caller_email'];
-      const toolNodes = Object.entries(workflowNodes).filter(([_, node]: [string, any]) => node.type === 'tool');
-      webhookTools = toolNodes.flatMap(([nodeId, node]: [string, any]) => {
+      const toolNodes = Object.entries(workflowNodes).filter(([_, node]) => node.type === 'tool');
+      webhookTools = toolNodes.flatMap(([nodeId, node]) => {
         const tools = node.tools || [];
-        return tools.map((tool: any) => {
+        return tools.map((tool) => {
           const toolId = tool.tool_id || `webhook_${nodeId}`;
           // Skip phase-2 tools - they'll be added after agent creation with valid URLs
           if (phase2Prefixes.some(prefix => toolId.startsWith(prefix))) {
@@ -1176,12 +1307,12 @@ IMPORTANT: Do NOT ask the caller for their phone number - you already have it fr
             return null;
           }
           return {
-            type: "webhook",
+            type: "webhook" as const,
             name: toolId,
             description: `Execute webhook action for ${toolId}`,
             api_schema: {
               url: tool.webhook_url || "",
-              method: tool.method || "POST",
+              method: (tool.method || "POST") as "GET" | "POST",
               request_headers: {
                 "Content-Type": "application/json"
               }
@@ -1244,7 +1375,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     }
 
     // Build system tools for Flow Agent as ARRAY for prompt.tools
-    const systemTools: any[] = [];
+    const systemTools: ElevenLabsSystemTool[] = [];
 
     // Language detection system tool
     if (params.detectLanguageEnabled) {
@@ -1277,7 +1408,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       ...webhookTools
     ];
 
-    const requestBody: any = {
+    const requestBody: ElevenLabsAgentRequestBody = {
       name: params.name,
       conversation_config: {
         agent: {
@@ -1375,11 +1506,11 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
    * @returns Updated ElevenLabs agent
    */
   async updateFlowAgentWorkflow(agentId: string, workflow: {
-    nodes: Record<string, any>;
-    edges: Record<string, any>;
+    nodes: Record<string, ElevenLabsWorkflowNode>;
+    edges: Record<string, ElevenLabsWorkflowEdge>;
   }, maxDurationSeconds?: number, detectLanguageEnabled?: boolean, language?: string, ttsModel?: string, llmModel?: string, temperature?: number, firstMessage?: string, voiceId?: string, additionalOptions?: {
     knowledgeBases?: Array<{ type: string; title: string; elevenLabsDocId: string }>;
-    webhookTools?: Array<{ type: "webhook"; name: string; description: string; api_schema: any }>;
+    webhookTools?: ElevenLabsWebhookToolDefinition[];
     name?: string;
     basePrompt?: string;  // Base system prompt for the agent
     voiceStability?: number;  // TTS stability (0-1, lower = more expressive)
@@ -1403,7 +1534,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     const workflowNodes = workflow.nodes;
     const workflowEdges = workflow.edges;
 
-    const updatePayload: any = {
+    const updatePayload: ElevenLabsAgentPatchBody = {
       workflow: {
         nodes: workflowNodes,
         edges: workflowEdges
@@ -1501,11 +1632,11 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
 
     // Detect if workflow has transfer nodes (phone_number type) for logging purposes
     // Note: ElevenLabs handles transfers via workflow nodes directly, not via prompt.tools
-    const hasTransferNodes = Object.values(workflowNodes).some((node: any) => node.type === 'phone_number');
+    const hasTransferNodes = Object.values(workflowNodes).some((node) => node.type === 'phone_number');
 
     // Extract tool nodes for custom webhook tool definitions
     // ONLY auto-generate if webhookTools are NOT provided (they have full config from compiler)
-    let webhookTools: any[] = [];
+    let webhookTools: ElevenLabsWebhookToolDefinition[] = [];
 
     if (additionalOptions?.webhookTools && additionalOptions.webhookTools.length > 0) {
       // Use provided webhook tools (they have correct URLs from the flow compiler)
@@ -1515,10 +1646,10 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       // Fallback: Auto-generate from workflow tool nodes (legacy behavior)
       // IMPORTANT: Skip tools that are handled in phase 2 (they need agent ID for valid webhook URLs)
       const phase2Prefixes = ['play_audio', 'appointment', 'form_submit', 'submit_form', 'send_email', 'send_whatsapp', 'collect_caller_email'];
-      const toolNodes = Object.entries(workflowNodes).filter(([_, node]: [string, any]) => node.type === 'tool');
-      webhookTools = toolNodes.flatMap(([nodeId, node]: [string, any]) => {
+      const toolNodes = Object.entries(workflowNodes).filter(([_, node]) => node.type === 'tool');
+      webhookTools = toolNodes.flatMap(([nodeId, node]) => {
         const tools = node.tools || [];
-        return tools.map((tool: any) => {
+        return tools.map((tool) => {
           const toolId = tool.tool_id || `webhook_${nodeId}`;
           // Skip phase-2 tools - they'll be added after agent creation with valid URLs
           if (phase2Prefixes.some(prefix => toolId.startsWith(prefix))) {
@@ -1526,12 +1657,12 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
             return null;
           }
           return {
-            type: "webhook",
+            type: "webhook" as const,
             name: toolId,
             description: `Execute webhook action for ${toolId}`,
             api_schema: {
               url: tool.webhook_url || "",
-              method: tool.method || "POST",
+              method: (tool.method || "POST") as "GET" | "POST",
               request_headers: {
                 "Content-Type": "application/json"
               }
@@ -1549,8 +1680,8 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     if (webhookTools.length > 0) {
       try {
         await this.registerWorkflowToolsAndUpdateWorkflow(webhookTools, workflow);
-      } catch (error: any) {
-        const isDocNotFound = error.message?.includes('not found') || error.message?.includes('Document with id');
+      } catch (error: unknown) {
+        const isDocNotFound = (error as Error).message?.includes('not found') || (error as Error).message?.includes('Document with id');
         if (isDocNotFound) {
           logger.warn(`⚠️ [Workspace Tools] Stale tool ID detected, clearing cache and retrying...`);
           workspaceToolCache.clear();
@@ -1563,7 +1694,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     }
 
     // Build system tools as ARRAY for prompt.tools (per ElevenLabs API)
-    const systemTools: any[] = [];
+    const systemTools: ElevenLabsSystemTool[] = [];
 
     // Language detection system tool
     if (detectLanguageEnabled) {
@@ -1587,21 +1718,21 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
 
     // TOOL PRESERVATION: Fetch existing tools and preserve RAG/other tools not being updated
     // This prevents flow updates from removing RAG tools (ask_knowledge_*) that were added separately
-    let preservedTools: any[] = [];
+    let preservedTools: ElevenLabsToolRecord[] = [];
     try {
       const existingAgent = await this.getAgent(agentId);
-      const existingTools = (existingAgent as any)?.conversation_config?.agent?.prompt?.tools || [];
+      const existingTools = (existingAgent as ElevenLabsAgentRecord)?.conversation_config?.agent?.prompt?.tools || [];
       logger.info(`   🔍 Found ${existingTools.length} existing tool(s)`);
 
       // Get names of tools we're about to add/update
       const newToolNames = new Set([
-        ...systemTools.map((t: any) => t.name),
-        ...webhookTools.map((t: any) => t.name)
+        ...systemTools.map((t) => t.name),
+        ...webhookTools.map((t) => t.name)
       ]);
 
       // Preserve ALL existing tools that are NOT being explicitly updated
       // This ensures RAG tools, custom webhooks, and any other tools remain intact
-      preservedTools = existingTools.filter((tool: any) => {
+      preservedTools = existingTools.filter((tool: ElevenLabsToolRecord) => {
         const toolName = tool.name || '';
         const toolType = tool.type || '';
 
@@ -1657,8 +1788,8 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       if (preservedTools.length > 0) {
         logger.info(`   📦 Preserving ${preservedTools.length} existing tool(s)`);
       }
-    } catch (error: any) {
-      logger.warn(`   ⚠️ Could not fetch existing tools: ${error.message}`);
+    } catch (error: unknown) {
+      logger.warn(`   ⚠️ Could not fetch existing tools: ${(error as Error).message}`);
     }
 
     // Combine system tools + preserved tools + new webhook tools for prompt.tools array
@@ -1668,7 +1799,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     if (allPromptTools.length > 0) {
       logger.info(`   📦 Prompt tools: ${allPromptTools.length} (${systemTools.length} system + ${preservedTools.length} preserved + ${webhookTools.length} webhook)`);
       // Log all tool names for verification
-      const toolNames = allPromptTools.map((t: any) => t.name).join(', ');
+      const toolNames = allPromptTools.map((t) => t.name).join(', ');
       logger.info(`   📋 Final tools: [${toolNames}]`);
     }
 
@@ -1718,7 +1849,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       // ElevenLabs from wiping it out when we PATCH tools/ignore_default_personality
       try {
         const existingAgent = await this.getAgent(agentId);
-        const existingPrompt = (existingAgent as any)?.conversation_config?.agent?.prompt?.prompt;
+        const existingPrompt = (existingAgent as ElevenLabsAgentRecord)?.conversation_config?.agent?.prompt?.prompt;
         if (existingPrompt) {
           updatePayload.conversation_config.agent.prompt.prompt = existingPrompt;
           logger.info(`   ✓ Preserved existing base prompt (${existingPrompt.length} chars)`);
@@ -1728,8 +1859,8 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
           updatePayload.conversation_config.agent.prompt.prompt = fallbackPrompt;
           logger.warn(`   ⚠️ No existing prompt found — set fallback scripted prompt`);
         }
-      } catch (e: any) {
-        logger.warn(`   ⚠️ Could not fetch existing agent for prompt preservation: ${e.message}`);
+      } catch (e: unknown) {
+        logger.warn(`   ⚠️ Could not fetch existing agent for prompt preservation: ${(e as Error).message}`);
       }
     }
 
@@ -1787,8 +1918,8 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       });
       logger.info(`✅ Flow Agent workflow updated successfully`);
       return result;
-    } catch (patchError: any) {
-      const errorText = patchError.message || "";
+    } catch (patchError: unknown) {
+      const errorText = (patchError as Error).message || "";
       const isDocNotFound = errorText.includes('not found') || errorText.includes('Document with id') || errorText.includes('documents_not_found');
 
       if (isDocNotFound) {
@@ -1806,7 +1937,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
           if (updatePayload.conversation_config?.agent?.prompt?.tools) {
             const originalCount = updatePayload.conversation_config.agent.prompt.tools.length;
             updatePayload.conversation_config.agent.prompt.tools = updatePayload.conversation_config.agent.prompt.tools.filter(
-              (t: any) => !brokenIds.has(t.id) && !brokenIds.has(t.name)
+              (t: ElevenLabsToolRecord) => !brokenIds.has(t.id) && !brokenIds.has(t.name)
             );
             logger.info(`   🗑️ Purged ${originalCount - updatePayload.conversation_config.agent.prompt.tools.length} tool(s) from prompt`);
           }
@@ -1815,7 +1946,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
           if (updatePayload.conversation_config?.agent?.prompt?.knowledge_base) {
             const originalCount = updatePayload.conversation_config.agent.prompt.knowledge_base.length;
             updatePayload.conversation_config.agent.prompt.knowledge_base = updatePayload.conversation_config.agent.prompt.knowledge_base.filter(
-              (kb: any) => !brokenIds.has(kb.id)
+              (kb: ElevenLabsKnowledgeBaseRecord) => !brokenIds.has(kb.id)
             );
             logger.info(`   🗑️ Purged ${originalCount - updatePayload.conversation_config.agent.prompt.knowledge_base.length} document(s) from knowledge base`);
           }
@@ -1837,7 +1968,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
           // Update prompt tools again with newly registered IDs
           const refreshedPromptTools = [
             ...systemTools,
-            ...(updatePayload.conversation_config?.agent?.prompt?.tools?.filter((t: any) => t.type !== 'webhook') || []),
+            ...(updatePayload.conversation_config?.agent?.prompt?.tools?.filter((t: ElevenLabsToolRecord) => t.type !== 'webhook') || []),
             ...webhookTools // These are now enriched with new IDs from registerWorkflowToolsAndUpdateWorkflow
           ];
           updatePayload.conversation_config.agent.prompt.tools = refreshedPromptTools;
@@ -1851,8 +1982,8 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
           });
           logger.info(`✅ Flow Agent workflow updated successfully (after robust recovery)`);
           return retryResult;
-        } catch (retryError: any) {
-          logger.error(`❌ Workflow update failed again after recovery attempt:`, retryError.message);
+        } catch (retryError: unknown) {
+          logger.error(`❌ Workflow update failed again after recovery attempt:`, (retryError as Error).message);
           throw retryError;
         }
       }
@@ -1878,11 +2009,11 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     logger.info(`🔍 Verifying ElevenLabs agent: ${agentId}`);
     const agent = await this.request<ElevenLabsAgent>(`/convai/agents/${agentId}`);
     logger.info(`✅ Agent verified: ${agent.name}`);
-    const promptTools = (agent as any)?.conversation_config?.agent?.prompt?.tools;
-    const systemToolCount = promptTools?.filter((t: any) => t.type === 'system').length || 0;
-    const webhookToolCount = promptTools?.filter((t: any) => t.type === 'webhook').length || 0;
+    const promptTools = (agent as ElevenLabsAgentRecord)?.conversation_config?.agent?.prompt?.tools;
+    const systemToolCount = promptTools?.filter((t: ElevenLabsToolRecord) => t.type === 'system').length || 0;
+    const webhookToolCount = promptTools?.filter((t: ElevenLabsToolRecord) => t.type === 'webhook').length || 0;
     logger.info(`   Prompt tools: ${promptTools?.length || 0} (${systemToolCount} system, ${webhookToolCount} webhook)`);
-    logger.info(`   Workflow configured: ${(agent as any).workflow ? 'Yes' : 'No'}`);
+    logger.info(`   Workflow configured: ${(agent as ElevenLabsAgentRecord).workflow ? 'Yes' : 'No'}`);
     return agent;
   }
 
@@ -1909,7 +2040,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     const workflow = this.buildWorkflow(toolsConfig);
 
     // Per ElevenLabs API docs: System tools go in prompt.tools array
-    const updatePayload: any = {
+    const updatePayload: ElevenLabsAgentPatchBody = {
       conversation_config: {
         agent: {
           prompt: {
@@ -1965,11 +2096,11 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
 
     // 2. Fetch existing agent configuration
     const existingAgent = await this.getAgent(agentId);
-    const existingTools = (existingAgent as any)?.conversation_config?.agent?.prompt?.tools || [];
-    const existingToolIds = (existingAgent as any)?.conversation_config?.agent?.prompt?.tool_ids || [];
+    const existingTools = (existingAgent as ElevenLabsAgentRecord)?.conversation_config?.agent?.prompt?.tools || [];
+    const existingToolIds = (existingAgent as ElevenLabsAgentRecord)?.conversation_config?.agent?.prompt?.tool_ids || [];
 
     // 3. Cleanup legacy inline appointment tools from prompt.tools if any
-    const nonAppointmentTools = existingTools.filter((tool: any) => {
+    const nonAppointmentTools = existingTools.filter((tool: ElevenLabsToolRecord) => {
       return !tool.name?.startsWith('book_appointment_');
     });
 
@@ -2015,7 +2146,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     // POST-REFRESH VALIDATION: Verify the workspace tool was updated with today's date
     try {
       const workspaceTools = await this.listWorkspaceTools();
-      const appointmentTool = workspaceTools.find((t: any) => t.id === toolId);
+      const appointmentTool = workspaceTools.find((t) => t.id === toolId);
 
       if (appointmentTool && appointmentTool.tool_config?.description) {
         const yearStr = new Date().getFullYear().toString();
@@ -2026,8 +2157,8 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
           logger.warn(`⚠️ [ElevenLabs] Workspace tool description may be stale - current year ${yearStr} not found`);
         }
       }
-    } catch (verifyError: any) {
-      logger.warn(`⚠️ [ElevenLabs] Post-refresh validation failed: ${verifyError.message}`);
+    } catch (verifyError: unknown) {
+      logger.warn(`⚠️ [ElevenLabs] Post-refresh validation failed: ${(verifyError as Error).message}`);
     }
 
     logger.info(`✅ [ElevenLabs] Appointment tool refreshed with current date context`);
@@ -2046,7 +2177,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       logger.info(`   Today's date: ${currentDateStr}`);
 
       const existingAgent = await this.getAgent(agentId);
-      const prompt = (existingAgent as any).conversation_config?.agent?.prompt?.prompt || '';
+      const prompt = (existingAgent as ElevenLabsAgentRecord).conversation_config?.agent?.prompt?.prompt || '';
       if (!prompt) return;
 
       // Remove any existing dynamic date info blocks to avoid duplicate date blocks piling up
@@ -2068,8 +2199,8 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
         }),
       });
       logger.info(`📅 [ElevenLabs] Refreshed agent prompt with current date context: ${currentDateStr}`);
-    } catch (err: any) {
-      logger.warn(`⚠️ [ElevenLabs] Failed to refresh agent prompt with current date: ${err.message}`);
+    } catch (err: unknown) {
+      logger.warn(`⚠️ [ElevenLabs] Failed to refresh agent prompt with current date: ${(err as Error).message}`);
     }
   }
 
@@ -2083,7 +2214,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
 
     const workflow = this.buildWorkflow(workflowConfig);
 
-    const updatePayload: any = {
+    const updatePayload: ElevenLabsAgentPatchBody = {
       workflow: workflow || { nodes: {}, edges: {} }
     };
 
@@ -2103,17 +2234,17 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     logger.info(`   Updates:`, JSON.stringify(params, null, 2));
 
     // Build the update payload with correct structure
-    const updatePayload: any = {};
+    const updatePayload: ElevenLabsAgentPatchBody = {};
 
     if (params.name) {
       updatePayload.name = params.name;
     }
 
     // Build conversation_config updates
-    const conversationConfigUpdates: any = {};
+    const conversationConfigUpdates: Record<string, unknown> = {};
 
     // Build agent config
-    const agentUpdates: any = {};
+    const agentUpdates: Record<string, unknown> = {};
 
     // Build system tools as ARRAY for prompt.tools (per ElevenLabs API docs)
     // Check if ANY tool-related property is provided
@@ -2129,8 +2260,8 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     const isSipAgent = params.databaseAgentId && await isAgentOnSipPhoneNumber(params.databaseAgentId);
 
     // Build system tools as ARRAY
-    let systemTools: any[] = [];
-    let workflowConfig: any = null;
+    let systemTools: ElevenLabsSystemTool[] = [];
+    let workflowConfig: ElevenLabsWorkflowConfig | null = null;
 
     if (hasAnyToolConfig) {
       logger.info(`🔧 Building system tools for PATCH`);
@@ -2160,7 +2291,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     }
 
     // Build prompt config object - system tools go in prompt.tools array
-    const promptConfig: any = {};
+    const promptConfig: ElevenLabsPromptConfig = {};
 
     if (params.prompt || params.model || params.temperature !== undefined || params.voice_tone || params.personality || params.knowledge_bases !== undefined || hasAnyToolConfig) {
       // Build enhanced prompt with voice tone and personality
@@ -2204,7 +2335,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       }
 
       // Combine system tools with any custom webhook tools into prompt.tools array
-      const allPromptTools: any[] = [...systemTools];
+      const allPromptTools: ElevenLabsToolRecord[] = [...systemTools];
       if (params.tools && params.tools.length > 0) {
         allPromptTools.push(...params.tools);
       }
@@ -2261,7 +2392,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       params.voiceSimilarityBoost !== undefined ||
       params.voiceSpeed !== undefined;
     if (params.voice_id || params.language || hasVoiceSettings) {
-      const ttsConfig: any = {
+      const ttsConfig: { model_id?: string; [key: string]: unknown } = {
         // Use pcm_16000 for browser/widget compatibility (WebSocket connections)
         // ElevenLabs native telephony integration handles codec conversion separately
         agent_output_audio_format: "pcm_16000",
@@ -2384,7 +2515,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
 
         // Fetch existing agent configuration to get current tool_ids
         const freshAgent = await this.getAgent(agentId);
-        const existingToolIds: string[] = (freshAgent as any)?.conversation_config?.agent?.prompt?.tool_ids || [];
+        const existingToolIds: string[] = (freshAgent as ElevenLabsAgentRecord)?.conversation_config?.agent?.prompt?.tool_ids || [];
 
         let updatedToolIds = [...existingToolIds];
 
@@ -2425,8 +2556,8 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
         } else {
           logger.info(`✅ Agent tool_ids already up to date`);
         }
-      } catch (toolUpdateError: any) {
-        logger.error(`❌ Failed to update agent appointment tool association:`, toolUpdateError.message);
+      } catch (toolUpdateError: unknown) {
+        logger.error(`❌ Failed to update agent appointment tool association:`, (toolUpdateError as Error).message);
       }
     }
 
@@ -2447,7 +2578,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
    * @param payload - Raw payload to send to ElevenLabs
    * @returns Updated agent
    */
-  async patchAgentRaw(agentId: string, payload: Record<string, any>): Promise<ElevenLabsAgent> {
+  async patchAgentRaw(agentId: string, payload: Record<string, unknown>): Promise<ElevenLabsAgent> {
     logger.info(`📤 Raw PATCH to agent ${agentId}:`);
 
     const result = await this.request<ElevenLabsAgent>(`/convai/agents/${agentId}`, {
@@ -2469,8 +2600,8 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       const response = await this.request<{ tools: ElevenLabsWorkspaceTool[] }>('/convai/tools');
       logger.info(`   Found ${response.tools?.length || 0} workspace tool(s)`);
       return response.tools || [];
-    } catch (error: any) {
-      logger.error(`❌ Failed to list workspace tools:`, error.message);
+    } catch (error: unknown) {
+      logger.error(`❌ Failed to list workspace tools:`, (error as Error).message);
       return [];
     }
   }
@@ -2490,9 +2621,9 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       url: string;
       method: "GET" | "POST";
       headers?: Record<string, string>;
-      path_params_schema?: any;
-      query_params_schema?: any;
-      request_body_schema?: any;
+      path_params_schema?: Record<string, unknown>;
+      query_params_schema?: Record<string, unknown>;
+      request_body_schema?: Record<string, unknown>;
     };
   }): Promise<ElevenLabsWorkspaceTool> {
     logger.info(`🔧 Creating workspace tool: ${toolConfig.name}`);
@@ -2536,9 +2667,9 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       url: string;
       method: "GET" | "POST";
       headers?: Record<string, string>;
-      path_params_schema?: any;
-      query_params_schema?: any;
-      request_body_schema?: any;
+      path_params_schema?: Record<string, unknown>;
+      query_params_schema?: Record<string, unknown>;
+      request_body_schema?: Record<string, unknown>;
     };
   }): Promise<ElevenLabsWorkspaceTool> {
     logger.info(`🔧 Updating workspace tool: ${toolId} (${toolConfig.name})`);
@@ -2565,9 +2696,9 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       url: string;
       method: "GET" | "POST";
       headers?: Record<string, string>;
-      path_params_schema?: any;
-      query_params_schema?: any;
-      request_body_schema?: any;
+      path_params_schema?: Record<string, unknown>;
+      query_params_schema?: Record<string, unknown>;
+      request_body_schema?: Record<string, unknown>;
     };
   }): Promise<string> {
     const cacheKey = getToolCacheKey(this.apiKey, toolConfig.name);
@@ -2585,8 +2716,8 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
         logger.info(`🔧 Workspace tool ${tool.id} config is outdated. Updating...`);
         try {
           await this.updateWorkspaceTool(tool.id, toolConfig);
-        } catch (updateErr: any) {
-          logger.warn(`⚠️ Failed to update workspace tool ${tool.id} (non-fatal):`, updateErr.message);
+        } catch (updateErr: unknown) {
+          logger.warn(`⚠️ Failed to update workspace tool ${tool.id} (non-fatal):`, (updateErr as Error).message);
         }
       }
     };
@@ -2632,8 +2763,8 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
    * @returns Map of friendly tool name -> workspace tool ID
    */
   async registerWorkflowToolsAndUpdateWorkflow(
-    webhookTools: Array<{ type: "webhook"; name: string; description: string; api_schema: any }>,
-    workflow: { nodes: Record<string, any>; edges: Record<string, any> }
+    webhookTools: ElevenLabsWebhookToolDefinition[],
+    workflow: ElevenLabsWorkflowConfig
   ): Promise<Map<string, string>> {
     const toolIdMapping = new Map<string, string>();
 
@@ -2723,19 +2854,19 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       url: string;
       method: "GET" | "POST";
       headers?: Record<string, string>;
-      request_body_schema?: any;
+      request_body_schema?: Record<string, unknown>;
     };
-  }>, systemTools?: any[]): Promise<void> {
+  }>, systemTools?: ElevenLabsSystemTool[]): Promise<void> {
     logger.info(`🔧 Linking tools to agent ${agentId}`);
 
     // Fetch existing agent to preserve workflow webhook tools
-    let existingTools: any[] = [];
+    let existingTools: ElevenLabsToolRecord[] = [];
     try {
       const agent = await this.getAgent(agentId);
-      existingTools = (agent as any)?.conversation_config?.agent?.prompt?.tools || [];
+      existingTools = (agent as ElevenLabsAgentRecord)?.conversation_config?.agent?.prompt?.tools || [];
       logger.info(`   Found ${existingTools.length} existing tool(s)`);
-    } catch (error: any) {
-      logger.warn(`   Could not fetch existing tools: ${error.message}`);
+    } catch (error: unknown) {
+      logger.warn(`   Could not fetch existing tools: ${(error as Error).message}`);
     }
 
     // Get names of tools we're about to add/update
@@ -2746,7 +2877,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
 
     // Preserve existing workflow webhook tools that we're NOT updating
     // These are typically named like "webhook_node-*" for flow webhook nodes
-    const preservedTools = existingTools.filter((tool: any) => {
+    const preservedTools = existingTools.filter((tool: ElevenLabsToolRecord) => {
       if (!tool.name) return false;
       // Skip if we're updating this tool
       if (newToolNames.has(tool.name)) return false;
@@ -2760,7 +2891,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
 
     // Per ElevenLabs API: All tools (system + webhook) go in prompt.tools array
     // System tools have type: "system", webhook tools have type: "webhook"
-    const allTools: any[] = [];
+    const allTools: ElevenLabsToolRecord[] = [];
 
     // Add system tools first (type: "system")
     if (systemTools && systemTools.length > 0) {
@@ -2771,7 +2902,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     // Add preserved workflow webhook tools
     if (preservedTools.length > 0) {
       allTools.push(...preservedTools);
-      logger.info(`   Preserved webhooks: ${preservedTools.map((t: any) => t.name).join(', ')}`);
+      logger.info(`   Preserved webhooks: ${preservedTools.map((t: ElevenLabsToolRecord) => t.name).join(', ')}`);
     }
 
     // Add new webhook tools (already have type: "webhook")
@@ -2817,19 +2948,19 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
   async replaceToolsByPrefix(
     agentId: string,
     prefix: string,
-    newTools: Array<{ type: "webhook"; name: string; description: string; api_schema: any }>
+    newTools: Array<{ type: "webhook"; name: string; description: string; api_schema: ElevenLabsWebhookApiSchema }>
   ): Promise<void> {
     logger.info(`🔧 [replaceToolsByPrefix] Replacing "${prefix}" tools on agent ${agentId}`);
 
-    let existingTools: any[] = [];
+    let existingTools: ElevenLabsToolRecord[] = [];
     try {
       const agentData = await this.getAgent(agentId);
-      existingTools = (agentData as any)?.conversation_config?.agent?.prompt?.tools || [];
-    } catch (err: any) {
-      logger.warn(`   Could not fetch existing tools: ${err.message}`);
+      existingTools = (agentData as ElevenLabsAgentRecord)?.conversation_config?.agent?.prompt?.tools || [];
+    } catch (err: unknown) {
+      logger.warn(`   Could not fetch existing tools: ${(err as Error).message}`);
     }
 
-    const retained = existingTools.filter((t: any) => t.name && !t.name.startsWith(prefix));
+    const retained = existingTools.filter((t: ElevenLabsToolRecord) => t.name && !t.name.startsWith(prefix));
     const mergedTools = [...retained, ...newTools];
 
     await this.request(`/convai/agents/${agentId}`, {
@@ -2918,8 +3049,8 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
             logger.info(`⚠️ Reached maximum page limit (${maxPages} pages). Stopping pagination.`);
             break;
           }
-        } catch (pageError: any) {
-          logger.error(`⚠️ Failed to fetch voices page ${pageCount + 1}:`, pageError.message);
+        } catch (pageError: unknown) {
+          logger.error(`⚠️ Failed to fetch voices page ${pageCount + 1}:`, (pageError as Error).message);
           break; // Stop pagination on error
         }
       } while (nextPageToken !== null);
@@ -2939,7 +3070,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       this.printConversationalVoices(uniqueVoices);
 
       return { voices: uniqueVoices };
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('❌ Error fetching voices from v2 API:', error);
       throw error;
     }
@@ -3000,7 +3131,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     // Use v1 TTS endpoint
     const url = `${ELEVENLABS_V1_BASE_URL}/text-to-speech/${voiceId}`;
 
-    const requestBody: any = {
+    const requestBody: { text: string; model_id: string; [key: string]: unknown } = {
       text: text,
       model_id: modelId || "eleven_multilingual_v2",
     };
@@ -3065,8 +3196,8 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       logger.info(`✅ Voice preview generated: ${audioBuffer.length} bytes`);
 
       return audioBuffer;
-    } catch (error: any) {
-      if (error.name === 'AbortError') {
+    } catch (error: unknown) {
+      if ((error as Error).name === 'AbortError') {
         throw new ExternalServiceError(
           'ElevenLabs',
           `Voice preview generation timeout after 60s`,
@@ -3107,8 +3238,8 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       }>('/user/subscription');
 
       return response;
-    } catch (error: any) {
-      logger.error('❌ Error fetching subscription info:', error.message);
+    } catch (error: unknown) {
+      logger.error('❌ Error fetching subscription info:', (error as Error).message);
       throw error;
     }
   }
@@ -3178,7 +3309,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
         voices: response.voices || [],
         hasMore: response.has_more || false,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('❌ Error fetching shared voices:', error);
       throw error;
     }
@@ -3222,8 +3353,8 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     // Proactively check and heal any stale tool/document IDs on the agent to prevent 3000 WebSession closure
     try {
       const agent = await this.getAgent(agentId);
-      const currentToolIds: string[] = (agent as any)?.conversation_config?.agent?.prompt?.tool_ids || [];
-      const currentTools: any[] = (agent as any)?.conversation_config?.agent?.prompt?.tools || [];
+      const currentToolIds: string[] = (agent as ElevenLabsAgentRecord)?.conversation_config?.agent?.prompt?.tool_ids || [];
+      const currentTools: ElevenLabsToolRecord[] = (agent as ElevenLabsAgentRecord)?.conversation_config?.agent?.prompt?.tools || [];
 
       const workspaceTools = await this.listWorkspaceTools();
       const validToolIds = new Set(workspaceTools.map(t => t.id));
@@ -3248,14 +3379,14 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
         };
 
         logger.info(`   🛠️ Proactively purging stale tools from agent ${agentId}...`);
-        await this.request<any>(`/convai/agents/${agentId}`, {
+        await this.request<ElevenLabsAgentRecord>(`/convai/agents/${agentId}`, {
           method: 'PATCH',
           body: JSON.stringify(updatePayload)
         });
         logger.info(`   ✅ Agent ${agentId} stale tools successfully purged.`);
       }
-    } catch (err: any) {
-      logger.error(`⚠️ [ElevenLabs Service] Proactive stale tool check failed for agent ${agentId}:`, err.message);
+    } catch (err: unknown) {
+      logger.error(`⚠️ [ElevenLabs Service] Proactive stale tool check failed for agent ${agentId}:`, (err as Error).message);
     }
 
     // Build query parameters
@@ -3274,7 +3405,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
 
       logger.info(`✅ Got signed URL for agent ${agentId} (expires in 15 minutes)`);
       return result;
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error(`❌ Failed to get signed URL for agent ${agentId}:`, error);
       throw error;
     }
@@ -3347,8 +3478,8 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       const result = await response.json();
       logger.info(`✅ Knowledge base file uploaded: ${result.id}`);
       return result;
-    } catch (error: any) {
-      if (error.name === 'AbortError') {
+    } catch (error: unknown) {
+      if ((error as Error).name === 'AbortError') {
         throw new ExternalServiceError(
           'ElevenLabs',
           `Knowledge base file upload timeout after 60s`,
@@ -3542,7 +3673,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     inboundAgentId?: string | null;
   }): Promise<void> {
     logger.info(`📞 Updating phone number in ElevenLabs: ${phoneNumberId}`);
-    const body: any = {};
+    const body: Record<string, unknown> = {};
 
     if (params.label !== undefined) {
       body.label = params.label;
@@ -3628,8 +3759,8 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     customSystemPrompt?: string;
     firstMessage?: string;
     dynamicData?: Record<string, string>;
-    workflow?: any;
-    webhookTools?: any[];
+    workflow?: ElevenLabsWorkflowConfig;
+    webhookTools?: ElevenLabsWebhookToolDefinition[];
   }): Promise<{
     conversation_id: string | null;
     call_sid?: string;
@@ -3642,7 +3773,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       logger.info(`   Dynamic data keys: ${Object.keys(params.dynamicData).join(', ')}`);
     }
 
-    const requestBody: any = {
+    const requestBody: OutboundCallRequestBody = {
       agent_id: params.agentId,
       agent_phone_number_id: params.phoneNumberId,
       to_number: params.toNumber,
@@ -3652,7 +3783,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     if (params.customSystemPrompt || params.firstMessage || params.dynamicData || params.workflow || params.webhookTools) {
       requestBody.conversation_initiation_client_data = {};
 
-      const configOverride: any = {
+      const configOverride: Record<string, unknown> = {
         agent: {
           ...(params.customSystemPrompt && {
             prompt: {
@@ -3732,7 +3863,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
         return;
       }
 
-      const settings = await settingsResponse.json() as any;
+      const settings = await settingsResponse.json() as { webhooks?: { post_call_webhook_id?: string } };
       const existingWebhooks = settings.webhooks;
 
       // Check if a webhook is already configured with our URL
@@ -3749,7 +3880,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
         headers: { 'xi-api-key': this.apiKey, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           url: webhookUrl,
-          name: 'AgentLabs Post-Call Webhook',
+          name: `${PRODUCT_NAME} Post-Call Webhook`,
         }),
       });
 
@@ -3759,7 +3890,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
         return;
       }
 
-      const webhookData = await createResponse.json() as any;
+      const webhookData = await createResponse.json() as { webhook_id?: string };
       const webhookId = webhookData.webhook_id;
       logger.info(`   ✅ Created ElevenLabs webhook: ${webhookId}`);
 
@@ -3782,8 +3913,8 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
         const errText = await patchResponse.text();
         logger.error(`   ⚠️ Failed to configure workspace webhook: ${patchResponse.status} - ${errText}`);
       }
-    } catch (error: any) {
-      logger.warn(`   ⚠️ Could not configure ElevenLabs post-call webhook: ${error.message}`);
+    } catch (error: unknown) {
+      logger.warn(`   ⚠️ Could not configure ElevenLabs post-call webhook: ${(error as Error).message}`);
     }
   }
 
@@ -3809,7 +3940,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       end_time_unix_secs?: number;
       call_duration_secs?: number;
       message_count?: number;
-      metadata?: Record<string, any>;
+      metadata?: Record<string, unknown>;
     }>;
     next_cursor?: string;
     has_more: boolean;
@@ -3838,7 +3969,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
         end_time_unix_secs?: number;
         call_duration_secs?: number;
         message_count?: number;
-        metadata?: Record<string, any>;
+        metadata?: Record<string, unknown>;
       }>;
       next_cursor?: string;
       has_more: boolean;
@@ -3872,14 +4003,16 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       from_number?: string;
       to_number?: string;
       direction?: 'inbound' | 'outbound';
-      [key: string]: any;
+      call_duration_secs?: number;
+      phone_call?: { call_duration_secs?: number; [key: string]: unknown };
+      [key: string]: unknown;
     };
     analysis?: {
       call_successful?: boolean;
       transcript_summary?: string;
       summary?: string;
-      data_collected?: Record<string, any>;
-      data_collection_results?: Record<string, any>;
+      data_collected?: Record<string, unknown>;
+      data_collection_results?: Record<string, unknown>;
       evaluation_criteria_results?: Record<string, {
         result: string;
         reason: string;
@@ -3909,14 +4042,16 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
         from_number?: string;
         to_number?: string;
         direction?: 'inbound' | 'outbound';
-        [key: string]: any;
+        call_duration_secs?: number;
+        phone_call?: { call_duration_secs?: number; [key: string]: unknown };
+        [key: string]: unknown;
       };
       analysis?: {
         call_successful?: boolean;
         transcript_summary?: string;
         summary?: string;
-        data_collected?: Record<string, any>;
-        data_collection_results?: Record<string, any>;
+        data_collected?: Record<string, unknown>;
+        data_collection_results?: Record<string, unknown>;
         evaluation_criteria_results?: Record<string, {
           result: string;
           reason: string;
@@ -3985,8 +4120,8 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
         audioBuffer,
         contentType,
       };
-    } catch (error: any) {
-      if (error.name === 'AbortError') {
+    } catch (error: unknown) {
+      if ((error as Error).name === 'AbortError') {
         logger.error(`❌ ElevenLabs audio fetch timeout after 60s`);
         return {
           audioBuffer: null,
@@ -3994,11 +4129,11 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
           error: 'Audio fetch timeout after 60s',
         };
       }
-      logger.error(`❌ ElevenLabs audio fetch error:`, error.message);
+      logger.error(`❌ ElevenLabs audio fetch error:`, (error as Error).message);
       return {
         audioBuffer: null,
         contentType: 'audio/mpeg',
-        error: error.message,
+        error: (error as Error).message,
       };
     } finally {
       clearTimeout(timeoutId);
@@ -4038,7 +4173,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
     logger.info(`🔗 Fetching webhook config for agent: ${agentId}`);
 
     const agent = await this.getAgent(agentId);
-    const webhookConfig = (agent as any).webhook;
+    const webhookConfig = (agent as ElevenLabsAgentRecord & { webhook?: { url: string; events: string[]; secret?: string } }).webhook;
 
     logger.info(`✅ Webhook config: [redacted]`);
     return { webhook: webhookConfig };

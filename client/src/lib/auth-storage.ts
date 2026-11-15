@@ -32,6 +32,8 @@ const STORAGE_KEYS = {
 
 const ACTIVITY_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 
+import type { TeamMemberData } from './team-auth';
+
 export interface StoredUser {
   id: number;
   email: string;
@@ -169,7 +171,7 @@ export const AuthStorage = {
    * Gets the stored team member data.
    * @returns The team member object, or null.
    */
-  getTeamMember(): any | null {
+  getTeamMember(): TeamMemberData | null {
     const data = safeGetItem(STORAGE_KEYS.TEAM_MEMBER);
     if (!data) return null;
     try {
@@ -183,7 +185,7 @@ export const AuthStorage = {
    * Sets the team member data.
    * @param member - The team member object.
    */
-  setTeamMember(member: any): boolean {
+  setTeamMember(member: TeamMemberData): boolean {
     try {
       return safeSetItem(STORAGE_KEYS.TEAM_MEMBER, JSON.stringify(member));
     } catch {

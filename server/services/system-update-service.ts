@@ -218,7 +218,7 @@ function copyDirRecursive(src: string, dest: string, excludeDirs: string[] = [])
       try {
         const target = fs.readlinkSync(srcPath);
         fs.symlinkSync(target, destPath);
-      } catch (err: any) {
+      } catch (err) {
         logger.warn(`[SystemUpdate] Skipped symlink during backup (${srcPath}): ${err.message}`);
       }
       continue;
@@ -245,7 +245,7 @@ function getFreeDiskBytes(targetPath: string): number | null {
       const stat = anyFs.statfsSync(targetPath);
       return Number(stat.bavail) * Number(stat.bsize);
     }
-  } catch (err: any) {
+  } catch (err) {
     logger.warn('Could not read free disk space', { code: err?.code }, 'SystemUpdate');
   }
   return null;
@@ -277,11 +277,11 @@ class SystemUpdateService {
       const age = Date.now() - stat.mtimeMs;
       if (age > STALE_MAINTENANCE_MS) {
         logger.warn(`[SystemUpdate] Removing stale .maintenance flag (age ${Math.round(age / 1000)}s) — previous update likely crashed.`);
-        try { fs.unlinkSync(MAINTENANCE_FLAG); } catch (err: any) { if (err?.code !== 'ENOENT') logger.warn('Could not remove .maintenance flag', { code: err?.code }, 'SystemUpdate'); }
+        try { fs.unlinkSync(MAINTENANCE_FLAG); } catch (err) { if (err?.code !== 'ENOENT') logger.warn('Could not remove .maintenance flag', { code: err?.code }, 'SystemUpdate'); }
       } else {
         logger.warn(`[SystemUpdate] .maintenance flag present (age ${Math.round(age / 1000)}s) — leaving in place.`);
       }
-    } catch (err: any) {
+    } catch (err) {
       logger.warn('[SystemUpdate] cleanupStaleMaintenanceFlag failed:', err.message);
     }
   }
@@ -338,7 +338,7 @@ class SystemUpdateService {
               fs.unlinkSync(MAINTENANCE_FLAG);
               logger.warn('[SystemUpdate] Dev mode: cleared leftover .maintenance flag from interrupted update.');
             }
-          } catch (e: any) {
+          } catch (e) {
             logger.warn('[SystemUpdate] Failed to clear .maintenance in dev recovery:', e.message);
           }
         }
@@ -353,7 +353,7 @@ class SystemUpdateService {
         };
         logger.info(`[SystemUpdate] Restored last update state: phase=${persisted.phase}`);
       }
-    } catch (err: any) {
+    } catch (err) {
       logger.warn('[SystemUpdate] Failed to recover update state:', err.message);
     }
   }
@@ -369,8 +369,8 @@ class SystemUpdateService {
    * to be addressed via rollback or a fresh successful update.
    */
   forceReset(): UpdateStatus {
-    try { fs.unlinkSync(MAINTENANCE_FLAG); } catch (err: any) { if (err?.code !== 'ENOENT') logger.warn('Could not remove .maintenance flag', { code: err?.code }, 'SystemUpdate'); }
-    try { fs.unlinkSync(UPDATE_STATE_FILE); } catch (err: any) { if (err?.code !== 'ENOENT') logger.warn('Could not remove update state file', { code: err?.code }, 'SystemUpdate'); }
+    try { fs.unlinkSync(MAINTENANCE_FLAG); } catch (err) { if (err?.code !== 'ENOENT') logger.warn('Could not remove .maintenance flag', { code: err?.code }, 'SystemUpdate'); }
+    try { fs.unlinkSync(UPDATE_STATE_FILE); } catch (err) { if (err?.code !== 'ENOENT') logger.warn('Could not remove update state file', { code: err?.code }, 'SystemUpdate'); }
     this.status = {
       inProgress: false,
       phase: 'idle',
@@ -409,13 +409,13 @@ class SystemUpdateService {
   private persistState() {
     try {
       fs.writeFileSync(UPDATE_STATE_FILE, JSON.stringify(this.status, null, 2));
-    } catch (err: any) {
+    } catch (err) {
       logger.error('Could not persist update state; admin UI may show stale status', err, 'SystemUpdate');
     }
   }
 
   private clearPersistedState() {
-    try { fs.unlinkSync(UPDATE_STATE_FILE); } catch (err: any) { if (err?.code !== 'ENOENT') logger.warn('Could not remove update state file', { code: err?.code }, 'SystemUpdate'); }
+    try { fs.unlinkSync(UPDATE_STATE_FILE); } catch (err) { if (err?.code !== 'ENOENT') logger.warn('Could not remove update state file', { code: err?.code }, 'SystemUpdate'); }
   }
 
   getStatus(): UpdateStatus {
@@ -536,7 +536,7 @@ class SystemUpdateService {
       }
 
       return { valid: true, manifest, fileCount, estimatedSize };
-    } catch (error: any) {
+    } catch (error) {
       return { valid: false, fileCount: 0, estimatedSize: 0, error: `Failed to parse ZIP: ${error.message}` };
     }
   }
@@ -629,7 +629,7 @@ class SystemUpdateService {
         try {
           fs.rmSync(fullPath, { recursive: true, force: true });
           deletedCount++;
-        } catch (err: any) {
+        } catch (err) {
           logger.warn(`[SystemUpdate] Failed to delete ${safe}: ${err.message}`);
         }
       }
@@ -718,7 +718,7 @@ class SystemUpdateService {
       });
       const output = `${stdout}\n${stderr}`;
       return { ok: true, exitCode: 0, output, appliedMigrations: parseAppliedMigrations(output) };
-    } catch (err: any) {
+    } catch (err) {
       const output = `${err.stdout || ''}\n${err.stderr || ''}\n${err.message}`;
       return {
         ok: false,
@@ -823,7 +823,7 @@ class SystemUpdateService {
       const timer = setTimeout(() => {
         timedOut = true;
         logger.error(`[SystemUpdate] ${cmdString} exceeded ${TIMEOUT_MS}ms — sending SIGKILL`);
-        try { child.kill('SIGKILL'); } catch (err: any) { logger.warn('Could not send SIGKILL to timed-out command', { error: err?.message }, 'SystemUpdate'); }
+        try { child.kill('SIGKILL'); } catch (err) { logger.warn('Could not send SIGKILL to timed-out command', { error: err?.message }, 'SystemUpdate'); }
       }, TIMEOUT_MS);
 
       child.on('error', (err) => {
@@ -1000,13 +1000,13 @@ class SystemUpdateService {
         logger.warn('[SystemUpdate] Retention policy failed:', err.message)
       );
 
-      try { fs.unlinkSync(MAINTENANCE_FLAG); } catch (err: any) { if (err?.code !== 'ENOENT') logger.warn('Could not remove .maintenance flag', { code: err?.code }, 'SystemUpdate'); }
+      try { fs.unlinkSync(MAINTENANCE_FLAG); } catch (err) { if (err?.code !== 'ENOENT') logger.warn('Could not remove .maintenance flag', { code: err?.code }, 'SystemUpdate'); }
       // Intentionally keep `.update-state.json` so the admin UI can show the
       // "completed" outcome after the imminent restart drops the polling
       // connection. The admin clears it via the dismiss endpoint.
 
       scheduleGracefulRestart(`System update to v${toVersion}`);
-    } catch (error: any) {
+    } catch (error) {
       logger.error('[SystemUpdate] Update failed:', error);
 
       this.status.phase = 'rolling_back';
@@ -1021,7 +1021,7 @@ class SystemUpdateService {
         try {
           await this.rollback(backupPath);
           this.status.message = 'Rolled back successfully after failure';
-        } catch (rollbackError: any) {
+        } catch (rollbackError) {
           logger.error('[SystemUpdate] Rollback also failed:', rollbackError);
           this.status.message = `Update failed and rollback also failed: ${rollbackError.message}`;
         }
@@ -1045,7 +1045,7 @@ class SystemUpdateService {
         fileCount,
       });
 
-      try { fs.unlinkSync(MAINTENANCE_FLAG); } catch (err: any) { if (err?.code !== 'ENOENT') logger.warn('Could not remove .maintenance flag', { code: err?.code }, 'SystemUpdate'); }
+      try { fs.unlinkSync(MAINTENANCE_FLAG); } catch (err) { if (err?.code !== 'ENOENT') logger.warn('Could not remove .maintenance flag', { code: err?.code }, 'SystemUpdate'); }
       // Keep `.update-state.json` so the admin UI shows the failure after
       // any subsequent restart. Cleared via the dismiss endpoint.
     }
@@ -1085,7 +1085,7 @@ class SystemUpdateService {
     // leave the system locked out.
     const maintenanceWasSet = !fs.existsSync(MAINTENANCE_FLAG);
     if (maintenanceWasSet) {
-      try { fs.writeFileSync(MAINTENANCE_FLAG, 'rolling-back'); } catch (err: any) { logger.warn('Could not set .maintenance flag for rollback', { code: err?.code }, 'SystemUpdate'); }
+      try { fs.writeFileSync(MAINTENANCE_FLAG, 'rolling-back'); } catch (err) { logger.warn('Could not set .maintenance flag for rollback', { code: err?.code }, 'SystemUpdate'); }
     }
 
     try {
@@ -1130,7 +1130,7 @@ class SystemUpdateService {
         try {
           fs.rmSync(orphan, { recursive: true, force: true });
           logger.info('[SystemUpdate] Rollback removed update-era entry:', entry.name);
-        } catch (err: any) {
+        } catch (err) {
           logger.warn(`[SystemUpdate] Failed to remove ${orphan} during rollback:`, err.message);
         }
       }
@@ -1146,7 +1146,7 @@ class SystemUpdateService {
           cwd: process.cwd(),
           maxBuffer: 10 * 1024 * 1024,
         });
-      } catch (npmError: any) {
+      } catch (npmError) {
         const tail = `${npmError.stdout || ''}\n${npmError.stderr || ''}`.slice(-1500);
         throw new Error(`npm install failed during rollback: ${npmError.message}\n${tail}`);
       }
@@ -1175,7 +1175,7 @@ class SystemUpdateService {
             { timeout: 180000, maxBuffer: 10 * 1024 * 1024 }
           );
           logger.info('[SystemUpdate] Database restored from backup.');
-        } catch (err: any) {
+        } catch (err) {
           logger.error('[SystemUpdate] Database restore failed:', err.message);
           throw new Error(`Database restore failed: ${err.message}`);
         }
@@ -1191,7 +1191,7 @@ class SystemUpdateService {
 
       // Schedule a restart so the rolled-back code is loaded.
       scheduleGracefulRestart('System rollback');
-    } catch (error: any) {
+    } catch (error) {
       logger.error('[SystemUpdate] Rollback failed:', error);
       this.status.phase = 'failed';
       this.status.inProgress = false;
@@ -1207,7 +1207,7 @@ class SystemUpdateService {
       throw error;
     } finally {
       if (maintenanceWasSet) {
-        try { fs.unlinkSync(MAINTENANCE_FLAG); } catch (err: any) { if (err?.code !== 'ENOENT') logger.warn('Could not remove .maintenance flag', { code: err?.code }, 'SystemUpdate'); }
+        try { fs.unlinkSync(MAINTENANCE_FLAG); } catch (err) { if (err?.code !== 'ENOENT') logger.warn('Could not remove .maintenance flag', { code: err?.code }, 'SystemUpdate'); }
       }
     }
   }
@@ -1231,7 +1231,7 @@ class SystemUpdateService {
     });
     archive.on('error', (err) => {
       logger.error('[SystemUpdate] backup zip error:', err);
-      try { res.destroy(err); } catch (destroyErr: any) { logger.warn('Could not close backup response after archive error', { error: destroyErr?.message }, 'SystemUpdate'); }
+      try { res.destroy(err); } catch (destroyErr) { logger.warn('Could not close backup response after archive error', { error: destroyErr?.message }, 'SystemUpdate'); }
     });
     archive.pipe(res);
     archive.directory(backupPath, false);
@@ -1265,11 +1265,11 @@ class SystemUpdateService {
           await db.execute(sql`
             UPDATE system_updates SET backup_path = NULL WHERE id = ${row.id}
           `);
-        } catch (err: any) {
+        } catch (err) {
           logger.warn(`[SystemUpdate] Retention: failed to delete ${row.backup_path}:`, err.message);
         }
       }
-    } catch (err: any) {
+    } catch (err) {
       logger.warn('[SystemUpdate] applyRetentionPolicy query failed:', err.message);
     }
     return { deleted };
@@ -1314,7 +1314,7 @@ class SystemUpdateService {
           ${data.fileCount || 0}
         )
       `);
-    } catch (error: any) {
+    } catch (error) {
       logger.error('[SystemUpdate] Failed to record update:', error.message);
     }
   }

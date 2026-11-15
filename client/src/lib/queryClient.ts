@@ -87,27 +87,36 @@ async function ensureValidToken(): Promise<boolean> {
   return true;
 }
 
-// Custom error class that preserves HTTP status and response data
-export class ApiError extends Error {
-  status: number;
-  data: any;
+/** Conflict fields the server may include in an error response body. */
+interface ApiErrorConflictFields {
   conflictType?: string;
   connectedAgentName?: string;
   campaignName?: string;
   campaignStatus?: string;
-  
-  constructor(message: string, status: number, data?: any) {
+}
+
+// Custom error class that preserves HTTP status and response data
+export class ApiError extends Error {
+  status: number;
+  data: unknown;
+  conflictType?: string;
+  connectedAgentName?: string;
+  campaignName?: string;
+  campaignStatus?: string;
+
+  constructor(message: string, status: number, data?: unknown) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.data = data;
-    
+
     // Extract conflict-specific fields for easier access
     if (data) {
-      this.conflictType = data.conflictType;
-      this.connectedAgentName = data.connectedAgentName;
-      this.campaignName = data.campaignName;
-      this.campaignStatus = data.campaignStatus;
+      const body = data as ApiErrorConflictFields;
+      this.conflictType = body.conflictType;
+      this.connectedAgentName = body.connectedAgentName;
+      this.campaignName = body.campaignName;
+      this.campaignStatus = body.campaignStatus;
     }
   }
 }
@@ -129,12 +138,13 @@ async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = await res.text();
     let message = text || res.statusText;
-    let data: any = null;
-    
+    let data: unknown = null;
+
     // Try to parse JSON error response and extract the error message
     try {
-      data = JSON.parse(text);
-      message = data.error || data.message || text;
+      const parsed = JSON.parse(text) as { error?: string; message?: string };
+      data = parsed;
+      message = parsed.error || parsed.message || text;
     } catch {
       if (text && (text.includes('<html') || text.includes('<!DOCTYPE') || text.includes('<HTML'))) {
         message = HTTP_STATUS_MESSAGES[res.status] || `Request failed (${res.status}). Please try again.`;
@@ -255,7 +265,9 @@ export const queryClient = new QueryClient({
 // Expose queryClient on window for plugins to use the same cache instance
 // This ensures plugins share the same React Query cache as the main app
 if (typeof window !== 'undefined') {
-  (window as any).queryClient = queryClient;
-  (window as any).apiRequest = apiRequest;
-  (window as any).getAuthHeader = () => AuthStorage.getAuthHeader();
+  Object.assign(window, {
+    queryClient,
+    apiRequest,
+    getAuthHeader: () => AuthStorage.getAuthHeader(),
+  });
 }

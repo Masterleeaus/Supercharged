@@ -16,7 +16,7 @@ export const DIPLOY_BRAND = {
   website: 'https://diploy.in',
   email: 'cs@diploy.in',
   copyright: '© 2025 Diploy',
-  product: 'AgentLabs'
+  product: 'Supercharged'
 } as const;
 
 export const DIPLOY_VERSION = {

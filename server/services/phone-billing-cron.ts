@@ -13,7 +13,7 @@
 import { logger } from '../utils/logger';
 import { db } from "../db";
 import { phoneNumbers, creditTransactions, phoneNumberRentals, campaigns, phoneReleaseRetryQueue } from "@shared/schema";
-import type { PhoneNumber } from "@shared/schema";
+import type { PhoneNumber, User } from "@shared/schema";
 import { storage } from "../storage";
 import { twilioService } from "./twilio";
 import { lte, eq, sql, and } from "drizzle-orm";
@@ -77,7 +77,7 @@ export async function processPhoneNumberBilling() {
     logger.info(`📞 [Phone Billing] Processed ${processed} phone numbers`);
 
     logger.info('📞 [Phone Billing] Monthly billing check complete');
-  } catch (error: any) {
+  } catch (error) {
     logger.error('📞 [Phone Billing] Error processing monthly billing:', error);
   }
 }
@@ -85,7 +85,7 @@ export async function processPhoneNumberBilling() {
 /**
  * Process renewal for a single phone number
  */
-async function processPhoneNumberRenewal(phoneNumber: any) {
+async function processPhoneNumberRenewal(phoneNumber: PhoneNumber) {
   logger.info(`📞 [Phone Billing] Processing renewal for [redacted]`);
 
   try {
@@ -108,7 +108,7 @@ async function processPhoneNumberRenewal(phoneNumber: any) {
       // Insufficient credits - disable and release
       await disablePhoneNumber(phoneNumber, user, monthlyCredits);
     }
-  } catch (error: any) {
+  } catch (error) {
     logger.error(`📞 [Phone Billing] Error processing renewal for [redacted]:`, error);
   }
 }
@@ -116,7 +116,7 @@ async function processPhoneNumberRenewal(phoneNumber: any) {
 /**
  * Renew phone number by deducting credits and updating billing date
  */
-async function renewPhoneNumber(phoneNumber: any, user: any, monthlyCredits: number) {
+async function renewPhoneNumber(phoneNumber: PhoneNumber, user: User, monthlyCredits: number) {
   logger.info(`📞 [Phone Billing] Renewing [redacted] (sufficient credits)`);
 
   try {
@@ -173,11 +173,11 @@ async function renewPhoneNumber(phoneNumber: any, user: any, monthlyCredits: num
       try {
         await emailService.sendLowCreditsAlert(user.id, updatedUser.credits || 0);
         logger.info(`✅ [Phone Billing] Low credits email sent to user ${user.id}`);
-      } catch (emailError: any) {
+      } catch (emailError) {
         logger.error(`❌ [Phone Billing] Failed to send low credits email:`);
       }
     }
-  } catch (error: any) {
+  } catch (error) {
     logger.error(`❌ [Phone Billing] Failed to renew [redacted]:`, error);
     
     // Create failed rental record
@@ -200,7 +200,7 @@ async function renewPhoneNumber(phoneNumber: any, user: any, monthlyCredits: num
  * - Pause all campaigns using this number
  * - Create failed rental record
  */
-async function disablePhoneNumber(phoneNumber: any, user: any, monthlyCredits: number) {
+async function disablePhoneNumber(phoneNumber: PhoneNumber, user: User, monthlyCredits: number) {
   logger.info(`⚠️  [Phone Billing] Disabling [redacted] (insufficient credits)`);
 
   try {
@@ -237,7 +237,7 @@ async function disablePhoneNumber(phoneNumber: any, user: any, monthlyCredits: n
         { maxAttempts: 3, baseDelayMs: 500, maxDelayMs: 4000, label: 'twilio.releasePhoneNumber' }
       );
       logger.info(`✅ [Phone Billing] Released [redacted] from Twilio`);
-    } catch (twilioError: any) {
+    } catch (twilioError) {
       logger.error(`⚠️  [Phone Billing] Failed to release [redacted] from Twilio:`, twilioError);
       // Enqueue durable retry so the release is not lost on transient errors.
       try {
@@ -251,7 +251,7 @@ async function disablePhoneNumber(phoneNumber: any, user: any, monthlyCredits: n
           nextRetryAt: new Date(Date.now() + 5 * 60 * 1000), // retry in 5 min
         });
         logger.info(`📥 [Phone Billing] Queued release retry for [redacted]`);
-      } catch (queueError: any) {
+      } catch (queueError) {
         logger.error(`❌ [Phone Billing] Failed to queue release retry:`, queueError);
       }
     }
@@ -264,7 +264,7 @@ async function disablePhoneNumber(phoneNumber: any, user: any, monthlyCredits: n
       phoneNumber.phoneNumber,
       `Insufficient credits (${user.credits || 0} available, ${monthlyCredits} required)`
     );
-  } catch (error: any) {
+  } catch (error) {
     logger.error(`❌ [Phone Billing] Failed to disable [redacted]:`, error);
   }
 }

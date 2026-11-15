@@ -1137,7 +1137,7 @@ pm2 logs agentlabs --lines 100
 
 2. **Note the exact error message** - Copy the full error text
 
-3. **Contact support via CodeCanyon with:**
+3. **Open an issue at https://github.com/Masterleeaus/supercharged/issues with:**
    - Your AgentLabs version (Admin Dashboard > top bar)
    - The exact error message
    - Steps to reproduce the issue

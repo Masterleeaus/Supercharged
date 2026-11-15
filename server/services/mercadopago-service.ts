@@ -71,7 +71,7 @@ export async function testMercadoPagoConnection(): Promise<{ success: boolean; e
     const preference = new Preference(client);
     await preference.search({ options: { limit: 1 } });
     return { success: true };
-  } catch (error: any) {
+  } catch (error) {
     logger.error('❌ [MercadoPago] Connection test failed:', error.message);
     return { success: false, error: error.message };
   }

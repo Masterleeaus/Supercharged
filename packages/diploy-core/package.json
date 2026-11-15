@@ -1,7 +1,7 @@
 {
   "name": "@diploy/core",
   "version": "1.0.0",
-  "description": "Core utilities for AgentLabs - Diploy Technologies",
+  "description": "Core utilities for Supercharged - Diploy Technologies",
   "main": "index.ts",
   "types": "index.ts",
   "author": "BTPL Engineering Team <cs@diploy.in>",

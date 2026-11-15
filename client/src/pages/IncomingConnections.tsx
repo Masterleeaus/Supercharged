@@ -20,151 +20,21 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+
+
+
+
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePluginStatus } from "@/hooks/use-plugin-status";
+import { ElevenLabsIcon } from "@/pages/incoming-connections/ElevenLabsIcon";
+import { ElevenLabsDialogs } from "@/pages/incoming-connections/ElevenLabsDialogs";
+import { PlivoDialogs } from "@/pages/incoming-connections/PlivoDialogs";
+import { TwilioOpenaiDialogs } from "@/pages/incoming-connections/TwilioOpenaiDialogs";
+import { CustomVoiceDialogs } from "@/pages/incoming-connections/CustomVoiceDialogs";
+import type { IncomingConnection, Agent, IncomingConnectionsResponse, PlivoIncomingConnectionsResponse, PlivoConnection, TwilioOpenaiConnection, TwilioOpenaiIncomingConnectionsResponse, EngineTab, VoiceEngineSettings } from "@/pages/incoming-connections/types";
 
 // ElevenLabs icon SVG component
-function ElevenLabsIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M8 4h2v16H8V4zm6 0h2v16h-2V4z"/>
-    </svg>
-  );
-}
-
-type IncomingConnection = {
-  id: string;
-  agentId: string;
-  phoneNumberId: string;
-  createdAt: string;
-  agent: {
-    id: string;
-    name: string;
-    elevenLabsVoiceId: string | null;
-    language: string | null;
-    telephonyProvider?: string | null;
-  };
-  phoneNumber: {
-    id: string;
-    phoneNumber: string;
-    friendlyName: string | null;
-  };
-};
-
-type Agent = {
-  id: string;
-  name: string;
-  type: 'incoming' | 'flow';
-  telephonyProvider?: string | null;
-};
-
-type PhoneNumber = {
-  id: string;
-  phoneNumber: string;
-  friendlyName: string | null;
-  isConflicted?: boolean;
-  conflictReason?: string | null;
-  conflictCampaignName?: string | null;
-  conflictCampaignStatus?: string | null;
-};
-
-type Stats = {
-  totalConnections: number;
-  availableNumbers: number;
-  totalAgents: number;
-};
-
-type IncomingConnectionsResponse = {
-  connections: IncomingConnection[];
-  availablePhoneNumbers: PhoneNumber[];
-  incomingAgents: Agent[];
-  stats: Stats;
-};
-
-// Plivo types
-type PlivoAgent = {
-  id: string;
-  name: string;
-  type: string;
-  telephonyProvider: string;
-};
-
-type PlivoConnection = {
-  phoneNumberId: string;
-  phoneNumber: string;
-  friendlyName: string | null;
-  country: string;
-  agent: PlivoAgent | null;
-};
-
-type PlivoAvailableNumber = {
-  id: string;
-  phoneNumber: string;
-  friendlyName: string | null;
-  country: string;
-  region: string | null;
-  isConflicted: boolean;
-  conflictReason: string | null;
-};
-
-type PlivoIncomingConnectionsResponse = {
-  connections: PlivoConnection[];
-  availablePhoneNumbers: PlivoAvailableNumber[];
-  availableAgents: PlivoAgent[];
-  stats: Stats;
-};
-
-// Twilio + OpenAI types
-type TwilioOpenaiAgent = {
-  id: string;
-  name: string;
-  type: string;
-  telephonyProvider: string;
-  openaiVoice?: string;
-};
-
-type TwilioOpenaiConnection = {
-  id: string;
-  agentId: string;
-  phoneNumberId: string;
-  createdAt: string;
-  agent: TwilioOpenaiAgent | null;
-  phoneNumber: {
-    id: string;
-    phoneNumber: string;
-    friendlyName: string | null;
-    country: string | null;
-    status: string;
-  } | null;
-};
-
-type TwilioOpenaiAvailableNumber = {
-  id: string;
-  phoneNumber: string;
-  friendlyName: string | null;
-  country: string | null;
-  isConflicted: boolean;
-  conflictReason: string | null;
-};
-
-type TwilioOpenaiIncomingConnectionsResponse = {
-  connections: TwilioOpenaiConnection[];
-  availablePhoneNumbers: TwilioOpenaiAvailableNumber[];
-  availableAgents: TwilioOpenaiAgent[];
-  stats: Stats;
-};
-
-type EngineTab = 'twilio-elevenlabs' | 'plivo-openai' | 'twilio-openai' | 'custom-voice';
-
-type VoiceEngineSettings = {
-  plivo_openai_engine_enabled: boolean;
-  twilio_openai_engine_enabled: boolean;
-};
 
 export default function IncomingConnectionsPage() {
   const { t } = useTranslation();
@@ -990,479 +860,68 @@ export default function IncomingConnectionsPage() {
         </TabsContent>)}
       </Tabs>
 
-      {/* Twilio + ElevenLabs Create Dialog */}
-      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent data-testid="dialog-create-connection">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <SiTwilio className="h-5 w-5 text-red-500" />
-              <ElevenLabsIcon className="h-5 w-5 text-violet-600" />
-              {t("incomingConnections.dialog.createTitle")}
-            </DialogTitle>
-            <DialogDescription>
-              {t("incomingConnections.dialog.createDescription")}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="agent">
-                {t("incomingConnections.form.agentLabel")} <span className="text-destructive">*</span>
-              </Label>
-              <Select value={selectedAgentId} onValueChange={setSelectedAgentId}>
-                <SelectTrigger id="agent" data-testid="select-agent">
-                  <SelectValue placeholder={t("incomingConnections.form.agentPlaceholder")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {agents.length === 0 ? (
-                    <div className="p-2 text-sm text-muted-foreground">
-                      {t("incomingConnections.form.noAgents")}
-                    </div>
-                  ) : (
-                    agents.map((agent) => (
-                      <SelectItem key={agent.id} value={agent.id}>
-                        {agent.name}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="phone">
-                {t("incomingConnections.form.phoneLabel")} <span className="text-destructive">*</span>
-              </Label>
-              <Select value={selectedPhoneId} onValueChange={setSelectedPhoneId}>
-                <SelectTrigger id="phone" data-testid="select-phone">
-                  <SelectValue placeholder={t("incomingConnections.form.phonePlaceholder")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {availablePhoneNumbers.length === 0 ? (
-                    isFreePlan ? (
-                      <div className="p-3 space-y-2">
-                        <p className="text-sm text-muted-foreground">
-                          {t("incomingConnections.form.freePlanNoPhones")}
-                        </p>
-                        <Button
-                          size="sm"
-                          className="w-full"
-                          onClick={() => setLocation("/app/billing?tab=plans")}
-                          data-testid="button-upgrade-for-phone"
-                        >
-                          {t("incomingConnections.form.upgradeNow")}
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="p-2 text-sm text-muted-foreground">
-                        {t("incomingConnections.form.noPhones")}
-                      </div>
-                    )
-                  ) : (
-                    availablePhoneNumbers.map((phone) => (
-                      phone.isConflicted ? (
-                        <TooltipProvider key={phone.id}>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="relative flex w-full cursor-not-allowed select-none items-center rounded-sm py-1.5 px-2 text-sm outline-none opacity-50">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-mono">{phone.phoneNumber}</span>
-                                  <span className="text-xs text-destructive font-medium">(In Use)</span>
-                                </div>
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent side="right" className="max-w-xs">
-                              <p>{phone.conflictReason || "This phone is being used by an active campaign"}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      ) : (
-                        <SelectItem key={phone.id} value={phone.id}>
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono">{phone.phoneNumber}</span>
-                            {phone.friendlyName && (
-                              <span className="text-muted-foreground">({phone.friendlyName})</span>
-                            )}
-                          </div>
-                        </SelectItem>
-                      )
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setCreateDialogOpen(false); setSelectedAgentId(""); setSelectedPhoneId(""); }}>
-              {t("common.cancel")}
-            </Button>
-            <Button
-              onClick={handleCreate}
-              disabled={createMutation.isPending || !selectedAgentId || !selectedPhoneId}
-              className="bg-violet-600 hover:bg-violet-700"
-            >
-              {createMutation.isPending ? t("incomingConnections.actions.creating") : t("incomingConnections.actions.createConnection")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Twilio + ElevenLabs Delete Dialog */}
-      <AlertDialog open={!!deleteConnection} onOpenChange={() => setDeleteConnection(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("incomingConnections.dialog.deleteTitle")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("incomingConnections.dialog.deleteDescription")}{" "}
-              <span className="font-mono font-semibold">{deleteConnection?.phoneNumber.phoneNumber}</span>{" "}
-              {t("incomingConnections.dialog.deleteDescriptionRoute")}{" "}
-              <span className="font-semibold">{deleteConnection?.agent.name}</span>.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => deleteConnection && deleteMutation.mutate(deleteConnection.id)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deleteMutation.isPending ? t("incomingConnections.actions.deleting") : t("incomingConnections.actions.deleteConnection")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Plivo Create Connection Dialog */}
-      <Dialog open={plivoCreateDialogOpen} onOpenChange={setPlivoCreateDialogOpen}>
-        <DialogContent data-testid="dialog-create-plivo-connection">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Phone className="h-5 w-5 text-green-600" />
-              <SiOpenai className="h-5 w-5 text-emerald-600" />
-              Create Plivo + OpenAI Connection
-            </DialogTitle>
-            <DialogDescription>
-              Connect a Plivo phone number to an OpenAI-powered agent for incoming calls.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="plivo-agent">OpenAI Agent <span className="text-destructive">*</span></Label>
-              <Select value={selectedPlivoAgentId} onValueChange={setSelectedPlivoAgentId}>
-                <SelectTrigger id="plivo-agent" data-testid="select-plivo-agent">
-                  <SelectValue placeholder="Select an OpenAI agent" />
-                </SelectTrigger>
-                <SelectContent>
-                  {plivoAvailableAgents.length === 0 ? (
-                    <div className="p-2 text-sm text-muted-foreground">No OpenAI agents available.</div>
-                  ) : (
-                    plivoAvailableAgents.map((agent) => (
-                      <SelectItem key={agent.id} value={agent.id}>
-                        <div className="flex items-center gap-2">
-                          <SiOpenai className="h-3 w-3 text-emerald-600" />
-                          <span>{agent.name}</span>
-                        </div>
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="plivo-phone">Plivo Phone Number <span className="text-destructive">*</span></Label>
-              <Select value={selectedPlivoPhoneId} onValueChange={setSelectedPlivoPhoneId}>
-                <SelectTrigger id="plivo-phone" data-testid="select-plivo-phone">
-                  <SelectValue placeholder="Select a Plivo phone number" />
-                </SelectTrigger>
-                <SelectContent>
-                  {plivoAvailablePhoneNumbers.length === 0 ? (
-                    <div className="p-2 text-sm text-muted-foreground">No available Plivo phone numbers.</div>
-                  ) : (
-                    plivoAvailablePhoneNumbers.map((phone) => (
-                      phone.isConflicted ? (
-                        <TooltipProvider key={phone.id}>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="relative flex w-full cursor-not-allowed select-none items-center rounded-sm py-1.5 px-2 text-sm outline-none opacity-50">
-                                <span className="font-mono">{phone.phoneNumber}</span>
-                                <span className="text-xs text-destructive font-medium ml-2">(In Use)</span>
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent><p>{phone.conflictReason}</p></TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      ) : (
-                        <SelectItem key={phone.id} value={phone.id}>
-                          <span className="font-mono">{phone.phoneNumber}</span>
-                          <span className="text-xs text-muted-foreground ml-2">({phone.country})</span>
-                        </SelectItem>
-                      )
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setPlivoCreateDialogOpen(false); setSelectedPlivoAgentId(""); setSelectedPlivoPhoneId(""); }}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handlePlivoCreate}
-              disabled={plivoCreateMutation.isPending || !selectedPlivoAgentId || !selectedPlivoPhoneId}
-              className="bg-emerald-600 hover:bg-emerald-700"
-            >
-              {plivoCreateMutation.isPending ? "Creating..." : "Create Connection"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Plivo Delete Dialog */}
-      <AlertDialog open={!!plivoDeleteConnection} onOpenChange={() => setPlivoDeleteConnection(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove Connection</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will disconnect <span className="font-mono font-semibold">{plivoDeleteConnection?.phoneNumber}</span>{" "}
-              from <span className="font-semibold">{plivoDeleteConnection?.agent?.name}</span>.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => plivoDeleteConnection && plivoDeleteMutation.mutate(plivoDeleteConnection.phoneNumberId)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {plivoDeleteMutation.isPending ? "Removing..." : "Remove"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Twilio + OpenAI Create Dialog */}
-      <Dialog open={twilioOpenaiCreateDialogOpen} onOpenChange={setTwilioOpenaiCreateDialogOpen}>
-        <DialogContent data-testid="dialog-create-twilio-openai-connection">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <SiTwilio className="h-5 w-5 text-red-500" />
-              <SiOpenai className="h-5 w-5 text-brand" />
-              Create Twilio + OpenAI Connection
-            </DialogTitle>
-            <DialogDescription>
-              Connect a Twilio phone number to an OpenAI-powered agent for incoming calls.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="twilio-openai-agent">OpenAI Agent <span className="text-destructive">*</span></Label>
-              <Select value={selectedTwilioOpenaiAgentId} onValueChange={setSelectedTwilioOpenaiAgentId}>
-                <SelectTrigger id="twilio-openai-agent" data-testid="select-twilio-openai-agent">
-                  <SelectValue placeholder="Select an OpenAI agent" />
-                </SelectTrigger>
-                <SelectContent>
-                  {twilioOpenaiAvailableAgents.length === 0 ? (
-                    <div className="p-2 text-sm text-muted-foreground">No OpenAI agents available.</div>
-                  ) : (
-                    twilioOpenaiAvailableAgents.map((agent) => (
-                      <SelectItem key={agent.id} value={agent.id}>
-                        <div className="flex items-center gap-2">
-                          <SiOpenai className="h-3 w-3 text-brand" />
-                          <span>{agent.name}</span>
-                        </div>
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="twilio-openai-phone">Twilio Phone Number <span className="text-destructive">*</span></Label>
-              <Select value={selectedTwilioOpenaiPhoneId} onValueChange={setSelectedTwilioOpenaiPhoneId}>
-                <SelectTrigger id="twilio-openai-phone" data-testid="select-twilio-openai-phone">
-                  <SelectValue placeholder="Select a Twilio phone number" />
-                </SelectTrigger>
-                <SelectContent>
-                  {twilioOpenaiAvailablePhoneNumbers.length === 0 ? (
-                    <div className="p-2 text-sm text-muted-foreground">No available Twilio phone numbers.</div>
-                  ) : (
-                    twilioOpenaiAvailablePhoneNumbers.map((phone) => (
-                      phone.isConflicted ? (
-                        <TooltipProvider key={phone.id}>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="relative flex w-full cursor-not-allowed select-none items-center rounded-sm py-1.5 px-2 text-sm outline-none opacity-50">
-                                <span className="font-mono">{phone.phoneNumber}</span>
-                                <span className="text-xs text-destructive font-medium ml-2">(In Use)</span>
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent><p>{phone.conflictReason}</p></TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      ) : (
-                        <SelectItem key={phone.id} value={phone.id}>
-                          <span className="font-mono">{phone.phoneNumber}</span>
-                          <span className="text-xs text-muted-foreground ml-2">({phone.country})</span>
-                        </SelectItem>
-                      )
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setTwilioOpenaiCreateDialogOpen(false); setSelectedTwilioOpenaiAgentId(""); setSelectedTwilioOpenaiPhoneId(""); }}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleTwilioOpenaiCreate}
-              disabled={twilioOpenaiCreateMutation.isPending || !selectedTwilioOpenaiAgentId || !selectedTwilioOpenaiPhoneId}
-              className="bg-brand text-brand-foreground"
-            >
-              {twilioOpenaiCreateMutation.isPending ? "Creating..." : "Create Connection"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Twilio + OpenAI Delete Dialog */}
-      <AlertDialog open={!!twilioOpenaiDeleteConnection} onOpenChange={() => setTwilioOpenaiDeleteConnection(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove Connection</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will disconnect <span className="font-mono font-semibold">{twilioOpenaiDeleteConnection?.phoneNumber?.phoneNumber}</span>{" "}
-              from <span className="font-semibold">{twilioOpenaiDeleteConnection?.agent?.name}</span>.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => twilioOpenaiDeleteConnection && twilioOpenaiDeleteMutation.mutate(twilioOpenaiDeleteConnection.id)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {twilioOpenaiDeleteMutation.isPending ? "Removing..." : "Remove"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Custom Voice Create Dialog */}
-      <Dialog open={cveCreateDialogOpen} onOpenChange={setCveCreateDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Mic className="h-5 w-5 text-indigo-600" />
-              Create Custom Voice Connection
-            </DialogTitle>
-            <DialogDescription>
-              Connect any available phone number to a Custom Voice Engine agent.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="cve-agent">Custom Voice Agent <span className="text-destructive">*</span></Label>
-              <Select value={selectedCveAgentId} onValueChange={setSelectedCveAgentId}>
-                <SelectTrigger id="cve-agent">
-                  <SelectValue placeholder="Select a Custom Voice agent" />
-                </SelectTrigger>
-                <SelectContent>
-                  {cveAgents.length === 0 ? (
-                    <div className="p-2 text-sm text-muted-foreground">No Custom Voice agents available.</div>
-                  ) : (
-                    cveAgents.map((agent) => (
-                      <SelectItem key={agent.id} value={agent.id}>
-                        {agent.name}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="cve-phone">Phone Number <span className="text-destructive">*</span></Label>
-              <Select value={selectedCvePhoneId} onValueChange={setSelectedCvePhoneId}>
-                <SelectTrigger id="cve-phone">
-                  <SelectValue placeholder="Select a phone number" />
-                </SelectTrigger>
-                <SelectContent>
-                  {allAvailableNumbersForCve.length === 0 ? (
-                    <div className="p-2 text-sm text-muted-foreground">No available phone numbers.</div>
-                  ) : (
-                    allAvailableNumbersForCve.map((phone) => (
-                      phone.isConflicted ? (
-                        <TooltipProvider key={phone.id}>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="relative flex w-full cursor-not-allowed select-none items-center rounded-sm py-1.5 px-2 text-sm outline-none opacity-50">
-                                <span className="font-mono">{phone.phoneNumber}</span>
-                                <span className="text-xs text-destructive font-medium ml-2">(In Use)</span>
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent><p>{phone.conflictReason}</p></TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      ) : (
-                        <SelectItem key={phone.id} value={phone.id}>
-                          <span className="font-mono">{phone.phoneNumber}</span>
-                          <span className="text-xs text-muted-foreground ml-2">({(phone as any).provider === 'plivo' ? 'Plivo' : 'Twilio'})</span>
-                          {phone.friendlyName && (
-                            <span className="text-xs text-muted-foreground ml-2">({phone.friendlyName})</span>
-                          )}
-                        </SelectItem>
-                      )
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setCveCreateDialogOpen(false); setSelectedCveAgentId(""); setSelectedCvePhoneId(""); }}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleCveCreate}
-              disabled={cveCreateMutation.isPending || !selectedCveAgentId || !selectedCvePhoneId}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white"
-            >
-              {cveCreateMutation.isPending ? "Creating..." : "Create Connection"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Custom Voice Delete Dialog */}
-      <AlertDialog open={!!cveDeleteConnection} onOpenChange={() => setCveDeleteConnection(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove Connection</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will disconnect <span className="font-mono font-semibold">{cveDeleteConnection?.phoneNumber.phoneNumber}</span>{" "}
-              from <span className="font-semibold">{cveDeleteConnection?.agent.name}</span>.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => cveDeleteConnection && cveDeleteMutation.mutate(cveDeleteConnection.id)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {cveDeleteMutation.isPending ? "Removing..." : "Remove"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ElevenLabsDialogs
+        createDialogOpen={createDialogOpen}
+        setCreateDialogOpen={setCreateDialogOpen}
+        selectedAgentId={selectedAgentId}
+        setSelectedAgentId={setSelectedAgentId}
+        selectedPhoneId={selectedPhoneId}
+        setSelectedPhoneId={setSelectedPhoneId}
+        agents={agents}
+        availablePhoneNumbers={availablePhoneNumbers}
+        isFreePlan={isFreePlan}
+        setLocation={setLocation}
+        handleCreate={handleCreate}
+        createMutation={createMutation}
+        deleteConnection={deleteConnection}
+        setDeleteConnection={setDeleteConnection}
+        deleteMutation={deleteMutation}
+      />
+      <PlivoDialogs
+        plivoCreateDialogOpen={plivoCreateDialogOpen}
+        setPlivoCreateDialogOpen={setPlivoCreateDialogOpen}
+        selectedPlivoAgentId={selectedPlivoAgentId}
+        setSelectedPlivoAgentId={setSelectedPlivoAgentId}
+        selectedPlivoPhoneId={selectedPlivoPhoneId}
+        setSelectedPlivoPhoneId={setSelectedPlivoPhoneId}
+        plivoAvailableAgents={plivoAvailableAgents}
+        plivoAvailablePhoneNumbers={plivoAvailablePhoneNumbers}
+        handlePlivoCreate={handlePlivoCreate}
+        plivoCreateMutation={plivoCreateMutation}
+        plivoDeleteConnection={plivoDeleteConnection}
+        setPlivoDeleteConnection={setPlivoDeleteConnection}
+        plivoDeleteMutation={plivoDeleteMutation}
+      />
+      <TwilioOpenaiDialogs
+        twilioOpenaiCreateDialogOpen={twilioOpenaiCreateDialogOpen}
+        setTwilioOpenaiCreateDialogOpen={setTwilioOpenaiCreateDialogOpen}
+        selectedTwilioOpenaiAgentId={selectedTwilioOpenaiAgentId}
+        setSelectedTwilioOpenaiAgentId={setSelectedTwilioOpenaiAgentId}
+        selectedTwilioOpenaiPhoneId={selectedTwilioOpenaiPhoneId}
+        setSelectedTwilioOpenaiPhoneId={setSelectedTwilioOpenaiPhoneId}
+        twilioOpenaiAvailableAgents={twilioOpenaiAvailableAgents}
+        twilioOpenaiAvailablePhoneNumbers={twilioOpenaiAvailablePhoneNumbers}
+        handleTwilioOpenaiCreate={handleTwilioOpenaiCreate}
+        twilioOpenaiCreateMutation={twilioOpenaiCreateMutation}
+        twilioOpenaiDeleteConnection={twilioOpenaiDeleteConnection}
+        setTwilioOpenaiDeleteConnection={setTwilioOpenaiDeleteConnection}
+        twilioOpenaiDeleteMutation={twilioOpenaiDeleteMutation}
+      />
+      <CustomVoiceDialogs
+        cveCreateDialogOpen={cveCreateDialogOpen}
+        setCveCreateDialogOpen={setCveCreateDialogOpen}
+        selectedCveAgentId={selectedCveAgentId}
+        setSelectedCveAgentId={setSelectedCveAgentId}
+        selectedCvePhoneId={selectedCvePhoneId}
+        setSelectedCvePhoneId={setSelectedCvePhoneId}
+        cveAgents={cveAgents}
+        allAvailableNumbersForCve={allAvailableNumbersForCve}
+        handleCveCreate={handleCveCreate}
+        cveCreateMutation={cveCreateMutation}
+        cveDeleteConnection={cveDeleteConnection}
+        setCveDeleteConnection={setCveDeleteConnection}
+        cveDeleteMutation={cveDeleteMutation}
+      />
     </div>
   );
 }

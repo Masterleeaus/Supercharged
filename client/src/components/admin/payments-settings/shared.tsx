@@ -88,9 +88,3 @@ export const MERCADOPAGO_CURRENCIES = [
   { code: "CLP", symbol: "$", name: "Chilean Peso" },
   { code: "COP", symbol: "$", name: "Colombian Peso" },
 ];
-
-export const YOOKASSA_CURRENCIES = [
-  { code: "RUB", symbol: "₽", name: "Russian Ruble" },
-  { code: "USD", symbol: "$", name: "US Dollar" },
-  { code: "EUR", symbol: "€", name: "Euro" },
-];

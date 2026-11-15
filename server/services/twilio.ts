@@ -14,6 +14,9 @@ import { logger } from '../utils/logger';
 import { getTwilioClient, getTwilioAccountSid } from "./twilio-connector";
 import { getDomain } from "../utils/domain";
 import { withServiceErrorHandling } from '../utils/service-error-wrapper';
+import type { LocalInstance, LocalListInstanceOptions } from 'twilio/lib/rest/api/v2010/account/availablePhoneNumberCountry/local';
+import type { AddressListInstanceOptions } from 'twilio/lib/rest/api/v2010/account/address';
+import type { IncomingPhoneNumberListInstanceCreateOptions } from 'twilio/lib/rest/api/v2010/account/incomingPhoneNumber';
 
 interface CountryRequirements {
   addressRequired: 'none' | 'any' | 'local';
@@ -158,7 +161,7 @@ export class TwilioService {
     const client = await this.getTwilioClientInstance();
     const country = params.country || "US";
     
-    const listOptions: any = {
+    const listOptions: LocalListInstanceOptions = {
       limit: params.limit || 20,
     };
 
@@ -167,7 +170,7 @@ export class TwilioService {
       if (params.contains) listOptions.contains = params.contains;
       logger.info(`📞 [Search] Fetching toll-free numbers for ${country}`);
       const numbers = await client.availablePhoneNumbers(country).tollFree.list(listOptions);
-      return numbers.map((num: any) => ({
+      return numbers.map((num) => ({
         phoneNumber: num.phoneNumber,
         friendlyName: num.friendlyName,
         locality: undefined,
@@ -184,7 +187,7 @@ export class TwilioService {
       if (params.contains) listOptions.contains = params.contains;
       logger.info(`📞 [Search] Fetching mobile numbers for ${country}`);
       const numbers = await client.availablePhoneNumbers(country).mobile.list(listOptions);
-      return numbers.map((num: any) => ({
+      return numbers.map((num) => ({
         phoneNumber: num.phoneNumber,
         friendlyName: num.friendlyName,
         locality: undefined,
@@ -201,7 +204,7 @@ export class TwilioService {
       if (params.contains) listOptions.contains = params.contains;
       logger.info(`📞 [Search] Fetching national numbers for ${country}`);
       const numbers = await client.availablePhoneNumbers(country).national.list(listOptions);
-      return numbers.map((num: any) => ({
+      return numbers.map((num) => ({
         phoneNumber: num.phoneNumber,
         friendlyName: num.friendlyName,
         locality: undefined,
@@ -222,23 +225,23 @@ export class TwilioService {
     if (params.inRegion) listOptions.inRegion = params.inRegion;
     
     logger.info(`📞 [Search] Fetching local numbers for ${country}`);
-    let numbers: any[] = [];
+    let numbers: LocalInstance[] = [];
     try {
       numbers = await client.availablePhoneNumbers(country).local.list(listOptions);
-    } catch (err: any) {
+    } catch (err) {
       logger.warn(`Local search failed for ${country}: ${err.message}`);
     }
 
     // Fallback: If searching local returns no numbers, check mobile and national
     if (numbers.length === 0) {
-      const fallbackOptions: any = { limit: params.limit || 20 };
+      const fallbackOptions: LocalListInstanceOptions = { limit: params.limit || 20 };
       if (params.contains) fallbackOptions.contains = params.contains;
       
       logger.info(`📞 [Search] No local numbers found. Fetching mobile numbers for ${country}`);
       try {
         const mobileNumbers = await client.availablePhoneNumbers(country).mobile.list(fallbackOptions);
         if (mobileNumbers.length > 0) {
-          return mobileNumbers.map((num: any) => ({
+          return mobileNumbers.map((num) => ({
             phoneNumber: num.phoneNumber,
             friendlyName: num.friendlyName,
             locality: undefined,
@@ -250,7 +253,7 @@ export class TwilioService {
             type: 'mobile',
           }));
         }
-      } catch (err: any) {
+      } catch (err) {
         logger.warn(`Mobile fallback search failed for ${country}: ${err.message}`);
       }
 
@@ -258,7 +261,7 @@ export class TwilioService {
       try {
         const nationalNumbers = await client.availablePhoneNumbers(country).national.list(fallbackOptions);
         if (nationalNumbers.length > 0) {
-          return nationalNumbers.map((num: any) => ({
+          return nationalNumbers.map((num) => ({
             phoneNumber: num.phoneNumber,
             friendlyName: num.friendlyName,
             locality: undefined,
@@ -270,12 +273,12 @@ export class TwilioService {
             type: 'national',
           }));
         }
-      } catch (err: any) {
+      } catch (err) {
         logger.warn(`National fallback search failed for ${country}: ${err.message}`);
       }
     }
 
-    return numbers.map((num: any) => ({
+    return numbers.map((num) => ({
       phoneNumber: num.phoneNumber,
       friendlyName: num.friendlyName,
       locality: num.locality,
@@ -327,7 +330,7 @@ export class TwilioService {
     logger.warn(`📞 [Phone Purchase] Purchasing number WITHOUT webhook (incoming calls disabled until configured)`);
     
     // Build purchase options - include addressSid/bundleSid for regulatory compliance
-    const purchaseOptions: any = {
+    const purchaseOptions: IncomingPhoneNumberListInstanceCreateOptions = {
       phoneNumber: phoneNumber,
       friendlyName: resolvedFriendlyName,
       // No voiceUrl set = incoming calls are rejected by Twilio (no cost)
@@ -384,7 +387,7 @@ export class TwilioService {
     // Add standard US phone number pricing
     // Twilio's API doesn't include pricing in the phone number response
     // US local numbers typically cost $1.00 one-time purchase + $1.15/month
-    return numbers.map((num: any) => ({
+    return numbers.map((num) => ({
       phoneNumber: num.phoneNumber,
       friendlyName: num.friendlyName,
       sid: num.sid,
@@ -437,14 +440,14 @@ export class TwilioService {
     
     const client = await this.getTwilioClientInstance();
     
-    const listOptions: any = {};
+    const listOptions: AddressListInstanceOptions = {};
     if (isoCountry) {
       listOptions.isoCountry = isoCountry;
     }
     
     const addresses = await client.addresses.list(listOptions);
     
-    return addresses.map((addr: any) => ({
+    return addresses.map((addr) => ({
       sid: addr.sid,
       friendlyName: addr.friendlyName,
       customerName: addr.customerName,
@@ -550,7 +553,7 @@ export class TwilioService {
         validated: address.validated,
         verified: address.verified,
       };
-    } catch (error: any) {
+    } catch (error) {
       if (error.code === 20404) {
         return null;
       }
@@ -605,7 +608,7 @@ export class TwilioService {
           const docReqs = requirements.supporting_document || [];
           const allReqs = [...endUserReqs, ...docReqs];
 
-          if (allReqs.some((r: any) => {
+          if (allReqs.some((r) => {
             const name = (r.friendly_name || r.type || '').toLowerCase();
             return name.includes('identity') || name.includes('document') ||
                    name.includes('passport') || name.includes('registration') ||
@@ -614,7 +617,7 @@ export class TwilioService {
             hasDocumentReq = true;
           }
 
-          if (allReqs.some((r: any) => {
+          if (allReqs.some((r) => {
             const name = (r.friendly_name || r.type || '').toLowerCase();
             return name.includes('address') || name.includes('proof of address');
           })) {
@@ -652,7 +655,7 @@ export class TwilioService {
       this.regulatoryCache.set(cacheKey, { data: result, timestamp: Date.now() });
       logger.info(`📋 [Regulatory] Requirements for ${isoCountry}/${numberType}: address=${result.addressRequired}, bundle=${result.bundleRequired}`);
       return result;
-    } catch (error: any) {
+    } catch (error) {
       logger.warn(`📋 [Regulatory] Could not fetch regulations for ${isoCountry}/${numberType}: ${error.message}. Using fallback.`);
       return this.getFallbackRequirements(isoCountry);
     }
@@ -790,7 +793,7 @@ export class TwilioService {
       // Twilio error 21649 ("Bundle does not have the correct regulation type").
       logger.warn(`📋 [Regulatory] No approved ${numberType || 'any-type'} bundle found for ${isoCountry}`);
       return null;
-    } catch (error: any) {
+    } catch (error) {
       logger.error(`📋 [Regulatory] Error fetching bundles for ${isoCountry}:`, error.message);
       return null;
     }
@@ -820,10 +823,10 @@ export class TwilioService {
         .bundles(bundleSid)
         .itemAssignments.list({ limit: 20 });
 
-      logger.info(`📋 [Regulatory] Bundle items found: ${items.map((i: any) => i.objectSid).join(', ') || 'none'}`);
+      logger.info(`📋 [Regulatory] Bundle items found: ${items.map((i) => i.objectSid).join(', ') || 'none'}`);
 
       for (const item of items) {
-        const objectSid = (item as any).objectSid as string | undefined;
+        const objectSid = item.objectSid as string | undefined;
         if (!objectSid) continue;
 
         // The Twilio Item Assignments API does NOT return an objectType field.
@@ -842,7 +845,7 @@ export class TwilioService {
               .endUsers(objectSid)
               .fetch();
 
-            const attrs = (endUser as any).attributes || {};
+            const attrs = (endUser as { attributes?: { address_sids?: string[]; address_sid?: string } }).attributes || {};
             logger.info(`📋 [Regulatory] End-user ${objectSid.substring(0, 8)} attributes keys: ${Object.keys(attrs).join(', ') || 'empty'}`);
             // Twilio may expose address as address_sids array or address_sid string
             const addrSids: string[] = attrs.address_sids || (attrs.address_sid ? [attrs.address_sid] : []);
@@ -850,7 +853,7 @@ export class TwilioService {
               logger.info(`📋 [Regulatory] Found address inside bundle via end-user: ${addrSids[0].substring(0, 8)}...`);
               return addrSids[0];
             }
-          } catch (euErr: any) {
+          } catch (euErr) {
             logger.warn(`📋 [Regulatory] Could not fetch end-user ${objectSid}: ${euErr.message}`);
           }
         } else if (objectSid.startsWith('RD')) {
@@ -859,14 +862,14 @@ export class TwilioService {
               .supportingDocuments(objectSid)
               .fetch();
 
-            const attrs = (doc as any).attributes || {};
-            logger.info(`📋 [Regulatory] Supporting doc ${objectSid.substring(0, 8)} (${(doc as any).type}) attributes keys: ${Object.keys(attrs).join(', ') || 'empty'}`);
+            const attrs = (doc as { attributes?: { address_sids?: string[]; address_sid?: string } }).attributes || {};
+            logger.info(`📋 [Regulatory] Supporting doc ${objectSid.substring(0, 8)} (${(doc as { type?: string }).type}) attributes keys: ${Object.keys(attrs).join(', ') || 'empty'}`);
             const addrSids: string[] = attrs.address_sids || (attrs.address_sid ? [attrs.address_sid] : []);
             if (addrSids.length > 0) {
               logger.info(`📋 [Regulatory] Found address inside bundle via supporting-document: ${addrSids[0].substring(0, 8)}...`);
               return addrSids[0];
             }
-          } catch (docErr: any) {
+          } catch (docErr) {
             logger.warn(`📋 [Regulatory] Could not fetch supporting-document ${objectSid}: ${docErr.message}`);
           }
         } else {
@@ -879,7 +882,7 @@ export class TwilioService {
       // Twilio error 21651 "Address not contained in bundle".
       logger.warn(`📋 [Regulatory] No address_sids found in bundle items for ${bundleSid.substring(0, 8)} (${isoCountry}) — returning null`);
       return null;
-    } catch (error: any) {
+    } catch (error) {
       logger.warn(`📋 [Regulatory] Error fetching bundle address for ${isoCountry}: ${error.message}`);
       return null;
     }
@@ -905,7 +908,7 @@ export class TwilioService {
         isoCountry: b.isoCountry || 'Unknown',
         numberType: b.numberType || 'Unknown',
       }));
-    } catch (error: any) {
+    } catch (error) {
       logger.error(`📋 [Regulatory] Error listing bundles:`, error.message);
       return [];
     }
@@ -984,7 +987,7 @@ export class TwilioService {
         monthlyPrice: monthlyPrice,
         priceUnit: (pricingData.priceUnit as string)?.toUpperCase() || 'USD'
       };
-    } catch (error: any) {
+    } catch (error) {
       logger.error('❌ [Pricing] Failed to fetch pricing from Twilio:', error.message);
       // Return default US pricing on error
       return {
@@ -1053,7 +1056,7 @@ export class TwilioService {
         voiceRegion: 'us1'
       });
       logger.info(`✅ [Twilio Routes] Voice region set to 'us1'`);
-    } catch (routeError: any) {
+    } catch (routeError) {
       // Routes API may return 404 if no explicit routing exists - this means it defaults to us1
       // which is what we want, so we can safely ignore this error
       if (routeError.status === 404) {
@@ -1169,7 +1172,7 @@ export class TwilioService {
         if (recordings.length > 0) {
           recordingUrl = `https://api.twilio.com${recordings[0].uri.replace('.json', '')}`;
         }
-      } catch (recError: any) {
+      } catch (recError) {
         logger.warn(`⚠️ Could not fetch recording for call ${callSid}: ${recError.message}`);
       }
 
@@ -1184,7 +1187,7 @@ export class TwilioService {
         endTime: call.endTime ? new Date(call.endTime) : null,
         recordingUrl
       };
-    } catch (error: any) {
+    } catch (error) {
       logger.error(`❌ Error fetching call details for ${callSid}: ${error.message}`);
       return null;
     }
@@ -1210,12 +1213,12 @@ export class TwilioService {
         limit: 10
       });
 
-      return recordings.map((rec: any) => ({
+      return recordings.map((rec) => ({
         sid: rec.sid,
         duration: parseInt(rec.duration, 10) || 0,
         url: `https://api.twilio.com${rec.uri.replace('.json', '')}`
       }));
-    } catch (error: any) {
+    } catch (error) {
       logger.error(`❌ Error fetching recordings for ${callSid}: ${error.message}`);
       return [];
     }

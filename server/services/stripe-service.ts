@@ -16,15 +16,22 @@ import { PaymentError } from '../utils/errors';
 
 let stripeInstance: Stripe | null = null;
 
-async function getSetting(key: string): Promise<any> {
+async function getSetting(key: string): Promise<unknown> {
   const setting = await storage.getGlobalSetting(key);
   return setting?.value ?? null;
 }
 
+// Settings stored as non-strings are treated as unset.
+async function getStringSetting(key: string): Promise<string | null> {
+  const value = await getSetting(key);
+  return typeof value === 'string' ? value : null;
+}
+
 export async function getStripeClient(): Promise<Stripe | null> {
-  const dbSecretKey = await getSetting('stripe_secret_key');
+  const dbSecretKey = await getStringSetting('stripe_secret_key');
   const envSecretKey = process.env.STRIPE_SECRET_KEY || process.env.TESTING_STRIPE_SECRET_KEY;
   
+
   const secretKey = dbSecretKey || envSecretKey;
   
   if (!secretKey) {
@@ -45,8 +52,8 @@ export function resetStripeClient(): void {
 }
 
 export async function isStripeConfigured(): Promise<boolean> {
-  const dbSecretKey = await getSetting('stripe_secret_key');
-  const dbPublishableKey = await getSetting('stripe_publishable_key');
+  const dbSecretKey = await getStringSetting('stripe_secret_key');
+  const dbPublishableKey = await getStringSetting('stripe_publishable_key');
   const envSecretKey = process.env.STRIPE_SECRET_KEY;
   const envPublishableKey = process.env.VITE_STRIPE_PUBLIC_KEY;
   
@@ -63,7 +70,7 @@ export async function isStripeEnabled(): Promise<boolean> {
 }
 
 export async function getStripePublicKey(): Promise<string | null> {
-  const dbKey = await getSetting('stripe_publishable_key');
+  const dbKey = await getStringSetting('stripe_publishable_key');
   const envKey = process.env.VITE_STRIPE_PUBLIC_KEY;
   return dbKey || envKey || null;
 }
@@ -137,7 +144,7 @@ export function getSupportedCurrencies(): Array<{ code: string; symbol: string; 
 }
 
 export async function getStripeCurrency(): Promise<StripeCurrencyConfig> {
-  const currency = await getSetting('stripe_currency');
+  const currency = await getStringSetting('stripe_currency');
   const locked = await getSetting('stripe_currency_locked');
   
   const currencyCode = currency || 'USD';
@@ -189,10 +196,10 @@ export async function testStripeConnection(): Promise<{ success: boolean; error?
     
     await stripe.balance.retrieve();
     return { success: true };
-  } catch (error: any) {
+  } catch (error) {
     const paymentError = new PaymentError(
       'stripe',
-      `Stripe connection test failed: ${error.message}`,
+      `Stripe connection test failed: ${(error as Error).message}`,
       undefined,
       { operation: 'testConnection' }
     );

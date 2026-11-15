@@ -99,6 +99,91 @@ export const LLM_CONDITIONS = {
 // ElevenLabs Node Types
 // ============================================================================
 
+/** Knowledge base entry passed in by the caller (RAG documents or text sources). */
+interface KnowledgeBaseRef {
+  type?: string;
+  title?: string;
+  name?: string;
+  elevenLabsDocId?: string;
+  id?: string;
+}
+
+/** One WhatsApp template variable as stored in the visual builder. */
+interface WhatsAppTemplateVariable {
+  position?: unknown;
+  value: string;
+  componentType?: string;
+}
+
+/** Condition branch on a condition node, as stored in the visual builder. */
+interface ConditionBranchConfig {
+  id?: string;
+  label?: string;
+  targetNodeId?: string;
+  type?: string;
+  value?: string;
+  description?: string;
+}
+
+/**
+ * Config fields this compiler reads from a flow node. The visual builder stores
+ * these loosely, and some templates put them directly on node.data, so every
+ * field is optional.
+ */
+interface FlowNodeConfigFields {
+  type?: string;
+  label?: string;
+  name?: string;
+  message?: string;
+  text?: string;
+  question?: string;
+  url?: string;
+  webhookUrl?: string;
+  method?: string;
+  headers?: Record<string, string>;
+  payload?: Record<string, unknown>;
+  toolId?: string;
+  tool_id?: string;
+  template_name?: string;
+  templateName?: string;
+  language?: string;
+  introMessage?: string;
+  formName?: string;
+  formId?: string;
+  fields?: FormFieldDefinition[];
+  waitMessage?: string;
+  waitForResponse?: boolean;
+  waitForComplete?: boolean;
+  interruptible?: boolean;
+  enableFirstMessage?: boolean;
+  variableName?: string;
+  variable?: string;
+  transferType?: 'conference' | 'blind';
+  transferNumber?: string;
+  phoneNumber?: string;
+  number?: string;
+  serviceName?: string;
+  service?: string;
+  recipientEmail?: string;
+  googleSheetName?: string;
+  googleSheetId?: string;
+  duration?: number;
+  delay_ms?: number;
+  audioUrl?: string;
+  audioFileName?: string;
+  agent_id?: string;
+  agentId?: string;
+  headerVariable?: string;
+  templateVariables?: WhatsAppTemplateVariable[];
+  buttonVariables?: unknown[];
+  conditions?: ConditionBranchConfig[];
+}
+
+/** Edge data attached by the visual builder. */
+interface FlowEdgeData {
+  condition?: unknown;
+}
+
 interface ElevenLabsPosition {
   x: number;
   y: number;
@@ -129,7 +214,7 @@ interface ElevenLabsOverrideAgentNode extends ElevenLabsBaseNode {
   override_prompt: true;  // CRITICAL: Locks the agent to node script, prevents improvisation
   additional_prompt: string;  // Contains "Say exactly: '[message]'" + behavior instructions
   additional_tool_ids: string[];
-  additional_knowledge_base: any[];
+  additional_knowledge_base: unknown[];
   conversation_config: {};  // Must be empty {} per ElevenLabs API
 }
 
@@ -183,7 +268,7 @@ interface ResultCondition {
 
 interface ExpressionCondition {
   type: 'expression';
-  expression: any;
+  expression: unknown;
 }
 
 type ForwardCondition = UnconditionalCondition | LLMCondition | ResultCondition | ExpressionCondition;
@@ -217,7 +302,7 @@ export interface WebhookNodeInfo {
   url: string;
   method: "GET" | "POST" | "PUT" | "PATCH";
   headers?: Record<string, string>;
-  payload?: Record<string, any>;
+  payload?: Record<string, unknown>;
 }
 
 export interface PlayAudioNodeInfo {
@@ -263,10 +348,10 @@ export class EnhancedFlowCompiler {
   private webhookNodes: WebhookNodeInfo[] = [];
   private playAudioNodes: PlayAudioNodeInfo[] = [];
   private toolIds: string[] = [];
-  private knowledgeBases: any[] = [];
+  private knowledgeBases: KnowledgeBaseRef[] = [];
   private hasRagTool = false;
 
-  constructor(nodes: FlowNode[], edges: FlowEdge[], options?: { knowledgeBases?: any[], hasRagTool?: boolean }) {
+  constructor(nodes: FlowNode[], edges: FlowEdge[], options?: { knowledgeBases?: KnowledgeBaseRef[], hasRagTool?: boolean }) {
     this.nodes = nodes;
     this.edges = edges;
     this.knowledgeBases = options?.knowledgeBases || [];
@@ -369,7 +454,7 @@ export class EnhancedFlowCompiler {
     // Debug: Log compiled node types and structure
     logger.info(`\n   📊 Compiled Workflow Structure:`);
     for (const [nodeId, node] of Object.entries(this.compiledNodes)) {
-      const nodeType = (node as any).type;
+      const nodeType = node.type;
       const edgeCount = node.edge_order.length;
       let detail = '';
 
@@ -455,8 +540,8 @@ export class EnhancedFlowCompiler {
   /**
    * Get node config
    */
-  private getNodeConfig(node: FlowNode): any {
-    return node.data?.config || {};
+  private getNodeConfig(node: FlowNode): FlowNodeConfigFields {
+    return (node.data?.config || {}) as FlowNodeConfigFields;
   }
 
   /**
@@ -515,7 +600,7 @@ INSTRUCTIONS:
    * CONVERSATIONAL FORMAT: Allows natural conversation to collect appointment details
    * NOTE: Do NOT use "Say exactly" pattern here - it traps the LLM in a repetition loop
    */
-  private createAppointmentPrompt(introMessage: string, config: any, nodeLabel: string): string {
+  private createAppointmentPrompt(introMessage: string, config: FlowNodeConfigFields, nodeLabel: string): string {
     const serviceName = config.serviceName || config.service || 'appointment';
     const duration = config.duration || 30;
 
@@ -557,7 +642,7 @@ IMPORTANT: Do NOT repeat your initial greeting. Have a natural conversation to c
    * Create additional_prompt for form/data collection nodes
    * Uses the generateFormCollectionPrompt from form-elevenlabs-tool for proper field collection
    */
-  private createFormPrompt(introMessage: string, config: any, nodeLabel: string, toolName = 'submit_form'): string {
+  private createFormPrompt(introMessage: string, config: FlowNodeConfigFields, nodeLabel: string, toolName = 'submit_form'): string {
     const formName = config.formName || 'Data Collection';
     const fields: FormFieldDefinition[] = config.fields || [];
 
@@ -580,11 +665,11 @@ Then stop speaking and wait for response.`;
   /**
    * Create additional_prompt for WhatsApp delivery nodes
    */
-  private createWhatsAppPrompt(templateName: string, language: string, toolId: string, config: any): string {
+  private createWhatsAppPrompt(templateName: string, language: string, toolId: string, config: FlowNodeConfigFields): string {
     let varInfo = '';
     if (config.templateVariables && config.templateVariables.length > 0) {
       // Clean up variables to ensure valid JSON representation for the prompt
-      const cleanVars = config.templateVariables.map((v: any) => {
+      const cleanVars = config.templateVariables.map((v: WhatsAppTemplateVariable) => {
         const val = v.value.includes('{{') ? v.value : `{{${v.value}}}`;
         return `{"position":${v.position},"value":"${val}","componentType":"${v.componentType || 'body'}"}`;
       });
@@ -635,7 +720,7 @@ Do not transition until you have confirmed it is sent.`;
    * STRICT FORMAT: Locks agent to exact script, prevents improvisation
    * NOTE: Delay nodes typically have UNCONDITIONAL transitions - they speak and proceed
    */
-  private createDelayPrompt(waitMessage: string, config: any, nodeLabel: string): string {
+  private createDelayPrompt(waitMessage: string, config: FlowNodeConfigFields, nodeLabel: string): string {
     return `Say exactly: '${waitMessage}' Do not add anything else. After speaking, proceed immediately to the next step.`;
   }
 
@@ -899,7 +984,7 @@ Do not transition until you have confirmed it is sent.`;
       case 'tool': {
         // Check both config (node.data.config) and node.data for webhook properties
         // Templates may store properties directly on node.data instead of node.data.config
-        const nodeData = (node.data || {}) as any;
+        const nodeData = (node.data || {}) as FlowNodeConfigFields;
 
         const toolId = config.toolId || config.tool_id || config.name ||
           nodeData.toolId || nodeData.tool_id || nodeData.name || `webhook_${node.id}`;
@@ -1013,7 +1098,7 @@ Do not transition until you have confirmed it is sent.`;
         const toolId = `send_whatsapp_${node.id.slice(-8)}`; // Prefix with send_whatsapp_ so the flow router identifies it correctly
         this.toolIds.push(toolId);
         this.hasWebhookNodes = true;
-        const payload: Record<string, any> = {
+        const payload: Record<string, unknown> = {
           template_name: templateName,
           language,
           phone_number: 'USE_CALLER_NUMBER',
@@ -1044,7 +1129,7 @@ Do not transition until you have confirmed it is sent.`;
           position,
           edge_order: [],
           tools: [{ tool_id: toolId }]
-        } as any;
+        } as ElevenLabsToolNode;
       }
 
       default: {
@@ -1173,7 +1258,7 @@ Do not transition until you have confirmed it is sent.`;
     edge: FlowEdge
   ): ForwardCondition {
     const config = sourceNode ? this.getNodeConfig(sourceNode) : {};
-    const edgeData = (edge as any).data || {};
+    const edgeData = ((edge as FlowEdge & { data?: FlowEdgeData }).data || {}) as FlowEdgeData;
 
     // Priority 1: Custom condition from flow builder (edge.data.condition)
     if (edgeData.condition && typeof edgeData.condition === 'string') {
@@ -1245,7 +1330,7 @@ Do not transition until you have confirmed it is sent.`;
   /**
    * Get the waitForResponse setting for a node, using smart defaults per type
    */
-  private getWaitForResponseSetting(sourceType: string, config: Record<string, any>): boolean {
+  private getWaitForResponseSetting(sourceType: string, config: FlowNodeConfigFields): boolean {
     // Message nodes should NEVER wait for a response in this engine, 
     // even if explicitly set, to ensure they proceed to tool nodes immediately.
     if (sourceType === 'message' || sourceType === 'greeting') {
@@ -1303,7 +1388,7 @@ Do not transition until you have confirmed it is sent.`;
    * Build the appropriate LLM wait condition for a node type
    * Called when waitForResponse is true
    */
-  private buildWaitConditionForNodeType(sourceType: string, config: Record<string, any>): ForwardCondition {
+  private buildWaitConditionForNodeType(sourceType: string, config: FlowNodeConfigFields): ForwardCondition {
     switch (sourceType) {
       case 'question':
         // Question nodes: LLM must wait for user to answer THIS SPECIFIC question
@@ -1402,13 +1487,13 @@ Do not transition until you have confirmed it is sent.`;
 
     if (conditions.length > 0) {
       // Try to match by targetNodeId
-      const matchingCondition = conditions.find((c: any) => c.targetNodeId === edge.target);
+      const matchingCondition = conditions.find((c: ConditionBranchConfig) => c.targetNodeId === edge.target);
 
       if (matchingCondition) {
         conditionText = this.buildConditionText(matchingCondition, config);
       } else {
         // Try matching by sourceHandle
-        const handleCondition = conditions.find((c: any) =>
+        const handleCondition = conditions.find((c: ConditionBranchConfig) =>
           c.id === edge.sourceHandle || c.label === edge.sourceHandle
         );
         if (handleCondition) {
@@ -1433,7 +1518,7 @@ Do not transition until you have confirmed it is sent.`;
   /**
    * Build condition text from a condition config
    */
-  private buildConditionText(condition: any, nodeConfig: any): string {
+  private buildConditionText(condition: ConditionBranchConfig, nodeConfig: FlowNodeConfigFields): string {
     const conditionType = condition.type || 'keyword';
     const value = condition.value || condition.label || '';
     const description = condition.description || '';
@@ -1594,7 +1679,7 @@ Do not transition until you have confirmed it is sent.`;
     // Check that all phone_number nodes have valid non-placeholder transfer numbers
     for (const [nodeId, node] of Object.entries(this.compiledNodes)) {
       if (node.type === 'phone_number') {
-        const phoneNode = node as any;
+        const phoneNode = node as ElevenLabsPhoneNumberNode & { label?: string };
         const number = phoneNode.transfer_destination?.phone_number || '';
         const cleanNumber = number.replace(/\D/g, '');
         const placeholders = ['1234567890', '1234567891', '1234567892', '12345678901', '12345678902'];

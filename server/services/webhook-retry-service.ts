@@ -17,6 +17,7 @@ import { db } from '../db';
 import { paymentWebhookQueue } from '@shared/schema';
 import type { PaymentWebhookQueue, InsertPaymentWebhookQueue } from '@shared/schema';
 import { and, desc, eq, sql } from 'drizzle-orm';
+import type Stripe from 'stripe';
 
 // Default retry delays - used as fallback if database unavailable
 const DEFAULT_RETRY_INTERVALS_MINUTES = [1, 5, 15, 30, 60];
@@ -93,35 +94,43 @@ export type CompanyReprocessOutcome =
   | { ok: false; reason: 'missing_scope' | 'not_found' | 'not_replayable' };
 
 type ReprocessResult = { success: boolean; action?: string; error?: string };
-type Reprocessor = (eventType: string, payload: any) => Promise<ReprocessResult>;
+type Reprocessor = (eventType: string, payload: unknown) => Promise<ReprocessResult>;
+
+// Only the fields this file reads. The handlers accept untyped payloads, so the entities stay unknown here.
+type RazorpayWebhookPayload = {
+  subscription?: { entity?: unknown };
+  payment?: { entity?: unknown };
+  refund?: { entity?: unknown };
+  dispute?: { entity?: unknown };
+};
 
 // Each reprocessor mirrors the dispatch in the gateway's live webhook route, so a retried
 // event goes through the same handler, with the same arguments, as the original delivery.
 // Stripe and Razorpay queue event.data.object and event.payload respectively; Paystack queues data.
 // Handler modules load lazily so this service does not pull in gateway code until a retry runs.
-async function reprocessStripe(eventType: string, object: any): Promise<ReprocessResult> {
+async function reprocessStripe(eventType: string, object: unknown): Promise<ReprocessResult> {
   const h = await import('../engines/payment/gateways/stripe/handlers');
   switch (eventType) {
     case 'checkout.session.completed':
-      return h.handleCheckoutSessionCompleted(object);
+      return h.handleCheckoutSessionCompleted(object as Stripe.Checkout.Session);
     case 'invoice.payment_succeeded':
-      return h.handleInvoicePaymentSucceeded(object);
+      return h.handleInvoicePaymentSucceeded(object as Stripe.Invoice);
     case 'invoice.payment_failed':
-      return h.handleInvoicePaymentFailed(object);
+      return h.handleInvoicePaymentFailed(object as Stripe.Invoice);
     case 'customer.subscription.deleted':
-      return h.handleSubscriptionDeleted(object);
+      return h.handleSubscriptionDeleted(object as Stripe.Subscription);
     case 'customer.subscription.updated':
-      return h.handleSubscriptionUpdated(object);
+      return h.handleSubscriptionUpdated(object as Stripe.Subscription);
     case 'charge.dispute.created':
-      return h.handleChargeDispute(object);
+      return h.handleChargeDispute(object as Stripe.Dispute);
     case 'charge.refunded':
-      return h.handleChargeRefunded(object);
+      return h.handleChargeRefunded(object as Stripe.Charge);
     default:
       return { success: true, action: 'unhandled' };
   }
 }
 
-async function reprocessRazorpay(eventType: string, payload: any): Promise<ReprocessResult> {
+async function reprocessRazorpay(eventType: string, payload: RazorpayWebhookPayload): Promise<ReprocessResult> {
   const h = await import('../engines/payment/gateways/razorpay/handlers');
   const subscription = payload?.subscription?.entity;
   const payment = payload?.payment?.entity;
@@ -155,7 +164,7 @@ async function reprocessRazorpay(eventType: string, payload: any): Promise<Repro
   }
 }
 
-async function reprocessPaystack(eventType: string, data: any): Promise<ReprocessResult> {
+async function reprocessPaystack(eventType: string, data: unknown): Promise<ReprocessResult> {
   const h = await import('../engines/payment/gateways/paystack/handlers');
   switch (eventType) {
     case 'charge.success':
@@ -190,8 +199,7 @@ async function reprocessPaystack(eventType: string, data: any): Promise<Reproces
 }
 
 // A Map rather than a plain object, so lookups like 'constructor' cannot hit Object.prototype.
-// Absent on purpose: PayPal and MercadoPago have no handler module here, and YooKassa's route
-// never queues failed events, so no dead-letter rows exist for it to retry.
+// Absent on purpose: PayPal and MercadoPago have no handler module here, so no dead-letter rows exist for them to retry.
 const REPROCESSORS = new Map<string, Reprocessor>([
   ['stripe', reprocessStripe],
   ['razorpay', reprocessRazorpay],
@@ -255,13 +263,13 @@ export class WebhookRetryService {
       for (const webhook of webhooks) {
         try {
           await this.processWebhook(webhook);
-        } catch (error: any) {
+        } catch (error) {
           logger.error(`❌ [WebhookRetry] Error processing webhook ${webhook.id}:`, error);
         }
       }
 
       logger.info(`✅ [WebhookRetry] Finished processing ${webhooks.length} webhook(s)`);
-    } catch (error: any) {
+    } catch (error) {
       logger.error('❌ [WebhookRetry] Error in processRetryableWebhooks:', error);
     } finally {
       this.isProcessing = false;
@@ -330,7 +338,7 @@ export class WebhookRetryService {
       } else {
         throw new Error(result.error || 'Unknown error during reprocessing');
       }
-    } catch (error: any) {
+    } catch (error) {
       const errorMessage = error.message || 'Unknown error';
       const errorHistory = [...(webhook.errorHistory || []), {
         attempt: attemptCount,
@@ -414,7 +422,7 @@ export class WebhookRetryService {
           status: 'expired',
         });
       }
-    } catch (error: any) {
+    } catch (error) {
       logger.error('❌ [WebhookRetry] Error marking expired webhooks:', error);
     }
   }
@@ -440,7 +448,7 @@ export class WebhookRetryService {
         success: false,
         error: result?.error || `Handler reported failure for ${webhook.gateway} event ${webhook.eventType}`,
       };
-    } catch (error: any) {
+    } catch (error) {
       return { success: false, error: error.message };
     }
   }
@@ -450,7 +458,7 @@ export async function queueFailedWebhook(
   gateway: string,
   eventType: string,
   eventId: string,
-  payload: any,
+  payload: unknown,
   error: string,
   userId?: string
 ): Promise<void> {
@@ -485,7 +493,7 @@ export async function queueFailedWebhook(
 
     await storage.createWebhookQueueItem(queueItem);
     logger.info(`📥 [WebhookRetry] Queued failed ${gateway} webhook: ${eventType} (${eventId})`);
-  } catch (queueError: any) {
+  } catch (queueError) {
     logger.error(`❌ [WebhookRetry] Failed to queue webhook:`, queueError);
   }
 }

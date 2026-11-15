@@ -39,8 +39,6 @@ export interface Plan {
   paystackYearlyPrice?: number | null;
   mercadopagoMonthlyPrice?: number | null;
   mercadopagoYearlyPrice?: number | null;
-  yookassaMonthlyPrice?: number | null;
-  yookassaYearlyPrice?: number | null;
   maxAgents: number;
   maxCampaigns: number;
   maxContactsPerCampaign: number;
@@ -70,8 +68,6 @@ export interface Plan {
   paystackYearlyPlanCode?: string | null;
   mercadopagoMonthlyPlanId?: string | null;
   mercadopagoYearlyPlanId?: string | null;
-  yookassaMonthlyPlanId?: string | null;
-  yookassaYearlyPlanId?: string | null;
 }
 
 export interface PaymentGatewayConfig {
@@ -80,7 +76,6 @@ export interface PaymentGatewayConfig {
   paypalEnabled: boolean;
   paystackEnabled: boolean;
   mercadopagoEnabled: boolean;
-  yookassaEnabled: boolean;
   stripeCurrency?: string;
   stripeCurrencySymbol?: string;
   paypalCurrency?: string;
@@ -91,8 +86,6 @@ export interface PaymentGatewayConfig {
   paystackDefaultCurrency?: string;
   mercadopagoCurrency?: string;
   mercadopagoCurrencySymbol?: string;
-  yookassaCurrency?: string;
-  yookassaCurrencySymbol?: string;
 }
 
 export function RazorpaySyncStatus({ plan }: { plan: Plan }) {
@@ -639,121 +632,6 @@ export function MercadoPagoSyncStatus({ plan, mercadopagoCurrency }: { plan: Pla
       </TooltipTrigger>
       <TooltipContent side="bottom">
         <p className="text-xs">{t("adminDashboard.plans.tooltips.setPricing", { currency: mercadopagoCurrency, gateway: "MercadoPago" })} {t("adminDashboard.plans.tooltips.clickToSync", { gateway: "MercadoPago" })}</p>
-      </TooltipContent>
-    </Tooltip>
-  );
-}
-
-export function YookassaSyncStatus({ plan, yookassaCurrency }: { plan: Plan; yookassaCurrency: string }) {
-  const { t } = useTranslation();
-  const isFreePlan = plan.monthlyPrice === 0 && plan.yearlyPrice === 0;
-  
-  const hasMonthlyPrice = (plan.yookassaMonthlyPrice ?? 0) > 0;
-  const hasYearlyPrice = (plan.yookassaYearlyPrice ?? 0) > 0;
-  const hasAnyPricing = hasMonthlyPrice || hasYearlyPrice;
-  
-  const hasMonthlyPlan = !!plan.yookassaMonthlyPlanId;
-  const hasYearlyPlan = !!plan.yookassaYearlyPlanId;
-  
-  const isFullySynced = hasMonthlyPlan && (!hasYearlyPrice || hasYearlyPlan);
-  const isPartiallySynced = hasAnyPricing && (hasMonthlyPlan || hasYearlyPlan) && !isFullySynced;
-  const isNotConfigured = !hasAnyPricing && !isFreePlan;
-  
-  if (isFullySynced) {
-    return (
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span>
-            <Badge variant="outline" className="gap-1 cursor-help bg-green-50 text-green-700 border-green-200 dark:bg-green-950/30 dark:text-green-400 dark:border-green-800">
-              <CheckCircle2 className="h-3 w-3" />
-              {t("adminDashboard.plans.status.synced", { gateway: "YooKassa" })}
-            </Badge>
-          </span>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" className="max-w-xs">
-          <div className="space-y-1 text-xs">
-            <p className="font-medium">{t("adminDashboard.plans.tooltips.integration", { gateway: `YooKassa (${yookassaCurrency})` })}</p>
-            <p className="text-muted-foreground truncate">Monthly: {plan.yookassaMonthlyPlanId}</p>
-            {plan.yookassaYearlyPlanId && (
-              <p className="text-muted-foreground truncate">Yearly: {plan.yookassaYearlyPlanId}</p>
-            )}
-          </div>
-        </TooltipContent>
-      </Tooltip>
-    );
-  }
-  
-  if (isPartiallySynced) {
-    return (
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span>
-            <Badge variant="outline" className="gap-1 cursor-help bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-950/30 dark:text-yellow-400 dark:border-yellow-800">
-              <RefreshCw className="h-3 w-3" />
-              {t("adminDashboard.plans.status.partial", { gateway: "YooKassa" })}
-            </Badge>
-          </span>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" className="max-w-xs">
-          <div className="space-y-1 text-xs">
-            <p className="font-medium">{t("adminDashboard.plans.tooltips.missingPlanIds", { gateway: "YooKassa" })}</p>
-            {hasMonthlyPrice && !hasMonthlyPlan && <p className="text-destructive">No Monthly Plan ID</p>}
-            {hasYearlyPrice && !hasYearlyPlan && <p className="text-destructive">No Yearly Plan ID</p>}
-            <p className="text-muted-foreground mt-1">{t("adminDashboard.plans.tooltips.clickToSync", { gateway: "YooKassa" })}</p>
-          </div>
-        </TooltipContent>
-      </Tooltip>
-    );
-  }
-  
-  if (isFreePlan) {
-    return (
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span>
-            <Badge variant="outline" className="gap-1 cursor-help bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800">
-              <CheckCircle2 className="h-3 w-3" />
-              {t("adminDashboard.plans.plans.free")}
-            </Badge>
-          </span>
-        </TooltipTrigger>
-        <TooltipContent side="bottom">
-          <p className="text-xs">{t("adminDashboard.plans.tooltips.freePlanNote", { gateway: "YooKassa" })}</p>
-        </TooltipContent>
-      </Tooltip>
-    );
-  }
-  
-  if (isNotConfigured) {
-    return (
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span>
-            <Badge variant="outline" className="gap-1 cursor-help text-muted-foreground">
-              <XCircle className="h-3 w-3" />
-              {t("adminDashboard.plans.tooltips.noPricing", { currency: yookassaCurrency })}
-            </Badge>
-          </span>
-        </TooltipTrigger>
-        <TooltipContent side="bottom">
-          <p className="text-xs">{t("adminDashboard.plans.tooltips.setPricing", { currency: yookassaCurrency, gateway: "YooKassa" })}</p>
-        </TooltipContent>
-      </Tooltip>
-    );
-  }
-  
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <span>
-          <Badge variant="outline" className="gap-1 cursor-help bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/30 dark:text-orange-400 dark:border-orange-800">
-            <RefreshCw className="h-3 w-3" />
-            {t("adminDashboard.plans.status.needsSync")}
-          </Badge>
-        </span>
-      </TooltipTrigger>
-      <TooltipContent side="bottom">
-        <p className="text-xs">{t("adminDashboard.plans.tooltips.setPricing", { currency: yookassaCurrency, gateway: "YooKassa" })} {t("adminDashboard.plans.tooltips.clickToSync", { gateway: "YooKassa" })}</p>
       </TooltipContent>
     </Tooltip>
   );

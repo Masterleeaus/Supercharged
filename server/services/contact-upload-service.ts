@@ -26,9 +26,12 @@ export interface ParsedContact {
   lastName: string;
   phone: string;
   email: string | null;
-  customFields: Record<string, any> | null;
+  customFields: Record<string, string> | null;
   status: string;
 }
+
+/** One CSV row as produced by Papa.parse with header: true. */
+type CsvRow = Record<string, string | undefined>;
 
 /**
  * Error thrown when the contact count exceeds the plan limit.
@@ -111,8 +114,8 @@ export class ContactUploadService {
       );
     }
 
-    return (parsed.data as Record<string, unknown>[]).map((row) => {
-      return this.parseContactRow(row as Record<string, any>, campaignId);
+    return (parsed.data as CsvRow[]).map((row) => {
+      return this.parseContactRow(row, campaignId);
     });
   }
 
@@ -124,7 +127,7 @@ export class ContactUploadService {
    * @param campaignId - The campaign ID to associate the contact with
    * @returns A parsed contact object
    */
-  private parseContactRow(row: Record<string, any>, campaignId: string): ParsedContact {
+  private parseContactRow(row: CsvRow, campaignId: string): ParsedContact {
     // Handle both "firstName/lastName" format, legacy "name" format, and ElevenLabs format
     let firstName = row.firstName || row.FirstName || row.first_name || "";
     let lastName = row.lastName || row.LastName || row.last_name || "";
@@ -169,8 +172,8 @@ export class ContactUploadService {
    * @param row - The CSV row data as a key-value object
    * @returns Object containing all custom field key-value pairs
    */
-  private extractCustomFields(row: Record<string, any>): Record<string, any> {
-    const customFields: Record<string, any> = {};
+  private extractCustomFields(row: CsvRow): Record<string, string> {
+    const customFields: Record<string, string> = {};
     
     for (const key of Object.keys(row)) {
       // Handle ElevenLabs dynamic_data format

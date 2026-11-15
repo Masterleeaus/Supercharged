@@ -77,7 +77,7 @@ export async function testRazorpayConnection(): Promise<{ success: boolean; erro
     
     await razorpay.plans.all({ count: 1 });
     return { success: true };
-  } catch (error: any) {
+  } catch (error) {
     logger.error('❌ [Razorpay] Connection test failed:', error.message);
     return { success: false, error: error.message };
   }

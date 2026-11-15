@@ -202,5 +202,5 @@ function useToast() {
 export { useToast, toast }
 
 if (typeof window !== 'undefined') {
-  (window as any).__AGENTLABS_TOAST__ = toast;
+  Object.assign(window, { __AGENTLABS_TOAST__: toast });
 }

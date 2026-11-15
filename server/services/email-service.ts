@@ -16,6 +16,7 @@ import type { Transporter } from 'nodemailer';
 import { storage } from '../storage';
 import { logger } from '../utils/logger';
 import type { EmailTemplate } from '@shared/schema';
+import { PRODUCT_NAME } from '../../shared/brand.ts';
 
 const SOURCE = 'EmailService';
 
@@ -31,7 +32,7 @@ export function smtpTlsOptions(): { rejectUnauthorized: boolean } {
   return { rejectUnauthorized: !allowSelfSigned };
 }
 
-const DEFAULT_COMPANY_NAME = 'Supercharged';
+const DEFAULT_COMPANY_NAME = PRODUCT_NAME;
 const DEFAULT_TAGLINE = 'Business communications and operations';
 
 interface BrandingSettings {

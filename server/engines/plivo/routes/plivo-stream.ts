@@ -22,6 +22,7 @@ import { db } from '../../../db';
 import { plivoCalls, agents, users, flowExecutions } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import { logger } from '../../../utils/logger';
+import { isKnownPlivoStreamCall } from '../../../utils/plivo-stream-call-check';
 import type { OpenAIVoice, OpenAIRealtimeModel, AgentTool } from '../types';
 
 interface PlivoStreamMessage {
@@ -44,11 +45,23 @@ interface PlivoStreamMessage {
 }
 
 /**
+ * Look up a Plivo call row by its Plivo CallUUID (plivo_calls.plivo_call_uuid).
+ */
+async function lookupPlivoCallByUuid(callUuid: string): Promise<{ id: string } | undefined> {
+  const [row] = await db
+    .select({ id: plivoCalls.id })
+    .from(plivoCalls)
+    .where(eq(plivoCalls.plivoCallUuid, callUuid))
+    .limit(1);
+  return row;
+}
+
+/**
  * Setup Plivo WebSocket stream handler on the HTTP server
  * Uses the same pattern as other WebSocket handlers in the codebase
  */
 export function setupPlivoStream(httpServer: HttpServer): void {
-  httpServer.on('upgrade', (request, socket, head) => {
+  httpServer.on('upgrade', async (request, socket, head) => {
     const pathname = request.url?.split('?')[0] || '';
     
     // Only handle Plivo stream WebSocket upgrades
@@ -58,6 +71,14 @@ export function setupPlivoStream(httpServer: HttpServer): void {
       
       if (!callUuid) {
         logger.error(`Invalid stream URL: ${pathname}`, undefined, 'PlivoStream');
+        socket.destroy();
+        return;
+      }
+
+      // Security: only accept streams for a call row we know about (same rule as the Twilio stream route).
+      // Fails closed on lookup error.
+      if (!(await isKnownPlivoStreamCall(callUuid, lookupPlivoCallByUuid))) {
+        logger.error(`Security: Rejecting Plivo stream for unknown or unverifiable call: ${callUuid}`, undefined, 'PlivoStream');
         socket.destroy();
         return;
       }

@@ -209,7 +209,7 @@ export function SystemToolsSection({ t, formData, setFormData, hasEmailTemplates
                                         const buttonVars = getWhatsAppTemplateButtonVariables(value);
                                         const headerInfo = getWhatsAppTemplateHeaderInfo(value);
                                         const existingVars = parseWhatsAppVariables(formData.messagingWhatsappVariables);
-                                        const newVars: Record<string, { mode: 'fixed' | 'collect'; value: string; componentType?: string }> = {};
+                                        const newVars: Record<string, { mode: 'fixed' | 'collect'; value: string; componentType?: string; header_type?: string }> = {};
                                         varIndices.forEach(idx => {
                                           newVars[String(idx)] = existingVars[String(idx)] || { mode: 'collect', value: '' };
                                         });
