@@ -300,6 +300,32 @@ export function analyze(files) {
     }
   }
 
+  // (d) transitive registration: a file that is mounted behind auth and calls register functions
+  // with its router (registerX(router)) puts those register files behind the same guard. Repeat until
+  // no new file is added, so nested register chains are followed.
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const [rel, src] of files) {
+      if (!mountCovered.has(rel)) continue;
+      const routers = new Set([
+        ...[...src.matchAll(ROUTE_CALL_RE)].map((m) => m[1]).filter((n) => ROUTER_RECEIVER_RE.test(n)),
+        ...[...src.matchAll(/(?:const|let|var)\s+(\w+)\s*=\s*(?:express\.)?Router\s*\(/g)].map((m) => m[1]),
+      ]);
+      for (const router of routers) {
+        const callRe = new RegExp(`([A-Za-z_$][\\w$]*)\\s*\\(\\s*${router}\\s*\\)`, 'g');
+        let c;
+        while ((c = callRe.exec(src))) {
+          const target = resolveImported(files, rel, c[1]);
+          if (target && !mountCovered.has(target)) {
+            mountCovered.set(target, `registered on a router mounted behind auth in ${rel}`);
+            grew = true;
+          }
+        }
+      }
+    }
+  }
+
   for (const r of results) {
     if (!r.reason && mountCovered.has(r.file)) r.reason = mountCovered.get(r.file);
   }
