@@ -71,6 +71,21 @@ function isoOrNull(value: unknown, field: string): string | null {
   return new Date(Date.parse(value)).toISOString();
 }
 
+/**
+ * Mirror write order. A strictly later occurredAt wins. When two events share a timestamp, the greater
+ * idempotency key wins, so the final state does not depend on arrival order. Keys compare by code unit,
+ * which matches the SQL's COLLATE "C" comparison in pg-store.ts.
+ */
+export function outranks(
+  candidate: { occurredAt: string; idempotencyKey: string },
+  current: { occurredAt: string; idempotencyKey: string },
+): boolean {
+  const a = Date.parse(candidate.occurredAt);
+  const b = Date.parse(current.occurredAt);
+  if (a !== b) return a > b;
+  return candidate.idempotencyKey > current.idempotencyKey;
+}
+
 /** Keeps only the fields the mirror needs. Unknown payload fields are dropped, not stored. */
 export function normaliseBookingPayload(eventType: BookingEventType, payload: Record<string, unknown>) {
   if (canonicalJson(payload).length > MAX_PAYLOAD_BYTES) throw new ScheduledBookingConsumerError('payload_too_large');

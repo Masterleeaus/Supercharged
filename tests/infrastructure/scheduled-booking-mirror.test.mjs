@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { signEnvelope } from '../../server/infrastructure/central-oidc/signed-events.ts';
 import {
-  createScheduledBookingConsumer, parseScheduledBookingEvent, ScheduledBookingConsumerError, MAX_BODY_BYTES,
+  createScheduledBookingConsumer, parseScheduledBookingEvent, ScheduledBookingConsumerError, MAX_BODY_BYTES, outranks,
 } from '../../server/infrastructure/scheduled-booking-mirror/consumer.ts';
 import { readMirrorRoute, isMirrorEnabled, ScheduledBookingConfigError, MIRROR_FLAG_ENV } from '../../server/infrastructure/scheduled-booking-mirror/config.ts';
 import { createPgScheduledBookingStore } from '../../server/infrastructure/scheduled-booking-mirror/pg-store.ts';
@@ -48,8 +48,11 @@ function memoryStore() {
       keys.add(k);
       const m = `${event.companyId}|${event.bookingId}`;
       const prev = mirror.get(m);
-      if (prev && Date.parse(prev.lastOccurredAt) > Date.parse(event.occurredAt)) return 'stale';
-      mirror.set(m, { status: event.status, startsAt: event.startsAt, endsAt: event.endsAt, lastOccurredAt: event.occurredAt });
+      if (prev && !outranks(event, { occurredAt: prev.lastOccurredAt, idempotencyKey: prev.lastEventKey })) return 'stale';
+      mirror.set(m, {
+        status: event.status, startsAt: event.startsAt, endsAt: event.endsAt,
+        lastOccurredAt: event.occurredAt, lastEventKey: event.idempotencyKey,
+      });
       return 'applied';
     },
   };
@@ -100,6 +103,37 @@ test('a later cancellation moves the mirror to cancelled, and a late older event
   assert.equal(store.mirror.get(`${COMPANY}|B-100`).status, 'cancelled');
   assert.equal(await consume(raw({ occurredAt: '2026-11-15T09:47:00Z', idempotencyKey: 'scheduled:booking:B-100:late' })), 'stale');
   assert.equal(store.mirror.get(`${COMPANY}|B-100`).status, 'cancelled');
+});
+
+test('two events with the same timestamp give the same mirror whatever the arrival order', async () => {
+  const same = '2026-11-15T09:59:00Z';
+  const created = raw({ occurredAt: same });
+  const rescheduled = raw({
+    eventType: 'booking_rescheduled', idempotencyKey: 'scheduled:booking:B-100:rescheduled',
+    eventId: '44444444-4444-4444-8444-444444444444', occurredAt: same,
+    payload: { bookingId: 'B-100', startsAt: '2026-11-21T09:00:00Z', endsAt: '2026-11-21T10:00:00Z' },
+  });
+  const run = async (order) => {
+    const store = memoryStore();
+    const consume = createScheduledBookingConsumer({ enabled: true, route, store, clock: () => NOW });
+    const outcomes = [];
+    for (const body of order) outcomes.push(await consume(body));
+    // The greater key ('...:rescheduled') always applies; the other applies only if it arrived first.
+    assert.equal(outcomes.at(-1) === 'applied' || outcomes.at(0) === 'applied', true);
+    assert.equal(outcomes.includes('applied'), true);
+    // Replaying either event afterwards is a duplicate and leaves the mirror unchanged.
+    assert.equal(await consume(created), 'duplicate');
+    assert.equal(await consume(rescheduled), 'duplicate');
+    return JSON.stringify(store.mirror.get(`${COMPANY}|B-100`));
+  };
+  const forward = await run([created, rescheduled]);
+  const backward = await run([rescheduled, created]);
+  assert.equal(forward, backward);
+  // The greater idempotency key ('...:rescheduled') wins the tie.
+  assert.equal(JSON.parse(forward).startsAt, '2026-11-21T09:00:00.000Z');
+  assert.equal(outranks({ occurredAt: same, idempotencyKey: 'b' }, { occurredAt: same, idempotencyKey: 'a' }), true);
+  assert.equal(outranks({ occurredAt: same, idempotencyKey: 'a' }, { occurredAt: same, idempotencyKey: 'b' }), false);
+  assert.equal(outranks({ occurredAt: same, idempotencyKey: 'a' }, { occurredAt: same, idempotencyKey: 'a' }), false);
 });
 
 test('the flag is off by default and nothing is read or stored when it is off', async () => {
@@ -159,6 +193,13 @@ test('the PostgreSQL store claims the key in a transaction and reports duplicate
   assert.equal(await store.apply(event), 'stale');
   assert.deepEqual(sql.slice(0, 5), ['BEGIN', 'INSERT INTO scheduled_booking_events', 'INSERT INTO scheduled_booking_mirror', 'COMMIT', 'RELEASE']);
   assert.deepEqual(sql.slice(5, 8), ['BEGIN', 'INSERT INTO scheduled_booking_events', 'COMMIT']);
+});
+
+test('the PostgreSQL mirror guard is strict on time and breaks ties by key, never <=', () => {
+  const src = readFileSync(new URL('../../server/infrastructure/scheduled-booking-mirror/pg-store.ts', import.meta.url), 'utf8');
+  assert.doesNotMatch(src, /last_occurred_at\s*<=/);
+  assert.match(src, /last_occurred_at < EXCLUDED\.last_occurred_at/);
+  assert.match(src, /last_occurred_at = EXCLUDED\.last_occurred_at\s+AND scheduled_booking_mirror\.last_event_key COLLATE "C" < EXCLUDED\.last_event_key COLLATE "C"/);
 });
 
 test('migration 0020 is additive and registered in the runner and the journal', () => {
