@@ -23,6 +23,8 @@ export interface InboxStore {
 
   insertParticipant(participant: Participant): Promise<void>;
   findContactParticipant(companyId: string, channel: Channel, address: string): Promise<Participant | null>;
+  /** The contact participant linked to a thread (the recipient of an outbound send). Null when none. */
+  findThreadContactParticipant(companyId: string, threadId: string): Promise<Participant | null>;
 
   insertThread(thread: Thread): Promise<void>;
   findThread(companyId: string, id: string): Promise<Thread | null>;

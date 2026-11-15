@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {registerVerifiedCommsRoutes} from '../../server/routes/core/verified-marketing-routes.ts';
 import {fixture} from '../modules/inbox-schema-readiness.test.mjs';
-const noop=(_req,_res,next)=>next(),guards={authenticate:noop,requireCompanyScope:noop,requireRole:()=>noop};
+const noop=(_req,_res,next)=>next(),guards={authenticate:noop,requireCompanyScope:noop,requireRole:()=>noop,auditWrite:async()=>{}};
 const canonical={gateAction:async()=>({status:'pending',approval:{id:'ap'},decision:'route_to_human',policyId:null}),getApproval:async()=>null,recordExecuted:async()=>{}};
 const pool={connect:async()=>{throw Error('request needed')}};
 function app(){const calls=[];return{calls,use:(...a)=>calls.push(a)};}

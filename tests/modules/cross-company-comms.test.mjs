@@ -4,6 +4,7 @@
 // Operations covered are the ones the services expose today. Campaign single-record reads go
 // through the CampaignStore port, because CampaignService has no getCampaign method.
 import test from 'node:test';
+import { consentingGate } from './presend-fixture.mjs';
 import assert from 'node:assert/strict';
 import {
   createCampaignService,
@@ -168,7 +169,7 @@ function buildInbox() {
   const approvals = new InboxApprovalPort();
   let clock = 0;
   let seq = 0;
-  const service = createInboxService({
+  const service = createInboxService({ compliance: consentingGate(), 
     store,
     approvals,
     now: () => new Date(Date.UTC(2026, 10, 3, 0, 0, clock++)),

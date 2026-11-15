@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {registerVerifiedCommsRoutes} from '../../server/routes/core/verified-marketing-routes.ts';
 const noop=(_req,_res,next)=>next(),role=()=>noop;
-const fake={authenticate:noop,requireCompanyScope:noop,requireRole:role};
+const fake={authenticate:noop,requireCompanyScope:noop,requireRole:role,auditWrite:async()=>{}};
 const app=()=>{const calls=[];return {calls,use:(...args)=>calls.push(args)};};
 test('disabled marketing never opens a database or loads a chatbot adapter',async()=>{
  const a=app();const output=await registerVerifiedCommsRoutes(a,{...fake,pool:null,schemaProbe:null,env:{}});

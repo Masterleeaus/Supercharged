@@ -59,6 +59,9 @@ export function createSqlInboxStore(pool:TenantPool):InboxStore {
   linkParticipant(link:ThreadParticipant){return scoped(link.companyId,async db=>{await db.query(
    'INSERT INTO inbox_thread_participants (company_id,thread_id,participant_id) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING',
    [link.companyId,link.threadId,link.participantId]);});},
+  findThreadContactParticipant(companyId:string,threadId:string){return scoped(companyId,async db=>first((await db.query(
+   `SELECT ${PARTICIPANT_COLUMNS} FROM inbox_participants WHERE company_id=$1 AND kind='contact' AND id IN (SELECT participant_id FROM inbox_thread_participants WHERE company_id=$1 AND thread_id=$2) ORDER BY id LIMIT 1`,
+   [companyId,threadId])).rows,fromParticipant));},
   listThreadParticipants(companyId:string,threadId:string){return scoped(companyId,async db=>
    (await db.query('SELECT company_id,thread_id,participant_id FROM inbox_thread_participants WHERE company_id=$1 AND thread_id=$2 ORDER BY participant_id',[companyId,threadId])).rows.map(fromLink));},
   insertMessage(m:Message){return scoped(m.companyId,async db=>{await db.query(

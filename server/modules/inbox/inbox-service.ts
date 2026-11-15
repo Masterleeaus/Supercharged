@@ -13,6 +13,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { requireCompanyId } from '../chatbot/chatbot-scope.ts';
 import { isUniqueConflict } from '../comms/inbound-dedupe.ts';
+import type { PreSendBlockReason, PreSendGate } from '../comms/presend-gate.ts';
 import type { ApprovalPort, InboxStore, InboxTransactionRunner, ThreadFilter } from './ports.ts';
 import {
   CHANNELS,
@@ -48,6 +49,8 @@ export function sha256(text: string): string {
 export interface InboxServiceDeps {
   store: InboxStore;
   approvals: ApprovalPort;
+  /** Required. Every outbound send (staff or approved agent) must pass this gate before it is queued. */
+  compliance: PreSendGate;
   /**
    * Optional. When present, the approval claim and the thread and message updates for an
    * approved send run in one transaction, so a failed write rolls back the claim.
@@ -168,6 +171,10 @@ function createKeyedLock() {
 
 export function createInboxService(deps: InboxServiceDeps): InboxService {
   const { store, approvals } = deps;
+  const compliance = deps.compliance;
+  if (!compliance || typeof compliance.check !== 'function' || typeof compliance.recordBlock !== 'function') {
+    throw new TypeError('inbox: pre-send compliance gate required');
+  }
   const now = deps.now ?? (() => new Date());
   const newId = deps.newId ?? (() => randomUUID());
   const ttlMs = deps.approvalTtlMs ?? 15 * 60 * 1000;
@@ -183,6 +190,23 @@ export function createInboxService(deps: InboxServiceDeps): InboxService {
     const message = await store.findMessage(companyId, messageId);
     if (!message) throw new InboxError('Message not found', 'not_found');
     return message;
+  }
+
+  /**
+   * Runs the pre-send gate for the thread's recipient. Returns the block reason, or null when the
+   * send may proceed. A thread with no contact recipient is blocked.
+   */
+  async function checkThreadSend(companyId: string, thread: Thread, actorId: string): Promise<PreSendBlockReason | null> {
+    const recipient = await store.findThreadContactParticipant(companyId, thread.id);
+    if (!recipient || !recipient.address) return 'invalid_contact';
+    const decision = await compliance.check({
+      companyId,
+      channel: thread.channel,
+      address: recipient.address,
+      surface: 'inbox',
+      actorId,
+    });
+    return decision.allowed === true ? null : decision.reason;
   }
 
   function newMessage(
@@ -340,11 +364,29 @@ export function createInboxService(deps: InboxServiceDeps): InboxService {
       const co = requireCompanyId(companyId);
       if (actor.kind !== 'human') throw new InboxError('Only a human may send without approval', 'forbidden');
       const thread = await loadThread(co, assertId(threadId, 'threadId'));
+      const text = assertBody(body);
       const at = now();
+      const blocked = await checkThreadSend(co, thread, actor.id);
+      if (blocked) {
+        // Recorded, not dropped: the refused message stays on the thread as rejected, with its reason in the audit log.
+        const refused = newMessage(
+          co,
+          thread,
+          { direction: 'outbound', status: 'rejected', authorKind: 'staff', authorId: actor.id, body: text, externalId: null },
+          at,
+        );
+        await store.insertMessage(refused);
+        await compliance.recordBlock(
+          { companyId: co, channel: thread.channel, surface: 'inbox', actorId: actor.id },
+          blocked,
+          { messageId: refused.id, threadId: thread.id },
+        );
+        throw new InboxError(`send_blocked:${blocked}`, 'forbidden');
+      }
       const message = newMessage(
         co,
         thread,
-        { direction: 'outbound', status: 'queued', authorKind: 'staff', authorId: actor.id, body: assertBody(body), externalId: null },
+        { direction: 'outbound', status: 'queued', authorKind: 'staff', authorId: actor.id, body: text, externalId: null },
         at,
       );
       message.queuedAt = at;
@@ -406,6 +448,18 @@ export function createInboxService(deps: InboxServiceDeps): InboxService {
         p.threadId === message.threadId &&
         p.bodySha256 === message.bodySha256;
       if (!matches) throw new InboxError('Approval does not match this message', 'conflict');
+
+      // The gate runs before the approval is claimed. A blocked send leaves the approval unexecuted.
+      const thread = await loadThread(co, message.threadId);
+      const blocked = await checkThreadSend(co, thread, message.authorId ?? 'system');
+      if (blocked) {
+        await compliance.recordBlock(
+          { companyId: co, channel: thread.channel, surface: 'inbox', actorId: message.authorId ?? 'system' },
+          blocked,
+          { messageId: message.id, threadId: message.threadId },
+        );
+        return (await store.updateMessage(co, message.id, { status: 'rejected', updatedAt: now() })) ?? message;
+      }
 
       const at = now();
       const transactionRunner = deps.transactionsFor?.(co) ?? deps.transactions;

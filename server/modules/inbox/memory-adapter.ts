@@ -71,6 +71,14 @@ export class InMemoryInboxStore implements InboxStore {
     return found ? { ...found } : null;
   }
 
+  async findThreadContactParticipant(companyId: string, threadId: string): Promise<Participant | null> {
+    const co = requireCo(companyId);
+    const link = this.links.find((l) => l.companyId === co && l.threadId === threadId && this.participants.some((p) => p.id === l.participantId && p.kind === 'contact'));
+    if (!link) return null;
+    const found = this.participants.find((p) => p.id === link.participantId && p.companyId === co && p.kind === 'contact');
+    return found ? { ...found } : null;
+  }
+
   async insertThread(thread: Thread): Promise<void> {
     requireCo(thread.companyId);
     this.threads.push({ ...thread });
