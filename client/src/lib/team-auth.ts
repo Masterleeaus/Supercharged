@@ -163,7 +163,7 @@ export const TeamAuth = {
     return this.getTeamType() === 'admin';
   },
 
-  async validateSession(): Promise<{ valid: boolean; member?: TeamMemberData; team?: TeamData; permissions?: any }> {
+  async validateSession(): Promise<{ valid: boolean; member?: TeamMemberData; team?: TeamData; permissions?: Record<string, Record<string, boolean>> }> {
     const token = this.getToken();
     if (!token) {
       return { valid: false };

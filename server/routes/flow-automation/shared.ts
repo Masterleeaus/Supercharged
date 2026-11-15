@@ -10,7 +10,6 @@ import { getCompanyScope } from "../../middleware/company-scope";
 import { appointments, appointmentSettings } from "@shared/schema";
 import { eq, and, or } from "drizzle-orm";
 import { logger } from "../../utils/logger";
-import { companyForRead, FLOW_EDITABLE_FIELDS, WEBHOOK_EDITABLE_FIELDS, APPOINTMENT_EDITABLE_FIELDS, pickEditableFields, strictWorkflowPrompt, buildFlowAgentBasePrompt, DEFAULT_WORKING_HOURS, validateWorkingHours } from "./shared";
 
 /**
  * Company for read and list scoping. Company comes only from the verified session.
@@ -106,7 +105,7 @@ export async function validateWorkingHours(
   appointmentDate: string,
   appointmentTime: string,
   duration: number = 30
-): Promise<{ valid: true } | { valid: false; message: string }> {
+): Promise<{ valid: boolean; message?: string }> {
   try {
     const [userSettings] = await db
       .select()

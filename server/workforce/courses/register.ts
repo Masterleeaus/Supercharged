@@ -178,7 +178,7 @@ export function registerCourseAssistantRoles(
       });
     } else {
       const manager = buildSkilledManagerRole(accepted.map((role) => role.id));
-      if (manager.ok) {
+      if (manager.ok === true) {
         accepted = [...accepted, manager.role];
       } else {
         for (const error of manager.errors) {

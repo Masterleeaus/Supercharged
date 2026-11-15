@@ -55,7 +55,9 @@ Validate with `validateRoleDefinition(raw)` for one role, or
 `irrigation`, `dog_training`, `mobile_massage`, `makeup_artistry`,
 `mobile_nail_technology`, `yoga_pilates`, `personal_fitness_training`,
 `nutrition_consultant`, `tutoring`, `real_estate_portfolio_management`,
-`short_stay_host_management`, `high_risk_cleaning`
+`short_stay_host_management`, `high_risk_cleaning`, `pond_maintenance`,
+`aquarium_maintenance`, `dog_walking`, `pet_sitting`, `pet_grooming`,
+`mobile_hairdressing`, `mobile_beauty`
 
 ### Category enum
 

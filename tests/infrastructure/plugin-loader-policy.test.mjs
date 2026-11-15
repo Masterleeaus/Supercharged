@@ -44,7 +44,9 @@ function enablement(database) {
   const logger = { warn() {} };
   return fromSource("async function isPluginEnabled", [
     ["pluginName: string): Promise<boolean>", "pluginName)"],
-    ["setting.value as any", "setting.value"],
+    // The loader now types the value as unknown. vm runs plain JS, so drop only the annotation.
+    ["const val: unknown = setting.value", "const val = setting.value"],
+    ["(val as { enabled?: unknown })", "(val)"],
   ], {
     db: database,
     globalSettings: { key: "key" },

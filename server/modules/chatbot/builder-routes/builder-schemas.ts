@@ -9,6 +9,7 @@
  * Tenancy is applied by the router, not here.
  */
 import { z } from "zod";
+import type { BuilderChatbotPatch } from "./builder-storage.ts";
 
 export const BUILDER_ID_PATTERN = /^[A-Za-z0-9-]{1,64}$/;
 export const builderIdParam = z.string().regex(BUILDER_ID_PATTERN);
@@ -297,7 +298,7 @@ export type BuilderPatchBody = z.infer<ReturnType<typeof builderPatchSchema>>;
 
 /** Splits a validated patch into classic chatbot columns and the settings JSON. Only defined keys pass. */
 export function splitPatch(body: BuilderPatchBody): {
-  chatbot: Partial<Record<(typeof CLASSIC_KEYS)[number], unknown>>;
+  chatbot: BuilderChatbotPatch;
   settings: Record<string, unknown>;
 } {
   const chatbot: Record<string, unknown> = {};
@@ -314,7 +315,7 @@ export function splitPatch(body: BuilderPatchBody): {
   }
   if (body.embed?.trustedDomains !== undefined) settings.trustedDomains = body.embed.trustedDomains;
 
-  return { chatbot: chatbot as Partial<Record<(typeof CLASSIC_KEYS)[number], unknown>>, settings };
+  return { chatbot: chatbot as BuilderChatbotPatch, settings };
 }
 
 /** One validation issue, shaped like a zod issue so the router can return both the same way. */

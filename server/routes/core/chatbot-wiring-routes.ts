@@ -10,6 +10,7 @@ import { startChatbotWorkersFromEnv } from "../../modules/chatbot/workers/boot.t
 import { captureChatbotWebhookRawBody } from "../../middleware/raw-body.ts";
 import { registerApprovalModule } from "../../modules/approvals/index.ts";
 import { requireCompanyScope } from "../../middleware/company-scope";
+import { DEFAULT_DESK_MODE_CONFIG, deskModeMiddleware, requireModule } from "../../modules/desk-modes/index.ts";
 import type { RouteContext } from "./shared";
 
 export function registerChatbotWiringRoutes(app: Express, deps: { routeContext: RouteContext }): void {
@@ -28,11 +29,16 @@ export function registerChatbotWiringRoutes(app: Express, deps: { routeContext: 
     readFlag(flag, process.env),
   );
   const chatbotSecretBox = chatbotSecretsOn ? createSecretBox({ env: process.env }) : undefined;
-  mountChatbotModule(app, {
+  const chatbotWiring = mountChatbotModule(app, {
     db,
     env: process.env,
     authenticate: routeContext.authenticateHybrid as unknown as import('express').RequestHandler,
     requireCompanyScope: requireCompanyScope(),
+    // Builder is a Synced (comms) feature: comms host only, and the chatbot module must be allowed in that mode.
+    builderModeGuard: [
+      deskModeMiddleware(DEFAULT_DESK_MODE_CONFIG) as unknown as import('express').RequestHandler,
+      requireModule('chatbot') as unknown as import('express').RequestHandler,
+    ],
     requireRole: (...roles: string[]) => requireRole(...roles) as unknown as import('express').RequestHandler,
     // Agent surface: identity comes from req.user, which authenticateHybrid sets from a verified token. Company and role
     // come from that user only, never from headers or body. A user with no company gets 403, no identity gets 401.
@@ -46,8 +52,9 @@ export function registerChatbotWiringRoutes(app: Express, deps: { routeContext: 
     channels: { onReceipt: async () => { throw new Error("chatbot channel receipt store is not wired"); } },
   });
   // Chatbot background workers. Off unless CHATBOT_WORKERS_ENABLED is exactly "true"; then only the services whose own
-  // flag is on are built and passed in (see workers/boot.ts). Voice-call limits are not built: no production provider.
-  startChatbotWorkersFromEnv({ db, env: process.env, secretBox: chatbotSecretBox });
+  // flag is on are built and passed in (see workers/boot.ts). The voice-call service is built with fail-closed ports
+  // (no provider or ledger yet), and takes its demo options from the mount result.
+  startChatbotWorkersFromEnv({ db, env: process.env, secretBox: chatbotSecretBox, voiceCall: chatbotWiring.voiceCall });
   // Chatbot module (port of the Clean-Hub Chatbot extension). Authenticated, company-scoped.
   // Tables are DRAFT (migrations/DRAFT_chatbot.sql); requests fail until the draft is applied.
   // A request that matches no route mounted above falls through to this core route unchanged.

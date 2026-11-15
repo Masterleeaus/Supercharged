@@ -5860,7 +5860,6 @@
         "paypal": "Pricing ({{currency}} - PayPal)",
         "paystack": "Pricing ({{currency}} - Paystack)",
         "mercadopago": "Pricing ({{currency}} - MercadoPago)",
-        "yookassa": "Pricing ({{currency}} - YooKassa)",
         "monthly": "Monthly Price ({{currency}} - {{gateway}})",
         "yearly": "Yearly Price ({{currency}} - {{gateway}})",
         "monthlyLabel": "Monthly Price",
@@ -5871,8 +5870,7 @@
         "razorpay": "Razorpay",
         "paypal": "PayPal",
         "paystack": "Paystack",
-        "mercadopago": "MercadoPago",
-        "yookassa": "YooKassa"
+        "mercadopago": "MercadoPago"
       },
       "status": {
         "synced": "{{gateway}} Synced",
@@ -6328,13 +6326,11 @@
         "paypal": "PayPal",
         "paystack": "Paystack",
         "mercadopago": "MercadoPago",
-        "yookassa": "YooKassa",
         "stripeDesc": "Accept payments in {{currency}} via Stripe",
         "razorpayDesc": "Accept payments in INR via Razorpay",
         "paypalDesc": "Accept payments in {{currency}} via PayPal",
         "paystackDesc": "Accept payments in {{currency}} via Paystack (Africa)",
         "mercadopagoDesc": "Accept payments in {{currency}} via MercadoPago (Latin America)",
-        "yookassaDesc": "Accept payments in {{currency}} via YooKassa",
         "configured": "Configured",
         "notConfigured": "Not Configured",
         "enabled": "Enabled",
@@ -6360,8 +6356,7 @@
         "razorpay": "Razorpay",
         "paypal": "PayPal",
         "paystack": "Paystack",
-        "mercadopago": "MP",
-        "yookassa": "YK"
+        "mercadopago": "MP"
       },
       "stripe": {
         "title": "Stripe Configuration",
@@ -6524,23 +6519,6 @@
         "webhookSetupFailed": "Webhook Setup Failed",
         "webhookSetupFailedDesc": "Failed to create webhook",
         "alert": "MercadoPago is optimized for Latin American markets. Ensure your pricing is configured for the selected currency."
-      },
-      "yookassa": {
-        "title": "YooKassa Configuration",
-        "description": "Configure YooKassa for payment processing",
-        "shopId": "Shop ID",
-        "shopIdHint": "Your YooKassa Shop ID",
-        "secretKey": "Secret Key",
-        "secretKeyHint": "Your YooKassa Secret Key",
-        "webhookSecret": "Webhook Secret (Optional)",
-        "webhookSecretHint": "For webhook signature verification",
-        "currency": "YooKassa Currency",
-        "currencyHint": "Select your YooKassa currency",
-        "webhookConfig": "Webhook Configuration",
-        "webhookSetupInstructions": "Configure this Webhook URL in your YooKassa Dashboard settings under Integration > Webhooks.",
-        "webhookCopied": "Webhook URL copied to clipboard",
-        "connectionSuccess": "YooKassa connection successful!",
-        "alert": "YooKassa primarily supports RUB (Russian Ruble). Ensure your pricing is configured appropriately."
       },
       "toasts": {
         "currencyChanged": "Currency Changed",

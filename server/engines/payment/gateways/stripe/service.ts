@@ -158,10 +158,10 @@ export async function testStripeConnection(): Promise<{ success: boolean; error?
     
     await stripe.balance.retrieve();
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
     const paymentError = new PaymentError(
       'stripe',
-      `Stripe connection test failed: ${error.message}`,
+      `Stripe connection test failed: ${(error as { message?: string }).message}`,
       undefined,
       { operation: 'testConnection' }
     );
@@ -202,8 +202,8 @@ export async function getOrCreateStripeCustomer(
     try {
       await stripe.customers.retrieve(stripeCustomerId);
       return stripeCustomerId;
-    } catch (error: any) {
-      if (error.code === 'resource_missing') {
+    } catch (error: unknown) {
+      if ((error as { code?: string }).code === 'resource_missing') {
         logger.warn(`⚠️ [Stripe] Customer ${stripeCustomerId} not found, creating new customer for user ${userId}`);
         stripeCustomerId = null;
         await storage.updateUser(userId, { stripeCustomerId: null });
@@ -283,8 +283,8 @@ export async function initiateRefund(
     await storage.updatePaymentTransaction(transactionId, { status: 'refunded' });
 
     return { success: true, refundId: refund.id };
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('❌ [Stripe] Refund failed:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: (error as { message?: string }).message };
   }
 }

@@ -17,6 +17,7 @@ export const COMMS_EVENT_TYPES = [
   'comms.campaign_changed',
   'comms.provider_event',
   'comms.human_override',
+  'comms.send_blocked',
 ] as const;
 
 export type CommsEventType = (typeof COMMS_EVENT_TYPES)[number];
@@ -31,6 +32,7 @@ const DETAIL_FIELDS: Readonly<Record<CommsEventType, readonly string[]>> = {
   'comms.campaign_changed': ['change'],
   'comms.provider_event': ['provider', 'providerEvent'],
   'comms.human_override': ['overridden', 'reason'],
+  'comms.send_blocked': ['channel', 'surface', 'reason'],
 };
 
 /** Fields that may be null. Only an assignment can be cleared (unassigned). */

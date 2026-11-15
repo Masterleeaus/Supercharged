@@ -45,12 +45,12 @@ function tenantOk(companyId: string): boolean {
 
 /** Finds the driver error code, reading through DrizzleQueryError.cause when it is wrapped. */
 export function driverErrorCode(error: unknown): string | null {
-  let current: any = error;
+  let current: { code?: unknown; cause?: unknown } | null | undefined = error as { code?: unknown; cause?: unknown } | null;
   for (let depth = 0; depth < 4 && current; depth += 1) {
     if (typeof current.code === "string" && /^[0-9A-Z]{5}$/.test(current.code)) {
       return current.code;
     }
-    current = current.cause;
+    current = current.cause as typeof current;
   }
   return null;
 }

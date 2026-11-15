@@ -23,6 +23,8 @@ export interface InboxStore {
 
   insertParticipant(participant: Participant): Promise<void>;
   findContactParticipant(companyId: string, channel: Channel, address: string): Promise<Participant | null>;
+  /** The contact participant linked to a thread (the recipient of an outbound send). Null when none. */
+  findThreadContactParticipant(companyId: string, threadId: string): Promise<Participant | null>;
 
   insertThread(thread: Thread): Promise<void>;
   findThread(companyId: string, id: string): Promise<Thread | null>;
@@ -33,6 +35,8 @@ export interface InboxStore {
 
   linkParticipant(link: ThreadParticipant): Promise<void>;
   listThreadParticipants(companyId: string, threadId: string): Promise<ThreadParticipant[]>;
+  /** Address of the contact linked to this thread, or null when none is linked. Never another company's contact. */
+  findThreadContactAddress(companyId: string, threadId: string): Promise<string | null>;
 
   insertMessage(message: Message): Promise<void>;
   findMessage(companyId: string, id: string): Promise<Message | null>;

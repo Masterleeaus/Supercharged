@@ -66,7 +66,7 @@ export interface PluginManifest {
   scopes?: Record<string, string>;
   settings?: Record<string, {
     type: string;
-    default: any;
+    default: unknown;
     label: string;
     description: string;
   }>;
@@ -84,7 +84,7 @@ export interface PluginLoaderOptions {
   sessionAuthMiddleware: RequestHandler;
   adminAuthMiddleware: RequestHandler;
   httpServer?: HttpServer;
-  callServices?: any; // Passed dynamically
+  callServices?: unknown; // Passed dynamically; shape set by the rest-api injection below
   /** Trusted workforce ports (identity, resource, authorize). Forwarded to plugins unchanged. */
   titanWorkforcePorts?: unknown;
   /** Middleware chain a plugin must use for permission-gated routes (for example the workforce previews). */
@@ -102,6 +102,11 @@ export function markPluginAsRegistered(pluginName: string): void {
   externallyRegisteredPlugins.add(pluginName);
 }
 
+/** Error code from a Node or driver error, when present. */
+function errorCode(err: unknown): unknown {
+  return (err as { code?: unknown } | null | undefined)?.code;
+}
+
 /**
  * Check if a plugin is enabled in database settings
  */
@@ -116,9 +121,9 @@ async function isPluginEnabled(pluginName: string): Promise<boolean> {
     if (setting) {
       // An explicitly stored false/null is a disabled plugin, not an absent setting.
       // Only the exact boolean/string true or { enabled: true } activates it.
-      const val = setting.value as any;
+      const val: unknown = setting.value;
       if (val !== null && typeof val === 'object' && !Array.isArray(val)) {
-        return val.enabled === true;
+        return (val as { enabled?: unknown }).enabled === true;
       }
       if (typeof val === 'string') {
         return val === 'true';
@@ -288,11 +293,11 @@ export async function loadPlugins(app: Express, options: PluginLoaderOptions): P
         throw new Error(`Plugin entrypoint escapes its directory: '${manifest.name}'`);
       }
       const entryPointUrl = pathToFileURL(resolvedEntryPoint).href;
-      let pluginModule: any;
+      let pluginModule: Record<string, unknown>;
       try {
         pluginModule = await import(entryPointUrl);
-      } catch (importErr: any) {
-        if (entryPointPath.endsWith('.ts') && importErr?.code === 'ERR_UNKNOWN_FILE_EXTENSION') {
+      } catch (importErr) {
+        if (entryPointPath.endsWith('.ts') && errorCode(importErr) === 'ERR_UNKNOWN_FILE_EXTENSION') {
           logger.warn(`[Plugin Loader] TS import failed for '${manifest.name}' (ERR_UNKNOWN_FILE_EXTENSION), falling back to compiled JS`);
           resetCanImportTypeScript();
           const basePath = entryPointPath.replace(/\.ts$/, '');
@@ -331,22 +336,22 @@ export async function loadPlugins(app: Express, options: PluginLoaderOptions): P
         try {
           const { OutboundCallService } = await import('../services/outbound-call-service');
           const { ElevenLabsPoolService } = await import('../services/elevenlabs-pool');
-          let PlivoCallServiceRef: any = null;
-          let TwilioOpenAICallServiceRef: any = null;
+          let PlivoCallServiceRef: unknown = null;
+          let TwilioOpenAICallServiceRef: unknown = null;
           try {
             const plivoMod = await import('../engines/plivo/services/plivo-call.service');
             PlivoCallServiceRef = plivoMod.PlivoCallService;
-          } catch (err: any) {
-            logger.warn('Plivo call service not loaded for rest-api plugin; continuing without it', { reason: err?.code ?? 'import_failed' }, 'PluginLoader');
+          } catch (err) {
+            logger.warn('Plivo call service not loaded for rest-api plugin; continuing without it', { reason: errorCode(err) ?? 'import_failed' }, 'PluginLoader');
           }
           try {
             const twilioMod = await import('../engines/twilio-openai/services/twilio-openai-call.service');
             TwilioOpenAICallServiceRef = twilioMod.TwilioOpenAICallService;
-          } catch (err: any) {
-            logger.warn('Twilio OpenAI call service not loaded for rest-api plugin; continuing without it', { reason: err?.code ?? 'import_failed' }, 'PluginLoader');
+          } catch (err) {
+            logger.warn('Twilio OpenAI call service not loaded for rest-api plugin; continuing without it', { reason: errorCode(err) ?? 'import_failed' }, 'PluginLoader');
           }
           enrichedOptions = {
-            ...(options as any),
+            ...options,
             callServices: {
               OutboundCallService,
               getCredentialForAgent: ElevenLabsPoolService.getCredentialForAgent.bind(ElevenLabsPoolService),
@@ -355,8 +360,8 @@ export async function loadPlugins(app: Express, options: PluginLoaderOptions): P
             },
           };
           logger.info(`[Plugin Loader] Injected call services for '${manifest.name}'`);
-        } catch (err: any) {
-          logger.warn(`[Plugin Loader] Could not inject call services for '${manifest.name}': ${err.message}`);
+        } catch (err) {
+          logger.warn(`[Plugin Loader] Could not inject call services for '${manifest.name}': ${(err as Error).message}`);
         }
       }
 
@@ -464,8 +469,8 @@ export async function loadPlugins(app: Express, options: PluginLoaderOptions): P
                     `);
                     
                     logger.info(`[Plugin Loader] ✅ Migration applied: ${migrationFile}`);
-                  } catch (migErr: any) {
-                    logger.error(`[Plugin Loader] ❌ Migration failed for ${migrationFile}:`, migErr.message);
+                  } catch (migErr) {
+                    logger.error(`[Plugin Loader] ❌ Migration failed for ${migrationFile}:`, (migErr as Error).message);
                     migrationSuccess = false;
                   }
                 } else {
@@ -489,8 +494,8 @@ export async function loadPlugins(app: Express, options: PluginLoaderOptions): P
         }
       }
       
-    } catch (error: any) {
-      loadedPlugin.error = error.message;
+    } catch (error) {
+      loadedPlugin.error = (error as Error).message;
       logger.error(`[Plugin Loader] Failed to load plugin '${manifest.name}':`, error);
     }
     

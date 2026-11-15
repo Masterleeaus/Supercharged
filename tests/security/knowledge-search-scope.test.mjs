@@ -50,9 +50,10 @@ test('the search query is restricted to the company knowledge bases and the user
 
 test('a search failure throws a generic error instead of returning an empty list', () => {
   const body = methodBody('searchKnowledge');
-  const catchStart = body.indexOf('} catch (error: any) {');
-  assert.ok(catchStart >= 0, 'searchKnowledge must keep a catch block');
-  const catchBody = body.slice(catchStart);
+  // Accept any catch binding, with or without a type annotation (e.g. `catch (error)` or `catch (error: unknown)`).
+  const catchMatch = /\} catch \(\w+(?::\s*\w+)?\) \{/.exec(body);
+  assert.ok(catchMatch, 'searchKnowledge must keep a catch block');
+  const catchBody = body.slice(catchMatch.index);
   assert.doesNotMatch(catchBody, /return \[\];/);
   assert.match(catchBody, /throw new Error\('Knowledge search failed\.'\)/);
   assert.doesNotMatch(catchBody, /new Error\([^)]*error\.message/, 'provider message must not be rethrown');

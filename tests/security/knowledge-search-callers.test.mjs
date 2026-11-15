@@ -6,9 +6,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import { WEBHOOK_BARREL, readWebhookRouteSources } from './webhook-route-sources.mjs';
 
 const ROOT = new URL('../../', import.meta.url);
-const read = (rel) => fs.readFileSync(new URL(rel, ROOT), 'utf8');
+const read = (rel) => (rel === WEBHOOK_BARREL ? readWebhookRouteSources() : fs.readFileSync(new URL(rel, ROOT), 'utf8'));
 
 const CALLER_FILES = [
   'server/routes/rag-knowledge-routes.ts',

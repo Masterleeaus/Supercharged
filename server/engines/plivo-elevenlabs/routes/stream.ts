@@ -17,6 +17,10 @@ import type { Server as HttpServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { ElevenLabsBridgeService } from '../services/elevenlabs-bridge.service';
 import { logger } from '../../../utils/logger';
+import { isKnownPlivoStreamCall } from '../../../utils/plivo-stream-call-check';
+import { db } from '../../../db';
+import { plivoCalls } from '@shared/schema';
+import { eq } from 'drizzle-orm';
 
 interface PlivoStreamMessage {
   event: string;
@@ -43,12 +47,24 @@ interface PlivoStreamMessage {
 }
 
 /**
+ * Look up a Plivo call row by its Plivo CallUUID (plivo_calls.plivo_call_uuid).
+ */
+async function lookupPlivoCallByUuid(callUuid: string): Promise<{ id: string } | undefined> {
+  const [row] = await db
+    .select({ id: plivoCalls.id })
+    .from(plivoCalls)
+    .where(eq(plivoCalls.plivoCallUuid, callUuid))
+    .limit(1);
+  return row;
+}
+
+/**
  * Setup Plivo-ElevenLabs WebSocket stream handler on the HTTP server
  */
 export function setupPlivoElevenLabsStream(httpServer: HttpServer): void {
   const wss = new WebSocketServer({ noServer: true });
 
-  httpServer.on('upgrade', (request, socket, head) => {
+  httpServer.on('upgrade', async (request, socket, head) => {
     const pathname = request.url?.split('?')[0] || '';
     
     if (pathname.startsWith('/api/plivo-elevenlabs/stream/')) {
@@ -56,6 +72,14 @@ export function setupPlivoElevenLabsStream(httpServer: HttpServer): void {
       
       if (!callUuid) {
         logger.error(`[Plivo-ElevenLabs Stream] Invalid stream URL: ${pathname}`);
+        socket.destroy();
+        return;
+      }
+
+      // Security: only accept streams for a call row we know about (same rule as the Twilio stream route).
+      // Fails closed on lookup error.
+      if (!(await isKnownPlivoStreamCall(callUuid, lookupPlivoCallByUuid))) {
+        logger.error(`[Plivo-ElevenLabs Stream] Security: Rejecting stream for unknown or unverifiable call: ${callUuid}`);
         socket.destroy();
         return;
       }
