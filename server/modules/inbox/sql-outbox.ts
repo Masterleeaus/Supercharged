@@ -3,7 +3,8 @@ import {randomUUID} from 'node:crypto';
 import {assertCompanyId,withTenant,type TenantPool} from '../../infrastructure/database/tenant-context.ts';
 import type {OutboxJob,OutboxRepository} from './outbox-types.ts';
 const whole=(n:number,min:number,max:number,label:string)=>{if(!Number.isSafeInteger(n)||n<min||n>max)throw Error('outbox: invalid '+label);return n;};
-const row=(r:any):OutboxJob=>({id:r.id,companyId:r.company_id,messageId:r.message_id,channel:r.channel,status:r.status,attempts:r.attempts,nextAttemptAt:new Date(r.next_attempt_at),leasedUntil:r.leased_until?new Date(r.leased_until):null,leaseToken:r.lease_token??null,providerId:r.provider_id??null,lastError:r.last_error??null});
+type OutboxRow={id:string;company_id:string;message_id:string;channel:OutboxJob['channel'];status:OutboxJob['status'];attempts:number;next_attempt_at:string|Date;leased_until:string|Date|null;lease_token:string|null;provider_id:string|null;last_error:string|null};
+const row=(r:OutboxRow):OutboxJob=>({id:r.id,companyId:r.company_id,messageId:r.message_id,channel:r.channel,status:r.status,attempts:r.attempts,nextAttemptAt:new Date(r.next_attempt_at),leasedUntil:r.leased_until?new Date(r.leased_until):null,leaseToken:r.lease_token??null,providerId:r.provider_id??null,lastError:r.last_error??null});
 export function createSqlOutbox(pool:TenantPool):OutboxRepository {
  if(!pool||typeof pool.connect!=='function')throw Error('outbox: PostgreSQL pool required');
  return {

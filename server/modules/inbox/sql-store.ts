@@ -24,7 +24,7 @@ export function createSqlInboxStore(pool:TenantPool):InboxStore {
   });
   return withTenant(pool,co,fn);
  };
- const first=<T>(rows:any[],fn:(row:any)=>T):T|null=>rows[0]?fn(rows[0]):null;
+ const first=<T,R=Record<string,unknown>>(rows:R[],fn:(row:R)=>T):T|null=>rows[0]?fn(rows[0]):null;
  return {
   async lockInboundKey<T>(companyId:string,channel:Channel,address:string,fn:()=>Promise<T>):Promise<T>{
    const co=assertCompanyId(companyId);

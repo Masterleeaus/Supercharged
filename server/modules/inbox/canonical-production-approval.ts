@@ -5,13 +5,14 @@
  */
 import {withTenant,type TenantPool} from '../../infrastructure/database/tenant-context.ts';
 import type {CanonicalApprovalPortSource} from './approval-port.ts';
+import type {ApprovalDb} from '../approvals/approval-service.ts';
 export async function createCanonicalInboxApprovalService(pool:TenantPool):Promise<CanonicalApprovalPortSource>{
  if(!pool||typeof pool.connect!=='function')throw Error('inbox: PostgreSQL pool required for approvals');
  const [{ApprovalService},{drizzle}]=await Promise.all([
   import('../approvals/approval-service.ts'),
   import('drizzle-orm/node-postgres'),
  ]);
- const tenant={run:<T>(companyId:string,fn:(db:any)=>Promise<T>):Promise<T>=>
-  withTenant(pool,companyId,async client=>fn(drizzle(client as any) as any))};
+ const tenant={run:<T>(companyId:string,fn:(db:ApprovalDb)=>Promise<T>):Promise<T>=>
+  withTenant(pool,companyId,async client=>fn(drizzle(client as never) as unknown as ApprovalDb))};
  return new ApprovalService({tenant});
 }

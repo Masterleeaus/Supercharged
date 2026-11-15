@@ -147,7 +147,7 @@ export function nonNegativeInt(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 ? Math.trunc(value) : 0;
 }
 
-export function readUsage(usage: any, inputKey: string, outputKey: string): ModelUsage {
+export function readUsage(usage: Record<string, unknown> | null | undefined, inputKey: string, outputKey: string): ModelUsage {
   return { inputTokens: nonNegativeInt(usage?.[inputKey]), outputTokens: nonNegativeInt(usage?.[outputKey]) };
 }
 

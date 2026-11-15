@@ -1,4 +1,4 @@
-import { Router, Request, Response } from "express";
+import { Router, Request, Response, NextFunction } from "express";
 import { widgetService } from "./widget-service";
 import { widgetStorage } from "./widget-storage";
 import { agents } from "@shared/schema";
@@ -20,8 +20,8 @@ const allowedUpdateFields = [
   'cooldownMinutes', 'requireTermsAcceptance', 'appointmentBookingEnabled'
 ] as const;
 
-function sanitizeWidgetData(data: Record<string, any>): Record<string, any> {
-  const sanitized: Record<string, any> = {};
+function sanitizeWidgetData(data: Record<string, unknown>): Record<string, unknown> {
+  const sanitized: Record<string, unknown> = {};
   for (const field of allowedUpdateFields) {
     if (data[field] !== undefined) {
       sanitized[field] = data[field];
@@ -60,8 +60,10 @@ const upload = multer({
   },
 });
 
-function requireAuth(req: Request, res: Response, next: any) {
-  if (!(req as any).user) {
+type WidgetAuthRequest = Request & { user: { id: string } };
+
+function requireAuth(req: Request, res: Response, next: NextFunction) {
+  if (!(req as Partial<WidgetAuthRequest>).user) {
     return res.status(401).json({ error: 'Authentication required' });
   }
   next();
@@ -69,7 +71,7 @@ function requireAuth(req: Request, res: Response, next: any) {
 
 router.get('/widgets', requireAuth, async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id;
+    const userId = (req as WidgetAuthRequest).user.id;
     const widgets = await widgetService.getWidgetsByUser(userId);
     res.json(widgets);
   } catch (error) {
@@ -80,7 +82,7 @@ router.get('/widgets', requireAuth, async (req: Request, res: Response) => {
 
 router.get('/widgets/:id', requireAuth, async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id;
+    const userId = (req as WidgetAuthRequest).user.id;
     const widget = await widgetService.getWidgetById(req.params.id, userId);
     if (!widget) {
       return res.status(404).json({ error: 'Widget not found' });
@@ -92,8 +94,8 @@ router.get('/widgets/:id', requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-function parseFormData(body: Record<string, any>): Record<string, any> {
-  const parsed: Record<string, any> = {};
+function parseFormData(body: Record<string, unknown>): Record<string, unknown> {
+  const parsed: Record<string, unknown> = {};
   
   for (const [key, value] of Object.entries(body)) {
     if (value === '' || value === undefined) continue;
@@ -108,7 +110,7 @@ function parseFormData(body: Record<string, any>): Record<string, any> {
       parsed[key] = value === 'true' || value === true;
     } else if (key === 'maxConcurrentCalls' || key === 'maxCallDuration' || key === 'cooldownMinutes') {
       const defaults: Record<string, number> = { maxConcurrentCalls: 5, maxCallDuration: 300, cooldownMinutes: 0 };
-      parsed[key] = parseInt(value) || defaults[key];
+      parsed[key] = parseInt(String(value)) || defaults[key];
     } else if (key === 'agentId') {
       parsed[key] = value && value !== '' && value !== 'none' ? value : null;
     } else {
@@ -121,7 +123,7 @@ function parseFormData(body: Record<string, any>): Record<string, any> {
 
 router.post('/widgets', requireAuth, upload.single('icon'), async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id;
+    const userId = (req as WidgetAuthRequest).user.id;
     const parsedData = parseFormData(req.body);
     const sanitizedData = sanitizeWidgetData(parsedData);
     
@@ -181,19 +183,19 @@ router.post('/widgets', requireAuth, upload.single('icon'), async (req: Request,
     
     const widget = await widgetService.createWidget(userId, widgetData);
     res.status(201).json(widget);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('Error creating widget:', error);
     if (req.file) {
-      try { fs.unlinkSync(req.file.path); } catch (cleanupErr: any) { logger.warn('Could not delete uploaded widget file after failed request', { code: cleanupErr?.code }, 'WidgetRoutes'); }
+      try { fs.unlinkSync(req.file.path); } catch (cleanupErr: unknown) { logger.warn('Could not delete uploaded widget file after failed request', { code: (cleanupErr as { code?: unknown } | null)?.code }, 'WidgetRoutes'); }
     }
-    const message = error?.message || 'Failed to create widget';
+    const message = (error as { message?: string } | null)?.message || 'Failed to create widget';
     res.status(500).json({ error: 'Failed to create widget', message });
   }
 });
 
 router.patch('/widgets/:id', requireAuth, upload.single('icon'), async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id;
+    const userId = (req as WidgetAuthRequest).user.id;
     const parsedData = parseFormData(req.body);
     const sanitizedData = sanitizeWidgetData(parsedData);
     
@@ -238,19 +240,19 @@ router.patch('/widgets/:id', requireAuth, upload.single('icon'), async (req: Req
       return res.status(404).json({ error: 'Widget not found' });
     }
     res.json(widget);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('Error updating widget:', error);
     if (req.file) {
-      try { fs.unlinkSync(req.file.path); } catch (cleanupErr: any) { logger.warn('Could not delete uploaded widget file after failed request', { code: cleanupErr?.code }, 'WidgetRoutes'); }
+      try { fs.unlinkSync(req.file.path); } catch (cleanupErr: unknown) { logger.warn('Could not delete uploaded widget file after failed request', { code: (cleanupErr as { code?: unknown } | null)?.code }, 'WidgetRoutes'); }
     }
-    const message = error?.message || 'Failed to update widget';
+    const message = (error as { message?: string } | null)?.message || 'Failed to update widget';
     res.status(500).json({ error: 'Failed to update widget', message });
   }
 });
 
 router.delete('/widgets/:id', requireAuth, async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id;
+    const userId = (req as WidgetAuthRequest).user.id;
     const deleted = await widgetService.deleteWidget(req.params.id, userId);
     if (!deleted) {
       return res.status(404).json({ error: 'Widget not found' });
@@ -264,7 +266,7 @@ router.delete('/widgets/:id', requireAuth, async (req: Request, res: Response) =
 
 router.post('/widgets/:id/regenerate-token', requireAuth, async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id;
+    const userId = (req as WidgetAuthRequest).user.id;
     const widget = await widgetService.regenerateEmbedToken(req.params.id, userId);
     if (!widget) {
       return res.status(404).json({ error: 'Widget not found' });
@@ -278,7 +280,7 @@ router.post('/widgets/:id/regenerate-token', requireAuth, async (req: Request, r
 
 router.post('/widgets/:id/icon', requireAuth, upload.single('icon'), async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id;
+    const userId = (req as WidgetAuthRequest).user.id;
     const file = req.file;
     
     if (!file) {
@@ -302,7 +304,7 @@ router.post('/widgets/:id/icon', requireAuth, upload.single('icon'), async (req:
 
 router.get('/widgets/:id/embed-code', requireAuth, async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id;
+    const userId = (req as WidgetAuthRequest).user.id;
     const widget = await widgetService.getWidgetById(req.params.id, userId);
     
     if (!widget) {
@@ -323,7 +325,7 @@ router.get('/widgets/:id/embed-code', requireAuth, async (req: Request, res: Res
 
 router.get('/widgets/:id/sessions', requireAuth, async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id;
+    const userId = (req as WidgetAuthRequest).user.id;
     const widget = await widgetService.getWidgetById(req.params.id, userId);
     
     if (!widget) {
@@ -341,7 +343,7 @@ router.get('/widgets/:id/sessions', requireAuth, async (req: Request, res: Respo
 
 router.get('/widgets-stats', requireAuth, async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id;
+    const userId = (req as WidgetAuthRequest).user.id;
     const stats = await widgetService.getWidgetStats(userId);
     res.json(stats);
   } catch (error) {
@@ -352,7 +354,7 @@ router.get('/widgets-stats', requireAuth, async (req: Request, res: Response) =>
 
 router.get('/widgets-limits', requireAuth, async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id;
+    const userId = (req as WidgetAuthRequest).user.id;
     const limits = await widgetService.getWidgetLimits(userId);
     res.json(limits);
   } catch (error) {

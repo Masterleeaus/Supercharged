@@ -74,7 +74,7 @@ export class OpenAIModelProvider implements ModelProvider {
       timeoutMs: request.timeoutMs,
       secrets: [apiKey],
     });
-    const data: any[] = Array.isArray(json.data) ? [...json.data].sort((a, b) => (a?.index ?? 0) - (b?.index ?? 0)) : [];
+    const data: Array<{ index?: number; embedding?: unknown }> = Array.isArray(json.data) ? [...json.data].sort((a, b) => (a?.index ?? 0) - (b?.index ?? 0)) : [];
     const vectors: number[][] = data.map((item) => (Array.isArray(item?.embedding) ? item.embedding.map(Number) : []));
     const dimensions = vectors[0]?.length ?? 0;
     const consistent = vectors.length === request.inputs.length && dimensions > 0 && vectors.every((v) => v.length === dimensions);
@@ -122,10 +122,11 @@ function parseChat(json: Record<string, any>, model: string, requestId: string |
     throw providerFailure("openai", "unknown", null, "OpenAI returned a response with no choices.");
   }
   const message = choice.message ?? {};
+  type OpenAiToolCall = { id?: unknown; function?: { name?: unknown; arguments?: unknown } };
   const toolCalls: ModelToolCall[] = Array.isArray(message.tool_calls)
     ? message.tool_calls
-        .filter((call: any) => typeof call?.function?.name === "string")
-        .map((call: any) => ({
+        .filter((call: OpenAiToolCall) => typeof call?.function?.name === "string")
+        .map((call: OpenAiToolCall) => ({
           id: String(call.id ?? ""),
           name: call.function.name as string,
           arguments: parseArguments(call.function.arguments),
