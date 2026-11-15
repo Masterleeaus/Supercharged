@@ -13,7 +13,7 @@
 set -e
 
 echo "============================================"
-echo "AgentLabs Plugin Migration Runner"
+echo "Supercharged Plugin Migration Runner"
 echo "============================================"
 echo ""
 

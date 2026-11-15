@@ -156,7 +156,7 @@ Before implementing AI voice agents, GlobalCom's customer service operation face
 
 ## The Solution
 
-GlobalCom partnered with AgentLabs to implement an AI-first customer service strategy. The implementation was rolled out in three phases over six months.
+GlobalCom partnered with Supercharged to implement an AI-first customer service strategy. The implementation was rolled out in three phases over six months.
 
 ### Phase 1: High-Volume Inquiry Automation
 The first phase focused on automating the most common customer inquiries:
@@ -287,7 +287,7 @@ Design a support flow that:
 
 ## Getting Started
 
-Flow Agents is available now for all AgentLabs customers. Here's how to get started:
+Flow Agents is available now for all Supercharged customers. Here's how to get started:
 
 1. Navigate to the Flows section in your dashboard
 2. Click "Create New Flow"
@@ -550,7 +550,7 @@ Our team can help you build a customized ROI model for your specific situation. 
     author: "Carlos Rodriguez",
     authorRole: "International Product Lead",
     content: `
-We're excited to announce the global expansion of AgentLabs with comprehensive multi-language support. Your AI voice agents can now communicate fluently in over 25 languages, opening new markets and serving diverse customer bases.
+We're excited to announce the global expansion of Supercharged with comprehensive multi-language support. Your AI voice agents can now communicate fluently in over 25 languages, opening new markets and serving diverse customer bases.
 
 ## Supported Languages
 
@@ -650,7 +650,7 @@ For questions about multi-language implementation, contact our support team or s
     slug: "enterprise-security-compliance",
     title: "Enterprise Security and Compliance in AI Calling",
     excerpt:
-      "How AgentLabs maintains SOC 2 Type II compliance and enterprise-grade security while delivering powerful AI voice capabilities.",
+      "How Supercharged maintains SOC 2 Type II compliance and enterprise-grade security while delivering powerful AI voice capabilities.",
     category: "AI Technology",
     categoryColor: "bg-blue-500/90 text-white",
     readTime: "5 min read",
@@ -663,7 +663,7 @@ In an era of increasing data privacy regulations and security threats, enterpris
 
 ## Our Security Foundation
 
-AgentLabs is built on a security-first architecture that protects customer data at every level.
+Supercharged is built on a security-first architecture that protects customer data at every level.
 
 ### SOC 2 Type II Certification
 We maintain SOC 2 Type II certification, demonstrating our commitment to:
@@ -782,7 +782,7 @@ MedCare's scheduling operation faced significant challenges:
 
 ## The Solution
 
-MedCare implemented AgentLabs AI voice agents to handle appointment scheduling, with integration into their Epic EHR system.
+MedCare implemented Supercharged AI voice agents to handle appointment scheduling, with integration into their Epic EHR system.
 
 ### Implementation Phases
 
