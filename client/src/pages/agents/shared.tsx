@@ -50,7 +50,7 @@ export interface Agent {
   firstMessage: string | null;
   temperature: number | null;
   knowledgeBaseIds: string[] | null;
-  config: any;
+  config: AgentConfig | null;
   flowId: string | null;
   maxDurationSeconds: number | null;
   voiceStability: number | null;
@@ -381,3 +381,13 @@ export function CVEEstimatedCost({
   );
 }
 export type AgentFormData = { type: "incoming" | "flow" | "custom_engine"; name: string; voiceTone: string; personality: string; systemPrompt: string; elevenLabsVoiceId: string; language: string; llmModel: string; firstMessage: string; temperature: number; knowledgeBaseIds: string[]; transferNumber: string; transferKeywords: string[]; transferEnabled: boolean; transferPhoneNumber: string; detectLanguageEnabled: boolean; endConversationEnabled: boolean; appointmentBookingEnabled: boolean; messagingEmailEnabled: boolean; messagingWhatsappEnabled: boolean; messagingEmailTemplate: string; messagingWhatsappTemplate: string; messagingWhatsappVariables: string; expressiveMode: boolean; flowId: string; maxDurationSeconds: number; voiceStability: number; voiceSimilarityBoost: number; voiceSpeed: number; turnTimeout: number; telephonyProvider: "twilio" | "plivo" | "twilio_openai" | "elevenlabs-sip" | "openai-sip" | "custom-voice-engine"; openaiVoice: string; sttProvider: string; sttModel: string; ttsProvider: string; ttsModel: string; sipPhoneNumberId: string; };
+
+/** Optional Sarvam voice fields read by the voice pickers. */
+export type VoiceModelFields = { model?: string; languages?: string[] };
+
+/** Agent config JSON. Only the keys the UI reads are typed. */
+export interface AgentConfig {
+  model?: string;
+  transferRules?: { number?: string; keywords?: string[] };
+  [key: string]: unknown;
+}

@@ -47,7 +47,7 @@ interface Call {
   recordingUrl: string | null;
   transcript: string | null;
   aiSummary: string | null;
-  metadata: Record<string, any> | null;
+  metadata: Record<string, unknown> | null;
   startedAt: string | null;
   endedAt: string | null;
   createdAt: string;
@@ -528,7 +528,7 @@ export default function Calls() {
                     {(() => {
                       // Widget calls: show widget name or "Website Widget"
                       if (call.widgetId) {
-                        return call.widget?.name || (call.metadata as any)?.widgetName || 'Website Widget';
+                        return call.widget?.name || (call.metadata?.widgetName as string | undefined) || 'Website Widget';
                       }
                       const hasContactName = call.contact?.firstName && call.contact.firstName.toLowerCase() !== 'unknown';
                       if (hasContactName) {

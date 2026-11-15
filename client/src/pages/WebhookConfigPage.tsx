@@ -55,7 +55,7 @@ interface Webhook {
   events: string[];
   campaignIds: string[] | null;
   authType: string | null;
-  authCredentials: Record<string, any> | null;
+  authCredentials: Record<string, unknown> | null;
   headers: Record<string, string> | null;
   isActive: boolean;
   createdAt: string;
@@ -66,7 +66,7 @@ interface WebhookLog {
   id: number;
   webhookId: string;
   event: string;
-  payload: Record<string, any>;
+  payload: Record<string, unknown>;
   httpStatus: number | null;
   responseBody: string | null;
   responseTime: number | null;
@@ -213,7 +213,7 @@ export default function WebhookConfigPage() {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      let authCredentials: Record<string, any> | null = null;
+      let authCredentials: Record<string, unknown> | null = null;
       let authType: string | null = null;
       
       if (formData.authType === "basic") {
