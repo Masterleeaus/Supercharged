@@ -35,7 +35,8 @@ jobs:
   typecheck-required:
     # Gating, one job per area that already passes. Each area is checked on its own
     # (scripts/typecheck-area.mjs); whole-repo tsc is not run here. Areas still failing
-    # are not in this matrix yet; see issue #122 and the PR description.
+    # (server/services, server/routes, server/modules, server/engines) are not in this
+    # matrix yet; see issues #122 and #317 and PRs #405 and #407.
     name: Typecheck ${{ matrix.area }}
     runs-on: ubuntu-latest
     strategy:
@@ -52,6 +53,7 @@ jobs:
           - client/src/widget
           - client/src/i18n
           - client/src/pages
+          - client/src/components
           - client/src/hooks
           - client-src-root
           - server-root
