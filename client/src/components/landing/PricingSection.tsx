@@ -1,17 +1,12 @@
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
 import { useState } from "react";
@@ -50,7 +45,7 @@ interface Plan {
   includedCredits: number;
   canChooseLlm: boolean;
   canPurchaseNumbers: boolean;
-  features: any;
+  features: unknown;
   sipEnabled?: boolean;
   restApiEnabled?: boolean;
 }
@@ -362,7 +357,7 @@ export function PricingSection() {
               // First paid plan (index 1 if free exists, or index 0 if no free plan) is highlighted
               const isHighlighted = !isFree && (sortedPlans[0]?.name === 'free' ? index === 1 : index === 0);
               const price = getPrice(plan);
-              const maxWidgets = (plan as any).maxWidgets ?? 1;
+              const maxWidgets = (plan as { maxWidgets?: number }).maxWidgets ?? 1;
               
               return (
                 <motion.div

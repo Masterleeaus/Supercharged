@@ -44,7 +44,7 @@ export function createSqlDeliveryReceipts(pool:TenantPool):ReceiptRepository{
             (SELECT count(*)::integer FROM inserted) AS inserted`,
      [companyId,receipt.provider,receipt.eventId,receipt.providerId,receipt.outcome,
       receipt.payloadSha256,receipt.providerEventAt]);
-    const row=result.rows[0];
+    const row=result.rows[0] as {matching?:number|string;inserted?:number|string}|undefined;
     if(Number(row?.matching)===0)return 'unmatched';
     return Number(row?.inserted)===1?'recorded':'duplicate';
    });

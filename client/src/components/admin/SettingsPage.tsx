@@ -1,22 +1,18 @@
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
 import { useState, useRef, useEffect, Suspense } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import type { LucideIcon } from "lucide-react";
 import { Settings, Search, Server, Sliders, Activity, BarChart3, Key, Phone, Loader2, Globe, Package, ArrowUpCircle, ChevronLeft, ChevronRight, Mail, MessageSquare, Shield } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { usePluginStatus } from "@/hooks/use-plugin-status";
@@ -76,7 +72,7 @@ export default function SettingsPage({ onSwitchTab, initialSubTab }: SettingsPag
     return () => window.removeEventListener('resize', checkScrollState);
   }, [(Array.isArray(adminSettingsTabs) ? adminSettingsTabs : []).length]);
 
-  const pluginIconMap: Record<string, any> = {
+  const pluginIconMap: Record<string, LucideIcon> = {
     'Server': Phone,
     'Mail': Mail,
     'MessageSquare': MessageSquare,

@@ -270,7 +270,7 @@ export function createWidgetHandlers(deps: WidgetHandlerDeps): WidgetHandlers {
       if (!isWidgetPublicId(publicId)) return NOT_FOUND;
       const origin = header(req, "origin");
       const verified = await verifyBearer(req, publicId, corsFor(origin, []));
-      if (!verified.ok) return error(401, "unauthorised", corsFor(origin, []));
+      if (verified.ok === false) return error(401, "unauthorised", corsFor(origin, []));
       // Expiry and scope only. The claims (company, visitor) are not returned.
       return {
         status: 200,

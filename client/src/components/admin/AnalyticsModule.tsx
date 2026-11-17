@@ -1,19 +1,15 @@
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
+import type { AppError } from "@/components/app-error";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -318,7 +314,8 @@ export default function AnalyticsModule() {
       resetForm();
       setDialogOpen(false);
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("common.error"),
         description: error.message,
@@ -342,7 +339,8 @@ export default function AnalyticsModule() {
       resetForm();
       setDialogOpen(false);
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("common.error"),
         description: error.message,
@@ -366,7 +364,8 @@ export default function AnalyticsModule() {
       setDeleteDialogOpen(false);
       setScriptToDelete(null);
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("common.error"),
         description: error.message,
@@ -384,7 +383,8 @@ export default function AnalyticsModule() {
       queryClient.invalidateQueries({ queryKey: ["/api/public/analytics-scripts"] });
       refetch();
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("common.error"),
         description: error.message,
@@ -407,8 +407,8 @@ export default function AnalyticsModule() {
     setEditingScript(script);
     const placement = Array.isArray(script.placement) ? script.placement : [script.placement];
     
-    const existingHeadCode = (script as any).headCode || '';
-    const existingBodyCode = (script as any).bodyCode || '';
+    const existingHeadCode = (script as { headCode?: string; bodyCode?: string }).headCode || '';
+    const existingBodyCode = (script as { headCode?: string; bodyCode?: string }).bodyCode || '';
     const legacyCode = script.code || '';
     
     let headCodeToUse = existingHeadCode;

@@ -1,19 +1,15 @@
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
+import type { AppError } from "@/components/app-error";
 import { useState, useMemo } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -123,7 +119,8 @@ export function TimezoneEnforcementModal({ open, onOpenChange, onSuccess }: Time
       onSuccess();
       onOpenChange(false);
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("settings.timezone.saveFailed", "Failed to save timezone"),
         description: error.message || t("common.tryAgain", "Please try again."),

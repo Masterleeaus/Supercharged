@@ -94,6 +94,21 @@ export function buildFindConversation(db: ConversationDb, companyId: string, id:
   return db.select().from(c).where(and(eq(c.companyId, companyId), eq(c.id, id))).limit(1);
 }
 
+export function buildFindConversationByThread(
+  db: ConversationDb,
+  companyId: string,
+  chatbotId: string,
+  channel: ChannelKind,
+  externalThreadId: string,
+) {
+  return db
+    .select()
+    .from(c)
+    .where(and(eq(c.companyId, companyId), eq(c.chatbotId, chatbotId), eq(c.channel, channel), eq(c.externalThreadId, externalThreadId)))
+    .orderBy(desc(c.createdAt))
+    .limit(1);
+}
+
 export function buildListMessages(db: ConversationDb, companyId: string, conversationId: string) {
   return db
     .select()
@@ -262,6 +277,11 @@ export function createDrizzleConversationStore(db: ConversationDb): Conversation
 
     async findConversation(companyId, id) {
       const [row] = await withTenantTransaction(db, companyId, (tx) => buildFindConversation(tx, companyId, id));
+      return row ? toConversationRecord(row) : null;
+    },
+
+    async findConversationByThread(companyId, chatbotId, channel, externalThreadId) {
+      const [row] = await buildFindConversationByThread(db, companyId, chatbotId, channel, externalThreadId);
       return row ? toConversationRecord(row) : null;
     },
 
