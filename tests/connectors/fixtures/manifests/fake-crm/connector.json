@@ -1,0 +1,14 @@
+{
+  "id": "fake-crm",
+  "version": "0.1.0",
+  "vendor": "Fake CRM (test fixture)",
+  "auth": "api_key",
+  "entities": ["contact", "booking"],
+  "requiredScopes": ["contacts.read", "bookings.write"],
+  "webhookEvents": ["booking.created"],
+  "configSchema": {
+    "region": { "type": "string", "required": true },
+    "pageSize": { "type": "number" }
+  },
+  "featureFlag": "connector_fake_crm"
+}
