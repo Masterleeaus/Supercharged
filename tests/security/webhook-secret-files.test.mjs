@@ -25,7 +25,8 @@ function trackedFiles() {
 test('no webhook secret file is tracked by git', (t) => {
   const tracked = trackedFiles();
   if (tracked === null) return t.skip('not a git checkout');
-  const leaked = tracked.filter((f) => SECRET_FILES.includes(path.basename(f)) || /webhook-secret/i.test(path.basename(f)));
+  // Secret dotfiles only (for example .rag-webhook-secret), not any source file whose name contains the phrase.
+  const leaked = tracked.filter((f) => SECRET_FILES.includes(path.basename(f)) || /^\.[\w-]*webhook-secret$/i.test(path.basename(f)));
   assert.deepEqual(leaked, []);
 });
 
