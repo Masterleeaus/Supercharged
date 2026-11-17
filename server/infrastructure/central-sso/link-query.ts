@@ -5,13 +5,14 @@
 import type{TenantPool} from '../database/tenant-context.ts';
 import {withTenant,isCompanyId} from '../database/tenant-context.ts';
 const SUBJECT=/^[^\s\x00-\x1f\x7f]{1,256}$/u;
+export type DeskCentralLinkRow={user_id:string;company_id:string;role:string;revision:number|string;is_active:boolean};
 export function createDeskCentralLinkQuery(pool:TenantPool){
  if(typeof pool?.connect!=='function')throw TypeError('trusted tenant pool required');
- return async(issuer:string,subject:string,companyId:string)=>{
+ return async(issuer:string,subject:string,companyId:string):Promise<DeskCentralLinkRow[]>=>{
   if(!isCompanyId(companyId)||typeof issuer!=='string'||typeof subject!=='string'||
    !SUBJECT.test(subject)||issuer.length>256)return [];
   try{return await withTenant(pool,companyId,async client=>{
-   const rows=await client.query(
+   const rows=await client.query<DeskCentralLinkRow>(
     'SELECT user_id,company_id,role,revision,is_active FROM app_central_desk_resolve_link($1,$2,$3::uuid)',
     [issuer,subject,companyId]);
    return rows.rows??[];
