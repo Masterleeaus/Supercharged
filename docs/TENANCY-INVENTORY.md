@@ -198,6 +198,14 @@ Converted in this change:
 
 Not converted, and why: the routes and workers above need a company id that is not in scope at their entry point (for example, a webhook carries a provider id, not a company). Each one needs its company resolved first, and that is a separate change per surface.
 
+## Postgres isolation coverage (issue #127, 2026-11-18)
+
+Premise correction: the issue says only Marketing and Inbox have a Postgres tenant-isolation check. On origin/main, `.github/workflows/pr-checks.yml` runs four such jobs: `marketing-postgres`, `inbox-postgres`, `tenant-postgres` (Settings, memberships, chatbot, workforce, scheduled booking mirror) and `approvals-postgres`.
+
+Measured: 228 tables declare a `company_id` column (shared schema plus module files). 53 are named by a test under `tests/postgres/`. 175 are not, and they are listed in `tests/infrastructure/tenant-isolation-coverage-baseline.json`. The ratchet test `tests/infrastructure/tenant-isolation-coverage.test.mjs` fails on any new uncovered table and on baseline entries that become covered.
+
+Limits: the check is a text match on the table name, so a mention counts. Tenant tables that key on `user_id` with no `company_id` column (the 104 tenant rows above, minus the company-keyed ones) are not in this count. Connector tables from #349 to #353 are on other branches, not on main, so they are not counted.
+
 ## Reconciliation and decision log (issue #250, 2026-11-18)
 
 Checked on origin/main at a215fe9.
