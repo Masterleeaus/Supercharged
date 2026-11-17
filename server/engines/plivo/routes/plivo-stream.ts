@@ -23,6 +23,7 @@ import { plivoCalls, agents, users, flowExecutions } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import { logger } from '../../../utils/logger';
 import { isKnownPlivoStreamCall } from '../../../utils/plivo-stream-call-check';
+import { streamTokenFromUrl, verifyStreamToken } from '../../../utils/stream-token.ts';
 import type { OpenAIVoice, OpenAIRealtimeModel, AgentTool } from '../types';
 
 interface PlivoStreamMessage {
@@ -71,6 +72,14 @@ export function setupPlivoStream(httpServer: HttpServer): void {
       
       if (!callUuid) {
         logger.error(`Invalid stream URL: ${pathname}`, undefined, 'PlivoStream');
+        socket.destroy();
+        return;
+      }
+
+      // Security: the stream URL carries a server-issued token bound to this call UUID.
+      const streamAuth = verifyStreamToken(streamTokenFromUrl(request.url), { callId: callUuid });
+      if (streamAuth.ok === false) {
+        logger.error(`Security: Rejecting Plivo stream for call ${callUuid}: ${streamAuth.reason}`, undefined, 'PlivoStream');
         socket.destroy();
         return;
       }

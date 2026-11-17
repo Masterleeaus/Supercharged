@@ -10,6 +10,7 @@
 
 import { getDomain } from '../../../utils/domain';
 import type { OpenAIRealtimeModel, OpenAIVoice } from '../types';
+import { withStreamToken } from '../../../utils/stream-token.ts';
 
 export interface TwilioOpenAIConfig {
   openaiRealtimeUrl: string;
@@ -46,7 +47,7 @@ export function getStatusWebhookUrl(): string {
 export function getStreamWebhookUrl(callSid: string): string {
   const baseUrl = getWebhookBaseUrl();
   const wsUrl = baseUrl.replace('https://', 'wss://').replace('http://', 'wss://');
-  return `${wsUrl}/api/twilio-openai/stream/${callSid}`;
+  return withStreamToken(`${wsUrl}/api/twilio-openai/stream/${callSid}`, { callId: callSid });
 }
 
 export function getIncomingWebhookUrl(): string {

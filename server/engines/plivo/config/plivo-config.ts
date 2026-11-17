@@ -6,6 +6,7 @@
  */
 
 import type { OpenAIVoice, OpenAIRealtimeModel } from '../types';
+import { withStreamToken } from '../../../utils/stream-token.ts';
 
 export const PlivoEngineConfig = {
   plivoApiVersion: 'v1',
@@ -71,7 +72,7 @@ export function getStreamUrl(baseUrl: string, callUuid: string): string {
     // No protocol - assume secure WebSocket
     wsBaseUrl = `wss://${baseUrl}`;
   }
-  return `${wsBaseUrl}/api/plivo/stream/${callUuid}`;
+  return withStreamToken(`${wsBaseUrl}/api/plivo/stream/${callUuid}`, { callId: callUuid });
 }
 
 export function getTransferWebhookUrl(baseUrl: string, targetNumber: string, callerId: string): string {
