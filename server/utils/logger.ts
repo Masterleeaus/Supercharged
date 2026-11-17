@@ -75,7 +75,7 @@ const walkForLog = (value: unknown, depth: number, ancestors: Set<object>): unkn
   // Error message and stack are not own enumerable keys, so copy them out explicitly.
   // Without this, an Error logged as data would serialize as {}.
   if (value instanceof Error) {
-    return walkForLog({ name: value.name, message: value.message, stack: value.stack, ...value }, depth, ancestors);
+    return walkForLog({ ...value, name: value.name, message: value.message, stack: value.stack }, depth, ancestors);
   }
   if (ancestors.has(value)) return LOG_TRUNCATED;
 

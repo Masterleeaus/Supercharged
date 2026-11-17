@@ -52,6 +52,14 @@ jobs:
           - client/src/widget
           - client/src/i18n
           - client/src/pages
+          - client/src/hooks
+          - client-src-root
+          - server-root
+          - server/utils
+          - server/storage
+          - server/integrations
+          - server/scripts
+          - server/workforce
           - shared
     steps:
       - uses: actions/checkout@v4

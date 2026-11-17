@@ -31,7 +31,8 @@ LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path=pg_catalog,public AS $$
  SELECT u.id::text,l.company_id,u.role::text,l.revision,u.is_active
  FROM desk_central_identity_links l
- JOIN users u ON u.id::text=l.user_id AND u.company_id=l.company_id
+ JOIN user_company_memberships m ON m.user_id=l.user_id AND m.company_id=l.company_id
+ JOIN users u ON u.id::text=l.user_id
  WHERE l.issuer=p_issuer AND l.subject=p_subject AND l.company_id=p_company_id
  AND l.status='verified' AND u.is_active IS TRUE
  AND u.is_deleted IS FALSE AND u.deleted_at IS NULL
