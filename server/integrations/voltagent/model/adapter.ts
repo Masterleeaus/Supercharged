@@ -86,7 +86,7 @@ export function createVoltModelAdapter(options: VoltModelAdapterOptions): VoltMo
     async generate(messages) {
       const chatMessages = toChatMessages(messages);
       const result = await chain.chat({ companyId, messages: chatMessages, options: callOptions });
-      if (!result.ok) {
+      if (result.ok === false) {
         throw new ModelUnavailableError(result.error, result.status, result.provider);
       }
       return {
