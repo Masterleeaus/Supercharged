@@ -178,3 +178,11 @@ Source: `shared/schema.ts`, 132 `pgTable` declarations (rows 1-83 as before, the
 - **D3** FK delete behaviour is the default (NO ACTION). Not chosen.
 - **D4** Indexes use CONCURRENTLY, so the runner must not wrap them in a transaction.
 - **D5** `calls` falls back to `website_widgets` through `widget_id`. This is a join on a column with no FK.
+
+## Postgres isolation coverage (issue #127, 2026-11-18)
+
+Premise correction: the issue says only Marketing and Inbox have a Postgres tenant-isolation check. On origin/main, `.github/workflows/pr-checks.yml` runs four such jobs: `marketing-postgres`, `inbox-postgres`, `tenant-postgres` (Settings, memberships, chatbot, workforce, scheduled booking mirror) and `approvals-postgres`.
+
+Measured: 228 tables declare a `company_id` column (shared schema plus module files). 53 are named by a test under `tests/postgres/`. 175 are not, and they are listed in `tests/infrastructure/tenant-isolation-coverage-baseline.json`. The ratchet test `tests/infrastructure/tenant-isolation-coverage.test.mjs` fails on any new uncovered table and on baseline entries that become covered.
+
+Limits: the check is a text match on the table name, so a mention counts. Tenant tables that key on `user_id` with no `company_id` column (the 104 tenant rows above, minus the company-keyed ones) are not in this count. Connector tables from #349 to #353 are on other branches, not on main, so they are not counted.
