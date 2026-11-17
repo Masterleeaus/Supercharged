@@ -68,6 +68,60 @@ export function assertLinkInputShape(input:unknown):asserts input is LinkAsserti
 
 export type SignedLinkAssertion={token:string;nonce:string;iat:number;exp:number};
 
+export type NonceStore={
+ /** Reserves a nonce once. Resolves false when it was already reserved and has not expired. */
+ reserve(nonce:string,expiresAtSeconds:number,nowSeconds:number):Promise<boolean>;
+};
+
+/** Process-local store with the same single-use rule as IssuedNonceLedger. For tests and single instances. */
+export function createMemoryNonceStore():NonceStore{
+ const ledger=new IssuedNonceLedger();
+ return {
+  async reserve(nonce,expiresAtSeconds,nowSeconds){
+   try{ledger.record(nonce,expiresAtSeconds,nowSeconds);return true}catch{return false}
+  },
+ };
+}
+
+export type NonceQueryable={query(text:string,values?:unknown[]):Promise<{rowCount?:number|null}>};
+export const LINK_NONCE_TABLE='central_link_issued_nonces';
+
+/** Shared single-use store for multi-instance deploys. Requires migration 0025. Expired rows are purged on each reserve. */
+export function createDatabaseNonceStore({db}:{db:NonceQueryable}):NonceStore{
+ if(typeof db?.query!=='function')throw new TypeError('trusted nonce database required');
+ return {
+  async reserve(nonce,expiresAtSeconds,nowSeconds){
+   await db.query(`DELETE FROM ${LINK_NONCE_TABLE} WHERE expires_at_seconds <= $1`,[nowSeconds]);
+   const res=await db.query(
+    `INSERT INTO ${LINK_NONCE_TABLE} (nonce, expires_at_seconds) VALUES ($1, $2) ON CONFLICT (nonce) DO NOTHING`,
+    [nonce,expiresAtSeconds]);
+   return res.rowCount===1;
+  },
+ };
+}
+
+/** Builds the compact JWS for an already reserved nonce. */
+function buildAssertion(
+ config:LinkSigningConfig,
+ input:LinkAssertionInput,
+ nowMs:number|undefined
+):{nonce:string;iat:number;exp:number;token:string}{
+ const sub=checkIdentifier('sub',input.sub);
+ const org=checkIdentifier('org',input.org);
+ const lu=checkIdentifier('lu',input.lu);
+ const la=checkIdentifier('la',input.la);
+ const ttl=checkLifetime(input.ttlSeconds);
+ const nowSeconds=Math.floor((nowMs??Date.now())/1000);
+ const iat=nowSeconds;
+ const exp=iat+ttl;
+ const nonce=randomBytes(32).toString('base64url');
+ const header=JSON.stringify({alg:LINK_ASSERTION_ALG,typ:LINK_ASSERTION_TYP,kid:config.kid});
+ const payload=JSON.stringify({iss:config.issuer,aud:config.audience,sub,org,lu,la,nonce,iat,exp});
+ const signingInput=`${Buffer.from(header,'utf8').toString('base64url')}.${Buffer.from(payload,'utf8').toString('base64url')}`;
+ const signature=sign(null,Buffer.from(signingInput,'ascii'),config.privateKey).toString('base64url');
+ return {nonce,iat,exp,token:`${signingInput}.${signature}`};
+}
+
 /** Signs one assertion. Each call issues a fresh 256-bit nonce, recorded in the ledger. */
 export function signLinkAssertion(
  config:LinkSigningConfig,
@@ -75,21 +129,20 @@ export function signLinkAssertion(
  options:{ledger:IssuedNonceLedger;nowMs?:number}
 ):SignedLinkAssertion{
  assertLinkInputShape(input);
- const sub=checkIdentifier('sub',input.sub);
- const org=checkIdentifier('org',input.org);
- const lu=checkIdentifier('lu',input.lu);
- const la=checkIdentifier('la',input.la);
- const ttl=checkLifetime(input.ttlSeconds);
+ const pre=buildAssertion(config,input,options.nowMs);
+ options.ledger.record(pre.nonce,pre.exp,Math.floor((options.nowMs??Date.now())/1000));
+ return {token:pre.token,nonce:pre.nonce,iat:pre.iat,exp:pre.exp};
+}
 
- const nowSeconds=Math.floor((options.nowMs??Date.now())/1000);
- const iat=nowSeconds;
- const exp=iat+ttl;
- const nonce=randomBytes(32).toString('base64url');
- options.ledger.record(nonce,exp,nowSeconds);
-
- const header=JSON.stringify({alg:LINK_ASSERTION_ALG,typ:LINK_ASSERTION_TYP,kid:config.kid});
- const payload=JSON.stringify({iss:config.issuer,aud:config.audience,sub,org,lu,la,nonce,iat,exp});
- const signingInput=`${Buffer.from(header,'utf8').toString('base64url')}.${Buffer.from(payload,'utf8').toString('base64url')}`;
- const signature=sign(null,Buffer.from(signingInput,'ascii'),config.privateKey).toString('base64url');
- return {token:`${signingInput}.${signature}`,nonce,iat,exp};
+/** Signs one assertion with a shared nonce store. Refuses with nonce_reused if the store already holds the nonce. */
+export async function signLinkAssertionShared(
+ config:LinkSigningConfig,
+ input:unknown,
+ options:{store:NonceStore;nowMs?:number}
+):Promise<SignedLinkAssertion>{
+ assertLinkInputShape(input);
+ const pre=buildAssertion(config,input,options.nowMs);
+ const reserved=await options.store.reserve(pre.nonce,pre.exp,Math.floor((options.nowMs??Date.now())/1000));
+ if(!reserved)throw new LinkAssertionError('nonce_reused','nonce already issued');
+ return {token:pre.token,nonce:pre.nonce,iat:pre.iat,exp:pre.exp};
 }

@@ -155,7 +155,7 @@ export function createBookingAgent(deps: BookingAgentDeps): BookingAgent {
 
       const def = BOOKING_TOOLS[toolName];
       const parsed = def.schema.safeParse(rawInput ?? {});
-      if (!parsed.success) {
+      if (parsed.success === false) {
         const issues = parsed.error.issues.map((i) => `${i.path.join('.') || '(input)'}: ${i.message}`);
         return {
           outcome: 'invalid_input',

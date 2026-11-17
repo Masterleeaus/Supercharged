@@ -19,7 +19,7 @@ export interface SegmentDefinition {
   rules: readonly SegmentRule[];
 }
 
-export interface Segment extends SegmentDefinition {
+export interface Segment extends Omit<SegmentDefinition, 'rules'> {
   readonly rules: readonly SegmentRule[];
 }
 

@@ -35,6 +35,7 @@ import { createCommsAuditSink } from "./modules/comms/audit-sink.ts";
 import { logAuditEvent } from "./services/audit-log";
 const commsAudit = createCommsAuditSink({ write: logAuditEvent as unknown as Parameters<typeof createCommsAuditSink>[0]["write"] });
 import { registerPublicAuthRoutes } from "./routes/core/public-auth-routes";
+import { mountCentralSso } from "./routes/core/central-sso-routes";
 import { registerPlatformRoutes } from "./routes/core/platform-routes";
 import { registerVoiceEngineRoutes } from "./routes/core/voice-engine-routes";
 import { registerPluginEngineRoutes } from "./routes/core/plugin-engine-routes";
@@ -112,6 +113,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Routes: public and auth, see server/routes/core/public-auth-routes.ts
   registerPublicAuthRoutes(app, { routeContext });
+
+  // Central sign-in (#53): mounted only when CENTRAL_SSO_ENABLED === "true". Off by default.
+  mountCentralSso(app);
 
   // Apply team context middleware globally for all user-facing /api routes
   // This allows team members to access data using their parent user's userId

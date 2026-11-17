@@ -197,3 +197,37 @@ Converted in this change:
 - `server/routes/flow-automation/shared.ts`, `validateWorkingHours`: the appointment-settings read now runs inside `withTenantTransaction` (the Drizzle variant of `withTenant`, from `server/infrastructure/database/tenant-transaction.ts`). It sets `app.company_id` but does not switch role, so it is weaker than `withTenant`. Test: `tests/infrastructure/flow-working-hours-tenant.test.mjs`.
 
 Not converted, and why: the routes and workers above need a company id that is not in scope at their entry point (for example, a webhook carries a provider id, not a company). Each one needs its company resolved first, and that is a separate change per surface.
+
+## Reconciliation and decision log (issue #250, 2026-11-18)
+
+Checked on origin/main at a215fe9.
+
+### Count
+
+- `shared/schema.ts` declares 132 `pgTable` tables. The issue text says 91, which is stale. The 132 rows in the table above (104 tenant, 16 global, 11 ambiguous, 1 root) match the file.
+- Module-owned tables outside `shared/schema.ts`: 115 `pgTable` declarations in 27 files under `server/modules/` (26 files under `chatbot/`, 1 file under `approvals/`). No tables in `plugins/` or `packages/`. No name clashes with `shared/schema.ts`.
+- Migrations: 25 top-level `.sql` files in `migrations/`. `migrations/archive/` holds 25 `DRAFT_*.sql` files and a `README.md`. `migrations/candidates/` holds 4 files.
+
+### Migration source gap (blocker)
+
+- 7 of the 115 module tables have a `CREATE TABLE` in a migration: `approval_rules`, `approvals`, `chatbot_booking_reminder_attempts`, `chatbot_booking_reminder_sends`, `chatbot_event_outbox`, `chatbot_webhook_deliveries`, `chatbot_webhook_subscriptions`.
+- The other 108 exist only as Drizzle declarations. Examples: `chatbot_commerce_orders`, `chatbot_carts`, `commerce_payment_intents`, `widget_embed_keys`. No SQL file in `migrations/` or `archive/` creates them. Production refuses `db:push`, so these tables have no reviewed route to production. This must be resolved before #251 can cover them.
+- Of the 132 `shared/schema.ts` tables, 81 have no `CREATE TABLE` in any migration file. The remaining 51 do.
+
+### Scope of the module tables
+
+- Every module table declares a `company_id` column in its own block (checked by a text scan, so it is a heuristic). All 115 are tenant-owned for now. None is global. Review each one before #251 uses this list.
+
+### Shared concepts
+
+- `users`: ambiguous (D1). Holds free-text `company`. Not reconciled with Central here, because the repo has no Central canonical-entity document.
+- `companies`: root. Created with `IF NOT EXISTS` by 0014 and in `DRAFT_companies_foundation.sql`.
+- `notifications`: ambiguous (`user_id` NULL means broadcast).
+- `invoices`: tenant, from `user_id`. The other apps' invoice tables were not checked in this repo.
+- Open: agreement with Central on these four entities is not recorded in the repo. Needs a Central sign-off before #251 starts.
+
+### Decision log
+
+- D6 (2026-11-18, default, for review): `company_id` is `uuid NOT NULL` on every tenant table. Keys and foreign keys are composite `(company_id, id)` where a parent exists. Global tables get no `company_id`. The `varchar` type in `DRAFT_approvals.sql` and `DRAFT_chatbot.sql` (B4) loses to `uuid`, because `withTenant()` uses `uuid`.
+- D7 (2026-11-18, default, for review): the 115 module tables are tenant-owned, based on the `company_id` scan above. Their migration source is recorded as missing for 108 of them (see the gap above).
+- Not decided: D1 (company id source), D2 (ambiguous tables), D3 (FK delete behaviour). These remain open.
