@@ -37,6 +37,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const ALLOWLIST_PATH = path.join(ROOT, 'tests/security/route-auth-allowlist.json');
+const MOUNT_GUARDS_PATH = path.join(ROOT, 'tests/security/route-auth-mount-guards.json');
 
 // Guard identifiers. Matched against code with strings and comments masked, so response text and
 // comments never count. The bare past-tense word 'authenticated' is excluded.
@@ -56,6 +57,7 @@ const AUTH_RE = new RegExp(
       'checkAdmin\\w*',
       'checkSuperAdmin',
       'requirePermission',
+      'checkInstallAllowed',
       'requireAdminPermission',
       'require\\w*Signature',
       'validate\\w*Webhook',
@@ -583,7 +585,7 @@ export function analyze(files) {
       let reason = null;
       if (route.inlineAuth) reason = 'inline guard';
       else if (uses.some((u) => u.receiver === route.receiver && u.index < route.index)) reason = 'same-file guard';
-      results.push({ file: rel, method: route.method, path: route.path, reason });
+      results.push({ file: rel, receiver: route.receiver, method: route.method, path: route.path, reason });
     }
   }
 
@@ -620,13 +622,27 @@ export function analyze(files) {
   return results;
 }
 
+/** Identity of one route: file, receiver (router variable), method, path. The receiver keeps two routers in one file apart. */
 export function keyOf(r) {
-  return `${r.file}|${r.method}|${r.path}`;
+  return `${r.file}|${r.receiver}|${r.method}|${r.path}`;
 }
+
+const entryKey = (e) => `${e.file}|${e.receiver}|${e.method}|${e.path}`;
 
 function loadAllowlist() {
   if (!fs.existsSync(ALLOWLIST_PATH)) return [];
   const data = JSON.parse(fs.readFileSync(ALLOWLIST_PATH, 'utf8'));
+  return Array.isArray(data.entries) ? data.entries : [];
+}
+
+/**
+ * Routes whose guard is applied by the file that mounts them (a router factory, a prefix-level app.use,
+ * or a guard chain the scanner cannot follow). Each entry names the guard text that must appear in the
+ * named file. The test below checks that text exists, so an entry cannot outlive its guard silently.
+ */
+function loadMountGuards() {
+  if (!fs.existsSync(MOUNT_GUARDS_PATH)) return [];
+  const data = JSON.parse(fs.readFileSync(MOUNT_GUARDS_PATH, 'utf8'));
   return Array.isArray(data.entries) ? data.entries : [];
 }
 
@@ -650,15 +666,25 @@ function liveAnalysis() {
   };
   const files = reachableFiles(readFile, listFiles);
   const routes = analyze(files);
-  const allowed = new Set(loadAllowlist().map((e) => `${e.file}|${e.method}|${e.path}`));
+  const allowed = new Set(loadAllowlist().map(entryKey));
+  const mountGuards = loadMountGuards();
+  const mounted = new Set(mountGuards.map(entryKey));
+  const mountGuardBroken = mountGuards.filter((e) => {
+    const guardFile = path.join(ROOT, e.guardedBy.file);
+    if (!fs.existsSync(guardFile)) return true;
+    const text = fs.readFileSync(guardFile, 'utf8');
+    return !e.guardedBy.needles.every((n) => text.includes(n));
+  }).map(entryKey);
   const routeKeys = new Set(routes.map(keyOf));
   liveCache = {
     files,
     routes,
     allowed,
+    mounted,
+    mountGuardBroken,
     covered: routes.filter((r) => r.reason),
-    unlisted: routes.filter((r) => !r.reason && !allowed.has(keyOf(r))),
-    stale: [...allowed].filter((k) => !routeKeys.has(k)),
+    unlisted: routes.filter((r) => !r.reason && !allowed.has(keyOf(r)) && !mounted.has(keyOf(r))),
+    stale: [...allowed, ...mounted].filter((k) => !routeKeys.has(k)),
     allowedButGuarded: [...allowed].filter((k) => routes.some((r) => keyOf(r) === k && r.reason)),
     countedAsUnparsed: routes.filter((r) => r.path.startsWith('<template') || r.path.startsWith('<expr')),
   };
@@ -782,10 +808,34 @@ test('every reachable server route is guarded or on the owner-approved allowlist
   );
 });
 
+test('mount guards name guard text that exists in the file that applies it', () => {
+  assert.deepEqual(liveAnalysis().mountGuardBroken, [], 'mount-guard entries whose guard text is missing; re-check the route or remove the entry');
+});
+
 test('allowlist has no stale entries (each entry matches a reachable route)', () => {
   assert.deepEqual(liveAnalysis().stale, [], 'allowlist entries that match no reachable route; remove them');
 });
 
 test('allowlist has no entries that are already guarded', () => {
   assert.deepEqual(liveAnalysis().allowedButGuarded, [], 'allowlist entries that are already guarded; remove them');
+});
+
+test('every allowlist and mount-guard entry has a non-empty reason and an approver field', () => {
+  const problems = [];
+  for (const [name, entries] of [['allowlist', loadAllowlist()], ['mount-guards', loadMountGuards()]]) {
+    for (const e of entries) {
+      if (typeof e.reason !== 'string' || e.reason.trim().length < 20) problems.push(`${name}: ${e.file} ${e.method} ${e.path} has no reason`);
+      if (typeof e.approvedBy !== 'string' || e.approvedBy.trim() === '') problems.push(`${name}: ${e.file} ${e.method} ${e.path} has no approvedBy`);
+    }
+  }
+  assert.deepEqual(problems, []);
+});
+
+test('settings routes that expose pricing margin and voice configuration require authentication', () => {
+  const { routes } = liveAnalysis();
+  for (const p of ['/api/settings/llm-margin', '/api/settings/voice-engine']) {
+    const hit = routes.find((r) => r.path === p);
+    assert.ok(hit, `${p} is not a reachable route`);
+    assert.equal(hit.reason, 'inline guard', `${p} must pass authenticateToken`);
+  }
 });
