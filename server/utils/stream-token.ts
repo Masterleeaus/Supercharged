@@ -23,7 +23,7 @@ export const STREAM_TOKEN_PARAM = "t";
 export const STREAM_TOKEN_SECRET_ENV = "STREAM_TOKEN_SECRET";
 
 /** Token lifetime. Providers open the socket right after the answer XML, so this is generous. */
-export const STREAM_TOKEN_TTL_SECONDS = 600;
+export const STREAM_TOKEN_TTL_SECONDS = 120;
 
 const KEY_LABEL = "titan:call-stream-token:v1";
 

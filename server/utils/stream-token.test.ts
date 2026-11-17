@@ -66,7 +66,7 @@ test("token minted under a different secret is refused", () => {
 test("tampered payload is refused", () => {
   const token = mintStreamToken({ callId: CALL_A }, NOW);
   const [, sig] = token.split(".");
-  const forgedPayload = Buffer.from(JSON.stringify({ cid: CALL_B, exp: NOW + 600 }), "utf8").toString("base64url");
+  const forgedPayload = Buffer.from(JSON.stringify({ cid: CALL_B, exp: NOW + 120 }), "utf8").toString("base64url");
   assert.deepEqual(verifyStreamToken(`${forgedPayload}.${sig}`, { callId: CALL_B }, NOW + 1), {
     ok: false,
     reason: "bad_signature",
@@ -125,7 +125,7 @@ test("upgrade-time check refuses missing, malformed, forged and expired tokens",
   assert.deepEqual(checkStreamTokenAtUpgrade(null, NOW), { ok: false, reason: "missing" });
   assert.deepEqual(checkStreamTokenAtUpgrade("no-dot", NOW), { ok: false, reason: "malformed" });
   const [, sig] = token.split(".");
-  const forged = Buffer.from(JSON.stringify({ cid: CALL_B, exp: NOW + 600 }), "utf8").toString("base64url");
+  const forged = Buffer.from(JSON.stringify({ cid: CALL_B, exp: NOW + 120 }), "utf8").toString("base64url");
   assert.deepEqual(checkStreamTokenAtUpgrade(`${forged}.${sig}`, NOW + 1), { ok: false, reason: "bad_signature" });
   assert.deepEqual(checkStreamTokenAtUpgrade(token, NOW + STREAM_TOKEN_TTL_SECONDS), { ok: false, reason: "expired" });
 });
