@@ -60,7 +60,6 @@ const WRITES = [
 ];
 const NOT_IMPLEMENTED = [
   'after_hours.page_on_call',
-  'agreements.renewal_draft',
   'booking_requests.create',
   'campaign_messages.create',
   'compliance_reminders.send',
@@ -155,7 +154,7 @@ test('every group 00 id has a definition, and the list matches the expected 18',
   assert.deepEqual([...defById.keys()].sort(), EXPECTED_IDS);
 });
 
-test('the not_implemented set is exactly the five ids with no table or safe path', () => {
+test('the not_implemented set is exactly the four ids with no table or safe path', () => {
   assert.deepEqual([...GROUP00_NOT_IMPLEMENTED_IDS].sort(), [...NOT_IMPLEMENTED].sort());
 });
 
@@ -344,4 +343,26 @@ test('client_duplicates.list groups matches inside the caller company and return
   for (const group of result.rows) {
     assert.deepEqual(group.clients.map((c) => c.id).sort(), [ID1, ID2].sort());
   }
+});
+
+test('agreements.renewal_draft returns a proposal from the own company and writes nothing', async () => {
+  const calls = [];
+  const db = recordingDb([{ ...OWN_ROW, companyId: CO_A, status: 'active', startsOn: '2026-01-01', endsOn: '2026-12-31', priceCents: 5000 }], calls);
+  const def = defsFor(db).get('agreements.renewal_draft');
+  const out = await def.handler({ agreementId: ID1 }, context(CO_A, forbiddenDb()));
+  assert.equal(out.persisted, false);
+  assert.equal(out.found, true);
+  assert.equal(out.proposal.agreementId, ID1);
+  assert.equal(out.proposal.proposedStatus, 'draft');
+  assert.equal(out.proposal.currentEndsOn, '2026-12-31');
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].text, /company_id = \$1/);
+  assert.deepEqual(calls[0].values, [CO_A, ID1]);
+});
+
+test('agreements.renewal_draft reports not found when the agreement belongs to another company', async () => {
+  const db = recordingDb([{ ...OTHER_ROW, id: ID1, companyId: CO_B }]);
+  const def = defsFor(db).get('agreements.renewal_draft');
+  const out = await def.handler({ agreementId: ID1 }, context(CO_A, forbiddenDb()));
+  assert.deepEqual(out, { persisted: false, found: false });
 });
