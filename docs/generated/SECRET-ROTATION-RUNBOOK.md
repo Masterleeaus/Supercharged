@@ -114,3 +114,17 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST "https://<host>/api/webhooks/el
 - Whether to rotate `JWT_SECRET` as well.
 - The window for updating ElevenLabs tool configuration.
 - Update or remove the out-of-date note in `docs/DEPLOY_PACK.md` (section 3).
+
+## Appointment webhook URL-token cutover (issue #343)
+
+The legacy route `POST /api/webhooks/elevenlabs/appointment/:token/:agentId` is off by default. It answers only when `APPOINTMENT_WEBHOOK_ALLOW_URL_TOKEN` is exactly `true`. Current tools send the secret in the `X-Appointment-Webhook-Secret` header. Access logs redact the token segment of legacy paths.
+
+Owner steps, in order:
+
+1. Find tools still on the URL token. The server logs `Legacy URL-token auth used; migrate this tool to the header` for each such call. Note the agents named in those lines.
+2. Re-sync every affected agent so its book_appointment tool is rebuilt with the header. Do this for all agents, not only those in step 1.
+3. Rotate `APPOINTMENT_WEBHOOK_SECRET` on production. Any URL that carried the old secret may already sit in provider dashboards, proxy logs or earlier traces. Rotation makes those values useless. Set the new value in the environment, then re-sync (step 2) so the header carries it.
+4. Leave `APPOINTMENT_WEBHOOK_ALLOW_URL_TOKEN` unset. Set it to `true` only as a short bridge if a tool cannot be re-synced in time, and unset it again afterwards.
+5. Once the warning no longer appears, a follow-up change should remove the legacy route and the flag. This is tracked in #343.
+
+Do not paste the secret into an issue, PR, chat or CI output.

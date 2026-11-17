@@ -15,6 +15,7 @@
 import { sql } from "drizzle-orm";
 import { bigint, boolean, char, check, date, foreignKey, index, integer, jsonb, pgTable, primaryKey, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
 import { chatbotConversations, chatbots } from "../../../../shared/schema.ts";
+import type { CartLine } from "../cart/cart-types.ts";
 
 /** Constraint names the storage maps to CartError codes. Keep them in step with cart-storage.ts. */
 export const CART_CONSTRAINTS = {
@@ -126,7 +127,7 @@ export const chatbotCheckoutSessions = pgTable(
     customerId: varchar("customer_id", { length: 191 }),
     status: varchar("status", { length: 16 }).notNull().default("open"), // open | submitted | cancelled | expired
     currency: char("currency", { length: 3 }).notNull(),
-    lines: jsonb("lines").$type<Record<string, unknown>[]>().notNull().default(sql`'[]'::jsonb`),
+    lines: jsonb("lines").$type<CartLine[]>().notNull().default(sql`'[]'::jsonb`),
     subtotalMinor: bigint("subtotal_minor", { mode: "number" }).notNull().default(0),
     discountMinor: bigint("discount_minor", { mode: "number" }).notNull().default(0),
     totalMinor: bigint("total_minor", { mode: "number" }).notNull().default(0),

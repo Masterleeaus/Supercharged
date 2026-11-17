@@ -1,4 +1,4 @@
-/** Plugin-native HTTP adapter. Admin authentication is supplied by AgentLabs. */
+/** Plugin-native HTTP adapter. Admin authentication is supplied by the host platform. */
 import {previewWorkforceAction} from './proposal.mjs';
 import {previewWorkforceBatch} from './batch.mjs';
 import {WorkforceAdapterError} from './validation.mjs';

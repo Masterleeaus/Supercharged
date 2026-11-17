@@ -388,7 +388,7 @@ test('sign-in issues a native session only for a linked, active local account', 
   },
  });
  const {state} = await startLogin(flow, ctx);
- assert.deepEqual(await signIn({query: {code: 'c', state}, cookieState: state}), {ok: true, token: 'n'.repeat(64)});
+ assert.deepEqual(await signIn({query: {code: 'c', state}, cookieState: state}), {ok: true, token: 'n'.repeat(64), account: {userId: 'local-user-9', companyId: COMPANY, role: 'admin', revision: 3}});
  assert.deepEqual(issued, [['local-user-9', 'admin', COMPANY]]);
 });
 

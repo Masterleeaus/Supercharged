@@ -1,0 +1,13 @@
+{
+  "id": "google-calendar",
+  "version": "0.1.0",
+  "vendor": "Google Calendar",
+  "auth": "oauth2",
+  "entities": ["booking"],
+  "requiredScopes": ["https://www.googleapis.com/auth/calendar.events"],
+  "webhookEvents": [],
+  "configSchema": {
+    "calendarId": { "type": "string", "required": false }
+  },
+  "featureFlag": "connector_google_calendar"
+}
