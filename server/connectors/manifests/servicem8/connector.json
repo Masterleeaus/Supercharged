@@ -1,0 +1,11 @@
+{
+  "id": "servicem8",
+  "version": "0.1.0",
+  "vendor": "ServiceM8",
+  "auth": "oauth2",
+  "entities": ["contact", "job"],
+  "requiredScopes": ["read_customers", "manage_customers", "read_jobs", "manage_jobs"],
+  "webhookEvents": [],
+  "configSchema": {},
+  "featureFlag": "connector_servicem8"
+}
