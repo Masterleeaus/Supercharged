@@ -59,7 +59,7 @@ export interface InboundKeywordInput {
  * Order: suppression first, then the reply. Both steps are idempotent for the same inbound delivery.
  */
 function isOptOutKeywordChannel(channel: Channel): channel is 'sms' | 'whatsapp' | 'phone' {
-  return OPT_OUT_KEYWORD_CHANNELS.includes(channel);
+  return OPT_OUT_KEYWORD_CHANNELS.some((allowed) => allowed === channel);
 }
 
 export async function applyInboundKeyword(input: InboundKeywordInput): Promise<'none' | 'recorded' | 'failed'> {
@@ -68,7 +68,7 @@ export async function applyInboundKeyword(input: InboundKeywordInput): Promise<'
   const keyword = parseOptOutKeyword(body);
   if (!keyword.optOut && !keyword.optIn) return 'none';
 
-  const result = handleInboundOptOut({ companyId, channel: optOutChannel, from: address, body, suppression, now });
+  const result = handleInboundOptOut({ companyId, channel, from: address, body, suppression, now });
   if (result.action === 'not_changed' && result.reason !== 'not_opt_out') return 'failed';
   if (result.action === 'none' || result.action === 'not_changed') return 'none';
 

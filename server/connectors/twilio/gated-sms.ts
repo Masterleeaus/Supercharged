@@ -51,7 +51,7 @@ export function createGatedSmsSender(deps: GatedSmsDeps) {
     let reason: PreSendBlockReason | null = null;
     try {
       const decision = await deps.gate.check(check);
-      if (!decision.allowed) reason = decision.reason;
+      if (decision.allowed === false) reason = decision.reason;
     } catch {
       reason = 'gate_error';
     }
