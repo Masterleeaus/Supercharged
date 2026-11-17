@@ -286,8 +286,8 @@ function injectScript(script: AnalyticsScript, targetPlacement: "head" | "body")
   const scriptPlacements = Array.isArray(script.placement) ? script.placement : [script.placement];
   const isDualPlacement = scriptPlacements.includes("head") && scriptPlacements.includes("body");
 
-  const headCode = ((script as any).headCode || '').trim();
-  const bodyCode = ((script as any).bodyCode || '').trim();
+  const headCode = ((script as { headCode?: string; bodyCode?: string }).headCode || '').trim();
+  const bodyCode = ((script as { headCode?: string; bodyCode?: string }).bodyCode || '').trim();
   const legacyCode = (script.code || '').trim();
   const hasNewFields = headCode || bodyCode;
   

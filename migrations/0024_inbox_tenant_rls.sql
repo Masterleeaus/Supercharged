@@ -1,5 +1,5 @@
--- REVIEW CANDIDATE ONLY: not in automatic migrations. Existing schema is migrations/0010a_inbox.sql.
--- Apply only after role grants and ownership have been audited. NO production activation.
+-- Promoted from migrations/candidates/0018_inbox_tenant_rls.sql as 0024, the next free number after 0023 on main. Registered in scripts/run-safe-migration.mjs after 0023.
+-- Existing schema is migrations/0010a_inbox.sql. Requires the restricted desk_app role to exist before it runs (guard below).
 DO $guard$ BEGIN
  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='desk_app' AND NOT rolsuper AND NOT rolbypassrls) THEN
   RAISE EXCEPTION 'Inbox RLS requires restricted desk_app';

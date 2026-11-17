@@ -169,3 +169,11 @@ export type RouteFactory = (ctx: RouteContext) => Router;
 // Re-export commonly used types
 export type { AuthRequest } from "../middleware/auth";
 export type { HybridAuthRequest } from "../middleware/hybrid-auth";
+
+/** Shape of a caught error that route handlers read. Type-only, no runtime cost. */
+export interface CaughtError {
+  message?: string;
+  code?: string;
+  name?: string;
+  issues?: unknown;
+}

@@ -9,6 +9,7 @@
  * Copyright (c) Titan Zero.
  * ============================================================
  */
+import type { AppError } from "@/components/app-error";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -130,7 +131,7 @@ export default function SystemSettings() {
       const intervals = webhookIntervalsStr.split(",").map(s => parseInt(s.trim())).filter(n => !isNaN(n));
 
       // Only update settings that have actually changed
-      const changedSettings: { key: string; value: any }[] = [];
+      const changedSettings: { key: string; value: unknown }[] = [];
 
       if (formData.jwt_expiry_days !== originalData.jwt_expiry_days) {
         changedSettings.push({ key: "jwt_expiry_days", value: formData.jwt_expiry_days });
@@ -583,7 +584,8 @@ export default function SystemSettings() {
                       title: t("admin.settings.system.tools.callSyncComplete"),
                       description: t("admin.settings.system.tools.syncedCalls", { success: result.success, total: result.total }),
                     });
-                  } catch (error: any) {
+                  } catch (raw_error) {
+                    const error = raw_error as AppError;
                     toast({
                       title: t("common.error"),
                       description: error.message,
@@ -628,7 +630,8 @@ export default function SystemSettings() {
                       title: t("admin.settings.system.tools.webhookSyncComplete"),
                       description: t("admin.settings.system.tools.webhooksConfigured", { success: result.success, total: result.total }),
                     });
-                  } catch (error: any) {
+                  } catch (raw_error) {
+                    const error = raw_error as AppError;
                     toast({
                       title: t("common.error"),
                       description: error.message,

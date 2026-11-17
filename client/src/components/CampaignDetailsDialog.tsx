@@ -9,6 +9,7 @@
  * Copyright (c) Titan Zero.
  * ============================================================
  */
+import type { AppError } from "@/components/app-error";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -85,7 +86,8 @@ export function CampaignDetailsDialog({ campaign, open, onOpenChange }: Campaign
       toast({ title: "Contacts uploaded successfully!" });
       setCsvFile(null);
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: "Failed to upload contacts",
         description: error.message || "Please try again",
@@ -108,7 +110,8 @@ export function CampaignDetailsDialog({ campaign, open, onOpenChange }: Campaign
       });
       setTestPhoneNumber("");
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: "Failed to initiate test call",
         description: error.message || "Please try again",

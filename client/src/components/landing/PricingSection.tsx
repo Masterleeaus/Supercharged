@@ -45,7 +45,7 @@ interface Plan {
   includedCredits: number;
   canChooseLlm: boolean;
   canPurchaseNumbers: boolean;
-  features: any;
+  features: unknown;
   sipEnabled?: boolean;
   restApiEnabled?: boolean;
 }
@@ -357,7 +357,7 @@ export function PricingSection() {
               // First paid plan (index 1 if free exists, or index 0 if no free plan) is highlighted
               const isHighlighted = !isFree && (sortedPlans[0]?.name === 'free' ? index === 1 : index === 0);
               const price = getPrice(plan);
-              const maxWidgets = (plan as any).maxWidgets ?? 1;
+              const maxWidgets = (plan as { maxWidgets?: number }).maxWidgets ?? 1;
               
               return (
                 <motion.div

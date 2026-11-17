@@ -10,6 +10,8 @@
  * ============================================================
  */
 'use strict';
+import { assertNoVoltOpsKeys } from "./integrations/voltagent/guard";
+assertNoVoltOpsKeys();
 import express, { type Request, Response, NextFunction } from "express";
 import path from "path";
 import cookieParser from "cookie-parser";

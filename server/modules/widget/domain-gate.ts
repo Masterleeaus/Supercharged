@@ -12,9 +12,13 @@ export function widgetRequestDomain(headers: WidgetRequestHeaders): string {
   const origin = headers.origin || headers.referer || '';
   try {
     const url = new URL(origin);
-    return url.hostname;
+    // Browsers send scheme-qualified Origin/Referer values. Never treat
+    // "null", arbitrary host text, a file URL or malformed data as an origin.
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') return '';
+    if (url.username || url.password) return '';
+    return url.hostname.toLowerCase();
   } catch {
-    return origin.replace(/^https?:\/\//, '').split('/')[0];
+    return '';
   }
 }
 

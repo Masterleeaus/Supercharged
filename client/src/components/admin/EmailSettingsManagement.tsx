@@ -9,7 +9,8 @@
  * Copyright (c) Titan Zero.
  * ============================================================
  */
-import { useState } from "react";
+import type { AppError } from "@/components/app-error";
+import { useState, type ComponentProps } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -212,7 +213,7 @@ export default function EmailSettingsManagement() {
   }
 
   if (error) {
-    const errorData = (error as any)?.response?.data;
+    const errorData = (error as AppError)?.response?.data;
     let errorMessage = t("adminDashboard.emailSettings.errors.loadFailed");
     
     if (errorData?.code === 'DATABASE_CONNECTION_ERROR') {
@@ -393,7 +394,7 @@ export default function EmailSettingsManagement() {
       <EmailTemplateEditor
         isOpen={showTemplateEditor}
         onClose={() => setShowTemplateEditor(false)}
-        template={editingTemplate as any}
+        template={editingTemplate as unknown as ComponentProps<typeof EmailTemplateEditor>["template"]}
         onSave={() => {}}
         templateType={editingTemplateType}
       />

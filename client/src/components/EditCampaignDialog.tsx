@@ -9,6 +9,7 @@
  * Copyright (c) Titan Zero.
  * ============================================================
  */
+import type { AppError } from "@/components/app-error";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -224,7 +225,8 @@ export function EditCampaignDialog({ open, onOpenChange, campaign }: EditCampaig
       toast({ title: t("campaigns.toast.updatedSuccess") });
       onOpenChange(false);
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("campaigns.toast.updateFailed"),
         description: error.message || t("common.tryAgain"),

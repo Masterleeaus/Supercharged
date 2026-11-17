@@ -29,7 +29,7 @@ COMMS flags are NO-GO. Per docs/records/COMMS-FLAGS-GO-LIVE-REVIEW.md, both `COM
 - [untested] desk-modes: LIVE as a guard. deskModeMiddleware is in the campaign chain at workforce-comms-routes.ts:105 and in the inbox and marketing chain at server/routes/core/optional-comms-routes.ts:25. Always on, no flag. The claim that an unknown host gets 404 (modules/desk-modes/mode-middleware.ts) is [untested]. The campaign chain uses DEFAULT_MODE_CONFIG from server/routes/cockpit-routes.ts; its contents are [untested].
 - [verified] inbox: MOUNTED, FAIL-CLOSED, under /api/comms/inbox. It is off unless COMMS_INBOX_ENABLED is exactly `true` (server/routes/core/verified-marketing-routes.ts:33, optional-comms-routes.ts:18). The chain is: server/routes.ts:200 calls registerWorkforceCommsRoutes, which calls registerVerifiedCommsRoutes at workforce-comms-routes.ts:64. With the flag on, verified-marketing-routes.ts:46 builds the SQL inbox service and checks the schema first. optional-comms-routes.ts:34 then mounts the router behind deskModeMiddleware, authenticate, requireCompanyScope and an actor check. With the flag off, no inbox service is built and nothing mounts.
   - [verified] The readiness check requires row-level security to be ENABLED and FORCED on the inbox tables (server/modules/inbox/schema-readiness.ts:28). Startup should throw if it is not (production-service.ts:26). The throw itself is [untested].
-  - [verified] The schema is not promoted. DRAFT_inbox.sql is in migrations/archive/. The RLS and outbox candidates are migrations/candidates/0018_inbox_tenant_rls.sql, 0019_inbox_outbox.sql, 0020_inbox_delivery_receipts.sql and 0021_inbox_delivery_state.sql.
+  - [verified] The schema is not promoted. DRAFT_inbox.sql is in migrations/archive/. The RLS migration is now migrations/0024_inbox_tenant_rls.sql (promoted from candidates/0018). The outbox and delivery candidates are 0019_inbox_outbox.sql, 0020_inbox_delivery_receipts.sql and 0021_inbox_delivery_state.sql.
   - [untested] Staff sends bypass the suppression, consent, opt-out and quiet-hours checks, and no outbound transport is wired. These are blockers in the NO-GO review. Which of migrations/0011_inbox_channels_and_providers.sql and the DRAFT inbox tables is live is UNVERIFIED.
   - Decision: NO-GO. Keep the flag off.
 - [verified] marketing: MOUNTED, FAIL-CLOSED, under /api/comms/marketing. It is off unless COMMS_MARKETING_ENABLED is exactly `true` (verified-marketing-routes.ts:32). The chain is the same as inbox. verified-marketing-routes.ts:38 builds the marketing service only with the flag on, and production-service.ts:22 checks the schema. The service needs a campaign reference adapter (production-service.ts:18). Without a real one, verified-marketing-routes.ts:43 passes `unavailableCampaignReferences()`, so campaign links are refused. optional-comms-routes.ts:36 mounts the router.
@@ -135,3 +135,12 @@ Each item below is in TODO_CHECKLIST.md unless marked NEW. The checklist is at /
 - [untested] The 871-test figure, and which tests fail. No test run was done for this bundle. A4 ran three campaign test files in a scratch copy only (50 of 50 passed). The comms mount tests (tests/integration/optional-comms-mount.test.mjs and related) were not run.
 - [untested] TypeScript: tsc was not run and node_modules is absent, so type correctness is UNVERIFIED.
 - [untested] Whether the A9 flag plan or the A1 delete patch has been applied to the live code. The checklist says neither has been.
+
+## VoltAgent integration (branch voltagent/integration)
+
+Date: 18 November 2026. Phase 0 only. Nothing is mounted and no flag is on.
+
+- [verified] Foundation pins added: seven @voltagent packages at exact versions, npm install run clean. Node engine set to >=22.13.0. One side effect: transitive @opentelemetry/api moved 1.10.0 to 1.9.1 (see the fixes checklist).
+- [verified] VoltOps guard: assertNoVoltOpsKeys throws if VOLTAGENT_PUBLIC_KEY or VOLTAGENT_SECRET_KEY is set. Wired as the first call in server/index.ts. Boot itself was not run, so the wiring is [untested] at boot.
+- [verified] Flag scaffold: nine VOLTAGENT_* flags, all OFF by default, nothing mounted. Tests pass.
+- [verified] Licence gate: scripts/check-voltagent-licence.mjs, run as npm run check:licence. Passes with no /ee/ paths and no @mastra imports.

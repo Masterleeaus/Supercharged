@@ -9,6 +9,7 @@
  * Copyright (c) Titan Zero.
  * ============================================================
  */
+import type { AppError } from "@/components/app-error";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -137,7 +138,8 @@ export default function PromptTemplatesLibrary({ onSelectTemplate, mode = 'brows
       setCreateDialogOpen(false);
       toast({ title: "Template created successfully" });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({ title: "Failed to create template", description: error.message, variant: "destructive" });
     }
   });
@@ -152,7 +154,8 @@ export default function PromptTemplatesLibrary({ onSelectTemplate, mode = 'brows
       setEditingTemplate(null);
       toast({ title: "Template updated successfully" });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({ title: "Failed to update template", description: error.message, variant: "destructive" });
     }
   });
@@ -168,7 +171,8 @@ export default function PromptTemplatesLibrary({ onSelectTemplate, mode = 'brows
       setTemplateToDelete(null);
       toast({ title: "Template deleted successfully" });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({ title: "Failed to delete template", description: error.message, variant: "destructive" });
     }
   });
@@ -189,7 +193,7 @@ export default function PromptTemplatesLibrary({ onSelectTemplate, mode = 'brows
       const res = await apiRequest('POST', `/api/prompt-templates/${id}/use`, { variableValues });
       return res.json();
     },
-    onSuccess: (data: any) => {
+    onSuccess: (data: { systemPrompt: string; firstMessage?: string | null; suggestedVoiceTone?: string; suggestedPersonality?: string }) => {
       queryClient.invalidateQueries({ queryKey: ['/api/prompt-templates'] });
       if (onSelectTemplate) {
         onSelectTemplate({
@@ -204,7 +208,8 @@ export default function PromptTemplatesLibrary({ onSelectTemplate, mode = 'brows
       setVariableValues({});
       toast({ title: "Template applied successfully" });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({ title: "Failed to apply template", description: error.message, variant: "destructive" });
     }
   });

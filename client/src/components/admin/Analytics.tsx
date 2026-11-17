@@ -523,7 +523,7 @@ export default function Analytics() {
                   className="fill-muted-foreground"
                 />
                 <Tooltip
-                  formatter={(value: any) => [`${value.toFixed(1)}%`, ""]}
+                  formatter={(value) => [`${Number(value).toFixed(1)}%`, ""]}
                   contentStyle={{
                     backgroundColor: 'hsl(var(--card))',
                     border: '1px solid hsl(var(--border))',

@@ -33,6 +33,32 @@ import {
 } from "@/components/ui/select";
 import { Plus, X } from "lucide-react";
 import { GoogleSheetsPicker } from "@/components/GoogleSheetsPicker";
+/**
+ * Saved configuration of one flow node. Keys the node editors read are typed.
+ * Any other key stays unknown and must be narrowed before use.
+ */
+export interface FlowNodeConfig {
+  message?: string;
+  waitForResponse?: boolean;
+  question?: string;
+  variableName?: string;
+  conditions?: Condition[];
+  transferNumber?: string;
+  seconds?: number;
+  confirmMessage?: string;
+  serviceName?: string;
+  duration?: number;
+  googleSheetId?: string;
+  googleSheetName?: string;
+  googleSheetTitle?: string;
+  formId?: string;
+  url?: string;
+  method?: "POST" | "PUT" | "PATCH";
+  headers?: unknown;
+  payload?: unknown;
+  [key: string]: unknown;
+}
+
 
 // ============================================
 // MESSAGE NODE CONFIG MODAL
@@ -40,8 +66,8 @@ import { GoogleSheetsPicker } from "@/components/GoogleSheetsPicker";
 interface MessageNodeConfigProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (config: any) => void;
-  initialConfig?: any;
+  onSave: (config: FlowNodeConfig) => void;
+  initialConfig?: FlowNodeConfig;
 }
 
 export function MessageNodeConfigModal({
@@ -133,8 +159,8 @@ export function MessageNodeConfigModal({
 interface QuestionNodeConfigProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (config: any) => void;
-  initialConfig?: any;
+  onSave: (config: FlowNodeConfig) => void;
+  initialConfig?: FlowNodeConfig;
 }
 
 export function QuestionNodeConfigModal({
@@ -253,8 +279,8 @@ interface Condition {
 interface ConditionNodeConfigProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (config: any) => void;
-  initialConfig?: any;
+  onSave: (config: FlowNodeConfig) => void;
+  initialConfig?: FlowNodeConfig;
 }
 
 export function ConditionNodeConfigModal({
@@ -434,8 +460,8 @@ export function ConditionNodeConfigModal({
 interface TransferNodeConfigProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (config: any) => void;
-  initialConfig?: any;
+  onSave: (config: FlowNodeConfig) => void;
+  initialConfig?: FlowNodeConfig;
 }
 
 export function TransferNodeConfigModal({
@@ -528,8 +554,8 @@ export function TransferNodeConfigModal({
 interface DelayNodeConfigProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (config: any) => void;
-  initialConfig?: any;
+  onSave: (config: FlowNodeConfig) => void;
+  initialConfig?: FlowNodeConfig;
 }
 
 export function DelayNodeConfigModal({
@@ -625,8 +651,8 @@ export function DelayNodeConfigModal({
 interface AppointmentNodeConfigProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (config: any) => void;
-  initialConfig?: any;
+  onSave: (config: FlowNodeConfig) => void;
+  initialConfig?: FlowNodeConfig;
 }
 
 export function AppointmentNodeConfigModal({
@@ -825,8 +851,8 @@ export function AppointmentNodeConfigModal({
 interface FormNodeConfigProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (config: any) => void;
-  initialConfig?: any;
+  onSave: (config: FlowNodeConfig) => void;
+  initialConfig?: FlowNodeConfig;
 }
 
 export function FormNodeConfigModal({
@@ -996,8 +1022,8 @@ export function FormNodeConfigModal({
 interface WebhookNodeConfigProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (config: any) => void;
-  initialConfig?: any;
+  onSave: (config: FlowNodeConfig) => void;
+  initialConfig?: FlowNodeConfig;
 }
 
 export function WebhookNodeConfigModal({
@@ -1074,7 +1100,7 @@ export function WebhookNodeConfigModal({
     }
 
     // Validate payload JSON
-    let parsedPayload: Record<string, any> = {};
+    let parsedPayload: Record<string, unknown> = {};
     try {
       parsedPayload = JSON.parse(payloadJson);
       if (typeof parsedPayload !== 'object' || Array.isArray(parsedPayload)) {
@@ -1150,7 +1176,7 @@ export function WebhookNodeConfigModal({
 
           <div>
             <Label htmlFor="method">HTTP Method</Label>
-            <Select value={method} onValueChange={(value: any) => setMethod(value)}>
+            <Select value={method} onValueChange={(value: string) => setMethod(value as "POST" | "PUT" | "PATCH")}>
               <SelectTrigger data-testid="select-method">
                 <SelectValue />
               </SelectTrigger>
@@ -1242,8 +1268,8 @@ export function WebhookNodeConfigModal({
 interface EndNodeConfigProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (config: any) => void;
-  initialConfig?: any;
+  onSave: (config: FlowNodeConfig) => void;
+  initialConfig?: FlowNodeConfig;
 }
 
 export function EndNodeConfigModal({

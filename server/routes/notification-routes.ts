@@ -1,3 +1,4 @@
+import type { CaughtError } from './common';
 'use strict';
 /**
  * ============================================================
@@ -25,7 +26,7 @@ export function createNotificationRoutes(ctx: RouteContext): Router {
       const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 50;
       const notifications = await storage.getUserNotifications(req.userId!, limit);
       res.json(notifications);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Get notifications error:", error);
       res.status(500).json({ error: "Failed to get notifications" });
     }
@@ -36,7 +37,7 @@ export function createNotificationRoutes(ctx: RouteContext): Router {
     try {
       const count = await storage.getUnreadNotificationCount(req.userId!);
       res.json({ count });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Get unread count error:", error);
       res.status(500).json({ error: "Failed to get unread count" });
     }
@@ -47,7 +48,7 @@ export function createNotificationRoutes(ctx: RouteContext): Router {
     try {
       const notifications = await storage.getBannerNotifications(req.userId!);
       res.json(notifications);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Get banner notifications error:", error);
       res.status(500).json({ error: "Failed to get banner notifications" });
     }
@@ -63,7 +64,7 @@ export function createNotificationRoutes(ctx: RouteContext): Router {
 
       await storage.markNotificationAsRead(req.params.id);
       res.json({ success: true });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Mark notification as read error:", error);
       res.status(500).json({ error: "Failed to mark notification as read" });
     }
@@ -74,7 +75,7 @@ export function createNotificationRoutes(ctx: RouteContext): Router {
     try {
       await storage.markAllNotificationsAsRead(req.userId!);
       res.json({ success: true });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Mark all notifications as read error:", error);
       res.status(500).json({ error: "Failed to mark all notifications as read" });
     }
@@ -90,7 +91,7 @@ export function createNotificationRoutes(ctx: RouteContext): Router {
 
       await storage.dismissNotification(req.params.id);
       res.json({ success: true });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Dismiss notification error:", error);
       res.status(500).json({ error: "Failed to dismiss notification" });
     }
@@ -106,7 +107,7 @@ export function createNotificationRoutes(ctx: RouteContext): Router {
 
       await storage.deleteNotification(req.params.id);
       res.json({ success: true });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Delete notification error:", error);
       res.status(500).json({ error: "Failed to delete notification" });
     }
@@ -177,7 +178,7 @@ export function createNotificationRoutes(ctx: RouteContext): Router {
         recipientCount: notifications.length,
         message: `Broadcast sent to ${notifications.length} users` 
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Broadcast notification error:", error);
       res.status(500).json({ error: "Failed to send broadcast notification" });
     }

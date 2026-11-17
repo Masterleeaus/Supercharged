@@ -9,6 +9,7 @@
  * Copyright (c) Titan Zero.
  * ============================================================
  */
+import type { AdminPaymentSettings } from "@/components/admin/payments-settings/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,21 +27,21 @@ import { ConnectionStatus } from "@/components/admin/payments-settings/shared";
 
 export interface RazorpaySettingsTabProps {
   t: TFunction<"translation", undefined>;
-  isRazorpayConfigured: any;
+  isRazorpayConfigured: boolean | undefined;
   razorpayConnectionStatus: ConnectionStatus;
-  settings: any;
+  settings: AdminPaymentSettings | undefined;
   razorpayFormData: { razorpay_key_id: string; razorpay_key_secret: string; razorpay_webhook_secret: string; razorpay_mode: string; };
   handleRazorpayChange: (key: "razorpay_key_id" | "razorpay_key_secret" | "razorpay_webhook_secret" | "razorpay_mode", value: string) => void;
   showRazorpayKeySecret: boolean;
   setShowRazorpayKeySecret: Dispatch<SetStateAction<boolean>>;
   showRazorpayWebhookSecret: boolean;
   setShowRazorpayWebhookSecret: Dispatch<SetStateAction<boolean>>;
-  testRazorpayWebhookMutation: UseMutationResult<any, any, void, unknown>;
+  testRazorpayWebhookMutation: UseMutationResult<unknown, Error, void, unknown>;
   toast: ReturnType<typeof useToast>["toast"];
-  testRazorpayConnectionMutation: UseMutationResult<any, any, void, unknown>;
+  testRazorpayConnectionMutation: UseMutationResult<unknown, Error, void, unknown>;
   saveRazorpaySettings: () => Promise<void>;
   hasRazorpayChanges: boolean;
-  updateSettingMutation: UseMutationResult<{ key: string; data: any; }, any, { key: string; value: any; }, unknown>;
+  updateSettingMutation: UseMutationResult<{ key: string; data: unknown; }, Error, { key: string; value: unknown; }, unknown>;
 }
 
 export function RazorpaySettingsTab({ t, isRazorpayConfigured, razorpayConnectionStatus, settings, razorpayFormData, handleRazorpayChange, showRazorpayKeySecret, setShowRazorpayKeySecret, showRazorpayWebhookSecret, setShowRazorpayWebhookSecret, testRazorpayWebhookMutation, toast, testRazorpayConnectionMutation, saveRazorpaySettings, hasRazorpayChanges, updateSettingMutation }: RazorpaySettingsTabProps) {

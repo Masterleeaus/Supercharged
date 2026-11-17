@@ -6,6 +6,7 @@
  * and manually add custom phone numbers linked to those gateways.
  */
 
+import type { AppError } from "@/components/app-error";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -161,7 +162,8 @@ export default function UserSipGatewaysTab() {
           : "Your new Custom Voice Engine gateway has been added.",
       });
     },
-    onError: (err: any) => {
+    onError: (raw_err: Error) => {
+      const err = raw_err as AppError;
       toast({ title: "Error", description: err.message || "Failed to save gateway", variant: "destructive" });
     },
   });
@@ -177,7 +179,8 @@ export default function UserSipGatewaysTab() {
       setGatewayDeleteTarget(null);
       toast({ title: "Gateway deleted" });
     },
-    onError: (err: any) => {
+    onError: (raw_err: Error) => {
+      const err = raw_err as AppError;
       toast({ title: "Error", description: err.message, variant: "destructive" });
     },
   });
@@ -191,7 +194,8 @@ export default function UserSipGatewaysTab() {
       queryClient.invalidateQueries({ queryKey: ["/api/user/sip-gateways"] });
       toast({ title: "Gateway activated", description: "This gateway is now your active Custom Voice Engine gateway." });
     },
-    onError: (err: any) => {
+    onError: (raw_err: Error) => {
+      const err = raw_err as AppError;
       toast({ title: "Error", description: err.message, variant: "destructive" });
     },
   });
@@ -231,7 +235,8 @@ export default function UserSipGatewaysTab() {
           : "Your phone number has been imported.",
       });
     },
-    onError: (err: any) => {
+    onError: (raw_err: Error) => {
+      const err = raw_err as AppError;
       toast({ title: "Error", description: err.message || "Failed to save phone number", variant: "destructive" });
     },
   });
@@ -246,7 +251,8 @@ export default function UserSipGatewaysTab() {
       setPhoneDeleteTarget(null);
       toast({ title: "Phone number removed" });
     },
-    onError: (err: any) => {
+    onError: (raw_err: Error) => {
+      const err = raw_err as AppError;
       toast({ title: "Error", description: err.message, variant: "destructive" });
     },
   });

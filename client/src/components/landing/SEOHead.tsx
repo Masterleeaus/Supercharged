@@ -405,7 +405,7 @@ export function SEOHead({
         'Discontinued': 'https://schema.org/Discontinued'
       };
       
-      const productSchema: Record<string, any> = {
+      const productSchema: Record<string, unknown> = {
         "@context": "https://schema.org",
         "@type": "Product",
         name: structuredDataProduct.name
@@ -432,7 +432,7 @@ export function SEOHead({
       
       // Add offers with price and availability
       if (structuredDataProduct.price || structuredDataProduct.availability) {
-        const offers: Record<string, any> = {
+        const offers: Record<string, unknown> = {
           "@type": "Offer"
         };
         if (structuredDataProduct.price) {

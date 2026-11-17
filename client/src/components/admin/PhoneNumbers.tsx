@@ -9,6 +9,7 @@
  * Copyright (c) Titan Zero.
  * ============================================================
  */
+import type { AppError } from "@/components/app-error";
 import { useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -178,7 +179,8 @@ export default function PhoneNumbers() {
 
       setAssignDialogOpen(false);
       setSelectedPhone(null);
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: t("common.error"),
         description: error.message || t("adminDashboard.phoneNumbers.toasts.assignFailed"),
@@ -233,7 +235,8 @@ export default function PhoneNumbers() {
           description: result.message || t("adminDashboard.phoneNumbers.toasts.alreadySyncedDesc"),
         });
       }
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: t("common.error"),
         description: error.message || t("adminDashboard.phoneNumbers.toasts.syncError"),
@@ -281,7 +284,8 @@ export default function PhoneNumbers() {
           description: result.message || t("adminDashboard.phoneNumbers.toasts.noNumbersDesc"),
         });
       }
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: t("common.error"),
         description: error.message || t("adminDashboard.phoneNumbers.toasts.cleanupFailed"),
@@ -319,7 +323,8 @@ export default function PhoneNumbers() {
           description: result.message || t("adminDashboard.phoneNumbers.toasts.noNumbersDesc"),
         });
       }
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: t("common.error"),
         description: error.message || t("adminDashboard.phoneNumbers.toasts.clearSyncFailed"),
@@ -340,7 +345,8 @@ export default function PhoneNumbers() {
         title: t("adminDashboard.phoneNumbers.toasts.reactivated"),
         description: result.message || t("adminDashboard.phoneNumbers.toasts.reactivatedDesc", { number: phone.phoneNumber }),
       });
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       // Try to extract the full descriptive message from the server JSON body
       let description = t("adminDashboard.phoneNumbers.toasts.reactivateFailed");
       const data = error?.data || error?.response?.data;
@@ -386,7 +392,8 @@ export default function PhoneNumbers() {
           description: result.message || t("adminDashboard.phoneNumbers.toasts.credentialsResyncedDesc", { count: result.synced }),
         });
       }
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: t("common.error"),
         description: error.message || t("adminDashboard.phoneNumbers.toasts.resyncError"),
@@ -407,8 +414,8 @@ export default function PhoneNumbers() {
 
   const systemPoolNumbers = phoneNumbers?.filter(p => p.isSystemPool) || [];
   const userNumbers = phoneNumbers?.filter(p => !p.isSystemPool) || [];
-  const totalPurchaseCost = systemPoolNumbers.reduce((sum, p) => sum + (parseFloat(p.purchasePrice as any) || 0), 0);
-  const totalMonthlyCost = systemPoolNumbers.reduce((sum, p) => sum + (parseFloat(p.monthlyPrice as any) || 0), 0);
+  const totalPurchaseCost = systemPoolNumbers.reduce((sum, p) => sum + (parseFloat(String(p.purchasePrice)) || 0), 0);
+  const totalMonthlyCost = systemPoolNumbers.reduce((sum, p) => sum + (parseFloat(String(p.monthlyPrice)) || 0), 0);
 
   return (
     <div className="space-y-6">
@@ -716,8 +723,8 @@ export default function PhoneNumbers() {
                       <TableCell>
                         <Badge variant="secondary">{t("adminDashboard.phoneNumbers.systemPool")}</Badge>
                       </TableCell>
-                      <TableCell>${phone.purchasePrice ? parseFloat(phone.purchasePrice as any).toFixed(2) : "0.00"}</TableCell>
-                      <TableCell>${phone.monthlyPrice ? parseFloat(phone.monthlyPrice as any).toFixed(2) : "0.00"}</TableCell>
+                      <TableCell>${phone.purchasePrice ? parseFloat(String(phone.purchasePrice)).toFixed(2) : "0.00"}</TableCell>
+                      <TableCell>${phone.monthlyPrice ? parseFloat(String(phone.monthlyPrice)).toFixed(2) : "0.00"}</TableCell>
                       <TableCell>
                         {format(new Date(phone.createdAt), "MMM d, yyyy")}
                       </TableCell>
@@ -790,8 +797,8 @@ export default function PhoneNumbers() {
                       <TableCell>
                         <Badge variant="outline">{phone.userEmail || t("common.unknown")}</Badge>
                       </TableCell>
-                      <TableCell>${phone.purchasePrice ? parseFloat(phone.purchasePrice as any).toFixed(2) : "0.00"}</TableCell>
-                      <TableCell>${phone.monthlyPrice ? parseFloat(phone.monthlyPrice as any).toFixed(2) : "0.00"}</TableCell>
+                      <TableCell>${phone.purchasePrice ? parseFloat(String(phone.purchasePrice)).toFixed(2) : "0.00"}</TableCell>
+                      <TableCell>${phone.monthlyPrice ? parseFloat(String(phone.monthlyPrice)).toFixed(2) : "0.00"}</TableCell>
                       <TableCell>
                         {format(new Date(phone.createdAt), "MMM d, yyyy")}
                       </TableCell>

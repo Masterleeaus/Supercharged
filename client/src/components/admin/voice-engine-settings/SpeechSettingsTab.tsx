@@ -15,7 +15,7 @@ import { ProviderSettings, ProviderKeyCard } from "@/components/admin/voice-engi
 
 export interface SpeechSettingsTabProps {
   settings: ProviderSettings;
-  updateMutation: UseMutationResult<any, any, Record<string, any>, unknown>;
+  updateMutation: UseMutationResult<unknown, Error, Record<string, unknown>, unknown>;
   testProvider: (provider: string) => Promise<void>;
   testingProvider: string;
   testResults: Record<string, { connected: boolean; details: string; }>;
@@ -277,7 +277,7 @@ export function SpeechSettingsTab({ settings, updateMutation, testProvider, test
                       ? (settings.tts.deepgramAllowedModels || ['aura-2', 'aura'])
                       : provider === 'sarvam'
                         ? (settings.tts.sarvamAllowedModels || ['bulbul:v3', 'bulbul:v2'])
-                        : ((settings.tts as any).elevenlabsAllowedModels || ['eleven_turbo_v2_5', 'eleven_turbo_v2']);
+                        : ((settings.tts as { elevenlabsAllowedModels?: string[] }).elevenlabsAllowedModels || ['eleven_turbo_v2_5', 'eleven_turbo_v2']);
 
                     const allowedModels = isDeepgram
                       ? Array.from(new Set(allowedModelsRaw.map((x: string) => x.startsWith('aura-2') ? 'aura-2' : 'aura')))
@@ -299,7 +299,7 @@ export function SpeechSettingsTab({ settings, updateMutation, testProvider, test
                         <div className="space-y-2">
                           <Label>Default Voice Model ({provider === 'deepgram' ? 'Deepgram' : provider === 'sarvam' ? 'Sarvam' : 'ElevenLabs'})</Label>
                           <Select
-                            value={provider === 'deepgram' ? getModelValue(settings.tts.deepgramModel || "") : provider === 'sarvam' ? (settings.tts.sarvamModel || "") : ((settings.tts as any).elevenlabsModel || "")}
+                            value={provider === 'deepgram' ? getModelValue(settings.tts.deepgramModel || "") : provider === 'sarvam' ? (settings.tts.sarvamModel || "") : ((settings.tts as { elevenlabsModel?: string }).elevenlabsModel || "")}
                             onValueChange={(v) => updateMutation.mutate(provider === 'deepgram' ? { ttsDeepgramModel: v } : provider === 'sarvam' ? { ttsSarvamModel: v } : { ttsElevenlabsModel: v })}>
                             <SelectTrigger className="w-full"><SelectValue placeholder="Select a voice model" /></SelectTrigger>
                             <SelectContent>

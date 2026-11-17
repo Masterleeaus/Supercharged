@@ -24,8 +24,8 @@ export interface PlanMigrationDialogProps {
   setMigrationState: Dispatch<SetStateAction<MigrationState>>;
   t: TFunction<"translation", undefined>;
   plans: Plan[];
-  migrateUsers: UseMutationResult<any, any, { planId: string; targetPlanId: string; }, unknown>;
-  deletePlan: UseMutationResult<any, any, string, unknown>;
+  migrateUsers: UseMutationResult<unknown, Error, { planId: string; targetPlanId: string; }, unknown>;
+  deletePlan: UseMutationResult<unknown, Error, string, unknown>;
 }
 
 export function PlanMigrationDialog({ migrationState, setMigrationState, t, plans, migrateUsers, deletePlan }: PlanMigrationDialogProps) {

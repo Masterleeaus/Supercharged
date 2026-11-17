@@ -9,6 +9,7 @@
  * Copyright (c) Titan Zero.
  * ============================================================
  */
+import type { AdminPaymentSettings } from "@/components/admin/payments-settings/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,9 +28,9 @@ import { ConnectionStatus, CURRENCIES } from "@/components/admin/payments-settin
 
 export interface StripeSettingsTabProps {
   t: TFunction<"translation", undefined>;
-  isStripeConfigured: any;
+  isStripeConfigured: boolean | undefined;
   stripeConnectionStatus: ConnectionStatus;
-  settings: any;
+  settings: AdminPaymentSettings | undefined;
   showStripeSecretKey: boolean;
   stripeFormData: { stripe_secret_key: string; stripe_publishable_key: string; stripe_webhook_secret: string; stripe_currency: string; stripe_mode: string; };
   handleStripeChange: (key: "stripe_secret_key" | "stripe_publishable_key" | "stripe_webhook_secret" | "stripe_currency" | "stripe_mode", value: string) => void;
@@ -39,12 +40,12 @@ export interface StripeSettingsTabProps {
   stripeCurrencyLocked: boolean;
   showLockConfirmDialog: boolean;
   setShowLockConfirmDialog: Dispatch<SetStateAction<boolean>>;
-  lockCurrencyMutation: UseMutationResult<void, any, void, unknown>;
+  lockCurrencyMutation: UseMutationResult<void, Error, void, unknown>;
   toast: ReturnType<typeof useToast>["toast"];
-  testStripeConnectionMutation: UseMutationResult<any, any, void, unknown>;
+  testStripeConnectionMutation: UseMutationResult<unknown, Error, void, unknown>;
   saveStripeSettings: () => Promise<void>;
   hasStripeChanges: boolean;
-  updateSettingMutation: UseMutationResult<{ key: string; data: any; }, any, { key: string; value: any; }, unknown>;
+  updateSettingMutation: UseMutationResult<{ key: string; data: unknown; }, Error, { key: string; value: unknown; }, unknown>;
 }
 
 export function StripeSettingsTab({ t, isStripeConfigured, stripeConnectionStatus, settings, showStripeSecretKey, stripeFormData, handleStripeChange, setShowStripeSecretKey, showStripeWebhookSecret, setShowStripeWebhookSecret, stripeCurrencyLocked, showLockConfirmDialog, setShowLockConfirmDialog, lockCurrencyMutation, toast, testStripeConnectionMutation, saveStripeSettings, hasStripeChanges, updateSettingMutation }: StripeSettingsTabProps) {

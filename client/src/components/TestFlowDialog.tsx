@@ -9,6 +9,7 @@
  * Copyright (c) Titan Zero.
  * ============================================================
  */
+import type { AppError } from "@/components/app-error";
 import { useState, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -40,7 +41,21 @@ type QueueStatus = {
   message?: string;
 };
 
-const getCallProgress = (status: string, metadata?: any) => {
+/** Call record polled while a test call is in progress. */
+interface CallDetailsResponse {
+  id?: string;
+  status?: string;
+  recordingUrl?: string;
+  duration?: number | null;
+  errorMessage?: string | null;
+  user?: unknown;
+  transcript?: unknown;
+  aiSummary?: string | null;
+  metadata?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+const getCallProgress = (status: string, metadata?: Record<string, unknown>) => {
   const terminationReason = metadata?.terminationReason || metadata?.termination_reason || metadata?.failureReason;
   const isUserHangup = terminationReason === 'user_hung_up' || terminationReason === 'user hung up';
 
@@ -96,11 +111,11 @@ export function TestFlowDialog({ open, onOpenChange, flowId, flowName }: TestFlo
   const [conflictDialog, setConflictDialog] = useState<PhoneConflictState>(initialPhoneConflictState);
 
   // Poll call status (active only once call is placed)
-  const { data: callDetails } = useQuery<any>({
+  const { data: callDetails } = useQuery<CallDetailsResponse>({
     queryKey: ["/api/calls", testCallId],
     enabled: !!testCallId,
     refetchInterval: (query) => {
-      const data = query.state.data as any;
+      const data = query.state.data;
       const status = data?.status;
 
       // If completed but missing AI summary or transcript, keep polling for a few more seconds
@@ -153,7 +168,7 @@ export function TestFlowDialog({ open, onOpenChange, flowId, flowName }: TestFlo
       });
       return res.json();
     },
-    onSuccess: (data: any) => {
+    onSuccess: (data: { queued?: boolean; queueEntryId?: string; callId?: string; warning?: { message?: string }; note?: string; message?: string }) => {
       if (data.queued === true) {
         // Added to queue — server will place call when a phone frees up
         setQueueEntryId(data.queueEntryId);
@@ -174,7 +189,8 @@ export function TestFlowDialog({ open, onOpenChange, flowId, flowName }: TestFlo
           : "Your test call has been started. Check the Calls page to see the results.",
       });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       if (error.status === 409 || error.conflictType) {
         setConflictDialog({
           isOpen: true,
@@ -349,7 +365,7 @@ export function TestFlowDialog({ open, onOpenChange, flowId, flowName }: TestFlo
 
                   // Extract diagnostic information for failures
                   const metadata = callDetails?.metadata || {};
-                  const errorDetail = metadata.error || metadata.terminationReason || metadata.failureReason || callDetails?.errorMessage;
+                  const errorDetail = (metadata.error || metadata.terminationReason || metadata.failureReason || callDetails?.errorMessage) as string | undefined;
                   const hasAiSummary = !!callDetails?.aiSummary;
                   const hasTranscript = !!callDetails?.transcript;
 

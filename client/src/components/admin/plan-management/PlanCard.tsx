@@ -30,12 +30,12 @@ export interface PlanCardProps {
   isEditing: boolean;
   stripeCurrency: string;
   formData: Partial<Plan>;
-  updateField: (planId: string, field: keyof Plan, value: any) => void;
+  updateField: (planId: string, field: keyof Plan, value: unknown) => void;
   t: TFunction<"translation", undefined>;
   sipPluginInstalled: boolean;
   restApiPluginInstalled: boolean;
   handleSave: (planId: string) => void;
-  updatePlan: UseMutationResult<Response, any, { planId: string; updates: Partial<Plan>; }, unknown>;
+  updatePlan: UseMutationResult<Response, Error, { planId: string; updates: Partial<Plan>; }, unknown>;
   handleCancel: () => void;
   stripeCurrencySymbol: string;
   paypalCurrencySymbol: string;

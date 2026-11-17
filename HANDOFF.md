@@ -46,7 +46,7 @@ Bookings token CHECK (chatbot_booking_settings_token_chk) was relaxed on 2026-11
 
 ## Known gaps (not fixed in r3; chatbot flags stay OFF by default)
 - Agent surface (CHATBOT_AGENT_ENABLED): no staff identity resolver exists, so agent calls answer 401.
-- Channels and widget (CHATBOT_CHANNELS_ENABLED, CHATBOT_WIDGET_ENABLED): the reply runtime and receipt store are not wired; they are stubs that refuse requests. Enabling them starts the server but serves no replies.
+- Channels and widget (CHATBOT_CHANNELS_ENABLED, CHATBOT_WIDGET_ENABLED): the reply path is wired (wiring/reply-stack.ts), but the tables it needs exist only as drafts (db/migrations-draft) and the channel outbox drain is not started. Keep the flags off until both are done. Model ids come from CHATBOT_REPLY_MODEL_OPENAI / _ANTHROPIC / _GEMINI.
 - CHATBOT_TELEGRAM_CHANNEL_ENABLED is defined in contracts/flags.ts but the telegram router is still gated only by CHATBOT_CHANNELS_ENABLED.
 - Workers: built at boot in server/routes/core/chatbot-wiring-routes.ts through workers/boot.ts. The expiry sweep, the outbox drain (webhooks, behind CHATBOT_OUTBOUND_WEBHOOKS_ENABLED) and the voice-call quota sweep run when CHATBOT_WORKERS_ENABLED is "true".
 - Voice-call service: constructed at boot with fail-closed ports (voice-call/unconfigured.ts). No call can start until an owner-chosen CallProvider, CreditLedger, plan lookup and credential source are wired.

@@ -17,20 +17,9 @@ import { storage } from '../storage';
 import { logger } from '../utils/logger';
 import type { EmailTemplate } from '@shared/schema';
 import { PRODUCT_NAME } from '../../shared/brand.ts';
+import { smtpTlsOptions } from './smtp-tls-options.ts';
 
 const SOURCE = 'EmailService';
-
-/**
- * TLS options for SMTP connections. Certificate checks stay on. Set SMTP_ALLOW_SELF_SIGNED=true
- * only for a relay with a self-signed or private-CA certificate; it turns verification off.
- */
-export function smtpTlsOptions(): { rejectUnauthorized: boolean } {
-  const allowSelfSigned = process.env.SMTP_ALLOW_SELF_SIGNED === 'true';
-  if (allowSelfSigned) {
-    logger.warn('SMTP_ALLOW_SELF_SIGNED is on: SMTP TLS certificates are not verified', undefined, SOURCE);
-  }
-  return { rejectUnauthorized: !allowSelfSigned };
-}
 
 const DEFAULT_COMPANY_NAME = PRODUCT_NAME;
 const DEFAULT_TAGLINE = 'Business communications and operations';

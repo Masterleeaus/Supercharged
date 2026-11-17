@@ -9,6 +9,7 @@
  * Copyright (c) Titan Zero.
  * ============================================================
  */
+import type { AppError } from "@/components/app-error";
 import { motion, useReducedMotion } from "framer-motion";
 import { Mail, Clock, Users, Send, Shield, CheckCircle, Loader2, MessageSquare, Headphones } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -110,7 +111,8 @@ export function ContactSection() {
         description: data.message || t('landing.contact.toast.successDescription'),
       });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t('landing.contact.toast.errorTitle'),
         description: error.message || t('landing.contact.toast.errorDescription'),

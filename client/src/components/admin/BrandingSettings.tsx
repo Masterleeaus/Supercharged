@@ -9,6 +9,7 @@
  * Copyright (c) Titan Zero.
  * ============================================================
  */
+import type { AppError } from "@/components/app-error";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -130,7 +131,8 @@ export default function BrandingSettings() {
       toast({ title: t("admin.branding.updateSuccess") });
       setIsEditOpen(false);
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("admin.branding.updateFailed"),
         description: error.message,
@@ -244,7 +246,8 @@ export default function BrandingSettings() {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/branding"] });
       queryClient.invalidateQueries({ queryKey: ["/api/branding"] });
       toast({ title: t("admin.branding.logoUploaded") });
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: t("admin.branding.uploadFailed"),
         description: error.message,
@@ -300,7 +303,8 @@ export default function BrandingSettings() {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/branding"] });
       queryClient.invalidateQueries({ queryKey: ["/api/branding"] });
       toast({ title: t("admin.branding.logoUploaded") });
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: t("admin.branding.uploadFailed"),
         description: error.message,
@@ -356,7 +360,8 @@ export default function BrandingSettings() {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/branding"] });
       queryClient.invalidateQueries({ queryKey: ["/api/branding"] });
       toast({ title: t("admin.branding.faviconUploaded") });
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: t("admin.branding.uploadFailed"),
         description: error.message,

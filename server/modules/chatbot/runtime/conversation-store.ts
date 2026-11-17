@@ -67,6 +67,16 @@ export interface ConversationStore {
 
   insertConversation(companyId: string, record: ConversationRecord, outbox: OutboxAppend): Promise<ConversationRecord>;
   findConversation(companyId: string, id: string): Promise<ConversationRecord | null>;
+  /**
+   * The newest conversation of one chatbot on one channel thread (the channel's own thread id, or the visitor id on web).
+   * Returns null when there is none in this company. Status is not filtered: the caller decides what an archived one means.
+   */
+  findConversationByThread(
+    companyId: string,
+    chatbotId: string,
+    channel: ChannelKind,
+    externalThreadId: string,
+  ): Promise<ConversationRecord | null>;
   insertMessage(companyId: string, conversationId: string, message: NewStoredMessage): Promise<StoredMessage | null>;
   /**
    * Stores one assistant reply and runs enqueueSend in the same unit of work. enqueueSend receives the transaction
@@ -181,6 +191,15 @@ export function createMemoryConversationStore(): MemoryConversationStore {
     async findConversation(companyId, id) {
       const row = readBucket(conversations, companyId).get(id);
       return row ? copy(row) : null;
+    },
+
+    async findConversationByThread(companyId, chatbotId, channel, externalThreadId) {
+      let found: ConversationRecord | null = null;
+      for (const row of readBucket(conversations, companyId).values()) {
+        if (row.chatbotId !== chatbotId || row.channel !== channel || row.externalThreadId !== externalThreadId) continue;
+        if (found === null || row.createdAt.getTime() > found.createdAt.getTime()) found = row;
+      }
+      return found ? copy(found) : null;
     },
 
     async insertMessage(companyId, conversationId, message) {

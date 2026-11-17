@@ -9,6 +9,7 @@
  * Copyright (c) Titan Zero.
  * ============================================================
  */
+import type { AppError } from "@/components/app-error";
 import { useState, useEffect, useMemo } from "react";
 import { loadStripe, Stripe } from "@stripe/stripe-js";
 import {
@@ -113,6 +114,20 @@ interface PaymentFormProps {
   currencySymbol?: string;
 }
 
+/** Order data the server returns for a Razorpay checkout. */
+interface RazorpayOrderData {
+  amount: string;
+  currency?: string;
+  credits?: number;
+}
+
+/** Payment fields Razorpay posts back to the checkout handler. */
+interface RazorpayPaymentResponse {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+}
+
 function PaymentForm({ packageId, packageName, credits, amount, clientSecret, onSuccess, onCancel, currencySymbol = '$' }: PaymentFormProps) {
   const stripe = useStripe();
   const elements = useElements();
@@ -161,7 +176,8 @@ function PaymentForm({ packageId, packageName, credits, amount, clientSecret, on
           onSuccess();
         }, 1500);
       }
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: "Error",
         description: error.message || "Payment processing failed",
@@ -460,7 +476,8 @@ export function CreditPurchaseDialog({
               openRazorpayCheckout(data.orderId, paymentGateway.razorpayKeyId, data);
             }
           })
-          .catch((error: any) => {
+          .catch((raw_error: Error) => {
+            const error = raw_error as AppError;
             console.error('Razorpay order error:', error);
             toast({
               title: "Error",
@@ -486,7 +503,8 @@ export function CreditPurchaseDialog({
             }
             setLoading(false);
           })
-          .catch((error: any) => {
+          .catch((raw_error: Error) => {
+            const error = raw_error as AppError;
             console.error('PayPal order error:', error);
             toast({
               title: "Error",
@@ -512,7 +530,8 @@ export function CreditPurchaseDialog({
             }
             setLoading(false);
           })
-          .catch((error: any) => {
+          .catch((raw_error: Error) => {
+            const error = raw_error as AppError;
             console.error('Paystack transaction error:', error);
             toast({
               title: "Error",
@@ -538,7 +557,8 @@ export function CreditPurchaseDialog({
             }
             setLoading(false);
           })
-          .catch((error: any) => {
+          .catch((raw_error: Error) => {
+            const error = raw_error as AppError;
             console.error('MercadoPago preference error:', error);
             toast({
               title: "Error",
@@ -562,7 +582,8 @@ export function CreditPurchaseDialog({
             });
             setLoading(false);
           })
-          .catch((error: any) => {
+          .catch((raw_error: Error) => {
+            const error = raw_error as AppError;
             console.error('Payment intent error:', error);
             toast({
               title: "Error",
@@ -596,7 +617,7 @@ export function CreditPurchaseDialog({
     }
   }, [open, step, packageId, paymentGateway, selectedGateway]);
 
-  const openRazorpayCheckout = (orderId: string, keyId: string, data: any) => {
+  const openRazorpayCheckout = (orderId: string, keyId: string, data: RazorpayOrderData) => {
     const options = {
       key: keyId,
       amount: Math.round(parseFloat(data.amount) * 100),
@@ -604,7 +625,7 @@ export function CreditPurchaseDialog({
       name: branding.app_name || '',
       description: `Purchase ${data.credits} Credits`,
       order_id: orderId,
-      handler: async function (paymentResponse: any) {
+      handler: async function (paymentResponse: RazorpayPaymentResponse) {
         try {
           await apiRequest("POST", "/api/razorpay/verify-order", {
             razorpay_order_id: paymentResponse.razorpay_order_id,
@@ -626,7 +647,8 @@ export function CreditPurchaseDialog({
             onSuccess();
             onOpenChange(false);
           }, 1500);
-        } catch (error: any) {
+        } catch (raw_error) {
+          const error = raw_error as AppError;
           toast({
             title: "Error",
             description: error.message || "Payment verification failed",
@@ -645,7 +667,7 @@ export function CreditPurchaseDialog({
       }
     };
     
-    const razorpay = new (window as any).Razorpay(options);
+    const razorpay = new (window as unknown as { Razorpay: new (opts: unknown) => { open: () => void } }).Razorpay(options);
     razorpay.open();
   };
 
@@ -743,7 +765,8 @@ export function CreditPurchaseDialog({
       });
       queryClient.invalidateQueries({ queryKey: ["/api/billing-profile"] });
       setStep('payment');
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: "Error",
         description: error.message || "Failed to save billing details",
