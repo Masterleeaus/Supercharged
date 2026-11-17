@@ -297,41 +297,6 @@ export function setupPlivoWebhooks(app: Express, baseUrl: string, smsDeps?: SmsR
   });
 
   /**
-   * Answer URL with call ID path - for outbound calls
-   */
-  app.post('/api/plivo/voice/:callId', verifyPlivo, async (req: Request, res: Response) => {
-    try {
-      const { callId } = req.params;
-      const { CallUUID, From, To, Direction } = req.body;
-      
-      logger.info(`Answer for call ${callId}: ${CallUUID} from ${From} to ${To} (${Direction})`, undefined, 'PlivoWebhook');
-
-      // Update the call record with Plivo UUID
-      if (callId && CallUUID) {
-        await db
-          .update(plivoCalls)
-          .set({ plivoCallUuid: CallUUID })
-          .where(eq(plivoCalls.id, callId));
-      }
-
-      const streamUrl = getStreamUrl(baseUrl, CallUUID);
-
-      const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Stream bidirectional="true" keepCallAlive="true" contentType="audio/x-mulaw;rate=8000">
-    ${streamUrl}
-  </Stream>
-</Response>`;
-
-      res.set('Content-Type', 'text/xml');
-      res.send(xml);
-    } catch (error: any) {
-      logger.error('Answer error', error, 'PlivoWebhook');
-      sendWebhookInternalError(res);
-    }
-  });
-
-  /**
    * Status callback - Called when call status changes
    */
   app.post('/api/plivo/voice/status', verifyPlivo, async (req: Request, res: Response) => {
@@ -712,40 +677,6 @@ export function setupPlivoWebhooks(app: Express, baseUrl: string, smsDeps?: SmsR
   });
 
   /**
-   * Transfer XML endpoint - Called by Plivo Transfer API
-   * Returns Dial XML to connect the call to the transfer target
-   */
-  // Second GET registration for the same path. The guarded GET above is registered first and
-  // answers every request, so this one is shadowed. It is guarded too, so no unguarded GET remains.
-  app.get('/api/plivo/voice/transfer', verifyPlivo, (req: Request, res: Response) => {
-    const { target, callerId } = req.query;
-    
-    logger.info(`[TransferXML] ===== TRANSFER XML ENDPOINT CALLED =====`, undefined, 'PlivoWebhook');
-    logger.info(`[TransferXML] Target: ${target}`, undefined, 'PlivoWebhook');
-    logger.info(`[TransferXML] Caller ID: ${callerId}`, undefined, 'PlivoWebhook');
-    
-    if (!target) {
-      logger.error(`[TransferXML] No target number provided!`, undefined, 'PlivoWebhook');
-      res.set('Content-Type', 'application/xml');
-      return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Hangup/></Response>`);
-    }
-    
-    const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Dial callerId="${callerId || ''}" timeout="30" timeLimit="3600">
-    <Number>${target}</Number>
-  </Dial>
-</Response>`;
-    
-    logger.info(`[TransferXML] Returning Dial XML:`, undefined, 'PlivoWebhook');
-    logger.info(xml, undefined, 'PlivoWebhook');
-    logger.info(`[TransferXML] ===== TRANSFER XML SENT =====`, undefined, 'PlivoWebhook');
-    
-    res.set('Content-Type', 'application/xml');
-    res.send(xml);
-  });
-
-  /**
    * Post-stream webhook - Fallback handler (kept for compatibility)
    * With the new Transfer API + Stop Stream approach, this is rarely needed
    */
@@ -802,6 +733,43 @@ export function setupPlivoWebhooks(app: Express, baseUrl: string, smsDeps?: SmsR
     
     res.set('Content-Type', 'application/xml');
     res.send(xml);
+  });
+
+  // Registered after every literal /api/plivo/voice/* route. Express answers in registration order,
+  // so a literal path such as /status must reach its own handler, not this one. Keep this last.
+  /**
+   * Answer URL with call ID path - for outbound calls
+   */
+  app.post('/api/plivo/voice/:callId', verifyPlivo, async (req: Request, res: Response) => {
+    try {
+      const { callId } = req.params;
+      const { CallUUID, From, To, Direction } = req.body;
+      
+      logger.info(`Answer for call ${callId}: ${CallUUID} from ${From} to ${To} (${Direction})`, undefined, 'PlivoWebhook');
+
+      // Update the call record with Plivo UUID
+      if (callId && CallUUID) {
+        await db
+          .update(plivoCalls)
+          .set({ plivoCallUuid: CallUUID })
+          .where(eq(plivoCalls.id, callId));
+      }
+
+      const streamUrl = getStreamUrl(baseUrl, CallUUID);
+
+      const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Stream bidirectional="true" keepCallAlive="true" contentType="audio/x-mulaw;rate=8000">
+    ${streamUrl}
+  </Stream>
+</Response>`;
+
+      res.set('Content-Type', 'text/xml');
+      res.send(xml);
+    } catch (error: any) {
+      logger.error('Answer error', error, 'PlivoWebhook');
+      sendWebhookInternalError(res);
+    }
   });
 
   /**

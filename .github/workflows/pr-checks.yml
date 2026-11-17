@@ -52,6 +52,15 @@ jobs:
           - client/src/widget
           - client/src/i18n
           - client/src/pages
+          - client/src/hooks
+          - client-src-root
+          - server-root
+          - server/utils
+          - server/storage
+          - server/integrations
+          - server/scripts
+          - server/workforce
+          - shared
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -202,7 +211,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Build disposable suppression schema (migration 0022)
+      - name: Build disposable suppression schema (migration 0025)
         run: node scripts/suppression-postgres-prepare.mjs
       - name: Verify suppression survives a restart and blocks sends on real PostgreSQL
         run: node --test --experimental-transform-types tests/postgres/suppression-postgres-*.test.mjs
@@ -265,6 +274,22 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      # Migration 0018 explicitly requires this restricted PostgreSQL role.
+      # Provision the role only in the disposable CI database; production role
+      # creation and grants remain an operator responsibility.
+      - name: Prepare restricted application role for Central SSO migration
+        run: |
+          node --input-type=module <<'NODE'
+          import pg from 'pg';
+          const client = new pg.Client({ connectionString: process.env.BOOT_PG_URL });
+          await client.connect();
+          try {
+            const { rowCount } = await client.query("SELECT 1 FROM pg_roles WHERE rolname = 'desk_app'");
+            if (rowCount === 0) await client.query('CREATE ROLE desk_app NOLOGIN');
+          } finally {
+            await client.end();
+          }
+          NODE
       - name: Boot server against a fresh database
         run: npm run boot:check
 

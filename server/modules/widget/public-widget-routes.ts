@@ -20,6 +20,7 @@ import { RAGKnowledgeService } from "../../services/rag-knowledge";
 import { formatDate } from "date-fns";
 import * as chrono from "chrono-node";
 import { apiRateLimiter } from "../../middleware/rateLimiter";
+import { isWidgetDomainAllowed, widgetRequestDomain } from "./domain-gate";
 
 const router = Router();
 
@@ -275,16 +276,9 @@ router.get('/widget/config/:token', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Widget not found' });
     }
     
-    const origin = req.headers.origin || req.headers.referer || '';
-    let domain = '';
-    try {
-      const url = new URL(origin);
-      domain = url.hostname;
-    } catch {
-      domain = origin.replace(/^https?:\/\//, '').split('/')[0];
-    }
-    
-    if (domain && !widgetService.validateDomain(widget, domain)) {
+    // Fail closed: with an allowlist set, a request with no Origin or Referer is refused.
+    const domain = widgetRequestDomain(req.headers);
+    if (!isWidgetDomainAllowed(widget.allowedDomains, domain)) {
       return res.status(403).json({ error: 'Domain not allowed' });
     }
     

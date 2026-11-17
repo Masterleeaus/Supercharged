@@ -1,5 +1,5 @@
 // PostgreSQL persistence for the durable suppression list (createDurableSuppressionList).
-// Tables: comms_suppressions and comms_soft_bounces (migration 0022). Every read and write runs
+// Tables: comms_suppressions and comms_soft_bounces (migration 0025). Every read and write runs
 // through withTenant, so the session carries the company and the row-level policy applies. The
 // company id is also filtered on explicitly.
 

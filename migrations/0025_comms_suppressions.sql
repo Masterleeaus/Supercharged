@@ -1,5 +1,5 @@
 -- ============================================================
--- Migration 0022: durable, company-scoped comms suppression list.
+-- Migration 0025: durable, company-scoped comms suppression list.
 --
 -- Before this, server/modules/comms/suppression.ts kept bounces, complaints, invalid
 -- addresses and unsubscribes in a process-local Map. A restart lost all of them. These
@@ -13,7 +13,8 @@
 -- The address is stored in normalised form because the send path checks it. Audit records keep
 -- only a hash (see suppression.ts), and that is unchanged here.
 --
--- Numbered 0022 so it does not collide with the review candidates 0017 to 0021.
+-- Numbered 0025: 0023 is the marketing tables migration and 0024 the Inbox RLS migration on main,
+-- and 0021 is reserved for the central SSO pending seal (PR #284).
 --
 -- ROLLBACK (run by hand only if this migration must be undone):
 --   DROP TABLE IF EXISTS comms_soft_bounces;

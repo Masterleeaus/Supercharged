@@ -1,12 +1,12 @@
 /**
  * CI-only PostgreSQL fixture for the durable suppression tests.
  * Creates the restricted desk_app role (test-only; the app does not create roles), then applies
- * migration 0022 unchanged. Never run against a persistent database.
+ * migration 0025 unchanged. Never run against a persistent database.
  */
 import { readFileSync } from 'node:fs';
 import pg from 'pg';
 
-const MIGRATION = new URL('../migrations/0022_comms_suppressions.sql', import.meta.url);
+const MIGRATION = new URL('../migrations/0025_comms_suppressions.sql', import.meta.url);
 
 export async function prepareSuppressionPostgres(connectionString) {
   if (process.env.SUPPRESSION_PG_DISPOSABLE !== 'true') {
@@ -39,5 +39,5 @@ export async function prepareSuppressionPostgres(connectionString) {
 
 if (process.argv[1] && import.meta.url === new URL('file://' + process.argv[1]).href) {
   await prepareSuppressionPostgres(process.env.SUPPRESSION_PG_INTEGRATION_URL);
-  console.log('Disposable suppression PostgreSQL schema prepared (migration 0022).');
+  console.log('Disposable suppression PostgreSQL schema prepared (migration 0025).');
 }
