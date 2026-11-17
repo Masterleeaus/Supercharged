@@ -23,6 +23,7 @@ import { eq, sql } from 'drizzle-orm';
 import { canImportTypeScript, resetCanImportTypeScript } from '../utils/plugin-import';
 import { logger } from '../utils/logger';
 import { isRegistrationAccepted, registrationReason } from './register-result';
+import { discoverConnectorManifests, type ConnectorDiscovery } from './connector-discovery';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -636,4 +637,12 @@ export async function getPluginStatus(): Promise<Array<{
       error: plugin.error,
     };
   });
+}
+
+/**
+ * Connector manifests (plugins/<name>/connector.json), discovered with the same root as plugins (#350).
+ * An invalid manifest is reported in `rejected` and blocks only that connector.
+ */
+export function discoverConnectors(): ConnectorDiscovery {
+  return discoverConnectorManifests(pluginsDir);
 }
