@@ -1,5 +1,7 @@
 # Chatbot draft-SQL harness
 
+> **Disposable development harness only (architecture review: 2026-11-18).** This script **drops and recreates** its selected database. Never set `CHATBOT_HARNESS_DATABASE_URL` to a production, shared Titan PostgreSQL, staging, or customer database. Run only against a dedicated throwaway cluster and verify the resolved database name and connection target before execution. Central's [ADR-009](https://github.com/Masterleeaus/Central/blob/main/TITAN_ARCHITECTURE_DECISIONS.md) governs the target single migration ledger; passing this draft-SQL harness does not authorize promoting these migrations or operating a separate booking authority.
+
 Applies the Desk base migrations, the chatbot parent tables and each chatbot draft to a fresh
 Postgres 16 database, and reports every file that fails.
 
@@ -26,11 +28,10 @@ Other commands:
 ## 2. Apply the drafts
 
     cd <desk repo root>
-    NODE_OPTIONS="--import /home/claude/integration-scratch/hook/register.mjs" \
-      node server/modules/chatbot/db/harness/apply-drafts.mjs
+    node server/modules/chatbot/db/harness/apply-drafts.mjs
 
 - The script drops and recreates the database `chatbot_harness` each run. It leaves that database in place, so you can inspect it with `psql`.
-- It needs the `pg` package. The repo has no `node_modules` here, so the hook above is used. It resolves `pg` from the scratch deps folder. With a normal `npm install` in the repo, the `NODE_OPTIONS` part is not needed.
+- It needs the `pg` package installed using the repository's supported dependency installation workflow. The former `/home/claude/integration-scratch/...` import hook was an agent-specific scratch dependency path and is not a portable setup instruction.
 - Set `CHATBOT_HARNESS_DATABASE_URL` to use another cluster. The default is `postgres://pgtest@127.0.0.1:55432/postgres`. Set `CHATBOT_HARNESS_DB` to change the database name.
 
 Order of steps:
@@ -48,8 +49,7 @@ Rules:
 
 ## 3. Run the test
 
-    NODE_OPTIONS="--import /home/claude/integration-scratch/hook/register.mjs" \
-      node --test --experimental-transform-types tests/modules/chatbot-db/harness.test.mjs
+    node --test --experimental-transform-types tests/modules/chatbot-db/harness.test.mjs
 
 - When nothing listens on port 55432, the test is skipped with a message. The normal test run still passes.
 - When the cluster is up, the test runs the harness and asserts that every draft applies.
