@@ -41,7 +41,7 @@ export function registerCreditBackfillRoutes(router: Router) {
             lastBackfill: getLastBackfillResult(),
           },
         });
-      } catch (err: any) {
+      } catch (err: unknown) {
         logger.error('[CreditBackfill] status error:', err);
         res.status(500).json({ success: false, error: 'Failed to load status' });
       }
@@ -56,7 +56,7 @@ export function registerCreditBackfillRoutes(router: Router) {
         const body = scanBodySchema.parse(req.body ?? {});
         const result = await triggerScanNow({ sinceDays: body.sinceDays });
         res.json({ success: true, data: result });
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (err instanceof z.ZodError) {
           return res.status(400).json({ success: false, error: 'Invalid request', details: err.issues });
         }
@@ -80,7 +80,7 @@ export function registerCreditBackfillRoutes(router: Router) {
         });
         setLastBackfillResult(result);
         res.json({ success: true, data: result });
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (err instanceof z.ZodError) {
           return res.status(400).json({ success: false, error: 'Invalid request', details: err.issues });
         }

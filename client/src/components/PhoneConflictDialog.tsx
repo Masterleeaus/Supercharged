@@ -14,6 +14,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
+import type { AppError } from "@/components/app-error";
 import { useLocation } from "wouter";
 import { AlertTriangle, Phone, ShoppingCart, X } from "lucide-react";
 import {
@@ -136,7 +137,7 @@ export const initialPhoneConflictState: PhoneConflictState = {
   message: "",
 };
 
-export function parsePhoneConflictFromError(error: any): PhoneConflictState | null {
+export function parsePhoneConflictFromError(error: AppError | null | undefined): PhoneConflictState | null {
   if (!error) return null;
   
   const status = error.status || error.response?.status;

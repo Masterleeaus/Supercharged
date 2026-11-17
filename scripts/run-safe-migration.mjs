@@ -81,6 +81,7 @@ const MIGRATIONS = [
   { file: '0019_central_sso_pending_logins.sql', required: true },
   { file: '0020_scheduled_booking_mirror.sql', required: true },
   { file: '0023_marketing_tables_tenant_rls.sql', required: true },
+  { file: '0024_inbox_tenant_rls.sql', required: true },
   { file: '0025_comms_suppressions.sql', required: true },
 ];
 

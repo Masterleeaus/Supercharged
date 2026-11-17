@@ -1,3 +1,4 @@
+import type { CaughtError } from './common';
 'use strict';
 /**
  * ============================================================
@@ -60,7 +61,7 @@ export function createTemplateRoutes(ctx: RouteContext): Router {
       }
       
       res.json(allTemplates);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Get prompt templates error:", error);
       res.status(500).json({ error: "Failed to get prompt templates" });
     }
@@ -83,7 +84,7 @@ export function createTemplateRoutes(ctx: RouteContext): Router {
       }
       
       res.json(template);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Get prompt template error:", error);
       res.status(500).json({ error: "Failed to get prompt template" });
     }
@@ -148,7 +149,7 @@ export function createTemplateRoutes(ctx: RouteContext): Router {
       const template = await storage.createPromptTemplate(newTemplateData);
 
       res.json(template);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Create prompt template error:", error);
       res.status(500).json({ error: "Failed to create prompt template" });
     }
@@ -178,7 +179,7 @@ export function createTemplateRoutes(ctx: RouteContext): Router {
         isPublic 
       } = req.body;
 
-      const updates: any = {};
+      const updates: Record<string, unknown> = {};
       if (name !== undefined) updates.name = name;
       if (description !== undefined) updates.description = description;
       if (category !== undefined) updates.category = category;
@@ -204,7 +205,7 @@ export function createTemplateRoutes(ctx: RouteContext): Router {
       
       const updated = await storage.getPromptTemplate(req.params.id);
       res.json(updated);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Update prompt template error:", error);
       res.status(500).json({ error: "Failed to update prompt template" });
     }
@@ -224,7 +225,7 @@ export function createTemplateRoutes(ctx: RouteContext): Router {
 
       await storage.deletePromptTemplate(req.params.id);
       res.json({ success: true });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Delete prompt template error:", error);
       res.status(500).json({ error: "Failed to delete prompt template" });
     }
@@ -275,7 +276,7 @@ export function createTemplateRoutes(ctx: RouteContext): Router {
           !variableValues || !(v in variableValues)
         )
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Use prompt template error:", error);
       res.status(500).json({ error: "Failed to use prompt template" });
     }
@@ -314,7 +315,7 @@ export function createTemplateRoutes(ctx: RouteContext): Router {
       } as PromptTemplateInsertRow);
 
       res.json(template);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Create system prompt template error:", error);
       res.status(500).json({ error: "Failed to create system prompt template" });
     }

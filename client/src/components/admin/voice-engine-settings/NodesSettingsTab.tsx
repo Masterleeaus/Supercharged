@@ -19,7 +19,7 @@ export interface NodesSettingsTabProps {
   handleOpenAddDialog: () => void;
   nodes: FreeSwitchNode[];
   handleOpenEditDialog: (node: FreeSwitchNode) => void;
-  deleteNodeMutation: UseMutationResult<any, any, string, unknown>;
+  deleteNodeMutation: UseMutationResult<unknown, Error, string, unknown>;
 }
 
 export function NodesSettingsTab({ refetchNodes, isDemoMode, toast, handleOpenAddDialog, nodes, handleOpenEditDialog, deleteNodeMutation }: NodesSettingsTabProps) {

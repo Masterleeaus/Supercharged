@@ -25,7 +25,7 @@ export interface PlanDeleteDialogProps {
   deletingPlan: Plan;
   setDeletingPlan: Dispatch<SetStateAction<Plan>>;
   t: TFunction<"translation", undefined>;
-  deletePlan: UseMutationResult<any, any, string, unknown>;
+  deletePlan: UseMutationResult<unknown, Error, string, unknown>;
 }
 
 export function PlanDeleteDialog({ deletingPlan, setDeletingPlan, t, deletePlan }: PlanDeleteDialogProps) {

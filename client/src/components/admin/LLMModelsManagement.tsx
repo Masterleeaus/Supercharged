@@ -14,6 +14,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
+import type { AppError } from "@/components/app-error";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -68,7 +69,8 @@ export default function LLMModelsManagement() {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/llm-models"] });
       toast({ title: t("adminDashboard.llmModels.modelUpdated") });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.llmModels.updateFailed"),
         description: error.message,

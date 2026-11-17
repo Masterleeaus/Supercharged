@@ -226,7 +226,7 @@ export function registerFlowRoutes(router: Router): void {
       })();
       // ──────────────────────────────────────────────────────────────────────────
 
-      const flowAgentId = updatedFlow.agentId || editable.agentId;
+      const flowAgentId = updatedFlow.agentId || (editable.agentId as string | undefined);
       if (flowAgentId) {
         try {
           // Enforce 1-to-1 flow mapping: clear this agent from any other flows first

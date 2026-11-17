@@ -1,4 +1,5 @@
 'use strict';
+import type { AppError } from "@/components/app-error";
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -227,7 +228,8 @@ export default function CallMonitoring() {
         const url = URL.createObjectURL(blob);
         recordingBlobUrlRef.current = url;
         setRecordingBlobUrl(url);
-      } catch (error: any) {
+      } catch (raw_error) {
+        const error = raw_error as AppError;
         if (isCancelled) return;
         console.error("Failed to fetch recording:", error);
         setRecordingError(error.message || "Failed to load recording");
@@ -258,7 +260,8 @@ export default function CallMonitoring() {
       refetchViolations();
       refetch();
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({ title: t("adminDashboard.callMonitoring.toasts.scanFailed"), description: error.message, variant: "destructive" });
     },
   });
@@ -272,7 +275,8 @@ export default function CallMonitoring() {
       refetchViolations();
       refetch();
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({ title: t("adminDashboard.callMonitoring.toasts.updateFailed"), description: error.message, variant: "destructive" });
     },
   });
@@ -289,7 +293,8 @@ export default function CallMonitoring() {
       refetch();
       refetchDetails();
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({ title: t("adminDashboard.callMonitoring.toasts.blockFailed"), description: error.message, variant: "destructive" });
     },
   });
@@ -303,7 +308,8 @@ export default function CallMonitoring() {
       refetch();
       refetchDetails();
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({ title: t("adminDashboard.callMonitoring.toasts.unblockFailed"), description: error.message, variant: "destructive" });
     },
   });
@@ -320,7 +326,8 @@ export default function CallMonitoring() {
       });
       refetch();
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({ title: t("adminDashboard.callMonitoring.toasts.scanFailed"), description: error.message, variant: "destructive" });
     },
   });
@@ -405,7 +412,8 @@ export default function CallMonitoring() {
       
       await audio.play();
       setInlinePlayingCallId(call.id);
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       if (currentInlinePlayingIdRef.current === call.id) {
         setInlineAudioLoading(null);
       }

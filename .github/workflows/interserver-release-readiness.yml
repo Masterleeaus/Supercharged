@@ -1,0 +1,32 @@
+name: InterServer SaaS release readiness
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run application verification gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci && npm run check && npm run build && npm test
+      - name: Write candidate manifest
+        if: success()
+        shell: bash
+        run: |
+          printf 'repository=%s\ncommit=%s\nkind=saas\nstatus=validated-candidate-not-deployed\n' "$GITHUB_REPOSITORY" "$GITHUB_SHA" > RELEASE-MANIFEST.txt
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: saas-readiness-${{ github.sha }}
+          path: RELEASE-MANIFEST.txt
+          retention-days: 30

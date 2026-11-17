@@ -3,6 +3,7 @@
  * Admin Voice Engine Settings
  * Manages API keys, active providers, FreeSWITCH nodes, and SIP trunking templates.
  */
+import type { AppError } from "@/components/app-error";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -69,7 +70,7 @@ export default function VoiceEngineSettings() {
   const gateways = gatewaysData?.data || [];
 
   const saveGatewayMutation = useMutation({
-    mutationFn: async (payload: any) => {
+    mutationFn: async (payload: Record<string, unknown>) => {
       if (editingGateway) {
         const res = await apiRequest("PUT", `/api/voice-engine/admin/settings/sip-gateways/${editingGateway.id}`, payload);
         return res.json();
@@ -87,7 +88,8 @@ export default function VoiceEngineSettings() {
         description: `SIP Gateway has been successfully ${editingGateway ? "updated" : "added"}.`,
       });
     },
-    onError: (err: any) => {
+    onError: (raw_err: Error) => {
+      const err = raw_err as AppError;
       toast({ title: "Error Saving Gateway", description: err.message, variant: "destructive" });
     },
   });
@@ -101,7 +103,8 @@ export default function VoiceEngineSettings() {
       refetchGateways();
       toast({ title: "Gateway Deleted", description: "SIP Gateway deleted successfully." });
     },
-    onError: (err: any) => {
+    onError: (raw_err: Error) => {
+      const err = raw_err as AppError;
       toast({ title: "Error Deleting Gateway", description: err.message, variant: "destructive" });
     },
   });
@@ -115,7 +118,8 @@ export default function VoiceEngineSettings() {
       refetchGateways();
       toast({ title: "Gateway Activated", description: "Selected SIP Gateway is now active." });
     },
-    onError: (err: any) => {
+    onError: (raw_err: Error) => {
+      const err = raw_err as AppError;
       toast({ title: "Error Activating Gateway", description: err.message, variant: "destructive" });
     },
   });
@@ -175,7 +179,7 @@ export default function VoiceEngineSettings() {
   const orModels = orModelsData?.data ?? [];
 
   const updateMutation = useMutation({
-    mutationFn: async (body: Record<string, any>) => {
+    mutationFn: async (body: Record<string, unknown>) => {
       const res = await apiRequest("PUT", "/api/voice-engine/admin/provider-keys", body);
       return res.json();
     },
@@ -183,7 +187,8 @@ export default function VoiceEngineSettings() {
       queryClient.invalidateQueries({ queryKey: ["/api/voice-engine/admin/provider-keys"] });
       toast({ title: "Settings saved", description: "Provider settings updated successfully." });
     },
-    onError: (err: any) => {
+    onError: (raw_err: Error) => {
+      const err = raw_err as AppError;
       toast({ title: "Error", description: err.message, variant: "destructive" });
     },
   });
@@ -202,7 +207,7 @@ export default function VoiceEngineSettings() {
   };
 
   const saveNodeMutation = useMutation({
-    mutationFn: async (payload: any) => {
+    mutationFn: async (payload: Record<string, unknown>) => {
       if (editingNode) {
         const res = await apiRequest("PUT", `/api/voice-engine/admin/settings/nodes/${editingNode.id}`, payload);
         return res.json();
@@ -220,7 +225,8 @@ export default function VoiceEngineSettings() {
         description: `FreeSWITCH node has been successfully ${editingNode ? "updated" : "added"}.`,
       });
     },
-    onError: (err: any) => {
+    onError: (raw_err: Error) => {
+      const err = raw_err as AppError;
       toast({ title: "Error Saving Node", description: err.message, variant: "destructive" });
     },
   });
@@ -234,7 +240,8 @@ export default function VoiceEngineSettings() {
       refetchNodes();
       toast({ title: "Node Deleted", description: "FreeSWITCH node deleted successfully." });
     },
-    onError: (err: any) => {
+    onError: (raw_err: Error) => {
+      const err = raw_err as AppError;
       toast({ title: "Error Deleting Node", description: err.message, variant: "destructive" });
     },
   });

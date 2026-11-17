@@ -14,6 +14,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
+import type { AppError } from "@/components/app-error";
 import { useState, useMemo } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -123,7 +124,8 @@ export function TimezoneEnforcementModal({ open, onOpenChange, onSuccess }: Time
       onSuccess();
       onOpenChange(false);
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("settings.timezone.saveFailed", "Failed to save timezone"),
         description: error.message || t("common.tryAgain", "Please try again."),

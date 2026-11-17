@@ -14,6 +14,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
+import type { AppError } from "@/components/app-error";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -127,7 +128,8 @@ export function AddSystemNumberDialog({ open, onOpenChange }: AddSystemNumberDia
         description: t("admin.systemNumbers.importSuccessDesc") 
       });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("admin.systemNumbers.importFailed"),
         description: error.message || t("common.tryAgain"),
@@ -149,7 +151,8 @@ export function AddSystemNumberDialog({ open, onOpenChange }: AddSystemNumberDia
         description: t("admin.systemNumbers.purchaseSuccessDesc") 
       });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("admin.systemNumbers.purchaseFailed"),
         description: error.message || t("common.tryAgain"),
@@ -171,7 +174,8 @@ export function AddSystemNumberDialog({ open, onOpenChange }: AddSystemNumberDia
         description: t("admin.systemNumbers.releaseSuccessDesc") 
       });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("admin.systemNumbers.releaseFailed"),
         description: error.message || t("common.tryAgain"),

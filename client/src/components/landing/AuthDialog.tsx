@@ -14,6 +14,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
+import type { AppError } from "@/components/app-error";
 import { useState, useEffect, createContext, useContext, useCallback } from "react";
 import { X, Mail, ArrowRight, AlertCircle, Loader2, KeyRound, Eye, EyeOff } from "lucide-react";
 import { motion } from "framer-motion";
@@ -229,7 +230,8 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
         onClose();
         window.location.href = redirectUrl;
       }
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: "Login failed",
         description: error.message,
@@ -279,7 +281,8 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
       setOtpTimer(300);
       setCanResendOtp(false);
       setOtpCode("");
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: "Failed to send code",
         description: error.message,
@@ -316,7 +319,8 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
       setOtpTimer(300);
       setCanResendOtp(false);
       setOtpCode("");
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: "Failed to resend",
         description: error.message,
@@ -378,7 +382,8 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
         onClose();
         window.location.href = redirectUrl;
       }
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: "Verification failed",
         description: error.message,
@@ -418,7 +423,8 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
       setOtpTimer(300);
       setCanResendOtp(false);
       setOtpCode("");
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: "Failed to send code",
         description: error.message,
@@ -454,7 +460,8 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
       setOtpTimer(300);
       setCanResendOtp(false);
       setOtpCode("");
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: "Failed to resend",
         description: error.message,
@@ -491,7 +498,8 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
       });
       
       setForgotPasswordStep("new-password");
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: "Verification failed",
         description: error.message,
@@ -550,7 +558,8 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
       setActiveTab("login");
       setForgotPasswordStep("email");
       setLoginForm({ email: resetPasswordForm.email, password: "" });
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: "Reset failed",
         description: error.message,

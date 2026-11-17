@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 interface AnalyticsChartProps {
   title: string;
   type: "bar" | "pie" | "area";
-  data: any[];
+  data: Record<string, unknown>[];
   dataKey?: string;
   xAxisKey?: string;
   testId?: string;
