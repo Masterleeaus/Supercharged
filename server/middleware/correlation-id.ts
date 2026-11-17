@@ -1,7 +1,7 @@
 /**
  * @fileoverview Correlation ID Middleware
  * @copyright Diploy - AgentLabs
- * @license Envato Regular/Extended License
+ * @license MIT. Copyright (c) Titan Zero.
  * 
  * Generates unique correlation IDs for request tracing across distributed systems.
  * Enables end-to-end request tracking through logs and external service calls.
