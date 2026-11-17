@@ -9,7 +9,7 @@ import type { SuppressionList } from '../comms/suppression.ts';
 import type { Channel } from './types.ts';
 
 /** Channels where an inbound STOP or START is read as an opt-out keyword. Same set as the phone-number channels on the SMS path. */
-export const OPT_OUT_KEYWORD_CHANNELS: readonly Channel[] = ['sms', 'whatsapp', 'phone'];
+export const OPT_OUT_KEYWORD_CHANNELS: readonly Extract<Channel, 'sms' | 'whatsapp' | 'phone'>[] = ['sms', 'whatsapp', 'phone'];
 
 /** Channels the suppression list can hold. Sends on other channels are not checked against it. */
 export const SUPPRESSIBLE_CHANNELS: readonly Channel[] = ['email', 'sms', 'whatsapp', 'phone'];
@@ -60,11 +60,12 @@ export interface InboundKeywordInput {
  */
 export async function applyInboundKeyword(input: InboundKeywordInput): Promise<'none' | 'recorded' | 'failed'> {
   const { suppression, sendReply, companyId, channel, address, body, externalId, now } = input;
-  if (!OPT_OUT_KEYWORD_CHANNELS.includes(channel)) return 'none';
+  const optOutChannel = OPT_OUT_KEYWORD_CHANNELS.find((allowed) => allowed === channel);
+  if (optOutChannel === undefined) return 'none';
   const keyword = parseOptOutKeyword(body);
   if (!keyword.optOut && !keyword.optIn) return 'none';
 
-  const result = handleInboundOptOut({ companyId, channel, from: address, body, suppression, now });
+  const result = handleInboundOptOut({ companyId, channel: optOutChannel, from: address, body, suppression, now });
   if (result.action === 'not_changed' && result.reason !== 'not_opt_out') return 'failed';
   if (result.action === 'none' || result.action === 'not_changed') return 'none';
 
