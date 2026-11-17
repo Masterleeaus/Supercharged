@@ -1,3 +1,4 @@
+import type { AppError } from "@/components/app-error";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -146,7 +147,8 @@ export default function BannedWordsManagement() {
       setShowAddDialog(false);
       setFormData(defaultFormData);
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.bannedWords.toasts.addFailed"),
         description: error.message,
@@ -165,7 +167,8 @@ export default function BannedWordsManagement() {
       setShowEditDialog(false);
       setSelectedWord(null);
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.bannedWords.toasts.updateFailed"),
         description: error.message,
@@ -184,7 +187,8 @@ export default function BannedWordsManagement() {
       setShowDeleteDialog(false);
       setSelectedWord(null);
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.bannedWords.toasts.deleteFailed"),
         description: error.message,
@@ -205,7 +209,8 @@ export default function BannedWordsManagement() {
       });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/calls"] });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.bannedWords.toasts.scanFailed"),
         description: error.message,

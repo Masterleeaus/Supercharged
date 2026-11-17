@@ -49,6 +49,9 @@ function describeIssue(error: z.ZodError): string {
       : issue.path.join('.');
   let message: string;
   switch (issue.code) {
+    case 'invalid_value':
+      message = 'not an allowed value';
+      break;
     case 'unrecognized_keys':
       message = 'unknown field';
       break;

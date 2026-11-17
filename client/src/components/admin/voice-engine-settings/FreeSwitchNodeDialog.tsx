@@ -36,7 +36,7 @@ export interface FreeSwitchNodeDialogProps {
   nodeStatus: "online" | "offline" | "degraded" | "maintenance";
   setNodeStatus: Dispatch<SetStateAction<"online" | "offline" | "degraded" | "maintenance">>;
   handleSaveNode: () => void;
-  saveNodeMutation: UseMutationResult<any, any, any, unknown>;
+  saveNodeMutation: UseMutationResult<unknown, Error, unknown, unknown>;
   isDemoMode: boolean;
 }
 
@@ -95,7 +95,7 @@ export function FreeSwitchNodeDialog({ isNodeDialogOpen, setIsNodeDialogOpen, ed
 
             <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
               <Label htmlFor="status" className="sm:text-right pt-1.5 sm:pt-0">Status</Label>
-              <Select value={nodeStatus} onValueChange={(v: any) => setNodeStatus(v)}>
+              <Select value={nodeStatus} onValueChange={(v: string) => setNodeStatus(v as "online" | "offline" | "degraded" | "maintenance")}>
                 <SelectTrigger className="sm:col-span-3"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="online">Online</SelectItem>

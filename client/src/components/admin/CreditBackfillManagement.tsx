@@ -1,3 +1,4 @@
+import type { AppError } from "@/components/app-error";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -94,7 +95,8 @@ export default function CreditBackfillManagement() {
       toast({ title: t("adminDashboard.creditBackfill.toasts.scanComplete"), description: t("adminDashboard.creditBackfill.toasts.scanCompleteDesc") });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/credit-backfill/status"] });
     },
-    onError: (err: any) => {
+    onError: (raw_err: Error) => {
+      const err = raw_err as AppError;
       toast({ title: t("adminDashboard.creditBackfill.toasts.scanFailed"), description: err?.message || t("common.unknownError"), variant: "destructive" });
     },
   });
@@ -107,7 +109,7 @@ export default function CreditBackfillManagement() {
       });
       return res.json();
     },
-    onSuccess: (json: any) => {
+    onSuccess: (json: { data?: BackfillResult } | undefined) => {
       const r: BackfillResult = json?.data;
       toast({
         title: dryRun ? t("adminDashboard.creditBackfill.toasts.dryRunComplete") : t("adminDashboard.creditBackfill.toasts.backfillComplete"),
@@ -122,7 +124,8 @@ export default function CreditBackfillManagement() {
       });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/credit-backfill/status"] });
     },
-    onError: (err: any) => {
+    onError: (raw_err: Error) => {
+      const err = raw_err as AppError;
       toast({ title: t("adminDashboard.creditBackfill.toasts.backfillFailed"), description: err?.message || t("common.unknownError"), variant: "destructive" });
     },
   });

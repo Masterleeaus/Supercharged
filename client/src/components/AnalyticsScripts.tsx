@@ -1,17 +1,12 @@
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
 import { useEffect, useRef } from "react";
@@ -291,8 +286,8 @@ function injectScript(script: AnalyticsScript, targetPlacement: "head" | "body")
   const scriptPlacements = Array.isArray(script.placement) ? script.placement : [script.placement];
   const isDualPlacement = scriptPlacements.includes("head") && scriptPlacements.includes("body");
 
-  const headCode = ((script as any).headCode || '').trim();
-  const bodyCode = ((script as any).bodyCode || '').trim();
+  const headCode = ((script as { headCode?: string; bodyCode?: string }).headCode || '').trim();
+  const bodyCode = ((script as { headCode?: string; bodyCode?: string }).bodyCode || '').trim();
   const legacyCode = (script.code || '').trim();
   const hasNewFields = headCode || bodyCode;
   

@@ -2,6 +2,7 @@
  * Admin Team Member Sidebar
  * Shows admin panel navigation based on granted permissions for admin sub-admins
  */
+import type { LucideIcon } from "lucide-react";
 import { Users, BookOpen, Settings, ChevronsUpDown, BarChart3, Home, LogOut, Shield, CreditCard, UserCheck, Webhook, FileText, Globe, Building2, Key, Puzzle, MessageSquare, Headphones, ListOrdered, ContactRound, Brain } from "lucide-react";
 import {
   Sidebar,
@@ -70,7 +71,7 @@ interface AdminTeamAuthResponse {
 }
 
 // Admin section mappings to routes
-const ADMIN_SECTION_ROUTES: Record<string, { url: string; icon: any; label: string; subsection?: string }[]> = {
+const ADMIN_SECTION_ROUTES: Record<string, { url: string; icon: LucideIcon; label: string; subsection?: string }[]> = {
   user_management: [
     { url: "/admin?tab=users", icon: Users, label: "Users", subsection: "users" },
     { url: "/admin?tab=contacts", icon: ContactRound, label: "Contacts", subsection: "contacts" },
@@ -168,8 +169,8 @@ export function AdminTeamMemberSidebar() {
   };
 
   // Build navigation items based on permissions
-  const buildNavItems = (): { url: string; icon: any; label: string; section: string }[] => {
-    const items: { url: string; icon: any; label: string; section: string }[] = [];
+  const buildNavItems = (): { url: string; icon: LucideIcon; label: string; section: string }[] => {
+    const items: { url: string; icon: LucideIcon; label: string; section: string }[] = [];
     const addedUrls = new Set<string>();
 
     Object.entries(ADMIN_SECTION_ROUTES).forEach(([sectionId, routes]) => {

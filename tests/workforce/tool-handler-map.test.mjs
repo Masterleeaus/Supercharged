@@ -21,13 +21,16 @@ const { GROUP01_TOOL_IDS, GROUP01_NOT_IMPLEMENTED_IDS } = await import('../../se
 const { GROUP_02_TOOL_IDS, GROUP_02_NOT_IMPLEMENTED_IDS } = await import('../../server/workforce/tools/handlers/group-02.ts');
 const { GROUP03_TOOL_IDS, GROUP03_NOT_IMPLEMENTED_IDS } = await import('../../server/workforce/tools/handlers/group-03.ts');
 const { createGroup04ToolDefinitions, GROUP04_NOT_IMPLEMENTED } = await import('../../server/workforce/tools/handlers/group-04.ts');
+const { GROUP_MISSING_TOOL_IDS } = await import('../../server/workforce/tools/handlers/group-missing.ts');
 
 // Recorded on 2026-11-04: 100 distinct declared IDs across 125 role files, 5 bound to a handler, 95 unmapped.
 // Counted here: a tool is bound only when it has a real handler. not_implemented tools do not count.
 // Arithmetic: 100 declared - 77 bound = 23 unmapped. The 77 bound are 5 read handlers + 13 group 00 (18 ids, 5
 // not_implemented) + 12 group 01 (18 ids, 6 not_implemented) + 15 group 02 (20 ids, 5 not_implemented) + 13 group 03
 // (18 ids, 5 not_implemented) + 19 group 04 (20 ids, 1 not_implemented). 5 + 13 + 12 + 15 + 13 + 19 = 77.
-const UNMAPPED_COUNT_RECORDED = 23;
+const UNMAPPED_COUNT_RECORDED = 20;
+// 2026-11-17 (agent-tools lane): inventory.stock.list is now a real read handler on inventory_items, so 23 -> 22.
+// 2026-11-18 (agent-tools lane, #364): escalations.create and human_escalation.create write one internal staff_tasks row, so 22 -> 20.
 
 const ROLES_DIR = fileURLToPath(new URL('../../server/workforce/catalogue/roles', import.meta.url));
 
@@ -55,6 +58,7 @@ const bound = new Set([
   ...group02Bound,
   ...group03Bound,
   ...group04Bound,
+  ...GROUP_MISSING_TOOL_IDS,
 ]);
 
 const unmapped = [...declared].filter((toolId) => !bound.has(toolId)).sort();

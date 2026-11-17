@@ -333,13 +333,13 @@ export async function placeElevenLabsTestCall({
     if (hasWebhookNodes && webhookNodes && webhookNodes.length > 0) {
       for (const webhookNode of webhookNodes) {
         if (webhookNode.toolId.startsWith('send_email_') && !webhookNode.url) {
-          const templateName = String(webhookNode.payload?.template_name || 'default');
+          const templateName = (webhookNode.payload?.template_name as string | undefined) || 'default';
           const emailTool = buildMessagingEmailTool(agent.elevenLabsAgentId!, [templateName], templateName);
           emailTool.name = webhookNode.toolId;
           testWebhookTools.push(emailTool);
           logger.info(`   📧 Prepared test email tool: ${webhookNode.toolId}`);
         } else if (webhookNode.toolId.startsWith('send_whatsapp') && !webhookNode.url) {
-          const templateName = String(webhookNode.payload?.template_name || 'hello_world');
+          const templateName = (webhookNode.payload?.template_name as string | undefined) || 'hello_world';
           const whatsappTool = buildMessagingWhatsappTool(agent.elevenLabsAgentId!, [templateName], templateName, undefined, "auto");
           whatsappTool.name = webhookNode.toolId;
           testWebhookTools.push(whatsappTool);

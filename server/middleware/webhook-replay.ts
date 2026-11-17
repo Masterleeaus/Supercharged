@@ -20,9 +20,14 @@ export type ReplayRefusalReason =
   | "replay"
   | "capacity";
 
-export type ReplayCheckResult =
-  | { accepted: true; reason?: undefined }
-  | { accepted: false; reason: ReplayRefusalReason };
+/**
+ * accepted is a plain boolean so callers can write `if (!result.accepted)`. The reason is set only when
+ * accepted is false. (A union on `accepted` does not narrow on truthiness outside strictNullChecks.)
+ */
+export type ReplayCheckResult = {
+  accepted: boolean;
+  reason?: ReplayRefusalReason;
+};
 
 export interface ReplayCheckInput {
   provider: string;

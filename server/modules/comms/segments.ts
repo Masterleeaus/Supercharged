@@ -16,7 +16,7 @@ export type SegmentRule =
 export interface SegmentDefinition {
   companyId: string;
   name: string;
-  rules: SegmentRule[];
+  rules: readonly SegmentRule[];
 }
 
 export interface Segment extends Omit<SegmentDefinition, 'rules'> {

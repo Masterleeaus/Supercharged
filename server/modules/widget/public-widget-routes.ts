@@ -537,7 +537,7 @@ router.get('/widget/config/:token', async (req: Request, res: Response) => {
 
 router.post('/widget/session/start', async (req: Request, res: Response) => {
   try {
-    const { embedToken, visitorDomain } = req.body;
+    const { embedToken, visitorDomain } = req.body ?? {};
     
     if (!embedToken) {
       return res.status(400).json({ error: 'Embed token required' });
@@ -552,7 +552,19 @@ router.post('/widget/session/start', async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Widget is not active' });
     }
     
-    if (visitorDomain && !widgetService.validateDomain(widget, visitorDomain)) {
+    // The visitorDomain body field is untrusted. Enforce the same browser
+    // Origin/Referer domain policy as GET /widget/config/:token, including the
+    // no-header case when the widget has a non-empty allowlist. These headers
+    // can be spoofed by non-browser clients and are NOT authentication.
+    const requestDomain = widgetRequestDomain(req.headers);
+    if (!isWidgetDomainAllowed(widget.allowedDomains, requestDomain)) {
+      return res.status(403).json({ error: 'Domain not allowed' });
+    }
+    if (visitorDomain !== undefined && visitorDomain !== null && typeof visitorDomain !== 'string') {
+      return res.status(400).json({ error: 'Invalid visitor domain' });
+    }
+    const claimedDomain = typeof visitorDomain === 'string' ? visitorDomain.trim() : '';
+    if (claimedDomain && !widgetService.validateDomain(widget, claimedDomain)) {
       return res.status(403).json({ error: 'Domain not allowed' });
     }
     
@@ -597,7 +609,7 @@ router.post('/widget/session/start', async (req: Request, res: Response) => {
       userId: widget.userId,
       sessionToken,
       visitorIp: cleanedIp,
-      visitorDomain: visitorDomain || null,
+      visitorDomain: requestDomain || claimedDomain || null,
       status: 'pending',
     });
     

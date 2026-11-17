@@ -13,6 +13,7 @@
  * ============================================================
  */
 
+import type { AppError } from "@/components/app-error";
 import { useEffect, useState, useRef } from 'react';
 import { usePluginRegistry, exposePluginRegistry } from '@/contexts/plugin-registry';
 import { AuthStorage } from '@/lib/auth-storage';
@@ -144,10 +145,10 @@ export function PluginBootstrapper({ children }: { children: React.ReactNode }) 
           const loadPromise = (async () => {
             try {
               // Verify React globals are available before loading plugins
-              if (typeof (window as any).React === 'undefined') {
+              if (typeof (window as unknown as { React?: unknown }).React === 'undefined') {
                 throw new Error('window.React is not available. Plugin bundles require React to be exposed globally.');
               }
-              if (typeof (window as any).ReactDOM === 'undefined') {
+              if (typeof (window as unknown as { ReactDOM?: unknown }).ReactDOM === 'undefined') {
                 throw new Error('window.ReactDOM is not available. Plugin bundles require ReactDOM to be exposed globally.');
               }
 
@@ -173,13 +174,15 @@ export function PluginBootstrapper({ children }: { children: React.ReactNode }) 
                 loadedPlugins.push(pluginName);
                 registry.markPluginLoaded(pluginName);
                 console.log(`[PluginBootstrapper] Loaded plugin: ${pluginName}`);
-              } catch (execError: any) {
+              } catch (raw_execError) {
+                const execError = raw_execError as AppError;
                 console.error(`[PluginBootstrapper] Bundle execution error for ${pluginName}:`, execError?.message || execError?.toString?.() || execError);
                 console.error(`[PluginBootstrapper] Stack:`, execError?.stack);
                 failedPlugins.push(pluginName);
                 errors[pluginName] = execError.message || 'Execution error';
               }
-            } catch (fetchError: any) {
+            } catch (raw_fetchError) {
+              const fetchError = raw_fetchError as AppError;
               console.error(`[PluginBootstrapper] Failed to fetch plugin ${pluginName}:`, fetchError);
               failedPlugins.push(pluginName);
               errors[pluginName] = fetchError.message || 'Failed to fetch';
@@ -211,7 +214,8 @@ export function PluginBootstrapper({ children }: { children: React.ReactNode }) 
           failed: failedPlugins,
         });
 
-      } catch (err: any) {
+      } catch (raw_err) {
+        const err = raw_err as AppError;
         console.error('[PluginBootstrapper] Error loading plugins:', err);
         isFetchingRef.current = false;
         setState(prev => ({ ...prev, loading: false }));
