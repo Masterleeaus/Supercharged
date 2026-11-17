@@ -8,6 +8,8 @@ AI workforce, communications, connectors, audited workflow execution and automat
 
 ## Key references
 
+- [AI workforce architecture](AI_WORKFORCE_ARCHITECTURE.md): agent execution policy, connectors, communications and security gates.
+
 - [Repository README](../README.md): scope, implemented versus planned capabilities, current blockers and developer entry point.
 - [Platform map](https://github.com/Masterleeaus/Central/blob/main/docs/PLATFORM_MAP.md): ownership, cross-product handoffs, data and identity authority.
 - [Open issues](https://github.com/Masterleeaus/Supercharged/issues?q=is%3Aissue+is%3Aopen): active work and evidence-backed checklists.
