@@ -362,6 +362,22 @@ function segmentGuarded(code, text, seg) {
   return inBody || AUTH_RE.test(outC) || HEADER_RE.test(outT);
 }
 
+/**
+ * Recognise a directly bound, immutable middleware shorthand. Only a const initialized
+ * from a known guard is accepted, and only when the route passes that identifier as
+ * a standalone middleware argument. This does NOT trust arbitrary identifiers named
+ * 'auth' or late calls inside a handler after business logic.
+ */
+function guardAliasesBefore(code, routeIndex) {
+  const aliases = new Set();
+  const re = /\bconst\s+([A-Za-z_$][\w$]*)\s*=\s*([A-Za-z_$][\w$]*)\b/g;
+  let m;
+  while ((m = re.exec(code)) !== null && m.index < routeIndex) {
+    if (AUTH_RE.test(m[2])) aliases.add(m[1]);
+  }
+  return aliases;
+}
+
 const collapse = (s) => s.replace(/\s+/g, ' ').slice(0, 80);
 
 /** Return every route definition and auth .use() call in one source file. */
@@ -398,7 +414,12 @@ export function scanSource(input) {
     else if (/^[A-Za-z_$][\w$]*$/.test(pathCode)) routePath = `<${pathCode}>`;
     else routePath = `<expr ${collapse(pathText)}>`;
 
-    const inlineAuth = segs.slice(1).some((s) => segmentGuarded(code, text, s));
+    const aliases = guardAliasesBefore(code, m.index);
+    const inlineAuth = segs.slice(1).some((s) => {
+      if (segmentGuarded(code, text, s)) return true;
+      const { outC } = splitSegment(code, text, s);
+      return aliases.has(outC.trim());
+    });
     routes.push({
       receiver,
       method: method.toUpperCase(),
@@ -680,6 +701,27 @@ app.get('setting-name');
   assert.equal(byPath['/guarded'], 'inline guard');
   assert.equal(byPath['/after-use'], 'same-file guard');
   assert.equal(results.length, 4, 'app.get("setting-name") is not a route');
+});
+
+test('immutable middleware aliases resolve to real auth guards but do not whitelist naked auth identifiers', () => {
+  const fixture = `
+import { Router } from 'express';
+import { authenticateToken } from './auth';
+const router = Router();
+const auth = authenticateToken as unknown as RequestHandler;
+const fake = (req, res, next) => next();
+router.get('/alias-guard', auth, (req, res) => res.json({}));
+router.post('/unguarded', fake, (req, res) => res.json({ secret: 1 }));
+router.post('/after-business', (req, res) => {
+  const sensitive = await db.select();
+  auth(req, res);
+  res.json(sensitive);
+});
+`;
+  const byPath = Object.fromEntries(analyze(new Map([['server/middleware-alias.ts', fixture]])).map(r => [r.path, r.reason]));
+  assert.equal(byPath['/alias-guard'], 'inline guard');
+  assert.equal(byPath['/unguarded'], null);
+  assert.equal(byPath['/after-business'], null);
 });
 
 test('response text and guard names after business logic do not count as guards', () => {
