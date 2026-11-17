@@ -278,6 +278,9 @@ jobs:
           node-version: 22
       - name: Check listed migrations exist
         run: node scripts/check-migration-inventory.mjs
+      # Issue #253: block any schema push path that could change shared tables outside the migration chain.
+      - name: Schema authority drift check
+        run: node scripts/check-schema-authority.mjs
 
   docker:
     name: Docker build and smoke test

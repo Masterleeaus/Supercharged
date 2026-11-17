@@ -40,6 +40,20 @@ if (process.env.NODE_ENV === "production"
   process.exit(2);
 }
 
+// Issue #253: the Central migration chain (migrations/*.sql via
+// scripts/run-safe-migration.mjs) is the only authority for shared schema.
+// drizzle-kit push is therefore disabled by default, in every environment.
+// A developer may opt in for a throwaway local database only:
+//     ALLOW_DB_PUSH=1 npm run db:push
+if (process.env.ALLOW_DB_PUSH !== "1") {
+  console.error(
+    "[db-push-non-interactive] DISABLED: drizzle-kit push --force can change shared tables outside the migration chain (issue #253).\n" +
+    "  Apply schema changes with: npm run db:migrate   (node scripts/run-safe-migration.mjs)\n" +
+    "  Throwaway local database only: ALLOW_DB_PUSH=1 npm run db:push",
+  );
+  process.exit(2);
+}
+
 const child = spawn("node", ["-r", "./scripts/mock-tty.cjs", "./node_modules/drizzle-kit/bin.cjs", "push", "--force", ...process.argv.slice(2)], {
   stdio: ["pipe", "pipe", "inherit"],
   env: { ...process.env, FORCE_COLOR: "0" },
