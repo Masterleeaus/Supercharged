@@ -1,306 +1,42 @@
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
+import type { AppError } from "@/components/app-error";
 import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Slider } from "@/components/ui/slider";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import {
-  Phone,
-  Clock,
-  Target,
-  BarChart3,
-  Users,
-  Sparkles,
-  Mic,
-  Bot,
-  MessageSquare,
-  Settings,
-  CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
-  Wand2,
-  Volume2,
-  FileText,
-  Play,
-  Check,
-  Loader2,
-  ArrowRight,
-  Zap,
-  Info,
-} from "lucide-react";
-import VoiceSearchPicker from "@/components/VoiceSearchPicker";
-import VoicePreviewButton from "@/components/VoicePreviewButton";
-import OpenAIVoicePreviewButton from "@/components/OpenAIVoicePreviewButton";
-import CVEVoicePreviewButton from "@/components/CVEVoicePreviewButton";
+import { ChevronLeft, ChevronRight, Wand2, FileText, Check, Loader2, Zap } from "lucide-react";
+
 import PromptTemplatesLibrary from "@/components/PromptTemplatesLibrary";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { SUPPORTED_LANGUAGES, getLanguageLabel, isProviderSupported } from "@/lib/languages";
-import { LanguageOptionLabel } from "@/components/LanguageProviderBadges";
+
 import { usePluginStatus } from "@/hooks/use-plugin-status";
 
-interface SipPhoneNumber {
-  id: string;
-  phoneNumber: string;
-  label?: string;
-  trunkId: string;
-  engine: string;
-}
-
-interface UseCase {
-  id: string;
-  title: string;
-  description: string;
-  icon: typeof Phone;
-  color: string;
-  presetVoiceTone: string;
-  presetPersonality: string;
-  suggestedPrompt: string;
-  suggestedFirstMessage: string;
-  suggestedVoiceStyle: "professional" | "friendly" | "casual" | "authoritative";
-}
-
-const useCases: UseCase[] = [
-  {
-    id: "receptionist",
-    title: "Receptionist",
-    description: "Handle incoming calls, route to departments, answer FAQs",
-    icon: Phone,
-    color: "emerald",
-    presetVoiceTone: "professional",
-    presetPersonality: "helpful",
-    suggestedPrompt: "You are a professional virtual receptionist for {{company_name}}. Your role is to:\n- Greet callers warmly and professionally\n- Answer common questions about business hours, location, and services\n- Route calls to the appropriate department or person\n- Take messages when someone is unavailable\n- Maintain a calm and helpful demeanor at all times\n\nBe concise but friendly. If you don't know something, offer to take a message or transfer to someone who can help.",
-    suggestedFirstMessage: "Thank you for calling {{company_name}}. My name is {{agent_name}}. How may I assist you today?",
-    suggestedVoiceStyle: "professional",
-  },
-  {
-    id: "appointment",
-    title: "Appointment Setter",
-    description: "Schedule meetings, qualify leads, manage bookings",
-    icon: Clock,
-    color: "blue",
-    presetVoiceTone: "friendly",
-    presetPersonality: "professional",
-    suggestedPrompt: "You are an appointment scheduling assistant for {{company_name}}. Your responsibilities are:\n- Qualify callers to ensure they're a good fit\n- Check available time slots\n- Book appointments efficiently\n- Confirm date, time, and meeting details\n- Send confirmation information\n\nAsk qualifying questions naturally before booking. Be efficient with the caller's time while ensuring you gather all necessary information.",
-    suggestedFirstMessage: "Hi there! Thanks for your interest in scheduling a meeting with {{company_name}}. I'd love to help you find a time that works. May I start by getting your name?",
-    suggestedVoiceStyle: "friendly",
-  },
-  {
-    id: "qualification",
-    title: "Lead Qualification",
-    description: "Screen prospects, score leads, gather requirements",
-    icon: Target,
-    color: "violet",
-    presetVoiceTone: "confident",
-    presetPersonality: "inquisitive",
-    suggestedPrompt: "You are a lead qualification specialist for {{company_name}}. Your mission is to:\n- Understand the prospect's needs and pain points\n- Gather key information: budget, timeline, decision process\n- Score leads based on qualification criteria\n- Identify the best next steps for qualified leads\n- Politely disqualify poor-fit prospects\n\nAsk open-ended questions and listen carefully. Be conversational, not interrogative. Focus on understanding their situation before pitching solutions.",
-    suggestedFirstMessage: "Hello! I'm reaching out from {{company_name}}. I'd love to learn a bit about your current situation to see if we might be able to help. Do you have a few minutes to chat?",
-    suggestedVoiceStyle: "professional",
-  },
-  {
-    id: "survey",
-    title: "Survey & Feedback",
-    description: "Conduct surveys, gather insights, collect feedback",
-    icon: BarChart3,
-    color: "amber",
-    presetVoiceTone: "friendly",
-    presetPersonality: "curious",
-    suggestedPrompt: "You are a friendly survey conductor for {{company_name}}. Your goals are:\n- Make the survey feel like a natural conversation\n- Ask questions clearly and wait for complete responses\n- Probe for details when answers are vague\n- Thank respondents for their time and insights\n- Record feedback accurately\n\nKeep a warm, appreciative tone. Make respondents feel their opinions matter. Be patient and don't rush through questions.",
-    suggestedFirstMessage: "Hi! I'm calling from {{company_name}} to gather some quick feedback about your recent experience with us. Your insights really help us improve. Would you have about 5 minutes to share your thoughts?",
-    suggestedVoiceStyle: "friendly",
-  },
-  {
-    id: "service",
-    title: "Customer Service",
-    description: "Resolve issues, answer questions, provide support",
-    icon: Users,
-    color: "rose",
-    presetVoiceTone: "empathetic",
-    presetPersonality: "patient",
-    suggestedPrompt: "You are a customer service representative for {{company_name}}. Your priorities are:\n- Listen to customer concerns with empathy\n- Resolve issues quickly and effectively\n- Provide clear, accurate information\n- Escalate to a human agent when necessary\n- Follow up to ensure satisfaction\n\nAlways acknowledge the customer's feelings first. Stay calm even with frustrated callers. Focus on solutions, not blame.",
-    suggestedFirstMessage: "Thank you for contacting {{company_name}} support. I'm here to help! What can I assist you with today?",
-    suggestedVoiceStyle: "professional",
-  },
-  {
-    id: "custom",
-    title: "Custom Agent",
-    description: "Build from scratch with full customization",
-    icon: Sparkles,
-    color: "slate",
-    presetVoiceTone: "professional",
-    presetPersonality: "helpful",
-    suggestedPrompt: "",
-    suggestedFirstMessage: "",
-    suggestedVoiceStyle: "professional",
-  },
-];
-
-const voiceToneOptions = [
-  { value: "professional", label: "Professional", description: "Formal, polished, business-appropriate" },
-  { value: "friendly", label: "Friendly", description: "Warm, approachable, personable" },
-  { value: "empathetic", label: "Empathetic", description: "Understanding, compassionate, supportive" },
-  { value: "confident", label: "Confident", description: "Assured, decisive, trustworthy" },
-  { value: "casual", label: "Casual", description: "Relaxed, conversational, laid-back" },
-];
-
-const personalityOptions = [
-  { value: "helpful", label: "Helpful", description: "Eager to assist and solve problems" },
-  { value: "professional", label: "Professional", description: "Business-focused and efficient" },
-  { value: "patient", label: "Patient", description: "Takes time to explain and understand" },
-  { value: "inquisitive", label: "Inquisitive", description: "Asks questions to understand needs" },
-  { value: "curious", label: "Curious", description: "Interested in learning more" },
-  { value: "energetic", label: "Energetic", description: "Enthusiastic and positive" },
-];
-
-
-// OpenAI Realtime API voices
-const openaiVoices = [
-  { value: "alloy", label: "Alloy", description: "Neutral and balanced" },
-  { value: "echo", label: "Echo", description: "Warm and conversational" },
-  { value: "shimmer", label: "Shimmer", description: "Clear and expressive" },
-  { value: "ash", label: "Ash", description: "Soft and gentle" },
-  { value: "ballad", label: "Ballad", description: "Melodic and soothing" },
-  { value: "coral", label: "Coral", description: "Bright and friendly" },
-  { value: "sage", label: "Sage", description: "Calm and wise" },
-  { value: "verse", label: "Verse", description: "Poetic and articulate" },
-  { value: "cedar", label: "Cedar", description: "Deep and grounded" },
-  { value: "marin", label: "Marin", description: "Fresh and lively" },
-];
-
-export const customVoiceEngineVoices = [
-  // Deepgram
-  { value: "aura-asteria-en", label: "Asteria (Deepgram)", description: "English - Female", provider: "deepgram" as const },
-  { value: "aura-luna-en", label: "Luna (Deepgram)", description: "English - Female", provider: "deepgram" as const },
-  { value: "aura-stella-en", label: "Stella (Deepgram)", description: "English - Female", provider: "deepgram" as const },
-  { value: "aura-athena-en", label: "Athena (Deepgram)", description: "English - Female", provider: "deepgram" as const },
-  { value: "aura-hera-en", label: "Hera (Deepgram)", description: "English - Female", provider: "deepgram" as const },
-  { value: "aura-orion-en", label: "Orion (Deepgram)", description: "English - Male", provider: "deepgram" as const },
-  { value: "aura-arcas-en", label: "Arcas (Deepgram)", description: "English - Male", provider: "deepgram" as const },
-  { value: "aura-perseus-en", label: "Perseus (Deepgram)", description: "English - Male", provider: "deepgram" as const },
-  { value: "aura-angus-en", label: "Angus (Deepgram)", description: "English - Male", provider: "deepgram" as const },
-  { value: "aura-orpheus-en", label: "Orpheus (Deepgram)", description: "English - Male", provider: "deepgram" as const },
-  { value: "aura-helios-en", label: "Helios (Deepgram)", description: "English - Male", provider: "deepgram" as const },
-  { value: "aura-zeus-en", label: "Zeus (Deepgram)", description: "English - Male", provider: "deepgram" as const },
-  { value: "aura-2-asteria-en", label: "Asteria Aura-2 (Deepgram)", description: "English - Female", provider: "deepgram" as const },
-  { value: "aura-2-luna-en", label: "Luna Aura-2 (Deepgram)", description: "English - Female", provider: "deepgram" as const },
-  { value: "aura-2-stella-en", label: "Stella Aura-2 (Deepgram)", description: "English - Female", provider: "deepgram" as const },
-  { value: "aura-2-athena-en", label: "Athena Aura-2 (Deepgram)", description: "English - Female", provider: "deepgram" as const },
-  { value: "aura-2-hera-en", label: "Hera Aura-2 (Deepgram)", description: "English - Female", provider: "deepgram" as const },
-  { value: "aura-2-orion-en", label: "Orion Aura-2 (Deepgram)", description: "English - Male", provider: "deepgram" as const },
-  { value: "aura-2-arcas-en", label: "Arcas Aura-2 (Deepgram)", description: "English - Male", provider: "deepgram" as const },
-  { value: "aura-2-perseus-en", label: "Perseus Aura-2 (Deepgram)", description: "English - Male", provider: "deepgram" as const },
-  { value: "aura-2-angus-en", label: "Angus Aura-2 (Deepgram)", description: "English - Male", provider: "deepgram" as const },
-  { value: "aura-2-orpheus-en", label: "Orpheus Aura-2 (Deepgram)", description: "English - Male", provider: "deepgram" as const },
-  { value: "aura-2-helios-en", label: "Helios Aura-2 (Deepgram)", description: "English - Male", provider: "deepgram" as const },
-  { value: "aura-2-zeus-en", label: "Zeus Aura-2 (Deepgram)", description: "English - Male", provider: "deepgram" as const },
-  { value: "aura-2-amira-de", label: "Amira (Deepgram)", description: "German - Female", provider: "deepgram" as const },
-  { value: "aura-2-lukas-de", label: "Lukas (Deepgram)", description: "German - Male", provider: "deepgram" as const },
-  { value: "aura-2-rhea-nl", label: "Rhea (Deepgram)", description: "Dutch - Female", provider: "deepgram" as const },
-  { value: "aura-2-nils-nl", label: "Nils (Deepgram)", description: "Dutch - Male", provider: "deepgram" as const },
-  { value: "aura-2-chloe-fr", label: "Chloe (Deepgram)", description: "French - Female", provider: "deepgram" as const },
-  { value: "aura-2-nicolas-fr", label: "Nicolas (Deepgram)", description: "French - Male", provider: "deepgram" as const },
-  { value: "aura-2-bianca-it", label: "Bianca (Deepgram)", description: "Italian - Female", provider: "deepgram" as const },
-  { value: "aura-2-giulio-it", label: "Giulio (Deepgram)", description: "Italian - Male", provider: "deepgram" as const },
-  { value: "aura-2-akira-ja", label: "Akira (Deepgram)", description: "Japanese - Female", provider: "deepgram" as const },
-  { value: "aura-2-hikari-ja", label: "Hikari (Deepgram)", description: "Japanese - Male", provider: "deepgram" as const },
-  { value: "aura-2-carmen-es", label: "Carmen (Deepgram)", description: "Spanish - Female", provider: "deepgram" as const },
-  { value: "aura-2-miguel-es", label: "Miguel (Deepgram)", description: "Spanish - Male", provider: "deepgram" as const },
-  // Sarvam — Bulbul v3
-  { value: "shubh", label: "Shubh (Sarvam)", description: "Male", provider: "sarvam" as const, model: "bulbul:v3" as const, languages: ["en", "hi", "te", "kn", "od", "ml"] },
-  { value: "aditya", label: "Aditya (Sarvam)", description: "Male", provider: "sarvam" as const, model: "bulbul:v3" as const },
-  { value: "rahul", label: "Rahul (Sarvam)", description: "Male", provider: "sarvam" as const, model: "bulbul:v3" as const },
-  { value: "rohan", label: "Rohan (Sarvam)", description: "Male", provider: "sarvam" as const, model: "bulbul:v3" as const, languages: ["ta"] },
-  { value: "amit", label: "Amit (Sarvam)", description: "Male", provider: "sarvam" as const, model: "bulbul:v3" as const },
-  { value: "dev", label: "Dev (Sarvam)", description: "Male", provider: "sarvam" as const, model: "bulbul:v3" as const },
-  { value: "ratan", label: "Ratan (Sarvam)", description: "Male", provider: "sarvam" as const, model: "bulbul:v3" as const, languages: ["en", "te", "kn", "ta", "mr", "gu"] },
-  { value: "varun", label: "Varun (Sarvam)", description: "Male — dramatic/suspense", provider: "sarvam" as const, model: "bulbul:v3" as const },
-  { value: "manan", label: "Manan (Sarvam)", description: "Male", provider: "sarvam" as const, model: "bulbul:v3" as const },
-  { value: "sumit", label: "Sumit (Sarvam)", description: "Male", provider: "sarvam" as const, model: "bulbul:v3" as const },
-  { value: "kabir", label: "Kabir (Sarvam)", description: "Male", provider: "sarvam" as const, model: "bulbul:v3" as const },
-  { value: "aayan", label: "Aayan (Sarvam)", description: "Male", provider: "sarvam" as const, model: "bulbul:v3" as const },
-  { value: "ashutosh", label: "Ashutosh (Sarvam)", description: "Male", provider: "sarvam" as const, model: "bulbul:v3" as const, languages: ["hi"] },
-  { value: "advait", label: "Advait (Sarvam)", description: "Male", provider: "sarvam" as const, model: "bulbul:v3" as const },
-  { value: "anand", label: "Anand (Sarvam)", description: "Male", provider: "sarvam" as const, model: "bulbul:v3" as const },
-  { value: "tarun", label: "Tarun (Sarvam)", description: "Male", provider: "sarvam" as const, model: "bulbul:v3" as const },
-  { value: "sunny", label: "Sunny (Sarvam)", description: "Male", provider: "sarvam" as const, model: "bulbul:v3" as const },
-  { value: "mani", label: "Mani (Sarvam)", description: "Male — best overall CER", provider: "sarvam" as const, model: "bulbul:v3" as const, languages: ["pa"] },
-  { value: "gokul", label: "Gokul (Sarvam)", description: "Male", provider: "sarvam" as const, model: "bulbul:v3" as const },
-  { value: "vijay", label: "Vijay (Sarvam)", description: "Male", provider: "sarvam" as const, model: "bulbul:v3" as const },
-  { value: "mohit", label: "Mohit (Sarvam)", description: "Male", provider: "sarvam" as const, model: "bulbul:v3" as const },
-  { value: "rehan", label: "Rehan (Sarvam)", description: "Male", provider: "sarvam" as const, model: "bulbul:v3" as const, languages: ["bn"] },
-  { value: "soham", label: "Soham (Sarvam)", description: "Male", provider: "sarvam" as const, model: "bulbul:v3" as const },
-  { value: "priya", label: "Priya (Sarvam)", description: "Female", provider: "sarvam" as const, model: "bulbul:v3" as const, languages: ["hi", "te", "mr", "gu"] },
-  { value: "neha", label: "Neha (Sarvam)", description: "Female", provider: "sarvam" as const, model: "bulbul:v3" as const, languages: ["te", "kn"] },
-  { value: "ritu", label: "Ritu (Sarvam)", description: "Female", provider: "sarvam" as const, model: "bulbul:v3" as const, languages: ["ta", "od", "mr", "gu"] },
-  { value: "pooja", label: "Pooja (Sarvam)", description: "Female", provider: "sarvam" as const, model: "bulbul:v3" as const, languages: ["od", "ml"] },
-  { value: "simran", label: "Simran (Sarvam)", description: "Female", provider: "sarvam" as const, model: "bulbul:v3" as const },
-  { value: "kavya", label: "Kavya (Sarvam)", description: "Female", provider: "sarvam" as const, model: "bulbul:v3" as const },
-  { value: "ishita", label: "Ishita (Sarvam)", description: "Female", provider: "sarvam" as const, model: "bulbul:v3" as const, languages: ["en", "kn", "ta"] },
-  { value: "shreya", label: "Shreya (Sarvam)", description: "Female", provider: "sarvam" as const, model: "bulbul:v3" as const },
-  { value: "roopa", label: "Roopa (Sarvam)", description: "Female", provider: "sarvam" as const, model: "bulbul:v3" as const, languages: ["bn", "pa"] },
-  { value: "tanya", label: "Tanya (Sarvam)", description: "Female", provider: "sarvam" as const, model: "bulbul:v3" as const },
-  { value: "shruti", label: "Shruti (Sarvam)", description: "Female", provider: "sarvam" as const, model: "bulbul:v3" as const },
-  { value: "suhani", label: "Suhani (Sarvam)", description: "Female", provider: "sarvam" as const, model: "bulbul:v3" as const, languages: ["hi", "bn", "pa"] },
-  { value: "kavitha", label: "Kavitha (Sarvam)", description: "Female", provider: "sarvam" as const, model: "bulbul:v3" as const },
-  { value: "rupali", label: "Rupali (Sarvam)", description: "Female", provider: "sarvam" as const, model: "bulbul:v3" as const },
-  // Sarvam — Bulbul v2 (7 speakers)
-  { value: "anushka", label: "Anushka (Sarvam)", description: "Female — default v2", provider: "sarvam" as const, model: "bulbul:v2" as const },
-  { value: "manisha", label: "Manisha (Sarvam)", description: "Female — warm", provider: "sarvam" as const, model: "bulbul:v2" as const },
-  { value: "vidya", label: "Vidya (Sarvam)", description: "Female — articulate", provider: "sarvam" as const, model: "bulbul:v2" as const },
-  { value: "arya", label: "Arya (Sarvam)", description: "Female — energetic", provider: "sarvam" as const, model: "bulbul:v2" as const },
-  { value: "abhilash", label: "Abhilash (Sarvam)", description: "Male — authoritative", provider: "sarvam" as const, model: "bulbul:v2" as const },
-  { value: "karun", label: "Karun (Sarvam)", description: "Male — conversational", provider: "sarvam" as const, model: "bulbul:v2" as const },
-  { value: "hitesh", label: "Hitesh (Sarvam)", description: "Male — professional", provider: "sarvam" as const, model: "bulbul:v2" as const },
-];
-
-interface AgentCreationWizardProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSuccess?: () => void;
-}
-
-type WizardStep = "useCase" | "basics" | "personality" | "prompts" | "voice" | "review";
-
-const steps: { id: WizardStep; title: string; icon: typeof Bot }[] = [
-  { id: "useCase", title: "Use Case", icon: Target },
-  { id: "basics", title: "Basic Info", icon: Bot },
-  { id: "personality", title: "Personality", icon: MessageSquare },
-  { id: "prompts", title: "Prompts", icon: FileText },
-  { id: "voice", title: "Voice", icon: Mic },
-  { id: "review", title: "Review", icon: CheckCircle2 },
-];
+import { AgentFormData, AgentCreationWizardProps, SipPhoneNumber, WizardStep, steps, useCases, voiceToneOptions, personalityOptions, customVoiceEngineVoices } from "@/components/agent-creation/constants";
+import { BasicsStep } from "@/components/agent-creation/BasicsStep";
+import { VoiceStep } from "@/components/agent-creation/VoiceStep";
+import { ReviewStep } from "@/components/agent-creation/ReviewStep";
 
 export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCreationWizardProps) {
   const { t } = useTranslation();
@@ -332,15 +68,15 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
   const hasAlternateEngines = isPlivoEnabled || isTwilioOpenaiEnabled || isElevenLabsSipAllowed || isOpenAISipAllowed || isCustomVoiceEngineEnabled;
 
   // Fetch CVE admin settings for active TTS provider
-  const { data: cveSettings } = useQuery<{ success: boolean; data: { tts: { activeProvider: string } } }>({
+  const { data: cveSettings } = useQuery<{ success: boolean; data: { tts: { activeProvider: string }; stt?: { activeProvider?: string } } }>({
     queryKey: ["/api/voice-engine/admin/provider-keys"],
     staleTime: 30000,
     enabled: isCustomVoiceEngineEnabled,
   });
   const activeTtsProvider = cveSettings?.data?.tts?.activeProvider || "deepgram";
-  const activeSttProvider = (cveSettings?.data as any)?.stt?.activeProvider || "deepgram";
+  const activeSttProvider = cveSettings?.data?.stt?.activeProvider || "deepgram";
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<AgentFormData>({
     useCase: "",
     name: "",
     elevenLabsVoiceId: "",
@@ -531,7 +267,8 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
       resetWizard();
       onSuccess?.();
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: "Creation Failed",
         description: error.message || "Failed to create agent. Please try again.",
@@ -627,376 +364,20 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
 
       case "basics":
         return (
-          <div className="space-y-6">
-            <div className="text-center mb-6">
-              <h3 className="text-lg font-semibold">Basic Information</h3>
-              <p className="text-sm text-muted-foreground">
-                Name your agent and choose its voice
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Agent Name <span className="text-destructive">*</span></Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder={selectedUseCase ? `My ${selectedUseCase.title} Agent` : "Enter agent name"}
-                  data-testid="input-agent-name"
-                />
-              </div>
-
-              {/* Telephony Provider Selection - Only show if alternate engines are enabled */}
-              {hasAlternateEngines && (
-                <div className="space-y-2">
-                  <Label>Telephony Provider</Label>
-                  <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                    {/* ElevenLabs + Twilio - Purple theme */}
-                    <div
-                      className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                        formData.telephonyProvider === "twilio"
-                          ? "border-violet-500 bg-violet-500/10 dark:bg-violet-500/20"
-                          : "border-border hover:border-violet-400/50 hover:bg-violet-500/5"
-                      }`}
-                      onClick={() => setFormData(prev => ({ ...prev, telephonyProvider: "twilio", sipPhoneNumberId: "" }))}
-                      data-testid="provider-twilio"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-medium text-violet-700 dark:text-violet-300">ElevenLabs + Twilio</span>
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            Premium voice quality, 30+ languages
-                          </p>
-                        </div>
-                        {formData.telephonyProvider === "twilio" && (
-                          <Check className="h-4 w-4 text-violet-600" />
-                        )}
-                      </div>
-                    </div>
-                    {/* OpenAI + Twilio - Teal/Blue theme */}
-                    {isTwilioOpenaiEnabled && (
-                      <div
-                        className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                          formData.telephonyProvider === "twilio_openai"
-                            ? "border-brand bg-brand/10 dark:bg-brand/20"
-                            : "border-border hover:border-brand/50 hover:bg-brand/5"
-                        }`}
-                        onClick={() => setFormData(prev => ({ ...prev, telephonyProvider: "twilio_openai", sipPhoneNumberId: "" }))}
-                        data-testid="provider-twilio-openai"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-medium text-brand">OpenAI + Twilio</span>
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              Real-time AI, international
-                            </p>
-                          </div>
-                          {formData.telephonyProvider === "twilio_openai" && (
-                            <Check className="h-4 w-4 text-brand" />
-                          )}
-                        </div>
-                      </div>
-                    )}
-                    {/* OpenAI + Plivo - Green theme */}
-                    {isPlivoEnabled && (
-                      <div
-                        className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                          formData.telephonyProvider === "plivo"
-                            ? "border-emerald-500 bg-emerald-500/10 dark:bg-emerald-500/20"
-                            : "border-border hover:border-emerald-400/50 hover:bg-emerald-500/5"
-                        }`}
-                        onClick={() => setFormData(prev => ({ ...prev, telephonyProvider: "plivo", sipPhoneNumberId: "" }))}
-                        data-testid="provider-plivo"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-medium text-emerald-700 dark:text-emerald-300">OpenAI + Plivo</span>
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              Real-time AI, India numbers
-                            </p>
-                          </div>
-                          {formData.telephonyProvider === "plivo" && (
-                            <Check className="h-4 w-4 text-emerald-600" />
-                          )}
-                        </div>
-                      </div>
-                    )}
-                    {/* ElevenLabs SIP - Orange theme */}
-                    {isElevenLabsSipAllowed && (
-                      <div
-                        className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                          formData.telephonyProvider === "elevenlabs-sip"
-                            ? "border-orange-500 bg-orange-500/10 dark:bg-orange-500/20"
-                            : "border-border hover:border-orange-400/50 hover:bg-orange-500/5"
-                        }`}
-                        onClick={() => setFormData(prev => ({ ...prev, telephonyProvider: "elevenlabs-sip", sipPhoneNumberId: "" }))}
-                        data-testid="provider-elevenlabs-sip"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-medium text-orange-700 dark:text-orange-300">ElevenLabs SIP</span>
-                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-orange-300 text-orange-600 dark:border-orange-600 dark:text-orange-400">Plugin</Badge>
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              Your own SIP trunk
-                            </p>
-                          </div>
-                          {formData.telephonyProvider === "elevenlabs-sip" && (
-                            <Check className="h-4 w-4 text-orange-600" />
-                          )}
-                        </div>
-                      </div>
-                    )}
-                    {/* OpenAI SIP - Pink theme */}
-                    {isOpenAISipAllowed && (
-                      <div
-                        className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                          formData.telephonyProvider === "openai-sip"
-                            ? "border-pink-500 bg-pink-500/10 dark:bg-pink-500/20"
-                            : "border-border hover:border-pink-400/50 hover:bg-pink-500/5"
-                        }`}
-                        onClick={() => setFormData(prev => ({ ...prev, telephonyProvider: "openai-sip", sipPhoneNumberId: "" }))}
-                        data-testid="provider-openai-sip"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-medium text-pink-700 dark:text-pink-300">OpenAI SIP</span>
-                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-pink-300 text-pink-600 dark:border-pink-600 dark:text-pink-400">Plugin</Badge>
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              Your own SIP trunk
-                            </p>
-                          </div>
-                          {formData.telephonyProvider === "openai-sip" && (
-                            <Check className="h-4 w-4 text-pink-600" />
-                          )}
-                        </div>
-                      </div>
-                    )}
-                    {/* Custom Voice Engine - Indigo/Indigo theme */}
-                    {isCustomVoiceEngineEnabled && (
-                      <div
-                        className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                          formData.telephonyProvider === "custom-voice-engine"
-                            ? "border-indigo-500 bg-indigo-500/10 dark:bg-indigo-500/20"
-                            : "border-border hover:border-indigo-400/50 hover:bg-indigo-500/5"
-                        }`}
-                        onClick={() => setFormData(prev => ({ ...prev, telephonyProvider: "custom-voice-engine", sipPhoneNumberId: "" }))}
-                        data-testid="provider-custom-voice-engine"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-medium text-indigo-700 dark:text-indigo-300">Custom Voice Engine</span>
-                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-indigo-300 text-indigo-600 dark:border-indigo-600 dark:text-indigo-400">Plugin</Badge>
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              Self-hosted FreeSWITCH pipeline
-                            </p>
-                          </div>
-                          {formData.telephonyProvider === "custom-voice-engine" && (
-                            <Check className="h-4 w-4 text-indigo-600" />
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {(formData.telephonyProvider === "elevenlabs-sip" || formData.telephonyProvider === "openai-sip") && (
-                <div className="space-y-2">
-                  <Label>{t('wizard.sipPhoneNumber', { defaultValue: 'SIP Phone Number' })} <span className="text-destructive">*</span></Label>
-                  {(() => {
-                    if (isSipNumbersLoading) {
-                      return (
-                        <div className="flex items-center gap-2 p-3">
-                          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground">{t('wizard.loadingSipNumbers', { defaultValue: 'Loading SIP phone numbers...' })}</span>
-                        </div>
-                      );
-                    }
-                    const filtered = sipPhoneNumbers.filter(p => 
-                      p.engine === formData.telephonyProvider
-                    );
-                    if (filtered.length === 0) {
-                      return (
-                        <div className="flex items-start gap-2 p-3 rounded-md bg-muted/50 border border-border">
-                          <Info className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-                          <p className="text-sm text-muted-foreground">
-                            {t('wizard.noSipNumbers', { defaultValue: 'No SIP phone numbers available for this engine. Please set up a SIP trunk and import phone numbers in your' })}{' '}
-                            <a href="/app/sip" target="_blank" className="text-primary underline underline-offset-2" data-testid="link-sip-settings">
-                              {t('wizard.sipSettings', { defaultValue: 'SIP settings' })}
-                            </a>{' '}
-                            {t('wizard.first', { defaultValue: 'first.' })}
-                          </p>
-                        </div>
-                      );
-                    }
-                    return (
-                      <Select
-                        value={formData.sipPhoneNumberId}
-                        onValueChange={(value) => setFormData(prev => ({ ...prev, sipPhoneNumberId: value }))}
-                      >
-                        <SelectTrigger data-testid="select-sip-phone-number">
-                          <div className="flex items-center gap-2">
-                            <Phone className="h-4 w-4 text-muted-foreground" />
-                            <SelectValue placeholder={t('wizard.selectSipNumber', { defaultValue: 'Select a SIP phone number' })} />
-                          </div>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {filtered.map((num) => (
-                            <SelectItem key={num.id} value={num.id}>
-                              <span>{num.phoneNumber}</span>
-                              {num.label && <span className="ml-2 text-muted-foreground">({num.label})</span>}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    );
-                  })()}
-                </div>
-              )}
-
-              <div className="grid grid-cols-1 lg:[grid-template-columns:repeat(2,minmax(0,1fr))] gap-4">
-                <div className="space-y-2 relative min-w-0">
-                  <Label>Voice <span className="text-destructive">*</span></Label>
-                  {formData.telephonyProvider === "custom-voice-engine" ? (
-                    // Custom Voice Engine Voice Selector
-                    <div className="flex gap-2 min-w-0">
-                      <div className="flex-1 min-w-0">
-                        <Select
-                          value={formData.openaiVoice || "aura-asteria-en"}
-                          onValueChange={(value) => setFormData(prev => ({ ...prev, openaiVoice: value }))}
-                        >
-                          <SelectTrigger data-testid="select-cve-voice" className="w-full">
-                            <SelectValue placeholder="Select Voice" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {customVoiceEngineVoices
-                              .filter(v => v.provider === activeTtsProvider)
-                              .map((voice) => (
-                              <SelectItem key={voice.value} value={voice.value}>
-                                <div className="flex flex-col">
-                                  <span>{voice.label}</span>
-                                  <span className="text-xs text-muted-foreground">{voice.description}</span>
-                                </div>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <CVEVoicePreviewButton
-                        voiceId={formData.openaiVoice || "aura-asteria-en"}
-                        voiceName={customVoiceEngineVoices.find(v => v.value === (formData.openaiVoice || "aura-asteria-en"))?.label}
-                        provider={customVoiceEngineVoices.find(v => v.value === (formData.openaiVoice || "aura-asteria-en"))?.provider}
-                      />
-                    </div>
-                  ) : (formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip") ? (
-                    // OpenAI Voice Selector for Plivo, Twilio+OpenAI, or OpenAI SIP
-                    <div className="flex gap-2 min-w-0">
-                      <div className="flex-1 min-w-0">
-                        <Select
-                          value={formData.openaiVoice}
-                          onValueChange={(value) => setFormData(prev => ({ ...prev, openaiVoice: value }))}
-                        >
-                          <SelectTrigger data-testid="select-openai-voice" className="w-full">
-                            <SelectValue placeholder="Select OpenAI voice" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {openaiVoices.map((voice) => (
-                              <SelectItem key={voice.value} value={voice.value}>
-                                <div className="flex flex-col">
-                                  <span>{voice.label}</span>
-                                  <span className="text-xs text-muted-foreground">{voice.description}</span>
-                                </div>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <OpenAIVoicePreviewButton
-                        voiceId={formData.openaiVoice}
-                        voiceName={openaiVoices.find(v => v.value === formData.openaiVoice)?.label}
-                        speed={formData.voiceSpeed}
-                      />
-                    </div>
-                  ) : (
-                    // ElevenLabs Voice Selector for Twilio or ElevenLabs SIP
-                    <div className="flex gap-2 min-w-0">
-                      <div className="flex-1 min-w-0">
-                        <VoiceSearchPicker
-                          value={formData.elevenLabsVoiceId}
-                          onChange={(voiceId) => setFormData(prev => ({ ...prev, elevenLabsVoiceId: voiceId }))}
-                          placeholder="Select a voice"
-                        />
-                      </div>
-                      <VoicePreviewButton
-                        voiceId={formData.elevenLabsVoiceId}
-                        voiceSettings={{
-                          stability: formData.voiceStability,
-                          similarity_boost: formData.voiceSimilarityBoost,
-                          speed: formData.voiceSpeed,
-                        }}
-                        onSettingsChange={(settings) => {
-                          setFormData(prev => ({
-                            ...prev,
-                            voiceStability: settings.stability,
-                            voiceSimilarityBoost: settings.similarity_boost,
-                            voiceSpeed: settings.speed ?? prev.voiceSpeed,
-                          }));
-                        }}
-                        previewText={formData.firstMessage || undefined}
-                        language={formData.language || undefined}
-                        compact
-                      />
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-2 min-w-0">
-                  <Label>Language</Label>
-                  <Select
-                    value={formData.language}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, language: value }))}
-                  >
-                    <SelectTrigger data-testid="select-language">
-                      <SelectValue placeholder="Select language" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {SUPPORTED_LANGUAGES
-                      .filter((lang) => {
-                        const isElevenLabs = formData.telephonyProvider === "twilio" || formData.telephonyProvider === "elevenlabs-sip";
-                        const providerType = isElevenLabs ? "elevenlabs" : "openai";
-                        return isProviderSupported(lang.value, providerType);
-                      })
-                      .map((lang) => (
-                          <SelectItem 
-                            key={lang.value} 
-                            value={lang.value}
-                          >
-                            <LanguageOptionLabel 
-                              label={t(`agents.languages.${lang.value}`, { defaultValue: lang.label })} 
-                              providers={lang.providers} 
-                              compact 
-                            />
-                          </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-          </div>
+          <BasicsStep
+            formData={formData}
+            setFormData={setFormData}
+            sipPhoneNumbers={sipPhoneNumbers}
+            isSipNumbersLoading={isSipNumbersLoading}
+            isElevenLabsSipAllowed={isElevenLabsSipAllowed}
+            isOpenAISipAllowed={isOpenAISipAllowed}
+            isPlivoEnabled={isPlivoEnabled}
+            isTwilioOpenaiEnabled={isTwilioOpenaiEnabled}
+            isCustomVoiceEngineEnabled={isCustomVoiceEngineEnabled}
+            hasAlternateEngines={hasAlternateEngines}
+            activeTtsProvider={activeTtsProvider}
+            selectedUseCase={selectedUseCase}
+          />
         );
 
       case "personality":
@@ -1184,260 +565,12 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
 
       case "voice":
         return (
-          <div className="space-y-6">
-            <div className="text-center mb-6">
-              <h3 className="text-lg font-semibold">Fine-tune Voice</h3>
-              <p className="text-sm text-muted-foreground">
-                {(formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai")
-                  ? "OpenAI voice settings are optimized automatically"
-                  : "Adjust voice characteristics for the perfect sound"
-                }
-              </p>
-            </div>
-
-            {(formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "custom-voice-engine") ? (
-              // OpenAI or CVE engine - show simplified voice info
-              <div className="space-y-6">
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex items-center gap-4">
-                      <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                        <Volume2 className="h-6 w-6 text-primary" />
-                      </div>
-                      <div>
-                        <Label className="text-sm text-muted-foreground">Selected Voice</Label>
-                        <p className="font-semibold text-lg">
-                          {formData.telephonyProvider === "custom-voice-engine"
-                            ? (customVoiceEngineVoices.find(v => v.value === formData.openaiVoice)?.label || formData.openaiVoice || "Asteria (Deepgram)")
-                            : (openaiVoices.find(v => v.value === formData.openaiVoice)?.label || formData.openaiVoice)
-                          }
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {formData.telephonyProvider === "custom-voice-engine"
-                            ? (customVoiceEngineVoices.find(v => v.value === formData.openaiVoice)?.description || "Deepgram Nova-2 voice")
-                            : (openaiVoices.find(v => v.value === formData.openaiVoice)?.description)
-                          }
-                        </p>
-                      </div>
-                    </div>
-                    <div className="mt-4 p-3 bg-muted/50 rounded-lg">
-                      <p className="text-xs text-muted-foreground">
-                        {formData.telephonyProvider === "custom-voice-engine"
-                          ? "Custom Voice Engine uses deepgram/sarvam voices optimized for low-latency streaming and high accuracy."
-                          : "OpenAI Realtime voices are automatically optimized for natural conversation flow with low latency."
-                        }
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            ) : (
-              // ElevenLabs Twilio - show full voice settings
-              <div className="space-y-6">
-                {isV3TtsModel ? (
-                  <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg" data-testid="info-v3-voice-settings">
-                    <Info className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
-                    <p className="text-xs text-muted-foreground">
-                      V3 Conversational model automatically optimizes voice quality. Use Expressive Mode and audio tags below to control how the agent sounds.
-                    </p>
-                  </div>
-                ) : (
-                  <>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Label className="text-sm font-medium">Stability</Label>
-                          <p className="text-xs text-muted-foreground">Higher = more consistent, Lower = more expressive</p>
-                        </div>
-                        <span className="text-sm font-mono bg-muted px-2 py-1 rounded">
-                          {Math.round(formData.voiceStability * 100)}%
-                        </span>
-                      </div>
-                      <Slider
-                        value={[formData.voiceStability]}
-                        onValueChange={([value]) => setFormData(prev => ({ ...prev, voiceStability: value }))}
-                        min={0}
-                        max={1}
-                        step={0.01}
-                        className="w-full"
-                        data-testid="slider-stability"
-                      />
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Label className="text-sm font-medium">Similarity</Label>
-                          <p className="text-xs text-muted-foreground">How closely to match the original voice</p>
-                        </div>
-                        <span className="text-sm font-mono bg-muted px-2 py-1 rounded">
-                          {Math.round(formData.voiceSimilarityBoost * 100)}%
-                        </span>
-                      </div>
-                      <Slider
-                        value={[formData.voiceSimilarityBoost]}
-                        onValueChange={([value]) => setFormData(prev => ({ ...prev, voiceSimilarityBoost: value }))}
-                        min={0}
-                        max={1}
-                        step={0.01}
-                        className="w-full"
-                        data-testid="slider-similarity"
-                      />
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Label className="text-sm font-medium">Speed</Label>
-                          <p className="text-xs text-muted-foreground">Speaking rate (0.7x to 1.2x)</p>
-                        </div>
-                        <span className="text-sm font-mono bg-muted px-2 py-1 rounded">
-                          {formData.voiceSpeed.toFixed(2)}x
-                        </span>
-                      </div>
-                      <Slider
-                        value={[formData.voiceSpeed]}
-                        onValueChange={([value]) => setFormData(prev => ({ ...prev, voiceSpeed: value }))}
-                        min={0.7}
-                        max={1.2}
-                        step={0.05}
-                        className="w-full"
-                        data-testid="slider-speed"
-                      />
-                    </div>
-                  </>
-                )}
-
-                <div>
-                  <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
-                    <div>
-                      <Label className="text-sm font-medium">Response Delay</Label>
-                      <p className="text-xs text-muted-foreground">How long the agent waits before responding (0.5s to 5.0s)</p>
-                    </div>
-                    <span className="text-sm font-mono bg-muted px-2 py-1 rounded">
-                      {formData.turnTimeout.toFixed(1)}s
-                    </span>
-                  </div>
-                  <Slider
-                    value={[formData.turnTimeout]}
-                    onValueChange={([value]) => setFormData(prev => ({ ...prev, turnTimeout: value }))}
-                    min={0.5}
-                    max={5.0}
-                    step={0.1}
-                    className="w-full"
-                    data-testid="slider-turn-timeout"
-                  />
-                </div>
-
-                <div className="flex justify-center pt-4">
-                  <VoicePreviewButton
-                    voiceId={formData.elevenLabsVoiceId}
-                    voiceSettings={{
-                      stability: formData.voiceStability,
-                      similarity_boost: formData.voiceSimilarityBoost,
-                      speed: formData.voiceSpeed,
-                    }}
-                    previewText={formData.firstMessage || undefined}
-                    language={formData.language || undefined}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
+          <VoiceStep formData={formData} setFormData={setFormData} isV3TtsModel={isV3TtsModel} />
         );
 
       case "review":
         return (
-          <div className="space-y-6">
-            <div className="text-center mb-6">
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-emerald-500/20 mb-4">
-                <CheckCircle2 className="h-6 w-6 text-emerald-500" />
-              </div>
-              <h3 className="text-lg font-semibold">Review Your Agent</h3>
-              <p className="text-sm text-muted-foreground">
-                Everything looks good! Review and create your agent.
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Use Case</Label>
-                      <p className="font-medium">{selectedUseCase?.title || "Custom"}</p>
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Name</Label>
-                      <p className="font-medium">{formData.name}</p>
-                    </div>
-                    {hasAlternateEngines && (
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Telephony Provider</Label>
-                        <p className="font-medium">
-                          {formData.telephonyProvider === "plivo" 
-                            ? "OpenAI + Plivo" 
-                            : formData.telephonyProvider === "twilio_openai"
-                              ? "OpenAI + Twilio"
-                              : formData.telephonyProvider === "custom-voice-engine"
-                                ? "Custom Voice Engine"
-                                : formData.telephonyProvider === "elevenlabs-sip"
-                                  ? "ElevenLabs SIP"
-                                  : formData.telephonyProvider === "openai-sip"
-                                    ? "OpenAI SIP"
-                                    : "ElevenLabs + Twilio"}
-                        </p>
-                      </div>
-                    )}
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Voice</Label>
-                      <p className="font-medium">
-                        {formData.telephonyProvider === "custom-voice-engine"
-                          ? (customVoiceEngineVoices.find(v => v.value === formData.openaiVoice)?.label || formData.openaiVoice)
-                          : (formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip")
-                            ? (openaiVoices.find(v => v.value === formData.openaiVoice)?.label || formData.openaiVoice)
-                            : (formData.elevenLabsVoiceId || "Not selected")
-                        }
-                      </p>
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Language</Label>
-                      <p className="font-medium">{t(`agents.languages.${formData.language}`, { defaultValue: getLanguageLabel(formData.language) })}</p>
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Voice Tone</Label>
-                      <p className="font-medium capitalize">{formData.voiceTone}</p>
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Personality</Label>
-                      <p className="font-medium capitalize">{formData.personality}</p>
-                    </div>
-                    {formData.telephonyProvider === "twilio" && (
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Voice Speed</Label>
-                        <p className="font-medium">{formData.voiceSpeed.toFixed(2)}x</p>
-                      </div>
-                    )}
-                  </div>
-
-                  <Separator className="my-4" />
-
-                  <div className="space-y-3">
-                    <div>
-                      <Label className="text-xs text-muted-foreground">System Prompt</Label>
-                      <p className="text-sm mt-1 line-clamp-3">{formData.systemPrompt}</p>
-                    </div>
-                    {formData.firstMessage && (
-                      <div>
-                        <Label className="text-xs text-muted-foreground">First Message</Label>
-                        <p className="text-sm mt-1">{formData.firstMessage}</p>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
+          <ReviewStep formData={formData} hasAlternateEngines={hasAlternateEngines} selectedUseCase={selectedUseCase} />
         );
     }
   };
@@ -1549,3 +682,5 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
 }
 
 export default AgentCreationWizard;
+
+export { customVoiceEngineVoices };

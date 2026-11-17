@@ -1,18 +1,13 @@
 "use strict";
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
 
@@ -98,9 +93,9 @@ export async function validateStripeWebhook(
 
     try {
       const event = stripe.webhooks.constructEvent(rawBody, sig as string, webhookSecret);
-      (req as any).stripeEvent = event;
+      (req as Request & { stripeEvent?: unknown }).stripeEvent = event;
       next();
-    } catch (err: any) {
+    } catch (err) {
       throw new WebhookValidationError("stripe", `Signature verification failed: ${err.message}`);
     }
   } catch (error) {
@@ -202,7 +197,7 @@ export async function validateTwilioWebhook(
     const twilio = twilioModule.default || twilioModule;
     const validateRequest = typeof twilio.validateRequest === 'function' 
       ? twilio.validateRequest 
-      : (twilioModule as any).validateRequest;
+      : (twilioModule as unknown as typeof twilio).validateRequest;
     
     if (typeof validateRequest !== 'function') {
       logger.error("[Twilio Webhook] validateRequest function not found in Twilio module");

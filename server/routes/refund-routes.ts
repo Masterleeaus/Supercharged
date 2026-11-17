@@ -1,18 +1,13 @@
 'use strict';
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
 
@@ -31,7 +26,6 @@ import { PaymentRefund as MercadoPagoRefund } from 'mercadopago';
 import axios from 'axios';
 import { applyRefund, type RefundGateway } from "../services/credit-service";
 import { generateRefundNoteForRefund, refundNoteService } from "../services/refund-note-service";
-import { isYookassaEnabled, processYookassaRefund } from "../engines/payment/gateways/yookassa/service";
 import { logger } from '../utils/logger';
 
 const router = Router();
@@ -307,20 +301,6 @@ router.post("/:transactionId", authenticateToken, requireRole("admin"), async (r
           return res.status(400).json({ message: "No MercadoPago payment ID found for this transaction" });
         }
         gatewayResult = await processMercadoPagoRefund(
-          transaction.gatewayTransactionId,
-          amount,
-          transaction.currency
-        );
-        break;
-
-      case 'yookassa':
-        if (!await isYookassaEnabled()) {
-          return res.status(400).json({ message: "YooKassa is not enabled" });
-        }
-        if (!transaction.gatewayTransactionId) {
-          return res.status(400).json({ message: "No YooKassa payment ID found for this transaction" });
-        }
-        gatewayResult = await processYookassaRefund(
           transaction.gatewayTransactionId,
           amount,
           transaction.currency

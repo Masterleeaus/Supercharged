@@ -15,7 +15,7 @@ export function createWorkforceRuntime(env: WorkforceRuntimeEnv = process.env): 
   const config = resolveRuntimeConfig(env) as
     | { ok: true; baseUrl: string; secret: string }
     | { ok: false; reason: string };
-  if (!config.ok) return new DisabledWorkforceRuntime(config.reason);
+  if (config.ok === false) return new DisabledWorkforceRuntime(config.reason);
   try {
     return new HttpWorkforceRuntime({ baseUrl: config.baseUrl, secret: config.secret });
   } catch {

@@ -112,7 +112,7 @@ function marketingRefusal(input: MetaBuildInput, recipientId: string): MetaBuild
 
   try {
     const window = canSendFreeForm({ lastInboundAt, now });
-    if (!window.freeForm) return window.reason;
+    if (window.freeForm === false) return window.reason;
   } catch {
     return 'invalid_time';
   }

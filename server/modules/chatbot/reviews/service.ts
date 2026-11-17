@@ -138,9 +138,9 @@ export function createReviewService(deps: ReviewServiceDeps): ReviewService {
       if (now.getTime() < request.dueAt.getTime()) return { ok: false, reason: "not_due" };
 
       const rating = validateRating(input.rating);
-      if (!rating.ok) return { ok: false, reason: rating.reason };
+      if (rating.ok === false) return { ok: false, reason: rating.reason };
       const comment = validateComment(input.comment);
-      if (!comment.ok) return { ok: false, reason: comment.reason };
+      if (comment.ok === false) return { ok: false, reason: comment.reason };
 
       // Fast path for a clear message. The unique index is the real guard against two submissions at once.
       const existing = await storage.findReviewForConversation(companyId, request.conversationId);

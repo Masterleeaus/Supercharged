@@ -4157,8 +4157,7 @@
   "razorpay": "Razorpay",
   "paypal": "PayPal",
   "paystack": "Paystack",
-  "mercadopago": "MercadoPago",
-  "yookassa": "YooKassa"
+  "mercadopago": "MercadoPago"
 },
 
 "status": {

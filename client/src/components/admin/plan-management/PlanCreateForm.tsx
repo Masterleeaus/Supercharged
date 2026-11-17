@@ -1,17 +1,12 @@
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,20 +23,19 @@ import { Plan, PaymentGatewayConfig } from "@/components/admin/plan-management/s
 export interface PlanCreateFormProps {
   t: TFunction<"translation", undefined>;
   newPlanForm: Partial<Plan>;
-  updateNewPlanField: (field: keyof Plan, value: any) => void;
+  updateNewPlanField: (field: keyof Plan, value: unknown) => void;
   paymentGateway: PaymentGatewayConfig;
   stripeCurrency: string;
   paypalCurrency: string;
   paystackCurrency: string;
   mercadopagoCurrency: string;
-  yookassaCurrency: string;
   sipPluginInstalled: boolean;
   restApiPluginInstalled: boolean;
   handleCreatePlan: () => void;
-  createPlan: UseMutationResult<Response, any, Partial<Plan>, unknown>;
+  createPlan: UseMutationResult<Response, Error, Partial<Plan>, unknown>;
 }
 
-export function PlanCreateForm({ t, newPlanForm, updateNewPlanField, paymentGateway, stripeCurrency, paypalCurrency, paystackCurrency, mercadopagoCurrency, yookassaCurrency, sipPluginInstalled, restApiPluginInstalled, handleCreatePlan, createPlan }: PlanCreateFormProps) {
+export function PlanCreateForm({ t, newPlanForm, updateNewPlanField, paymentGateway, stripeCurrency, paypalCurrency, paystackCurrency, mercadopagoCurrency, sipPluginInstalled, restApiPluginInstalled, handleCreatePlan, createPlan }: PlanCreateFormProps) {
   return (
     <Card>
           <CardHeader>
@@ -203,31 +197,6 @@ export function PlanCreateForm({ t, newPlanForm, updateNewPlanField, paymentGate
                     value={newPlanForm.mercadopagoYearlyPrice ?? 0}
                     onChange={(e) => updateNewPlanField("mercadopagoYearlyPrice", parseFloat(e.target.value))}
                     data-testid="input-new-plan-yearly-mercadopago"
-                  />
-                </div>
-              </div>
-            )}
-
-            {paymentGateway?.yookassaEnabled && (
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Monthly Price ({yookassaCurrency} - YooKassa)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={newPlanForm.yookassaMonthlyPrice ?? 0}
-                    onChange={(e) => updateNewPlanField("yookassaMonthlyPrice", parseFloat(e.target.value))}
-                    data-testid="input-new-plan-monthly-yookassa"
-                  />
-                </div>
-                <div>
-                  <Label>Yearly Price ({yookassaCurrency} - YooKassa)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={newPlanForm.yookassaYearlyPrice ?? 0}
-                    onChange={(e) => updateNewPlanField("yookassaYearlyPrice", parseFloat(e.target.value))}
-                    data-testid="input-new-plan-yearly-yookassa"
                   />
                 </div>
               </div>

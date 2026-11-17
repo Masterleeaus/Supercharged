@@ -15,6 +15,11 @@ import { registerOptionalCommsRoutes } from './optional-comms-routes.ts';
 import { createVerifiedInboxService } from '../../modules/inbox/production-service.ts';
 import { createCanonicalInboxApprovalService } from '../../modules/inbox/canonical-production-approval.ts';
 import type { CanonicalApprovalPortSource } from '../../modules/inbox/approval-port.ts';
+import type { PreSendGate } from '../../modules/comms/presend-gate.ts';
+import { createProductionPreSendGate } from '../../modules/comms/production-presend-gate.ts';
+import type { AuditWriter } from '../../modules/comms/audit-sink.ts';
+import type { SuppressionList } from '../../modules/comms/suppression.ts';
+import type { OptOutReplySender } from '../../modules/inbox/inbound-optout.ts';
 export interface VerifiedCommsDependencies {
  authenticate:RequestHandler;
  requireCompanyScope:RequestHandler;
@@ -24,6 +29,14 @@ export interface VerifiedCommsDependencies {
  chatbots?:Pick<ChatbotStorage,'findChatbot'>;
  campaigns?:CampaignRefs;
  approvalService?:CanonicalApprovalPortSource;
+ /** Pre-send gate for inbox sends. Optional: when absent, the production gate is built from auditWrite. */
+ compliance?:PreSendGate;
+ /** Durable audit writer (logAuditEvent in production). Needed to record blocked sends when no gate is given. */
+ auditWrite?:AuditWriter;
+ /** Required when COMMS_INBOX_ENABLED is true: the durable suppression list shared with the send paths. */
+ suppression?:SuppressionList;
+ /** Required when COMMS_INBOX_ENABLED is true: sends the STOP and START confirmation. */
+ optOutReply?:OptOutReplySender;
  env?:Record<string,string|undefined>;
 }
 export async function registerVerifiedCommsRoutes(app:Pick<Express,'use'>,deps:VerifiedCommsDependencies) {
@@ -43,9 +56,18 @@ export async function registerVerifiedCommsRoutes(app:Pick<Express,'use'>,deps:V
   campaigns:deps.campaigns??unavailableCampaignReferences(),
  }) : undefined;
  // Both enabled backends verify before any route is mounted.
+ let compliance:PreSendGate|undefined=deps.compliance;
+ if(inboxEnabled&&!compliance){
+  if(typeof deps.auditWrite!=='function')throw new Error('comms: inbox requires a pre-send gate or an audit writer');
+  compliance=createProductionPreSendGate({write:deps.auditWrite});
+ }
  const inbox=inboxEnabled?await createVerifiedInboxService({
   pool:deps.pool,schemaProbe:deps.schemaProbe,
   approvalService:deps.approvalService??await createCanonicalInboxApprovalService(deps.pool),
+  compliance:compliance as PreSendGate,
+  // Fails closed: createVerifiedInboxService refuses to build without both.
+  suppression:deps.suppression as SuppressionList,
+  optOutReply:deps.optOutReply as OptOutReplySender,
  }):undefined;
  return registerOptionalCommsRoutes(app,{
   authenticate:deps.authenticate, requireCompanyScope:deps.requireCompanyScope,

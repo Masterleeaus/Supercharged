@@ -1,0 +1,53 @@
+name: Issue task completion gate
+
+on:
+  issues:
+    types: [closed, edited]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: issue-completion-${{ github.repository }}-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  reopen-incomplete:
+    if: github.event.issue.state == 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reopen issues with missing or incomplete task lists
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const number = context.issue.number;
+            const { data: issue } = await github.rest.issues.get({ owner, repo, issue_number: number });
+            if (issue.pull_request || issue.state !== 'closed') return;
+            const tasks = [];
+            let fence = null;
+            const tick = String.fromCharCode(96).repeat(3);
+            for (const line of (issue.body || '').replace(/\r/g, '').split('\n')) {
+              const trimmed = line.trimStart();
+              const delimiter = trimmed.startsWith(tick) ? tick : (trimmed.startsWith('~~~') ? '~~~' : null);
+              if (delimiter) {
+                if (!fence) fence = delimiter;
+                else if (fence === delimiter) fence = null;
+                continue;
+              }
+              if (fence) continue;
+              const match = line.match(/^\s*(?:[-*+]|\d+\.)\s+\[([ xX])\]\s+\S/);
+              if (match) tasks.push(match[1].toLowerCase() === 'x');
+            }
+            const remaining = tasks.filter(done => !done).length;
+            if (tasks.length === 0 || remaining > 0) {
+              await github.rest.issues.update({ owner, repo, issue_number: number, state: 'open' });
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: number,
+                body: tasks.length === 0
+                  ? 'Issue reopened automatically: add a Markdown task checklist, verify every task, and tick every checkbox before closing.'
+                  : 'Issue reopened automatically: ' + remaining + ' of ' + tasks.length + ' tasks remain unchecked. Verify and complete every task before closing.'
+              });
+              core.setFailed('Issue must have at least one checklist task and all tasks must be checked to stay closed.');
+            }

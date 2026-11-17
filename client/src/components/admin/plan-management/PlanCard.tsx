@@ -1,17 +1,12 @@
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,7 +19,7 @@ import { InfoTooltip } from "@/components/ui/info-tooltip";
 import type { TFunction } from "i18next";
 import type { UseMutationResult } from "@tanstack/react-query";
 import type { Dispatch, SetStateAction } from "react";
-import { Plan, PaymentGatewayConfig, RazorpaySyncStatus, StripeSyncStatus, PayPalSyncStatus, PaystackSyncStatus, MercadoPagoSyncStatus, YookassaSyncStatus } from "@/components/admin/plan-management/shared";
+import { Plan, PaymentGatewayConfig, RazorpaySyncStatus, StripeSyncStatus, PayPalSyncStatus, PaystackSyncStatus, MercadoPagoSyncStatus } from "@/components/admin/plan-management/shared";
 
 export interface PlanCardProps {
   plan: Plan;
@@ -32,33 +27,30 @@ export interface PlanCardProps {
   paypalCurrency: string;
   paystackCurrency: string;
   mercadopagoCurrency: string;
-  yookassaCurrency: string;
   isEditing: boolean;
   stripeCurrency: string;
   formData: Partial<Plan>;
-  updateField: (planId: string, field: keyof Plan, value: any) => void;
+  updateField: (planId: string, field: keyof Plan, value: unknown) => void;
   t: TFunction<"translation", undefined>;
   sipPluginInstalled: boolean;
   restApiPluginInstalled: boolean;
   handleSave: (planId: string) => void;
-  updatePlan: UseMutationResult<Response, any, { planId: string; updates: Partial<Plan>; }, unknown>;
+  updatePlan: UseMutationResult<Response, Error, { planId: string; updates: Partial<Plan>; }, unknown>;
   handleCancel: () => void;
   stripeCurrencySymbol: string;
   paypalCurrencySymbol: string;
   paystackCurrencySymbol: string;
   mercadopagoCurrencySymbol: string;
-  yookassaCurrencySymbol: string;
   syncToStripe: UseMutationResult<any, any, string, unknown>;
   syncToRazorpay: UseMutationResult<any, any, string, unknown>;
   syncToPayPal: UseMutationResult<any, any, string, unknown>;
   syncToPaystack: UseMutationResult<any, any, string, unknown>;
   syncToMercadoPago: UseMutationResult<any, any, string, unknown>;
-  syncToYookassa: UseMutationResult<any, any, string, unknown>;
   handleEdit: (plan: Plan) => void;
   setDeletingPlan: Dispatch<SetStateAction<Plan>>;
 }
 
-export function PlanCard({ plan, paymentGateway, paypalCurrency, paystackCurrency, mercadopagoCurrency, yookassaCurrency, isEditing, stripeCurrency, formData, updateField, t, sipPluginInstalled, restApiPluginInstalled, handleSave, updatePlan, handleCancel, stripeCurrencySymbol, paypalCurrencySymbol, paystackCurrencySymbol, mercadopagoCurrencySymbol, yookassaCurrencySymbol, syncToStripe, syncToRazorpay, syncToPayPal, syncToPaystack, syncToMercadoPago, syncToYookassa, handleEdit, setDeletingPlan }: PlanCardProps) {
+export function PlanCard({ plan, paymentGateway, paypalCurrency, paystackCurrency, mercadopagoCurrency, isEditing, stripeCurrency, formData, updateField, t, sipPluginInstalled, restApiPluginInstalled, handleSave, updatePlan, handleCancel, stripeCurrencySymbol, paypalCurrencySymbol, paystackCurrencySymbol, mercadopagoCurrencySymbol, syncToStripe, syncToRazorpay, syncToPayPal, syncToPaystack, syncToMercadoPago, handleEdit, setDeletingPlan }: PlanCardProps) {
   return (
     <Card key={plan.id}>
               <CardHeader>
@@ -72,7 +64,6 @@ export function PlanCard({ plan, paymentGateway, paypalCurrency, paystackCurrenc
                     {paymentGateway?.paypalEnabled && <PayPalSyncStatus plan={plan} paypalCurrency={paypalCurrency} />}
                     {paymentGateway?.paystackEnabled && <PaystackSyncStatus plan={plan} paystackCurrency={paystackCurrency} />}
                     {paymentGateway?.mercadopagoEnabled && <MercadoPagoSyncStatus plan={plan} mercadopagoCurrency={mercadopagoCurrency} />}
-                    {paymentGateway?.yookassaEnabled && <YookassaSyncStatus plan={plan} yookassaCurrency={yookassaCurrency} />}
                   </div>
                 </div>
                 <CardDescription>{plan.description}</CardDescription>
@@ -200,31 +191,6 @@ export function PlanCard({ plan, paymentGateway, paypalCurrency, paystackCurrenc
                             value={formData.mercadopagoYearlyPrice ?? 0}
                             onChange={(e) => updateField(plan.id, "mercadopagoYearlyPrice", parseFloat(e.target.value))}
                             data-testid={`input-plan-yearly-mercadopago-${plan.id}`}
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {paymentGateway?.yookassaEnabled && (
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label>Monthly Price ({yookassaCurrency} - YooKassa)</Label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={formData.yookassaMonthlyPrice ?? 0}
-                            onChange={(e) => updateField(plan.id, "yookassaMonthlyPrice", parseFloat(e.target.value))}
-                            data-testid={`input-plan-monthly-yookassa-${plan.id}`}
-                          />
-                        </div>
-                        <div>
-                          <Label>Yearly Price ({yookassaCurrency} - YooKassa)</Label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={formData.yookassaYearlyPrice ?? 0}
-                            onChange={(e) => updateField(plan.id, "yookassaYearlyPrice", parseFloat(e.target.value))}
-                            data-testid={`input-plan-yearly-yookassa-${plan.id}`}
                           />
                         </div>
                       </div>
@@ -459,12 +425,6 @@ export function PlanCard({ plan, paymentGateway, paypalCurrency, paystackCurrenc
                           <span>{mercadopagoCurrencySymbol}{plan.mercadopagoMonthlyPrice ?? 0}{t("adminDashboard.plans.perMonth")} {t("adminDashboard.plans.or")} {mercadopagoCurrencySymbol}{plan.mercadopagoYearlyPrice ?? 0}{t("adminDashboard.plans.perYear")}</span>
                         </div>
                       )}
-                      {paymentGateway?.yookassaEnabled && (
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Pricing ({yookassaCurrency} - YooKassa)</span>
-                          <span>{yookassaCurrencySymbol}{plan.yookassaMonthlyPrice ?? 0}{t("adminDashboard.plans.perMonth")} {t("adminDashboard.plans.or")} {yookassaCurrencySymbol}{plan.yookassaYearlyPrice ?? 0}{t("adminDashboard.plans.perYear")}</span>
-                        </div>
-                      )}
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">{t("adminDashboard.plans.maxAgents")}:</span>
                         <span>{plan.maxAgents === 999 ? t("adminDashboard.plans.unlimited") : plan.maxAgents}</span>
@@ -583,22 +543,6 @@ export function PlanCard({ plan, paymentGateway, paypalCurrency, paystackCurrenc
                             <RefreshCw className="h-3 w-3 mr-1" />
                           )}
                           MercadoPago
-                        </Button>
-                      )}
-                      {paymentGateway?.yookassaEnabled && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => syncToYookassa.mutate(plan.id)}
-                          disabled={syncToYookassa.isPending || !plan.yookassaMonthlyPrice || parseFloat(plan.yookassaMonthlyPrice?.toString() || '0') === 0}
-                          data-testid={`button-sync-yookassa-${plan.id}`}
-                        >
-                          {syncToYookassa.isPending ? (
-                            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                          ) : (
-                            <RefreshCw className="h-3 w-3 mr-1" />
-                          )}
-                          YooKassa
                         </Button>
                       )}
                     </div>

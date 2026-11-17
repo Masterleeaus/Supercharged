@@ -41,7 +41,7 @@ export function registerWebhooksSetupRoutes(router: Router) {
       } else {
         res.json({ success: false, error: 'Webhook signature verification failed' });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       res.json({ success: false, error: 'Failed to test webhook secret' });
     }
   });
@@ -124,7 +124,7 @@ export function registerWebhooksSetupRoutes(router: Router) {
         }
         res.status(400).json({ success: false, error: 'Failed to create PayPal webhook' });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       res.status(500).json({ success: false, error: 'Failed to setup PayPal webhook' });
     }
   });
@@ -181,7 +181,7 @@ export function registerWebhooksSetupRoutes(router: Router) {
         const error = await webhookResponse.json();
         res.status(400).json({ success: false, error: 'Failed to create MercadoPago webhook' });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       res.status(500).json({ success: false, error: 'Failed to setup MercadoPago webhook' });
     }
   });

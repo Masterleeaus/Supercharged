@@ -1,20 +1,16 @@
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
-import { useState } from "react";
+import type { AppError } from "@/components/app-error";
+import { useState, type ComponentProps } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -217,7 +213,7 @@ export default function EmailSettingsManagement() {
   }
 
   if (error) {
-    const errorData = (error as any)?.response?.data;
+    const errorData = (error as AppError)?.response?.data;
     let errorMessage = t("adminDashboard.emailSettings.errors.loadFailed");
     
     if (errorData?.code === 'DATABASE_CONNECTION_ERROR') {
@@ -398,7 +394,7 @@ export default function EmailSettingsManagement() {
       <EmailTemplateEditor
         isOpen={showTemplateEditor}
         onClose={() => setShowTemplateEditor(false)}
-        template={editingTemplate as any}
+        template={editingTemplate as unknown as ComponentProps<typeof EmailTemplateEditor>["template"]}
         onSave={() => {}}
         templateType={editingTemplateType}
       />

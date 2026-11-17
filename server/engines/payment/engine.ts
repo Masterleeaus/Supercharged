@@ -26,7 +26,7 @@ import { createDefaultAdapters, sha256Hex } from './verifiers.ts';
 export interface PaymentEngineOptions {
   resolveWebhookSecret: (companyId: string, gateway: GatewayId) => Promise<string | null>;
   store: ProcessedEventStore;
-  remoteVerifiers?: Partial<Record<'paypal' | 'yookassa', RemoteVerifier>>;
+  remoteVerifiers?: Partial<Record<'paypal', RemoteVerifier>>;
   now?: () => number;
 }
 

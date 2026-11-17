@@ -1,4 +1,5 @@
 import { Globe } from 'lucide-react';
+import type { ComponentType } from "react";
 import { useMemo } from 'react';
 import * as Flags from 'country-flag-icons/react/3x2';
 
@@ -67,27 +68,27 @@ export function LanguageFlag({ code, flag, className = "w-full h-full" }: Langua
 
         // Strategy 1: Check if 'flag' field is a 2-letter country code (e.g. "UZ", "TR")
         if (cleanFlag && /^[A-Z]{2}$/i.test(cleanFlag)) {
-            const FlagComp = (Flags as any)[cleanFlag.toUpperCase()];
+            const FlagComp = (Flags as Record<string, ComponentType<{ className?: string }> | undefined>)[cleanFlag.toUpperCase()];
             if (FlagComp) return <FlagComp className="w-full h-full object-cover" />;
         }
 
         // Strategy 2: If 'flag' is an emoji, try to derive the country code (e.g. "🇺🇿" -> "UZ")
         const derivedFromEmoji = cleanFlag ? emojiToCountryCode(cleanFlag) : null;
         if (derivedFromEmoji) {
-            const FlagComp = (Flags as any)[derivedFromEmoji];
+            const FlagComp = (Flags as Record<string, ComponentType<{ className?: string }> | undefined>)[derivedFromEmoji];
             if (FlagComp) return <FlagComp className="w-full h-full object-cover" />;
         }
 
         // Strategy 3: Check manually defined mapping (e.g. "en" -> "US")
         const mappedCountryCode = LANG_TO_COUNTRY[normalizedCode];
         if (mappedCountryCode) {
-            const FlagComp = (Flags as any)[mappedCountryCode];
+            const FlagComp = (Flags as Record<string, ComponentType<{ className?: string }> | undefined>)[mappedCountryCode];
             if (FlagComp) return <FlagComp className="w-full h-full object-cover" />;
         }
 
         // Strategy 4: Check if 'code' itself is a valid country code (e.g. "tr", "uz", "de")
         if (normalizedCode.length === 2) {
-            const FlagComp = (Flags as any)[normalizedCode.toUpperCase()];
+            const FlagComp = (Flags as Record<string, ComponentType<{ className?: string }> | undefined>)[normalizedCode.toUpperCase()];
             if (FlagComp) return <FlagComp className="w-full h-full object-cover" />;
         }
 

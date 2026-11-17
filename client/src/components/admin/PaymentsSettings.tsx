@@ -1,19 +1,15 @@
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
+import type { AppError } from "@/components/app-error";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,11 +27,19 @@ import { StripeSettingsTab } from "@/components/admin/payments-settings/StripeSe
 import { RazorpaySettingsTab } from "@/components/admin/payments-settings/RazorpaySettingsTab";
 import { PaypalSettingsTab } from "@/components/admin/payments-settings/PaypalSettingsTab";
 import { PaystackSettingsTab } from "@/components/admin/payments-settings/PaystackSettingsTab";
+import type { AdminPaymentSettings } from "@/components/admin/payments-settings/types";
 import { MercadopagoSettingsTab } from "@/components/admin/payments-settings/MercadopagoSettingsTab";
-import { YookassaSettingsTab } from "@/components/admin/payments-settings/YookassaSettingsTab";
 import { CurrencyChangeDialog } from "@/components/admin/payments-settings/CurrencyChangeDialog";
 
 
+
+/** Result of the Razorpay/PayPal/MercadoPago webhook setup and test calls. */
+interface WebhookActionResult {
+  success?: boolean;
+  message?: string;
+  webhookId?: string;
+  error?: string;
+}
 
 export default function PaymentsSettings() {
   const { t } = useTranslation();
@@ -114,20 +118,7 @@ export default function PaymentsSettings() {
   const [showMercadopagoWebhookSecret, setShowMercadopagoWebhookSecret] = useState(false);
   const [mercadopagoConnectionStatus, setMercadopagoConnectionStatus] = useState<ConnectionStatus | null>(null);
 
-  // YooKassa state
-  const [yookassaFormData, setYookassaFormData] = useState({
-    yookassa_shop_id: "",
-    yookassa_secret_key: "",
-    yookassa_webhook_secret: "",
-    yookassa_currency: "RUB",
-  });
-  const [yookassaEnabled, setYookassaEnabled] = useState(false);
-  const [hasYookassaChanges, setHasYookassaChanges] = useState(false);
-  const [showYookassaSecretKey, setShowYookassaSecretKey] = useState(false);
-  const [showYookassaWebhookSecret, setShowYookassaWebhookSecret] = useState(false);
-  const [yookassaConnectionStatus, setYookassaConnectionStatus] = useState<ConnectionStatus | null>(null);
-
-  const { data: settings, isLoading } = useQuery<any>({
+  const { data: settings, isLoading } = useQuery<AdminPaymentSettings>({
     queryKey: ["/api/admin/settings"],
   });
 
@@ -148,7 +139,7 @@ export default function PaymentsSettings() {
       });
 
       // Load stripe currency locked state
-      const toBool = (val: any): boolean => val === true || val === 'true';
+      const toBool = (val: unknown): boolean => val === true || val === 'true';
       setStripeCurrencyLocked(toBool(settings.stripe_currency_locked));
 
       // Skip gateway toggle state update if we just toggled (prevents race condition)
@@ -192,20 +183,11 @@ export default function PaymentsSettings() {
         mercadopago_currency: settings.mercadopago_currency || "BRL",
       });
       setMercadopagoEnabled(settings.mercadopago_configured && toBool(settings.mercadopago_enabled));
-
-      // YooKassa settings
-      setYookassaFormData({
-        yookassa_shop_id: settings.yookassa_shop_id || "",
-        yookassa_secret_key: "",
-        yookassa_webhook_secret: "",
-        yookassa_currency: settings.yookassa_currency || "RUB",
-      });
-      setYookassaEnabled(settings.yookassa_configured && toBool(settings.yookassa_enabled));
     }
   }, [settings]);
 
   const updateSettingMutation = useMutation({
-    mutationFn: async ({ key, value }: { key: string; value: any }) => {
+    mutationFn: async ({ key, value }: { key: string; value: unknown }) => {
       const response = await apiRequest("PATCH", `/api/admin/settings/${key}`, { value });
       const data = await response.json();
       return { key, data };
@@ -222,7 +204,8 @@ export default function PaymentsSettings() {
         });
       }
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.payments.updateFailed"),
         description: error.message,
@@ -254,7 +237,8 @@ export default function PaymentsSettings() {
       toast({ title: t("adminDashboard.payments.updateSuccess") });
       setHasStripeChanges(false);
       setStripeFormData(prev => ({ ...prev, stripe_secret_key: "", stripe_webhook_secret: "" }));
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.payments.updateFailed"),
         description: error.message,
@@ -298,7 +282,8 @@ export default function PaymentsSettings() {
       toast({ title: t("adminDashboard.payments.updateSuccess") });
       setHasRazorpayChanges(false);
       setRazorpayFormData(prev => ({ ...prev, razorpay_key_secret: "", razorpay_webhook_secret: "" }));
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.payments.updateFailed"),
         description: error.message,
@@ -327,7 +312,8 @@ export default function PaymentsSettings() {
       toast({ title: t("adminDashboard.payments.updateSuccess") });
       setHasPaypalChanges(false);
       setPaypalFormData(prev => ({ ...prev, paypal_client_secret: "" }));
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.payments.updateFailed"),
         description: error.message,
@@ -355,7 +341,8 @@ export default function PaymentsSettings() {
       toast({ title: t("adminDashboard.payments.updateSuccess") });
       setHasPaystackChanges(false);
       setPaystackFormData(prev => ({ ...prev, paystack_secret_key: "", paystack_webhook_secret: "" }));
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.payments.updateFailed"),
         description: error.message,
@@ -383,35 +370,8 @@ export default function PaymentsSettings() {
       toast({ title: t("adminDashboard.payments.updateSuccess") });
       setHasMercadopagoChanges(false);
       setMercadopagoFormData(prev => ({ ...prev, mercadopago_access_token: "", mercadopago_webhook_secret: "" }));
-    } catch (error: any) {
-      toast({
-        title: t("adminDashboard.payments.updateFailed"),
-        description: error.message,
-        variant: "destructive"
-      });
-    }
-  };
-
-  const saveYookassaSettings = async () => {
-    try {
-      const updates = [];
-
-      if (yookassaFormData.yookassa_shop_id) {
-        updates.push(updateSettingMutation.mutateAsync({ key: "yookassa_shop_id", value: yookassaFormData.yookassa_shop_id }));
-      }
-      if (yookassaFormData.yookassa_secret_key && yookassaFormData.yookassa_secret_key.trim().length > 0) {
-        updates.push(updateSettingMutation.mutateAsync({ key: "yookassa_secret_key", value: yookassaFormData.yookassa_secret_key }));
-      }
-      if (yookassaFormData.yookassa_webhook_secret && yookassaFormData.yookassa_webhook_secret.trim().length > 0) {
-        updates.push(updateSettingMutation.mutateAsync({ key: "yookassa_webhook_secret", value: yookassaFormData.yookassa_webhook_secret }));
-      }
-      updates.push(updateSettingMutation.mutateAsync({ key: "yookassa_currency", value: yookassaFormData.yookassa_currency }));
-
-      await Promise.all(updates);
-      toast({ title: t("adminDashboard.payments.updateSuccess") });
-      setHasYookassaChanges(false);
-      setYookassaFormData(prev => ({ ...prev, yookassa_secret_key: "", yookassa_webhook_secret: "" }));
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.payments.updateFailed"),
         description: error.message,
@@ -432,7 +392,8 @@ export default function PaymentsSettings() {
           ? t("adminDashboard.payments.toasts.stripeEnabledDesc")
           : t("adminDashboard.payments.toasts.stripeDisabledDesc")
       });
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       // Revert on error
       setStripeEnabled(!enabled);
       justToggledRef.current = false;
@@ -467,7 +428,8 @@ export default function PaymentsSettings() {
           ? t("adminDashboard.payments.toasts.razorpayEnabledDesc")
           : t("adminDashboard.payments.toasts.razorpayDisabledDesc")
       });
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       setRazorpayEnabled(!enabled);
       justToggledRef.current = false;
       toast({
@@ -489,7 +451,8 @@ export default function PaymentsSettings() {
           ? t("adminDashboard.payments.toasts.paypalEnabledDesc", { currency: paypalFormData.paypal_currency })
           : t("adminDashboard.payments.toasts.paypalDisabledDesc")
       });
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       setPaypalEnabled(!enabled);
       justToggledRef.current = false;
       toast({
@@ -511,7 +474,8 @@ export default function PaymentsSettings() {
           ? t("adminDashboard.payments.toasts.paystackEnabledDesc", { currency: paystackFormData.paystack_currency })
           : t("adminDashboard.payments.toasts.paystackDisabledDesc")
       });
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       setPaystackEnabled(!enabled);
       justToggledRef.current = false;
       toast({
@@ -533,33 +497,12 @@ export default function PaymentsSettings() {
           ? t("adminDashboard.payments.toasts.mercadopagoEnabledDesc", { currency: mercadopagoFormData.mercadopago_currency })
           : t("adminDashboard.payments.toasts.mercadopagoDisabledDesc")
       });
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       setMercadopagoEnabled(!enabled);
       justToggledRef.current = false;
       toast({
         title: t("adminDashboard.payments.toasts.mercadopagoToggleFailed"),
-        description: error.message,
-        variant: "destructive"
-      });
-    }
-  };
-
-  const toggleYookassaEnabled = async (enabled: boolean) => {
-    try {
-      justToggledRef.current = true;
-      setYookassaEnabled(enabled);
-      await updateSettingMutation.mutateAsync({ key: "yookassa_enabled", value: enabled });
-      toast({
-        title: enabled ? t("adminDashboard.payments.toasts.yookassaEnabled") : t("adminDashboard.payments.toasts.yookassaDisabled"),
-        description: enabled
-          ? t("adminDashboard.payments.toasts.yookassaEnabledDesc", { currency: yookassaFormData.yookassa_currency })
-          : t("adminDashboard.payments.toasts.yookassaDisabledDesc")
-      });
-    } catch (error: any) {
-      setYookassaEnabled(!enabled);
-      justToggledRef.current = false;
-      toast({
-        title: t("adminDashboard.payments.toasts.yookassaToggleFailed"),
         description: error.message,
         variant: "destructive"
       });
@@ -588,7 +531,8 @@ export default function PaymentsSettings() {
         description: t("adminDashboard.payments.toasts.currencyLockedDesc", { currency: stripeFormData.stripe_currency })
       });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.payments.toasts.currencyLockFailed"),
         description: error.message,
@@ -606,7 +550,8 @@ export default function PaymentsSettings() {
       const sanitizedError = sanitizeErrorMessage(data.error, 'Stripe credentials not configured');
       setStripeConnectionStatus({ ...data, error: sanitizedError });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       const sanitizedError = sanitizeErrorMessage(error.message, 'Connection test failed');
       setStripeConnectionStatus({
         connected: false,
@@ -627,7 +572,8 @@ export default function PaymentsSettings() {
         error: sanitizedError
       });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       const sanitizedError = sanitizeErrorMessage(error.message, 'Connection test failed');
       setRazorpayConnectionStatus({
         connected: false,
@@ -641,7 +587,7 @@ export default function PaymentsSettings() {
       const response = await apiRequest("POST", "/api/admin/test-webhook/razorpay");
       return response.json();
     },
-    onSuccess: (data: any) => {
+    onSuccess: (data: WebhookActionResult) => {
       if (data.success) {
         toast({
           title: t("adminDashboard.payments.razorpay.webhookVerified"),
@@ -655,7 +601,8 @@ export default function PaymentsSettings() {
         });
       }
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.payments.razorpay.webhookTestFailed"),
         description: error.message || t("adminDashboard.payments.razorpay.webhookTestError"),
@@ -677,7 +624,8 @@ export default function PaymentsSettings() {
         error: sanitizedError
       });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       const sanitizedError = sanitizeErrorMessage(error.message, 'Connection test failed');
       setPaypalConnectionStatus({
         connected: false,
@@ -698,7 +646,8 @@ export default function PaymentsSettings() {
         error: sanitizedError
       });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       const sanitizedError = sanitizeErrorMessage(error.message, 'Connection test failed');
       setPaystackConnectionStatus({
         connected: false,
@@ -719,30 +668,10 @@ export default function PaymentsSettings() {
         error: sanitizedError
       });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       const sanitizedError = sanitizeErrorMessage(error.message, 'Connection test failed');
       setMercadopagoConnectionStatus({
-        connected: false,
-        error: sanitizedError || t("adminDashboard.payments.testFailed")
-      });
-    }
-  });
-
-  const testYookassaConnectionMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/admin/test-connection/yookassa");
-      return response.json();
-    },
-    onSuccess: (data: ConnectionStatus) => {
-      const sanitizedError = sanitizeErrorMessage(data.error, 'YooKassa credentials not configured');
-      setYookassaConnectionStatus({
-        connected: data.connected || false,
-        error: sanitizedError
-      });
-    },
-    onError: (error: any) => {
-      const sanitizedError = sanitizeErrorMessage(error.message, 'Connection test failed');
-      setYookassaConnectionStatus({
         connected: false,
         error: sanitizedError || t("adminDashboard.payments.testFailed")
       });
@@ -756,7 +685,7 @@ export default function PaymentsSettings() {
       const response = await apiRequest("POST", "/api/admin/setup-webhook/paypal", { webhookUrl });
       return response.json();
     },
-    onSuccess: (data: any) => {
+    onSuccess: (data: WebhookActionResult) => {
       if (data.success) {
         toast({
           title: t("adminDashboard.payments.paypal.webhookConfigured"),
@@ -772,7 +701,8 @@ export default function PaymentsSettings() {
         });
       }
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.payments.paypal.webhookSetupFailed"),
         description: error.message || t("adminDashboard.payments.paypal.webhookSetupFailedDesc"),
@@ -787,7 +717,7 @@ export default function PaymentsSettings() {
       const response = await apiRequest("POST", "/api/admin/setup-webhook/mercadopago", { webhookUrl });
       return response.json();
     },
-    onSuccess: (data: any) => {
+    onSuccess: (data: WebhookActionResult) => {
       if (data.success) {
         toast({
           title: t("adminDashboard.payments.mercadopago.webhookConfigured"),
@@ -802,7 +732,8 @@ export default function PaymentsSettings() {
         });
       }
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.payments.mercadopago.webhookSetupFailed"),
         description: error.message || t("adminDashboard.payments.mercadopago.webhookSetupFailedDesc"),
@@ -868,18 +799,11 @@ export default function PaymentsSettings() {
     setMercadopagoConnectionStatus(null);
   };
 
-  const handleYookassaChange = (key: keyof typeof yookassaFormData, value: string) => {
-    setYookassaFormData({ ...yookassaFormData, [key]: value });
-    setHasYookassaChanges(true);
-    setYookassaConnectionStatus(null);
-  };
-
   const isStripeConfigured = settings?.stripe_configured;
   const isRazorpayConfigured = settings?.razorpay_configured;
   const isPaypalConfigured = settings?.paypal_configured;
   const isPaystackConfigured = settings?.paystack_configured;
   const isMercadopagoConfigured = settings?.mercadopago_configured;
-  const isYookassaConfigured = settings?.yookassa_configured;
 
   if (isLoading) {
     return (
@@ -916,10 +840,6 @@ export default function PaymentsSettings() {
         isMercadopagoConfigured={isMercadopagoConfigured}
         mercadopagoEnabled={mercadopagoEnabled}
         toggleMercadopagoEnabled={toggleMercadopagoEnabled}
-        yookassaFormData={yookassaFormData}
-        isYookassaConfigured={isYookassaConfigured}
-        yookassaEnabled={yookassaEnabled}
-        toggleYookassaEnabled={toggleYookassaEnabled}
       />
 
       {/* Payment Redirect URLs Info Card */}
@@ -965,14 +885,6 @@ export default function PaymentsSettings() {
               </svg>
               <span className="hidden sm:inline">{t("adminDashboard.payments.tabs.mercadopago")}</span>
               {isMercadopagoConfigured && <Badge variant="outline" className="ml-1 text-xs hidden lg:inline-flex">{t("adminDashboard.payments.gatewayAvailability.configured")}</Badge>}
-            </TabsTrigger>
-            <TabsTrigger value="yookassa" className="flex items-center gap-1 md:gap-2 whitespace-nowrap px-3" data-testid="tab-yookassa">
-              <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="2" y="4" width="20" height="16" rx="2" />
-                <line x1="2" y1="10" x2="22" y2="10" />
-              </svg>
-              <span className="hidden sm:inline">{t("adminDashboard.payments.tabs.yookassa")}</span>
-              {isYookassaConfigured && <Badge variant="outline" className="ml-1 text-xs hidden lg:inline-flex">{t("adminDashboard.payments.gatewayAvailability.configured")}</Badge>}
             </TabsTrigger>
           </TabsList>
         </div>
@@ -1072,23 +984,6 @@ export default function PaymentsSettings() {
           updateSettingMutation={updateSettingMutation}
         />
 
-        <YookassaSettingsTab
-          t={t}
-          isYookassaConfigured={isYookassaConfigured}
-          yookassaConnectionStatus={yookassaConnectionStatus}
-          settings={settings}
-          yookassaFormData={yookassaFormData}
-          handleYookassaChange={handleYookassaChange}
-          showYookassaSecretKey={showYookassaSecretKey}
-          setShowYookassaSecretKey={setShowYookassaSecretKey}
-          showYookassaWebhookSecret={showYookassaWebhookSecret}
-          setShowYookassaWebhookSecret={setShowYookassaWebhookSecret}
-          toast={toast}
-          testYookassaConnectionMutation={testYookassaConnectionMutation}
-          saveYookassaSettings={saveYookassaSettings}
-          hasYookassaChanges={hasYookassaChanges}
-          updateSettingMutation={updateSettingMutation}
-        />
       </Tabs>
 
       <Card>

@@ -4,7 +4,16 @@ import { useTranslation } from "react-i18next";
 import { queryClient, apiRequest, ensureValidToken } from "@/lib/queryClient";
 import { AuthStorage } from "@/lib/auth-storage";
 
-async function safeJson(res: Response, fallbackMsg: string): Promise<any> {
+/** JSON body returned by admin plugin and update endpoints. */
+interface JsonBody {
+  success?: boolean;
+  message?: string;
+  error?: string;
+  data?: unknown;
+  [key: string]: unknown;
+}
+
+async function safeJson(res: Response, fallbackMsg: string): Promise<JsonBody> {
   const text = await res.text();
   try {
     return JSON.parse(text);
@@ -122,7 +131,7 @@ export default function PluginInstaller() {
       return safeJson(res, "Validation failed");
     },
     onSuccess: (data) => {
-      setValidationResult(data.data);
+      setValidationResult(data.data as ValidationResult);
     },
     onError: (error: Error) => {
       toast({ title: "Validation Failed", description: error.message, variant: "destructive" });
@@ -148,7 +157,7 @@ export default function PluginInstaller() {
       return safeJson(res, "Installation failed");
     },
     onSuccess: (data) => {
-      setInstallSteps(data.data?.steps || []);
+      setInstallSteps((data.data as { steps?: InstallStep[] } | undefined)?.steps || []);
       setValidationResult(null);
       setSelectedFile(null);
       queryClient.invalidateQueries({ queryKey: ["/api/admin/plugins/installer/installed"] });

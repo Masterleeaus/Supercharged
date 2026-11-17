@@ -80,7 +80,7 @@ export async function stagePredictiveAction(
     requestedBy: { agentId: input.agentId, roleId: input.roleId },
   })
 
-  if (!result.ok) return { ok: false, reason: 'invalid', detail: result.detail }
+  if (result.ok === false) return { ok: false, reason: 'invalid', detail: result.detail }
   return { ok: true, staged: true, change: result.change }
 }
 

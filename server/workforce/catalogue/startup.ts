@@ -73,7 +73,7 @@ export async function loadCatalogueAtStartup(
     result = { ok: false, problems };
   }
 
-  if (result.ok) {
+  if (result.ok === true) {
     const catalogue = await addCourseAssistantsIfEnabled(result.catalogue, logger);
     activeCatalogue = catalogue;
     logger.log(`[workforce] role catalogue loaded: ${catalogue.size} roles`);

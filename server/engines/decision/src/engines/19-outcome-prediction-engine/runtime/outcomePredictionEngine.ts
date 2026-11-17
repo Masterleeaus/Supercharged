@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
 
 export class PredictionError extends Error {}
-export const VALID_HORIZONS = new Set(["immediate","near_term","operational","tactical","strategic"] as const);
-export const VALID_STATES = new Set(["estimate","range","distribution","unknown"] as const);
+export const VALID_HORIZONS = new Set<string>(["immediate","near_term","operational","tactical","strategic"]);
+export const VALID_STATES = new Set<string>(["estimate","range","distribution","unknown"]);
 
 export type Forecast = {
   prediction_id?: string; company_id?: string; decision_subject_id?: string; option_id?: string;
@@ -30,8 +30,8 @@ export function canonicalForecast(companyId:string, decisionSubjectId:string, op
   x.state ??= "estimate"; x.horizon ??= "operational"; x.expected_value ??= null; x.lower_bound ??= null; x.upper_bound ??= null;
   x.unit ??= null; x.confidence ??= 0; x.assumptions ??= []; x.evidence_refs ??= []; x.model_id ??= "declared-provider"; x.model_version ??= "unspecified";
   x.calibration_ref ??= null; x.expires_at ??= null; x.generated_at ??= now(); x.authority_effect = "none";
-  if (!VALID_STATES.has(x.state as any)) throw new PredictionError("bad_state");
-  if (!VALID_HORIZONS.has(x.horizon as any)) throw new PredictionError("bad_horizon");
+  if (!VALID_STATES.has(x.state)) throw new PredictionError("bad_state");
+  if (!VALID_HORIZONS.has(x.horizon)) throw new PredictionError("bad_horizon");
   if (!(x.confidence >= 0 && x.confidence <= 1)) throw new PredictionError("confidence_range");
   if (x.expected_value !== null && !finite(x.expected_value)) throw new PredictionError("non_finite_expected_value");
   if (x.lower_bound !== null && x.upper_bound !== null && x.lower_bound > x.upper_bound) throw new PredictionError("bad_bounds");
