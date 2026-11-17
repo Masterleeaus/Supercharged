@@ -12,7 +12,8 @@
  * back through this client, which checks it again. Webhooks are https only on port 443 (see ssrf.ts), so this
  * client has no plain-http path.
  */
-import { request as httpsRequest, type ClientRequest, type IncomingMessage, type RequestOptions } from "node:https";
+import { request as httpsRequest, type RequestOptions } from "node:https";
+import type { ClientRequest, IncomingMessage } from "node:http";
 import { isIP } from "node:net";
 import type { HttpClient, HttpRequest, HttpResponse, HttpTransportError } from "../contracts/index.ts";
 import { checkPublicWebhookTarget, WebhookUrlRefusedError, type WebhookAddressResolver } from "./ssrf.ts";

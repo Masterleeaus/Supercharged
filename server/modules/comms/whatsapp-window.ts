@@ -74,7 +74,7 @@ export function canSendFreeForm(input: FreeFormInput): FreeFormDecision {
 // convenience but does not change the decision: the window rule depends only on time.
 export function decideWhatsAppSend(input: WhatsAppSendInput): WhatsAppSendDecision {
   const decision = classify(input);
-  if (decision.freeForm) {
+  if (decision.freeForm === true) {
     return { send: 'free_form' };
   }
   if (decision.reason === 'clock_skew') {

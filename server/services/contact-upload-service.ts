@@ -11,6 +11,7 @@
  * ============================================================
  */
 import Papa from "papaparse";
+import type {} from "multer"; // loads the Express.Multer global types used below
 import { storage } from "../storage";
 import type { Contact, InsertContact } from "@shared/schema";
 import { batchInsertContacts, CONTACT_INSERT_RETAIN_RESULTS_THRESHOLD } from "../utils/batch-utils";

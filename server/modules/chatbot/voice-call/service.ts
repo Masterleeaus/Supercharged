@@ -191,7 +191,7 @@ export class VoiceCallService {
     if (replay) return ok(toCallSession(replay));
 
     const quota = await this.checkQuota(companyId, input.chatbotId);
-    if (!quota.ok) return quota;
+    if (quota.ok === false) return quota;
 
     const credentials = await this.deps.credentials.load(companyId, input.chatbotId);
     if (!credentials) return fail(503, "Voice calling is not configured for this chatbot");
@@ -271,7 +271,7 @@ export class VoiceCallService {
     if (off) return off;
     if (!(await this.deps.chatbots.exists(companyId, chatbotId))) return fail(404, "Chatbot not found");
     const verified = await this.verifyRequest(companyId, chatbotId, webhook);
-    if (!verified.ok) return verified;
+    if (verified.ok === false) return verified;
     const credentials = verified.value;
 
     if (!isPlausiblePhone(inbound.fromNumber) || !isPlausiblePhone(inbound.toNumber)) return fail(400, "Invalid phone number");
@@ -283,7 +283,7 @@ export class VoiceCallService {
     }
 
     const quota = await this.checkQuota(companyId, chatbotId);
-    if (!quota.ok) {
+    if (quota.ok === false) {
       await this.hangUpSafely(companyId, inbound.providerCallId, credentials);
       return quota;
     }
@@ -316,7 +316,7 @@ export class VoiceCallService {
     if (off) return off;
     if (!(await this.deps.chatbots.exists(companyId, chatbotId))) return fail(404, "Chatbot not found");
     const verified = await this.verifyRequest(companyId, chatbotId, input);
-    if (!verified.ok) return verified;
+    if (verified.ok === false) return verified;
 
     let events: CallProviderEvent[];
     try {
@@ -451,7 +451,7 @@ export class VoiceCallService {
       usedSeconds: usage.completedSeconds,
       reservedSeconds: usage.reservedSeconds,
     });
-    if (!decision.allowed) {
+    if (decision.allowed === false) {
       return decision.reason === "plan_disabled"
         ? fail(403, "Voice calls are not available in your current plan.")
         : fail(403, "Monthly voice call limit reached.");

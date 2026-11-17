@@ -76,7 +76,7 @@ export async function runPipeline(input: {
       params,
       context: { stage: 'input' },
     });
-    if (!verdict.pass) {
+    if (verdict.pass === false) {
       return { ok: false, blocked: true, reason: verdict.reason, retrieval: [], tool_result: null, citations: [], stage: 'guardrail' };
     }
   }

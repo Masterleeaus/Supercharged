@@ -64,6 +64,11 @@ export interface WhatsAppAdapterMessage {
 export type WhatsAppAdapterRefusalReason =
   | 'suppressed'
   | 'invalid_company'
+  | 'invalid_idempotency_key'
+  | 'invalid_token'
+  | 'invalid_request'
+  | 'provider_error'
+  | 'uncertain'
   | 'opted_out'
   | 'quiet_hours'
   | 'invalid_contact'
@@ -133,12 +138,12 @@ export function createWhatsAppProviderAdapter(config: WhatsAppAdapterConfig): Wh
           now: message.now,
           quietHours: message.quietHours,
         });
-        if (!consent.allowed && consent.reason === 'opted_out') {
+        if (consent.allowed === false && consent.reason === 'opted_out') {
           return refuse('opted_out');
         }
         // Quiet hours apply to every purpose. An unreadable recipient timezone under a window fails closed.
-        if (!consent.allowed && consent.reason === 'quiet_hours') return refuse('quiet_hours');
-        if (!consent.allowed && consent.reason === 'invalid_contact' && message.quietHours) {
+        if (consent.allowed === false && consent.reason === 'quiet_hours') return refuse('quiet_hours');
+        if (consent.allowed === false && consent.reason === 'invalid_contact' && message.quietHours) {
           return refuse('invalid_contact');
         }
         // Marketing needs an explicit WhatsApp opt-in on record. Any other refusal of consent
@@ -160,7 +165,7 @@ export function createWhatsAppProviderAdapter(config: WhatsAppAdapterConfig): Wh
           if (t.template.channel !== 'whatsapp') return refuse('template_channel_mismatch');
 
           const rendered = renderTemplate(t.template, t.values, { company: config.company });
-          if (!rendered.ok) return refuse(RENDER_REFUSAL_REASONS[rendered.reason], rendered.names);
+          if (rendered.ok === false) return refuse(RENDER_REFUSAL_REASONS[rendered.reason], rendered.names);
 
           // Positional body parameters follow the declared variable order.
           variables = t.template.variables.map((name) => String(t.values[name]));
@@ -195,7 +200,7 @@ export function createWhatsAppProviderAdapter(config: WhatsAppAdapterConfig): Wh
           purpose,
           contact: message.contact,
         });
-        if (!build.ok) return refuse(build.reason);
+        if (build.ok === false) return refuse(build.reason);
 
         // The pending audit event is written before the provider is called. If it cannot be written, nothing is sent.
         let audit: CommsSendAudit | null;
@@ -216,7 +221,7 @@ export function createWhatsAppProviderAdapter(config: WhatsAppAdapterConfig): Wh
           http: config.http,
         });
         const outcome = audit ? await audit.finish(sent.ok ? 'sent' : 'provider_error') : NO_SEND_AUDIT;
-        if (!sent.ok) return { ...refuse(sent.reason), ...outcome };
+        if (sent.ok === false) return { ...refuse(sent.reason), ...outcome };
         return { ok: true, externalId: sent.externalId, ...outcome };
       } catch {
         return refuse('provider_error');
