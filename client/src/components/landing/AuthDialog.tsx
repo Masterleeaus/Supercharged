@@ -161,6 +161,7 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
   const [signupStep, setSignupStep] = useState<"details" | "otp">("details");
   const [forgotPasswordStep, setForgotPasswordStep] = useState<"email" | "otp" | "new-password">("email");
   const [otpCode, setOtpCode] = useState("");
+  const [resetToken, setResetToken] = useState("");
   const [otpTimer, setOtpTimer] = useState(0);
   const [canResendOtp, setCanResendOtp] = useState(false);
 
@@ -486,7 +487,9 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
       if (!response.ok) {
         throw new Error(data.error || "Invalid verification code");
       }
-      
+
+      setResetToken(data.resetToken);
+
       toast({
         title: "Verified!",
         description: "Now set your new password",
@@ -535,6 +538,7 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
         body: JSON.stringify({
           email: resetPasswordForm.email,
           newPassword: resetPasswordForm.newPassword,
+          resetToken,
         }),
       });
       
