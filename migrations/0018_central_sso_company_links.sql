@@ -5,6 +5,14 @@
 -- and restricted desk_app role are verified against the deployment.
 -- Not applied to any database by the repository. Operator action only.
 BEGIN;
+-- Role bootstrap (issue #398): create desk_app only when it is absent, so a fresh database boots.
+-- Attributes and schema usage match scripts/tenant-postgres-prepare.mjs. An existing role is not changed.
+DO $role$ BEGIN
+ IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='desk_app') THEN
+  CREATE ROLE desk_app NOLOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE;
+  GRANT USAGE ON SCHEMA public TO desk_app;
+ END IF;
+END $role$;
 CREATE TABLE IF NOT EXISTS desk_central_identity_links (
  issuer text NOT NULL CHECK(length(issuer) BETWEEN 8 AND 256),
  subject text NOT NULL CHECK(length(subject) BETWEEN 1 AND 256),

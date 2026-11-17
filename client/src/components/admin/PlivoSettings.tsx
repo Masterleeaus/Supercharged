@@ -1,3 +1,4 @@
+import type { AppError } from "@/components/app-error";
 import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -10,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { useForm } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -59,7 +60,7 @@ interface PlivoCredential {
   authId: string;
   isPrimary: boolean;
   isActive: boolean;
-  metadata: any;
+  metadata: unknown;
   createdAt: string;
   updatedAt: string;
 }
@@ -138,10 +139,8 @@ const editPlivoCredentialSchema = z.object({
   isPrimary: z.boolean(),
 });
 
-type AddPlivoCredentialFormData = z.output<typeof addPlivoCredentialSchema>;
-type AddPlivoCredentialFormInput = z.input<typeof addPlivoCredentialSchema>;
-type EditPlivoCredentialFormData = z.output<typeof editPlivoCredentialSchema>;
-type EditPlivoCredentialFormInput = z.input<typeof editPlivoCredentialSchema>;
+type AddPlivoCredentialFormData = z.infer<typeof addPlivoCredentialSchema>;
+type EditPlivoCredentialFormData = z.infer<typeof editPlivoCredentialSchema>;
 
 function PlivoCredentialsSection() {
   const { toast } = useToast();
@@ -151,7 +150,7 @@ function PlivoCredentialsSection() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedCredential, setSelectedCredential] = useState<PlivoCredential | null>(null);
 
-  const addForm = useForm<AddPlivoCredentialFormInput, unknown, AddPlivoCredentialFormData>({
+  const addForm = useForm<AddPlivoCredentialFormData>({
     resolver: zodResolver(addPlivoCredentialSchema),
     defaultValues: {
       name: "",
@@ -161,7 +160,7 @@ function PlivoCredentialsSection() {
     },
   });
 
-  const editForm = useForm<EditPlivoCredentialFormInput, unknown, EditPlivoCredentialFormData>({
+  const editForm = useForm<EditPlivoCredentialFormData>({
     resolver: zodResolver(editPlivoCredentialSchema),
     defaultValues: {
       name: "",
@@ -183,7 +182,8 @@ function PlivoCredentialsSection() {
       setAddDialogOpen(false);
       addForm.reset();
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: "Failed to add credential",
         description: error.message,
@@ -202,7 +202,8 @@ function PlivoCredentialsSection() {
       setEditDialogOpen(false);
       setSelectedCredential(null);
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: "Failed to update credential",
         description: error.message,
@@ -221,7 +222,8 @@ function PlivoCredentialsSection() {
       setDeleteDialogOpen(false);
       setSelectedCredential(null);
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: "Failed to delete credential",
         description: error.message,
@@ -238,7 +240,8 @@ function PlivoCredentialsSection() {
       queryClient.invalidateQueries({ queryKey: ["/api/plivo/admin/credentials"] });
       toast({ title: "Credential status updated" });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: "Failed to update status",
         description: error.message,
@@ -614,10 +617,8 @@ const editPhonePricingSchema = z.object({
   isActive: z.boolean(),
 });
 
-type AddPhonePricingFormData = z.output<typeof addPhonePricingSchema>;
-type AddPhonePricingFormInput = z.input<typeof addPhonePricingSchema>;
-type EditPhonePricingFormData = z.output<typeof editPhonePricingSchema>;
-type EditPhonePricingFormInput = z.input<typeof editPhonePricingSchema>;
+type AddPhonePricingFormData = z.infer<typeof addPhonePricingSchema>;
+type EditPhonePricingFormData = z.infer<typeof editPhonePricingSchema>;
 
 function PhonePricingSection() {
   const { toast } = useToast();
@@ -627,8 +628,8 @@ function PhonePricingSection() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedPricing, setSelectedPricing] = useState<PhonePricing | null>(null);
 
-  const addForm = useForm<AddPhonePricingFormInput, unknown, AddPhonePricingFormData>({
-    resolver: zodResolver(addPhonePricingSchema),
+  const addForm = useForm<AddPhonePricingFormData>({
+    resolver: zodResolver(addPhonePricingSchema) as Resolver<AddPhonePricingFormData>,
     defaultValues: {
       countryCode: "",
       countryName: "",
@@ -638,8 +639,8 @@ function PhonePricingSection() {
     },
   });
 
-  const editForm = useForm<EditPhonePricingFormInput, unknown, EditPhonePricingFormData>({
-    resolver: zodResolver(editPhonePricingSchema),
+  const editForm = useForm<EditPhonePricingFormData>({
+    resolver: zodResolver(editPhonePricingSchema) as Resolver<EditPhonePricingFormData>,
     defaultValues: {
       purchaseCredits: 0,
       monthlyCredits: 0,
@@ -668,7 +669,8 @@ function PhonePricingSection() {
       setAddDialogOpen(false);
       addForm.reset();
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: "Failed to add pricing",
         description: error.message,
@@ -692,7 +694,8 @@ function PhonePricingSection() {
       setEditDialogOpen(false);
       setSelectedPricing(null);
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: "Failed to update pricing",
         description: error.message,
@@ -711,7 +714,8 @@ function PhonePricingSection() {
       setDeleteDialogOpen(false);
       setSelectedPricing(null);
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: "Failed to delete pricing",
         description: error.message,
@@ -728,7 +732,8 @@ function PhonePricingSection() {
       queryClient.invalidateQueries({ queryKey: ["/api/plivo/admin/phone-pricing"] });
       toast({ title: "Pricing status updated" });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: "Failed to update status",
         description: error.message,
@@ -936,7 +941,6 @@ function PhonePricingSection() {
                       <FormControl>
                         <Input
                           {...field}
-                          value={field.value as string | number}
                           type="number"
                           data-testid="input-purchase-credits"
                         />
@@ -954,7 +958,6 @@ function PhonePricingSection() {
                       <FormControl>
                         <Input
                           {...field}
-                          value={field.value as string | number}
                           type="number"
                           data-testid="input-monthly-credits"
                         />
@@ -1048,7 +1051,6 @@ function PhonePricingSection() {
                       <FormControl>
                         <Input
                           {...field}
-                          value={field.value as string | number}
                           type="number"
                           data-testid="input-edit-purchase-credits"
                         />
@@ -1066,7 +1068,6 @@ function PhonePricingSection() {
                       <FormControl>
                         <Input
                           {...field}
-                          value={field.value as string | number}
                           type="number"
                           data-testid="input-edit-monthly-credits"
                         />
@@ -1241,14 +1242,17 @@ function PhoneNumbersSection() {
     mutationFn: async () => {
       return apiRequest("POST", "/api/plivo/admin/sync-numbers");
     },
-    onSuccess: (data: any) => {
+    onSuccess: (response: Response) => {
+      // The mutation returns the raw Response, so these counts read as undefined at runtime (existing behaviour, see PR notes).
+      const data = response as unknown as { imported?: number; skipped?: number };
       queryClient.invalidateQueries({ queryKey: ["/api/plivo/admin/phone-numbers"] });
       toast({
         title: "Sync Complete",
         description: `Imported ${data.imported} numbers, skipped ${data.skipped}`
       });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: "Sync Failed",
         description: error.message,
@@ -1270,7 +1274,8 @@ function PhoneNumbersSection() {
       setAssignDialogOpen(false);
       setSelectedPhone(null);
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: "Failed to assign phone number",
         description: error.message,

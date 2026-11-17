@@ -199,7 +199,7 @@ export class TwilioOpenAIBatchCallingService {
       this.isPaused = false;
       this.isCancelled = false;
 
-      const campaignConfig = campaign.config as Record<string, any> || {};
+      const campaignConfig = (campaign.config as { maxConcurrentCalls?: number; callDelayMs?: number } | null) || {};
       
       // Read admin-configured concurrency limit from global settings
       const globalConcurrencySetting = await storage.getGlobalSetting('campaign_batch_concurrency');
@@ -296,7 +296,7 @@ export class TwilioOpenAIBatchCallingService {
       TwilioOpenAIBatchCallingService.removeInstance(campaignId);
       return result;
 
-    } catch (error: any) {
+    } catch (error) {
       logger.error(`Campaign ${campaignId} failed`, error, 'TwilioOpenAIBatch');
 
       await db
@@ -545,14 +545,14 @@ export class TwilioOpenAIBatchCallingService {
             },
           });
           logger.info(`Triggered call.started webhook for call ${result.callId}`, undefined, 'TwilioOpenAIBatch');
-        } catch (webhookError: any) {
+        } catch (webhookError) {
           logger.error(`Failed to trigger call.started webhook: ${webhookError.message}`, undefined, 'TwilioOpenAIBatch');
         }
       }
 
       this.monitorCall(result.callId, contact.id);
 
-    } catch (error: any) {
+    } catch (error) {
       logger.error(`Call initiation failed for ${contact.phone}`, error, 'TwilioOpenAIBatch');
       
       await db
@@ -579,7 +579,7 @@ export class TwilioOpenAIBatchCallingService {
             .set({ status: 'failed', endedAt: new Date() })
             .where(eq(calls.id, latestCallsRow.id));
         }
-      } catch (callsSyncErr: any) {
+      } catch (callsSyncErr) {
         logger.error(`Failed to sync calls table on initiation failure for ${contact.phone}: ${callsSyncErr.message}`, undefined, 'TwilioOpenAIBatch');
       }
 
@@ -710,7 +710,7 @@ export class TwilioOpenAIBatchCallingService {
         } else {
           logger.warn(`No calls row found for contact ${contactId} in campaign ${this.config.campaignId} — handleCallEnd status not synced (scheduleContactRetry should have already handled this)`, undefined, 'TwilioOpenAIBatch');
         }
-      } catch (callsUpdateErr: any) {
+      } catch (callsUpdateErr) {
         logger.error(`Failed to sync calls table for contact ${contactId}: ${callsUpdateErr.message}`, undefined, 'TwilioOpenAIBatch');
       }
     }
@@ -779,7 +779,7 @@ export class TwilioOpenAIBatchCallingService {
               eq(calls.campaignId, this.config.campaignId),
               inArray(calls.contactId, contactIds)
             ));
-        } catch (callsUpdateErr: any) {
+        } catch (callsUpdateErr) {
           logger.error(`Failed to sync calls table for interrupted contacts: ${callsUpdateErr.message}`, undefined, 'TwilioOpenAIBatch');
         }
       }
@@ -816,7 +816,7 @@ export class TwilioOpenAIBatchCallingService {
     prompt = prompt.replace(/\{\{phone\}\}/g, contact.phone);
     prompt = prompt.replace(/\{\{email\}\}/g, contact.email || '');
 
-    const customFields = contact.customFields as Record<string, any> || {};
+    const customFields = contact.customFields as Record<string, unknown> || {};
     for (const [key, value] of Object.entries(customFields)) {
       prompt = prompt.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), String(value || ''));
       prompt = prompt.replace(new RegExp(`\\{${key}\\}`, 'g'), String(value || ''));
@@ -852,7 +852,7 @@ export class TwilioOpenAIBatchCallingService {
     message = message.replace(/\{phone\}/g, contact.phone);
     message = message.replace(/\{email\}/g, contact.email || '');
 
-    const customFields = contact.customFields as Record<string, any> || {};
+    const customFields = contact.customFields as Record<string, unknown> || {};
     for (const [key, value] of Object.entries(customFields)) {
       // Support both {{key}} and {key} formats for custom fields
       message = message.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), String(value || ''));

@@ -126,7 +126,7 @@ export class TwilioOpenAICallService {
           
           // Check if flow has pre-compiled data (compiled at save time)
           if (flow.compiledSystemPrompt && flow.compiledTools) {
-            logger.info(`Using pre-compiled flow data (${(flow.compiledTools as any[]).length} tools)`, undefined, 'TwilioOpenAICall');
+            logger.info(`Using pre-compiled flow data (${(flow.compiledTools as unknown[]).length} tools)`, undefined, 'TwilioOpenAICall');
             
             // Use custom prompts if provided (batch calls), otherwise use pre-compiled prompts
             const systemPrompt = customSystemPrompt || flow.compiledSystemPrompt;
@@ -146,7 +146,7 @@ export class TwilioOpenAICallService {
             // Build config with pre-compiled data and hydrated tools
             agentConfig = {
               voice: (agent.openaiVoice as OpenAIVoice) || 'alloy',
-              model: ((agent as any).llmModel as OpenAIRealtimeModel) || 'gpt-realtime-1.5',
+              model: (agent.llmModel as OpenAIRealtimeModel) || 'gpt-realtime-1.5',
               systemPrompt,
               firstMessage,
               temperature: agent.temperature ?? 0.7,
@@ -154,16 +154,16 @@ export class TwilioOpenAICallService {
             };
           } else {
             // Fall back to runtime compilation using shared services
-            logger.info(`Flow loaded with ${(flow.nodes as any[]).length} nodes, language: ${language}, compiling at runtime`, undefined, 'TwilioOpenAICall');
+            logger.info(`Flow loaded with ${flow.nodes.length} nodes, language: ${language}, compiling at runtime`, undefined, 'TwilioOpenAICall');
             
             // Compile the flow using shared compiler
             const compiledResult = OpenAIVoiceAgentCompiler.compileFlow(
-              flow.nodes as any[],
-              flow.edges as any[],
+              flow.nodes as Parameters<typeof OpenAIVoiceAgentCompiler.compileFlow>[0],
+              flow.edges as Parameters<typeof OpenAIVoiceAgentCompiler.compileFlow>[1],
               {
                 language,
                 voice: (agent.openaiVoice as string) || 'alloy',
-                model: ((agent as any).llmModel as string) || 'gpt-realtime-1.5',
+                model: (agent.llmModel as string) || 'gpt-realtime-1.5',
                 knowledgeBaseIds: agent.knowledgeBaseIds || [],
                 transferEnabled: agent.transferEnabled || false,
                 transferPhoneNumber: agent.transferPhoneNumber || undefined,
@@ -179,7 +179,7 @@ export class TwilioOpenAICallService {
               compiledTools: compiledResult.tools as CompiledFunctionTool[],
               compiledStates: compiledResult.conversationStates as CompiledConversationState[],
               voice: (agent.openaiVoice as OpenAIVoice) || 'alloy',
-              model: ((agent as any).llmModel as OpenAIRealtimeModel) || 'gpt-realtime-1.5',
+              model: (agent.llmModel as OpenAIRealtimeModel) || 'gpt-realtime-1.5',
               temperature: agent.temperature ?? 0.7,
               toolContext: {
                 userId,
@@ -203,14 +203,14 @@ export class TwilioOpenAICallService {
       if (isFlowAgent && agentConfig) {
         if (agent.messagingEmailEnabled) {
           const emailToolConfig = OpenAIAgentFactory.addMessagingEmailTool(
-            { ...agentConfig, tools: agentConfig.tools || [] } as any,
+            { ...agentConfig, tools: agentConfig.tools || [] },
             userId, agentId, callId, agent.messagingEmailTemplate
           );
           agentConfig.tools = emailToolConfig.tools || agentConfig.tools;
         }
         if (agent.messagingWhatsappEnabled) {
           const whatsappToolConfig = OpenAIAgentFactory.addMessagingWhatsAppTool(
-            { ...agentConfig, tools: agentConfig.tools || [] } as any,
+            { ...agentConfig, tools: agentConfig.tools || [] },
             userId, agentId, callId, agent.messagingWhatsappTemplate, [], agent.messagingWhatsappVariables
           );
           agentConfig.tools = whatsappToolConfig.tools || agentConfig.tools;
@@ -225,7 +225,7 @@ export class TwilioOpenAICallService {
         
         let naturalConfig = OpenAIAgentFactory.createAgentConfig({
           voice: (agent.openaiVoice as OpenAIVoice) || 'alloy',
-          model: ((agent as any).llmModel as OpenAIRealtimeModel) || 'gpt-realtime-1.5',
+          model: (agent.llmModel as OpenAIRealtimeModel) || 'gpt-realtime-1.5',
           systemPrompt: customSystemPrompt || agent.systemPrompt || 'You are a helpful AI assistant.',
           firstMessage: customFirstMessage || agent.firstMessage || undefined,
           temperature: agent.temperature ?? 0.7,
@@ -298,7 +298,7 @@ export class TwilioOpenAICallService {
       await TwilioOpenAIAudioBridge.createSession({
         callSid: callId,
         openaiApiKey: openaiCredential.apiKey,
-        agentConfig: agentConfig as any,
+        agentConfig: agentConfig as AgentConfig,
         fromNumber: normalizedFromNumber,
         toNumber: normalizedToNumber,
         callDirection: 'outbound',
@@ -331,8 +331,8 @@ export class TwilioOpenAICallService {
         twilioCallSid: call.sid,
         fromNumber: normalizedFromNumber,
         toNumber: normalizedToNumber,
-        openaiVoice: (agent.openaiVoice as any) || 'alloy',
-        openaiModel: ((agent as any).llmModel as string) || 'gpt-realtime-1.5',
+        openaiVoice: (agent.openaiVoice as OpenAIVoice) || 'alloy',
+        openaiModel: (agent.llmModel as string) || 'gpt-realtime-1.5',
         status: 'initiated',
         callDirection: 'outbound',
         startedAt: new Date(),
@@ -364,7 +364,7 @@ export class TwilioOpenAICallService {
           campaign: campaignId ? { id: campaignId } : null,
         });
         logger.info(`Triggered call.started webhook for call ${callId}`, undefined, 'TwilioOpenAICall');
-      } catch (webhookError: any) {
+      } catch (webhookError) {
         logger.error(`Failed to trigger call.started webhook: ${webhookError.message}`, undefined, 'TwilioOpenAICall');
       }
 
@@ -388,7 +388,7 @@ export class TwilioOpenAICallService {
             }, campaignId);
             logger.info(`Triggered flow.started webhook for call ${callId}, flow ${flow.name}`, undefined, 'TwilioOpenAICall');
           }
-        } catch (flowWebhookError: any) {
+        } catch (flowWebhookError) {
           logger.error(`Failed to trigger flow.started webhook: ${flowWebhookError.message}`, undefined, 'TwilioOpenAICall');
         }
       }
@@ -399,7 +399,7 @@ export class TwilioOpenAICallService {
         twilioCallSid: call.sid,
       };
 
-    } catch (error: any) {
+    } catch (error) {
       logger.error('Error initiating call', error.message, 'TwilioOpenAICall');
       return { success: false, error: error.message };
     }
@@ -426,13 +426,13 @@ export class TwilioOpenAICallService {
       logger.info(`Call hung up: ${callSid}`, undefined, 'TwilioOpenAICall');
       return true;
 
-    } catch (error: any) {
+    } catch (error) {
       logger.error('Error hanging up call', error.message, 'TwilioOpenAICall');
       return false;
     }
   }
 
-  static async getCallStatus(callId: string): Promise<any> {
+  static async getCallStatus(callId: string): Promise<typeof twilioOpenaiCalls.$inferSelect | null> {
     const [call] = await db
       .select()
       .from(twilioOpenaiCalls)

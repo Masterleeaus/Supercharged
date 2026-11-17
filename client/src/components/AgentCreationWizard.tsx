@@ -1,19 +1,15 @@
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
+import type { AppError } from "@/components/app-error";
 import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -72,13 +68,13 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
   const hasAlternateEngines = isPlivoEnabled || isTwilioOpenaiEnabled || isElevenLabsSipAllowed || isOpenAISipAllowed || isCustomVoiceEngineEnabled;
 
   // Fetch CVE admin settings for active TTS provider
-  const { data: cveSettings } = useQuery<{ success: boolean; data: { tts: { activeProvider: string } } }>({
+  const { data: cveSettings } = useQuery<{ success: boolean; data: { tts: { activeProvider: string }; stt?: { activeProvider?: string } } }>({
     queryKey: ["/api/voice-engine/admin/provider-keys"],
     staleTime: 30000,
     enabled: isCustomVoiceEngineEnabled,
   });
   const activeTtsProvider = cveSettings?.data?.tts?.activeProvider || "deepgram";
-  const activeSttProvider = (cveSettings?.data as any)?.stt?.activeProvider || "deepgram";
+  const activeSttProvider = cveSettings?.data?.stt?.activeProvider || "deepgram";
 
   const [formData, setFormData] = useState<AgentFormData>({
     useCase: "",
@@ -271,7 +267,8 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
       resetWizard();
       onSuccess?.();
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: "Creation Failed",
         description: error.message || "Failed to create agent. Please try again.",

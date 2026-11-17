@@ -1,19 +1,15 @@
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
+import type { AdminPaymentSettings } from "@/components/admin/payments-settings/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,9 +27,9 @@ import { ConnectionStatus, PAYSTACK_CURRENCIES } from "@/components/admin/paymen
 
 export interface PaystackSettingsTabProps {
   t: TFunction<"translation", undefined>;
-  isPaystackConfigured: any;
+  isPaystackConfigured: boolean | undefined;
   paystackConnectionStatus: ConnectionStatus;
-  settings: any;
+  settings: AdminPaymentSettings | undefined;
   paystackFormData: { paystack_public_key: string; paystack_secret_key: string; paystack_webhook_secret: string; paystack_currency: string; };
   handlePaystackChange: (key: "paystack_public_key" | "paystack_secret_key" | "paystack_webhook_secret" | "paystack_currency", value: string) => void;
   showPaystackSecretKey: boolean;
@@ -41,10 +37,10 @@ export interface PaystackSettingsTabProps {
   showPaystackWebhookSecret: boolean;
   setShowPaystackWebhookSecret: Dispatch<SetStateAction<boolean>>;
   toast: ReturnType<typeof useToast>["toast"];
-  testPaystackConnectionMutation: UseMutationResult<any, any, void, unknown>;
+  testPaystackConnectionMutation: UseMutationResult<unknown, Error, void, unknown>;
   savePaystackSettings: () => Promise<void>;
   hasPaystackChanges: boolean;
-  updateSettingMutation: UseMutationResult<{ key: string; data: any; }, any, { key: string; value: any; }, unknown>;
+  updateSettingMutation: UseMutationResult<{ key: string; data: unknown; }, Error, { key: string; value: unknown; }, unknown>;
 }
 
 export function PaystackSettingsTab({ t, isPaystackConfigured, paystackConnectionStatus, settings, paystackFormData, handlePaystackChange, showPaystackSecretKey, setShowPaystackSecretKey, showPaystackWebhookSecret, setShowPaystackWebhookSecret, toast, testPaystackConnectionMutation, savePaystackSettings, hasPaystackChanges, updateSettingMutation }: PaystackSettingsTabProps) {

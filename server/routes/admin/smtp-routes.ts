@@ -1,16 +1,18 @@
+import type { CaughtError } from '../common';
 'use strict';
 import { Router, Response } from 'express';
 import { storage } from '../../storage';
 import { AdminRequest, requireAdminPermission } from '../../middleware/admin-auth';
 import nodemailer from 'nodemailer';
-import { emailService, smtpTlsOptions } from '../../services/email-service';
+import { emailService } from '../../services/email-service';
+import { smtpTlsOptions } from '../../services/smtp-tls-options';
 import { logger } from '../../utils/logger';
 
 export function registerSmtpRoutes(router: Router) {
   router.get('/smtp', requireAdminPermission('communications', 'email_settings', 'read'), async (req: AdminRequest, res: Response) => {
     try {
       const smtpKeys = ['smtp_host', 'smtp_port', 'smtp_username', 'smtp_password', 'smtp_from_email', 'smtp_from_name', 'smtp_secure'];
-      const smtpSettings: Record<string, any> = {};
+      const smtpSettings: Record<string, unknown> = {};
       
       for (const key of smtpKeys) {
         const setting = await storage.getGlobalSetting(key);
@@ -102,11 +104,11 @@ export function registerSmtpRoutes(router: Router) {
       logger.info('📧 Email service reinitialized after successful SMTP test');
       
       res.json({ success: true, message: 'Test email sent successfully' });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error sending test email:', error);
       
-      const errorCode = error.code || '';
-      const errorMsg = error.message || '';
+      const errorCode = (error as CaughtError).code || '';
+      const errorMsg = (error as CaughtError).message || '';
       let friendlyMessage = `Failed to send test email: ${errorMsg}`;
       
       if (errorCode === 'ETIMEDOUT') {
