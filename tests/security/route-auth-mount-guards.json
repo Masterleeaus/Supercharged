@@ -1,0 +1,837 @@
+{
+  "note": "Routes guarded where they are mounted or by a guard chain the static scanner cannot follow (issue #320). Each entry names the guard text, and the test checks that every needle still appears in guardedBy.file.",
+  "entries": [
+    {
+      "file": "server/routes/plugin-installer.ts",
+      "receiver": "router",
+      "method": "GET",
+      "path": "/installed",
+      "guardedBy": {
+        "file": "server/routes/core/plugin-management-routes.ts",
+        "needles": [
+          "app.use('/api/admin/plugins/installer', checkAdminOrTeamMember, pluginInstallerRoutes.default);"
+        ]
+      },
+      "reason": "Installer router mounted behind checkAdminOrTeamMember (plugin-management-routes.ts).",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/routes/plugin-routes.ts",
+      "receiver": "userPluginRouter",
+      "method": "GET",
+      "path": "/capabilities",
+      "guardedBy": {
+        "file": "server/routes/core/plugin-management-routes.ts",
+        "needles": [
+          "app.use('/api/plugins', authenticateAnyToken, pluginRoutes.userPluginRouter);"
+        ]
+      },
+      "reason": "User plugin capabilities, mounted behind authenticateAnyToken (plugin-management-routes.ts).",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/routes/plugin-routes.ts",
+      "receiver": "router",
+      "method": "GET",
+      "path": "/",
+      "guardedBy": {
+        "file": "server/routes/core/plugin-management-routes.ts",
+        "needles": [
+          "app.use('/api/admin/plugins', checkAdminOrTeamMember, requireAdminPermission('settings', 'plugins', 'read'), pluginRoutes.default);"
+        ]
+      },
+      "reason": "Admin plugin list, mounted behind checkAdminOrTeamMember and requireAdminPermission (plugin-management-routes.ts).",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/routes/plugin-routes.ts",
+      "receiver": "router",
+      "method": "GET",
+      "path": "/:name",
+      "guardedBy": {
+        "file": "server/routes/core/plugin-management-routes.ts",
+        "needles": [
+          "app.use('/api/admin/plugins', checkAdminOrTeamMember, requireAdminPermission('settings', 'plugins', 'read'), pluginRoutes.default);"
+        ]
+      },
+      "reason": "Admin plugin list, mounted behind checkAdminOrTeamMember and requireAdminPermission (plugin-management-routes.ts).",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/routes/plugin-routes.ts",
+      "receiver": "router",
+      "method": "GET",
+      "path": "/discover/available",
+      "guardedBy": {
+        "file": "server/routes/core/plugin-management-routes.ts",
+        "needles": [
+          "app.use('/api/admin/plugins', checkAdminOrTeamMember, requireAdminPermission('settings', 'plugins', 'read'), pluginRoutes.default);"
+        ]
+      },
+      "reason": "Admin plugin list, mounted behind checkAdminOrTeamMember and requireAdminPermission (plugin-management-routes.ts).",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/workforce/runtime/shadow-routes.ts",
+      "receiver": "router",
+      "method": "GET",
+      "path": "<SHADOW_PENDING_PATH>",
+      "guardedBy": {
+        "file": "server/workforce/runtime/shadow-routes.ts",
+        "needles": [
+          "const chain: RequestHandler[] = [guards.authenticate, guards.requireCompanyScope, guards.requireApprover];"
+        ]
+      },
+      "reason": "Every route spreads the chain: authenticate, requireCompanyScope, requireApprover (same file).",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/workforce/runtime/shadow-routes.ts",
+      "receiver": "router",
+      "method": "POST",
+      "path": "<path>",
+      "guardedBy": {
+        "file": "server/workforce/runtime/shadow-routes.ts",
+        "needles": [
+          "const chain: RequestHandler[] = [guards.authenticate, guards.requireCompanyScope, guards.requireApprover];"
+        ]
+      },
+      "reason": "Every route spreads the chain: authenticate, requireCompanyScope, requireApprover (same file).",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/chatbot/builder-routes/builder-router.ts",
+      "receiver": "router",
+      "method": "GET",
+      "path": "/builder/avatars",
+      "guardedBy": {
+        "file": "server/modules/chatbot/wiring/mount.ts",
+        "needles": [
+          "builderMount.use(...modeGuard, deps.authenticate, deps.requireCompanyScope, router);"
+        ]
+      },
+      "reason": "Builder surface mounted behind deps.authenticate and deps.requireCompanyScope (mount.ts); each route also runs authenticate and a role check via guard().",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/chatbot/builder-routes/builder-router.ts",
+      "receiver": "router",
+      "method": "POST",
+      "path": "/builder/avatars",
+      "guardedBy": {
+        "file": "server/modules/chatbot/wiring/mount.ts",
+        "needles": [
+          "builderMount.use(...modeGuard, deps.authenticate, deps.requireCompanyScope, router);"
+        ]
+      },
+      "reason": "Builder surface mounted behind deps.authenticate and deps.requireCompanyScope (mount.ts); each route also runs authenticate and a role check via guard().",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/chatbot/builder-routes/builder-router.ts",
+      "receiver": "router",
+      "method": "GET",
+      "path": "/builder/:id",
+      "guardedBy": {
+        "file": "server/modules/chatbot/wiring/mount.ts",
+        "needles": [
+          "builderMount.use(...modeGuard, deps.authenticate, deps.requireCompanyScope, router);"
+        ]
+      },
+      "reason": "Builder surface mounted behind deps.authenticate and deps.requireCompanyScope (mount.ts); each route also runs authenticate and a role check via guard().",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/chatbot/builder-routes/builder-router.ts",
+      "receiver": "router",
+      "method": "POST",
+      "path": "/builder",
+      "guardedBy": {
+        "file": "server/modules/chatbot/wiring/mount.ts",
+        "needles": [
+          "builderMount.use(...modeGuard, deps.authenticate, deps.requireCompanyScope, router);"
+        ]
+      },
+      "reason": "Builder surface mounted behind deps.authenticate and deps.requireCompanyScope (mount.ts); each route also runs authenticate and a role check via guard().",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/chatbot/builder-routes/builder-router.ts",
+      "receiver": "router",
+      "method": "PATCH",
+      "path": "/builder/:id",
+      "guardedBy": {
+        "file": "server/modules/chatbot/wiring/mount.ts",
+        "needles": [
+          "builderMount.use(...modeGuard, deps.authenticate, deps.requireCompanyScope, router);"
+        ]
+      },
+      "reason": "Builder surface mounted behind deps.authenticate and deps.requireCompanyScope (mount.ts); each route also runs authenticate and a role check via guard().",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/chatbot/builder-routes/builder-router.ts",
+      "receiver": "router",
+      "method": "POST",
+      "path": "/builder/:id/publish",
+      "guardedBy": {
+        "file": "server/modules/chatbot/wiring/mount.ts",
+        "needles": [
+          "builderMount.use(...modeGuard, deps.authenticate, deps.requireCompanyScope, router);"
+        ]
+      },
+      "reason": "Builder surface mounted behind deps.authenticate and deps.requireCompanyScope (mount.ts); each route also runs authenticate and a role check via guard().",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/chatbot/builder-routes/builder-router.ts",
+      "receiver": "router",
+      "method": "POST",
+      "path": "/builder/:id/pause",
+      "guardedBy": {
+        "file": "server/modules/chatbot/wiring/mount.ts",
+        "needles": [
+          "builderMount.use(...modeGuard, deps.authenticate, deps.requireCompanyScope, router);"
+        ]
+      },
+      "reason": "Builder surface mounted behind deps.authenticate and deps.requireCompanyScope (mount.ts); each route also runs authenticate and a role check via guard().",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/chatbot/builder-routes/builder-router.ts",
+      "receiver": "router",
+      "method": "POST",
+      "path": "/builder/:id/uploads",
+      "guardedBy": {
+        "file": "server/modules/chatbot/wiring/mount.ts",
+        "needles": [
+          "builderMount.use(...modeGuard, deps.authenticate, deps.requireCompanyScope, router);"
+        ]
+      },
+      "reason": "Builder surface mounted behind deps.authenticate and deps.requireCompanyScope (mount.ts); each route also runs authenticate and a role check via guard().",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/chatbot/booking-routes/router.ts",
+      "receiver": "router",
+      "method": "GET",
+      "path": "/bookings",
+      "guardedBy": {
+        "file": "server/modules/chatbot/wiring/mount.ts",
+        "needles": [
+          "mountAt(WIRING_PREFIXES.bookings, [deps.authenticate, deps.requireCompanyScope, router]);"
+        ]
+      },
+      "reason": "Bookings mounted behind deps.authenticate and deps.requireCompanyScope; routes also run authenticate and a role check.",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/chatbot/booking-routes/router.ts",
+      "receiver": "router",
+      "method": "POST",
+      "path": "/bookings",
+      "guardedBy": {
+        "file": "server/modules/chatbot/wiring/mount.ts",
+        "needles": [
+          "mountAt(WIRING_PREFIXES.bookings, [deps.authenticate, deps.requireCompanyScope, router]);"
+        ]
+      },
+      "reason": "Bookings mounted behind deps.authenticate and deps.requireCompanyScope; routes also run authenticate and a role check.",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/chatbot/booking-routes/router.ts",
+      "receiver": "router",
+      "method": "GET",
+      "path": "/bookings/:id",
+      "guardedBy": {
+        "file": "server/modules/chatbot/wiring/mount.ts",
+        "needles": [
+          "mountAt(WIRING_PREFIXES.bookings, [deps.authenticate, deps.requireCompanyScope, router]);"
+        ]
+      },
+      "reason": "Bookings mounted behind deps.authenticate and deps.requireCompanyScope; routes also run authenticate and a role check.",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/chatbot/booking-routes/router.ts",
+      "receiver": "router",
+      "method": "PATCH",
+      "path": "/bookings/:id",
+      "guardedBy": {
+        "file": "server/modules/chatbot/wiring/mount.ts",
+        "needles": [
+          "mountAt(WIRING_PREFIXES.bookings, [deps.authenticate, deps.requireCompanyScope, router]);"
+        ]
+      },
+      "reason": "Bookings mounted behind deps.authenticate and deps.requireCompanyScope; routes also run authenticate and a role check.",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/chatbot/booking-routes/router.ts",
+      "receiver": "router",
+      "method": "POST",
+      "path": "/bookings/:id/cancel",
+      "guardedBy": {
+        "file": "server/modules/chatbot/wiring/mount.ts",
+        "needles": [
+          "mountAt(WIRING_PREFIXES.bookings, [deps.authenticate, deps.requireCompanyScope, router]);"
+        ]
+      },
+      "reason": "Bookings mounted behind deps.authenticate and deps.requireCompanyScope; routes also run authenticate and a role check.",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/chatbot/booking-routes/router.ts",
+      "receiver": "router",
+      "method": "GET",
+      "path": "/booking-settings",
+      "guardedBy": {
+        "file": "server/modules/chatbot/wiring/mount.ts",
+        "needles": [
+          "mountAt(WIRING_PREFIXES.bookings, [deps.authenticate, deps.requireCompanyScope, router]);"
+        ]
+      },
+      "reason": "Bookings mounted behind deps.authenticate and deps.requireCompanyScope; routes also run authenticate and a role check.",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/chatbot/booking-routes/router.ts",
+      "receiver": "router",
+      "method": "PATCH",
+      "path": "/booking-settings",
+      "guardedBy": {
+        "file": "server/modules/chatbot/wiring/mount.ts",
+        "needles": [
+          "mountAt(WIRING_PREFIXES.bookings, [deps.authenticate, deps.requireCompanyScope, router]);"
+        ]
+      },
+      "reason": "Bookings mounted behind deps.authenticate and deps.requireCompanyScope; routes also run authenticate and a role check.",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/chatbot/agent-routes/agent-router.ts",
+      "receiver": "router",
+      "method": "GET",
+      "path": "/inbox",
+      "guardedBy": {
+        "file": "server/modules/chatbot/wiring/mount.ts",
+        "needles": [
+          "mountAt(WIRING_PREFIXES.agent, [deps.authenticate, router]);"
+        ]
+      },
+      "reason": "Agent surface mounted behind deps.authenticate; handlers also call the injected authenticate and return 401 without an identity.",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/chatbot/agent-routes/agent-router.ts",
+      "receiver": "router",
+      "method": "GET",
+      "path": "/conversations/:id",
+      "guardedBy": {
+        "file": "server/modules/chatbot/wiring/mount.ts",
+        "needles": [
+          "mountAt(WIRING_PREFIXES.agent, [deps.authenticate, router]);"
+        ]
+      },
+      "reason": "Agent surface mounted behind deps.authenticate; handlers also call the injected authenticate and return 401 without an identity.",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/chatbot/agent-routes/agent-router.ts",
+      "receiver": "router",
+      "method": "POST",
+      "path": "/conversations/:id/messages",
+      "guardedBy": {
+        "file": "server/modules/chatbot/wiring/mount.ts",
+        "needles": [
+          "mountAt(WIRING_PREFIXES.agent, [deps.authenticate, router]);"
+        ]
+      },
+      "reason": "Agent surface mounted behind deps.authenticate; handlers also call the injected authenticate and return 401 without an identity.",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/chatbot/agent-routes/agent-router.ts",
+      "receiver": "router",
+      "method": "POST",
+      "path": "/conversations/:id/takeover",
+      "guardedBy": {
+        "file": "server/modules/chatbot/wiring/mount.ts",
+        "needles": [
+          "mountAt(WIRING_PREFIXES.agent, [deps.authenticate, router]);"
+        ]
+      },
+      "reason": "Agent surface mounted behind deps.authenticate; handlers also call the injected authenticate and return 401 without an identity.",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/chatbot/agent-routes/agent-router.ts",
+      "receiver": "router",
+      "method": "POST",
+      "path": "/conversations/:id/handback",
+      "guardedBy": {
+        "file": "server/modules/chatbot/wiring/mount.ts",
+        "needles": [
+          "mountAt(WIRING_PREFIXES.agent, [deps.authenticate, router]);"
+        ]
+      },
+      "reason": "Agent surface mounted behind deps.authenticate; handlers also call the injected authenticate and return 401 without an identity.",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/chatbot/agent-routes/agent-router.ts",
+      "receiver": "router",
+      "method": "POST",
+      "path": "/conversations/:id/close",
+      "guardedBy": {
+        "file": "server/modules/chatbot/wiring/mount.ts",
+        "needles": [
+          "mountAt(WIRING_PREFIXES.agent, [deps.authenticate, router]);"
+        ]
+      },
+      "reason": "Agent surface mounted behind deps.authenticate; handlers also call the injected authenticate and return 401 without an identity.",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/chatbot/content-admin/router.ts",
+      "receiver": "router",
+      "method": "GET",
+      "path": "/content/canned-responses",
+      "guardedBy": {
+        "file": "server/modules/chatbot/wiring/mount.ts",
+        "needles": [
+          "mountAt(WIRING_PREFIXES.content, [deps.authenticate, deps.requireCompanyScope, router]);"
+        ]
+      },
+      "reason": "Content admin mounted behind deps.authenticate and deps.requireCompanyScope; routes also run authenticate and a role check.",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/chatbot/content-admin/router.ts",
+      "receiver": "router",
+      "method": "POST",
+      "path": "/content/canned-responses",
+      "guardedBy": {
+        "file": "server/modules/chatbot/wiring/mount.ts",
+        "needles": [
+          "mountAt(WIRING_PREFIXES.content, [deps.authenticate, deps.requireCompanyScope, router]);"
+        ]
+      },
+      "reason": "Content admin mounted behind deps.authenticate and deps.requireCompanyScope; routes also run authenticate and a role check.",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/chatbot/content-admin/router.ts",
+      "receiver": "router",
+      "method": "GET",
+      "path": "/content/canned-responses/:id",
+      "guardedBy": {
+        "file": "server/modules/chatbot/wiring/mount.ts",
+        "needles": [
+          "mountAt(WIRING_PREFIXES.content, [deps.authenticate, deps.requireCompanyScope, router]);"
+        ]
+      },
+      "reason": "Content admin mounted behind deps.authenticate and deps.requireCompanyScope; routes also run authenticate and a role check.",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/chatbot/content-admin/router.ts",
+      "receiver": "router",
+      "method": "PATCH",
+      "path": "/content/canned-responses/:id",
+      "guardedBy": {
+        "file": "server/modules/chatbot/wiring/mount.ts",
+        "needles": [
+          "mountAt(WIRING_PREFIXES.content, [deps.authenticate, deps.requireCompanyScope, router]);"
+        ]
+      },
+      "reason": "Content admin mounted behind deps.authenticate and deps.requireCompanyScope; routes also run authenticate and a role check.",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/chatbot/content-admin/router.ts",
+      "receiver": "router",
+      "method": "DELETE",
+      "path": "/content/canned-responses/:id",
+      "guardedBy": {
+        "file": "server/modules/chatbot/wiring/mount.ts",
+        "needles": [
+          "mountAt(WIRING_PREFIXES.content, [deps.authenticate, deps.requireCompanyScope, router]);"
+        ]
+      },
+      "reason": "Content admin mounted behind deps.authenticate and deps.requireCompanyScope; routes also run authenticate and a role check.",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/chatbot/content-admin/router.ts",
+      "receiver": "router",
+      "method": "GET",
+      "path": "/content/knowledge-base-articles",
+      "guardedBy": {
+        "file": "server/modules/chatbot/wiring/mount.ts",
+        "needles": [
+          "mountAt(WIRING_PREFIXES.content, [deps.authenticate, deps.requireCompanyScope, router]);"
+        ]
+      },
+      "reason": "Content admin mounted behind deps.authenticate and deps.requireCompanyScope; routes also run authenticate and a role check.",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/chatbot/content-admin/router.ts",
+      "receiver": "router",
+      "method": "POST",
+      "path": "/content/knowledge-base-articles",
+      "guardedBy": {
+        "file": "server/modules/chatbot/wiring/mount.ts",
+        "needles": [
+          "mountAt(WIRING_PREFIXES.content, [deps.authenticate, deps.requireCompanyScope, router]);"
+        ]
+      },
+      "reason": "Content admin mounted behind deps.authenticate and deps.requireCompanyScope; routes also run authenticate and a role check.",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/chatbot/content-admin/router.ts",
+      "receiver": "router",
+      "method": "GET",
+      "path": "/content/knowledge-base-articles/:id",
+      "guardedBy": {
+        "file": "server/modules/chatbot/wiring/mount.ts",
+        "needles": [
+          "mountAt(WIRING_PREFIXES.content, [deps.authenticate, deps.requireCompanyScope, router]);"
+        ]
+      },
+      "reason": "Content admin mounted behind deps.authenticate and deps.requireCompanyScope; routes also run authenticate and a role check.",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/chatbot/content-admin/router.ts",
+      "receiver": "router",
+      "method": "PATCH",
+      "path": "/content/knowledge-base-articles/:id",
+      "guardedBy": {
+        "file": "server/modules/chatbot/wiring/mount.ts",
+        "needles": [
+          "mountAt(WIRING_PREFIXES.content, [deps.authenticate, deps.requireCompanyScope, router]);"
+        ]
+      },
+      "reason": "Content admin mounted behind deps.authenticate and deps.requireCompanyScope; routes also run authenticate and a role check.",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/chatbot/content-admin/router.ts",
+      "receiver": "router",
+      "method": "DELETE",
+      "path": "/content/knowledge-base-articles/:id",
+      "guardedBy": {
+        "file": "server/modules/chatbot/wiring/mount.ts",
+        "needles": [
+          "mountAt(WIRING_PREFIXES.content, [deps.authenticate, deps.requireCompanyScope, router]);"
+        ]
+      },
+      "reason": "Content admin mounted behind deps.authenticate and deps.requireCompanyScope; routes also run authenticate and a role check.",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/chatbot/content-admin/router.ts",
+      "receiver": "router",
+      "method": "GET",
+      "path": "/content/contacts",
+      "guardedBy": {
+        "file": "server/modules/chatbot/wiring/mount.ts",
+        "needles": [
+          "mountAt(WIRING_PREFIXES.content, [deps.authenticate, deps.requireCompanyScope, router]);"
+        ]
+      },
+      "reason": "Content admin mounted behind deps.authenticate and deps.requireCompanyScope; routes also run authenticate and a role check.",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/chatbot/content-admin/router.ts",
+      "receiver": "router",
+      "method": "GET",
+      "path": "/content/contacts/:id",
+      "guardedBy": {
+        "file": "server/modules/chatbot/wiring/mount.ts",
+        "needles": [
+          "mountAt(WIRING_PREFIXES.content, [deps.authenticate, deps.requireCompanyScope, router]);"
+        ]
+      },
+      "reason": "Content admin mounted behind deps.authenticate and deps.requireCompanyScope; routes also run authenticate and a role check.",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/chatbot/content-admin/router.ts",
+      "receiver": "router",
+      "method": "GET",
+      "path": "/content/analytics",
+      "guardedBy": {
+        "file": "server/modules/chatbot/wiring/mount.ts",
+        "needles": [
+          "mountAt(WIRING_PREFIXES.content, [deps.authenticate, deps.requireCompanyScope, router]);"
+        ]
+      },
+      "reason": "Content admin mounted behind deps.authenticate and deps.requireCompanyScope; routes also run authenticate and a role check.",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/inbox/inbox-router.ts",
+      "receiver": "router",
+      "method": "GET",
+      "path": "/threads",
+      "guardedBy": {
+        "file": "server/routes/core/optional-comms-routes.ts",
+        "needles": [
+          "app.use('/api/comms/inbox',...common,",
+          "deps.authenticate, deps.requireCompanyScope,"
+        ]
+      },
+      "reason": "Inbox router mounted behind authenticate, company scope and actor check (optional-comms-routes.ts); staff routes also use requireRole admin/manager.",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/inbox/inbox-router.ts",
+      "receiver": "router",
+      "method": "GET",
+      "path": "/threads/:id",
+      "guardedBy": {
+        "file": "server/routes/core/optional-comms-routes.ts",
+        "needles": [
+          "app.use('/api/comms/inbox',...common,",
+          "deps.authenticate, deps.requireCompanyScope,"
+        ]
+      },
+      "reason": "Inbox router mounted behind authenticate, company scope and actor check (optional-comms-routes.ts); staff routes also use requireRole admin/manager.",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/inbox/inbox-router.ts",
+      "receiver": "router",
+      "method": "GET",
+      "path": "/threads/:id/messages",
+      "guardedBy": {
+        "file": "server/routes/core/optional-comms-routes.ts",
+        "needles": [
+          "app.use('/api/comms/inbox',...common,",
+          "deps.authenticate, deps.requireCompanyScope,"
+        ]
+      },
+      "reason": "Inbox router mounted behind authenticate, company scope and actor check (optional-comms-routes.ts); staff routes also use requireRole admin/manager.",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/inbox/inbox-router.ts",
+      "receiver": "router",
+      "method": "POST",
+      "path": "/threads/:id/drafts",
+      "guardedBy": {
+        "file": "server/routes/core/optional-comms-routes.ts",
+        "needles": [
+          "app.use('/api/comms/inbox',...common,",
+          "deps.authenticate, deps.requireCompanyScope,"
+        ]
+      },
+      "reason": "Inbox router mounted behind authenticate, company scope and actor check (optional-comms-routes.ts); staff routes also use requireRole admin/manager.",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/inbox/inbox-router.ts",
+      "receiver": "router",
+      "method": "POST",
+      "path": "/threads/:id/messages",
+      "guardedBy": {
+        "file": "server/routes/core/optional-comms-routes.ts",
+        "needles": [
+          "app.use('/api/comms/inbox',...common,",
+          "deps.authenticate, deps.requireCompanyScope,"
+        ]
+      },
+      "reason": "Inbox router mounted behind authenticate, company scope and actor check (optional-comms-routes.ts); staff routes also use requireRole admin/manager.",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/inbox/inbox-router.ts",
+      "receiver": "router",
+      "method": "POST",
+      "path": "/messages/:id/send-request",
+      "guardedBy": {
+        "file": "server/routes/core/optional-comms-routes.ts",
+        "needles": [
+          "app.use('/api/comms/inbox',...common,",
+          "deps.authenticate, deps.requireCompanyScope,"
+        ]
+      },
+      "reason": "Inbox router mounted behind authenticate, company scope and actor check (optional-comms-routes.ts); staff routes also use requireRole admin/manager.",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/desk-modes/express-comms-adapter.ts",
+      "receiver": "router",
+      "method": "GET",
+      "path": "<path>",
+      "guardedBy": {
+        "file": "server/routes/core/optional-comms-routes.ts",
+        "needles": [
+          "app.use('/api/comms/inbox',...common,",
+          "app.use('/api/comms/marketing',...common,",
+          "deps.authenticate, deps.requireCompanyScope,"
+        ]
+      },
+      "reason": "Generic comms bridge; only reachable through the inbox or marketing mounts, which apply authenticate and company scope.",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/desk-modes/express-comms-adapter.ts",
+      "receiver": "router",
+      "method": "POST",
+      "path": "<path>",
+      "guardedBy": {
+        "file": "server/routes/core/optional-comms-routes.ts",
+        "needles": [
+          "app.use('/api/comms/inbox',...common,",
+          "app.use('/api/comms/marketing',...common,",
+          "deps.authenticate, deps.requireCompanyScope,"
+        ]
+      },
+      "reason": "Generic comms bridge; only reachable through the inbox or marketing mounts, which apply authenticate and company scope.",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/desk-modes/express-comms-adapter.ts",
+      "receiver": "router",
+      "method": "PATCH",
+      "path": "<path>",
+      "guardedBy": {
+        "file": "server/routes/core/optional-comms-routes.ts",
+        "needles": [
+          "app.use('/api/comms/inbox',...common,",
+          "app.use('/api/comms/marketing',...common,",
+          "deps.authenticate, deps.requireCompanyScope,"
+        ]
+      },
+      "reason": "Generic comms bridge; only reachable through the inbox or marketing mounts, which apply authenticate and company scope.",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/marketing/marketing-router.ts",
+      "receiver": "router",
+      "method": "GET",
+      "path": "/pages",
+      "guardedBy": {
+        "file": "server/routes/core/optional-comms-routes.ts",
+        "needles": [
+          "app.use('/api/comms/marketing',...common,",
+          "deps.authenticate, deps.requireCompanyScope,"
+        ]
+      },
+      "reason": "Marketing router mounted behind authenticate, company scope and actor check (optional-comms-routes.ts); write and list routes also use requireRole admin/manager.",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/marketing/marketing-router.ts",
+      "receiver": "router",
+      "method": "GET",
+      "path": "/pages/:id",
+      "guardedBy": {
+        "file": "server/routes/core/optional-comms-routes.ts",
+        "needles": [
+          "app.use('/api/comms/marketing',...common,",
+          "deps.authenticate, deps.requireCompanyScope,"
+        ]
+      },
+      "reason": "Marketing router mounted behind authenticate, company scope and actor check (optional-comms-routes.ts); write and list routes also use requireRole admin/manager.",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/marketing/marketing-router.ts",
+      "receiver": "router",
+      "method": "POST",
+      "path": "/pages",
+      "guardedBy": {
+        "file": "server/routes/core/optional-comms-routes.ts",
+        "needles": [
+          "app.use('/api/comms/marketing',...common,",
+          "deps.authenticate, deps.requireCompanyScope,"
+        ]
+      },
+      "reason": "Marketing router mounted behind authenticate, company scope and actor check (optional-comms-routes.ts); write and list routes also use requireRole admin/manager.",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/marketing/marketing-router.ts",
+      "receiver": "router",
+      "method": "PATCH",
+      "path": "/pages/:id",
+      "guardedBy": {
+        "file": "server/routes/core/optional-comms-routes.ts",
+        "needles": [
+          "app.use('/api/comms/marketing',...common,",
+          "deps.authenticate, deps.requireCompanyScope,"
+        ]
+      },
+      "reason": "Marketing router mounted behind authenticate, company scope and actor check (optional-comms-routes.ts); write and list routes also use requireRole admin/manager.",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/marketing/marketing-router.ts",
+      "receiver": "router",
+      "method": "GET",
+      "path": "/content",
+      "guardedBy": {
+        "file": "server/routes/core/optional-comms-routes.ts",
+        "needles": [
+          "app.use('/api/comms/marketing',...common,",
+          "deps.authenticate, deps.requireCompanyScope,"
+        ]
+      },
+      "reason": "Marketing router mounted behind authenticate, company scope and actor check (optional-comms-routes.ts); write and list routes also use requireRole admin/manager.",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/marketing/marketing-router.ts",
+      "receiver": "router",
+      "method": "GET",
+      "path": "/content/:id",
+      "guardedBy": {
+        "file": "server/routes/core/optional-comms-routes.ts",
+        "needles": [
+          "app.use('/api/comms/marketing',...common,",
+          "deps.authenticate, deps.requireCompanyScope,"
+        ]
+      },
+      "reason": "Marketing router mounted behind authenticate, company scope and actor check (optional-comms-routes.ts); write and list routes also use requireRole admin/manager.",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/marketing/marketing-router.ts",
+      "receiver": "router",
+      "method": "POST",
+      "path": "/content",
+      "guardedBy": {
+        "file": "server/routes/core/optional-comms-routes.ts",
+        "needles": [
+          "app.use('/api/comms/marketing',...common,",
+          "deps.authenticate, deps.requireCompanyScope,"
+        ]
+      },
+      "reason": "Marketing router mounted behind authenticate, company scope and actor check (optional-comms-routes.ts); write and list routes also use requireRole admin/manager.",
+      "approvedBy": "n/a: guarded in code"
+    },
+    {
+      "file": "server/modules/marketing/marketing-router.ts",
+      "receiver": "router",
+      "method": "PATCH",
+      "path": "/content/:id",
+      "guardedBy": {
+        "file": "server/routes/core/optional-comms-routes.ts",
+        "needles": [
+          "app.use('/api/comms/marketing',...common,",
+          "deps.authenticate, deps.requireCompanyScope,"
+        ]
+      },
+      "reason": "Marketing router mounted behind authenticate, company scope and actor check (optional-comms-routes.ts); write and list routes also use requireRole admin/manager.",
+      "approvedBy": "n/a: guarded in code"
+    }
+  ]
+}
