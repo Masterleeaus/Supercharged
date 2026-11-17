@@ -12,9 +12,9 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { RouteContext, AuthRequest } from './common';
-import { sql, eq } from 'drizzle-orm';
-import { users, calls, campaigns, twilioCountries } from '@shared/schema';
+import { RouteContext } from './common';
+import { sql } from 'drizzle-orm';
+import { users, calls } from '@shared/schema';
 import bcrypt from 'bcrypt';
 import fs from 'fs';
 import path from 'path';
