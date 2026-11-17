@@ -10,7 +10,8 @@ import { sql } from "drizzle-orm";
 import { boolean, foreignKey, index, jsonb, pgTable, text, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
 
 // integration fix 7: one definition of chatbots. It is the shared/schema.ts table, not a second pgTable.
-export { chatbots } from "../../../shared/schema.ts";
+import { chatbots } from "../../../shared/schema.ts";
+export { chatbots };
 
 export const chatbotConversations = pgTable(
   "chatbot_conversations",

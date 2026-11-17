@@ -244,7 +244,7 @@ export class ToolExecutor {
     }
 
     // 7. Audit exactly once per attempt
-    if (outcome.ok) {
+    if (outcome.ok === true) {
       await record('success', null);
       const raw = outcome.raw;
       const data = raw !== null && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>) : { result: raw };

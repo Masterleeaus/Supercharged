@@ -405,7 +405,7 @@ export interface PricingRule {
    * Optional fields from the PHP ext_chatbot_pricing_rules row. Added by change request 2 (money slice).
    * Absent means "not set". The money slice carries them in PricingRuleRecord.
    */
-  targetId?: string | null;
+  targetId?: string | number | null;
   minQuantity?: number | null;
   minSubtotalMinor?: number | null;
   customerRef?: string | null;

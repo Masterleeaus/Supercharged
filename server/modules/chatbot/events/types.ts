@@ -110,10 +110,10 @@ export interface ActionFormField {
 }
 
 /** What the bot shows the customer or staff: buttons, a form, or both. Validated before storage. */
-export interface ActionPresentation {
+export type ActionPresentation = {
   buttons?: ActionButton[];
   form?: { fields: ActionFormField[] };
-}
+};
 
 export interface ActionRecord extends StructuredAction {
   expiresAt: Date | null;

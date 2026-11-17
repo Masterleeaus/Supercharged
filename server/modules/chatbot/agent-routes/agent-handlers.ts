@@ -133,7 +133,7 @@ export function createAgentHandlers(deps: AgentHandlersDeps): AgentHandlers {
     listInbox(req) {
       return guarded(req, READ_ROLES, async ({ companyId }) => {
         const parsed = parseInboxQuery(req.query);
-        if (!parsed.ok) return invalid(parsed.issues);
+        if (parsed.ok === false) return invalid(parsed.issues);
         const page = await deps.inbox.listInbox(companyId, parsed.value);
         return { status: 200, body: page };
       });
@@ -156,7 +156,7 @@ export function createAgentHandlers(deps: AgentHandlersDeps): AgentHandlers {
         const id = parseIdParam(req.params.id);
         if (!id) return BAD_ID;
         const parsed = parseStaffReplyBody(req.body);
-        if (!parsed.ok) return invalid(parsed.issues);
+        if (parsed.ok === false) return invalid(parsed.issues);
 
         const { message, isInternalNote } = parsed.value;
         // Persist first, as the PHP controller does. The message exists even if delivery fails.
@@ -193,7 +193,7 @@ export function createAgentHandlers(deps: AgentHandlersDeps): AgentHandlers {
         const id = parseIdParam(req.params.id);
         if (!id) return BAD_ID;
         const body = parseEmptyBody(req.body);
-        if (!body.ok) return invalid(body.issues);
+        if (body.ok === false) return invalid(body.issues);
         const conversation = await deps.conversations.setHandler(companyId, id, "human", staffId);
         if (!conversation) return NOT_FOUND;
         return { status: 200, body: { conversation } };
@@ -205,7 +205,7 @@ export function createAgentHandlers(deps: AgentHandlersDeps): AgentHandlers {
         const id = parseIdParam(req.params.id);
         if (!id) return BAD_ID;
         const body = parseEmptyBody(req.body);
-        if (!body.ok) return invalid(body.issues);
+        if (body.ok === false) return invalid(body.issues);
         const conversation = await deps.conversations.setHandler(companyId, id, "ai", staffId);
         if (!conversation) return NOT_FOUND;
         return { status: 200, body: { conversation } };
@@ -217,7 +217,7 @@ export function createAgentHandlers(deps: AgentHandlersDeps): AgentHandlers {
         const id = parseIdParam(req.params.id);
         if (!id) return BAD_ID;
         const body = parseEmptyBody(req.body);
-        if (!body.ok) return invalid(body.issues);
+        if (body.ok === false) return invalid(body.issues);
         const conversation = await deps.conversations.setTicketStatus(companyId, id, "closed", staffId);
         if (!conversation) return NOT_FOUND;
         return { status: 200, body: { conversation } };

@@ -220,7 +220,7 @@ export function createSmsProviderAdapter(options: SmsProviderAdapterOptions): Sm
         now: now(),
         quietHours: policy.quietHours,
       });
-      if (!decision.allowed) return { ok: false, reason: decision.reason };
+      if (decision.allowed === false) return { ok: false, reason: decision.reason };
 
       // Plivo takes E.164 digits without the leading '+' in src and dst.
       const url = `${baseUrl}/Account/${encodeURIComponent(accountId)}/Message/`;
