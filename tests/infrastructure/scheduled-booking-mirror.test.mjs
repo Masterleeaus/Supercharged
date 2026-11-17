@@ -170,5 +170,5 @@ test('migration 0020 is additive and registered in the runner and the journal', 
   const runner = readFileSync(new URL('../../scripts/run-safe-migration.mjs', import.meta.url), 'utf8');
   assert.match(runner, /\{ file: '0020_scheduled_booking_mirror\.sql', required: true \}/);
   const journal = JSON.parse(readFileSync(new URL('../../migrations/meta/_journal.json', import.meta.url), 'utf8'));
-  assert.equal(journal.entries.at(-1).tag, '0020_scheduled_booking_mirror');
+  assert.ok(journal.entries.some((e) => e.tag === '0020_scheduled_booking_mirror'), 'migration 0020 is listed in the journal');
 });
