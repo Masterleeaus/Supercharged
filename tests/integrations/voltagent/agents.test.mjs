@@ -109,3 +109,89 @@ test('invalid or duplicate tool ids throw', () => {
   assert.throws(() => build(engine, { allowlist: [{ ...SPEC, toolId: 'bad name!' }] }), /bridge_tool_name_invalid/);
   assert.throws(() => build(engine, { allowlist: [SPEC, SPEC] }), /bridge_tool_duplicate/);
 });
+
+// ---- VoltAgent tool adapter (issue #375) and tool-call spans (issue #381) ----
+import { parametersToZod, toVoltAgentTools, TOOL_CALL_SPAN_NAME } from '../../../server/integrations/voltagent/agents/voltagent-tools.ts';
+import { createTelemetry } from '../../../server/infrastructure/telemetry/index.ts';
+
+const SCHEMA = {
+  type: 'object',
+  properties: { jobId: { type: 'string', description: 'job id' }, limit: { type: 'integer' }, dryRun: { type: 'boolean' } },
+  required: ['jobId'],
+};
+
+test('parametersToZod is strict: unknown keys are rejected', () => {
+  const schema = parametersToZod(SCHEMA);
+  assert.equal(schema.safeParse({ jobId: 'j1', extra: 1 }).success, false);
+});
+
+test('parametersToZod enforces required keys and allows optional ones', () => {
+  const schema = parametersToZod(SCHEMA);
+  assert.equal(schema.safeParse({}).success, false);
+  assert.equal(schema.safeParse({ jobId: 'j1' }).success, true);
+  assert.equal(schema.safeParse({ jobId: 'j1', limit: 5, dryRun: true }).success, true);
+});
+
+test('parametersToZod checks types, including integer versus number', () => {
+  const schema = parametersToZod(SCHEMA);
+  assert.equal(schema.safeParse({ jobId: 7 }).success, false);
+  assert.equal(schema.safeParse({ jobId: 'j1', limit: 1.5 }).success, false);
+  assert.equal(schema.safeParse({ jobId: 'j1', dryRun: 'yes' }).success, false);
+});
+
+test('unsupported property types and unknown required keys throw at build time', () => {
+  assert.throws(() => parametersToZod({ type: 'object', properties: { a: { type: 'array' } } }), /bridge_schema_type_unsupported/);
+  assert.throws(() => parametersToZod({ type: 'object', properties: {}, required: ['ghost'] }), /bridge_schema_required_unknown/);
+  assert.throws(() => parametersToZod({ type: 'array', properties: {} }), /bridge_schema_must_be_object/);
+});
+
+test('toVoltAgentTools passes name, description and schema to createTool and forwards execute through the bridge', async () => {
+  const engine = fakeEngine({ ok: true, run: {}, tool: { outcome: 'executed', toolId: 'jobs.lookup', tier: 'read', output: { id: 'j1' }, truncated: false } });
+  const [bridge] = build(engine, { allowlist: [{ ...SPEC, parameters: SCHEMA }] });
+  const seen = [];
+  const [made] = toVoltAgentTools([bridge], { createTool: (o) => { seen.push(o); return { wrapped: o.name }; } });
+  assert.deepEqual(made, { wrapped: 'jobs.lookup' });
+  assert.equal(seen[0].description, SPEC.description);
+  const out = await seen[0].execute({ jobId: 'j1' });
+  assert.deepEqual(out, { status: 'executed', output: { id: 'j1' }, truncated: false });
+  assert.equal(engine.calls.length, 1);
+  assert.equal(engine.calls[0].call.toolId, 'jobs.lookup');
+});
+
+test('toVoltAgentTools throws before creating any tool when a schema is unsupported', () => {
+  const engine = fakeEngine({ ok: false, reason: 'x', run: null, tool: null });
+  const [bridge] = build(engine, { allowlist: [{ ...SPEC, parameters: { type: 'object', properties: { a: { type: 'array' } } } }] });
+  let created = 0;
+  assert.throws(() => toVoltAgentTools([bridge], { createTool: () => { created += 1; } }), /bridge_schema_type_unsupported/);
+  assert.equal(created, 0);
+});
+
+test('tool calls record a redacted span with tool id, role and outcome, and never the arguments', async () => {
+  const spans = [];
+  const tracer = {
+    startSpan(name, attrs) {
+      const span = { name, attrs: { ...attrs }, ended: false };
+      spans.push(span);
+      return { setAttributes(more) { Object.assign(span.attrs, more); }, recordError() {}, end() { span.ended = true; } };
+    },
+  };
+  const engine = fakeEngine({ ok: true, run: {}, tool: { outcome: 'staged', toolId: 'jobs.lookup', tier: 'draft', paramsSha256: 'h' } });
+  const [bridge] = build(engine, { allowlist: [{ ...SPEC, parameters: SCHEMA }] });
+  let execute;
+  toVoltAgentTools([bridge], { createTool: (o) => { execute = o.execute; }, telemetry: createTelemetry({ enabled: true, tracer }), roleId: 'role-dispatch' });
+  const out = await execute({ jobId: 'SECRET-ARG-VALUE' });
+  assert.equal(out.status, 'staged');
+  assert.equal(spans.length, 1);
+  assert.equal(spans[0].name, TOOL_CALL_SPAN_NAME);
+  assert.deepEqual(spans[0].attrs, { tool_id: 'jobs.lookup', role_id: 'role-dispatch', outcome_status: 'staged' });
+  assert.equal(spans[0].ended, true);
+  assert.equal(JSON.stringify(spans).includes('SECRET-ARG-VALUE'), false);
+});
+
+test('with telemetry disabled the tool still runs and no span is created', async () => {
+  const engine = fakeEngine({ ok: false, reason: 'run_not_running', run: null, tool: null });
+  const [bridge] = build(engine, { allowlist: [{ ...SPEC, parameters: SCHEMA }] });
+  let execute;
+  toVoltAgentTools([bridge], { createTool: (o) => { execute = o.execute; }, telemetry: createTelemetry({ enabled: false }) });
+  assert.deepEqual(await execute({ jobId: 'j1' }), { status: 'refused', reason: 'run_not_running' });
+});
