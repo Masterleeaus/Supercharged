@@ -41,6 +41,25 @@ export interface ToolContext {
 /**
  * Extended AgentConfig with context for tool handlers
  */
+/**
+ * Extra fields a messaging tool carries for its handler.
+ */
+export interface MessagingToolContext {
+  userId: string;
+  agentId: string;
+  callId?: string;
+  defaultTemplate?: string;
+  fixedVariables?: Record<string, string>;
+  fixedButtonVariables?: Record<number, string>;
+}
+
+/** One entry of the template variable JSON built in the messaging tool. */
+interface ParsedTemplateVar {
+  componentType?: string;
+  value?: string;
+  mode?: string;
+}
+
 export interface AgentConfigWithContext extends AgentConfig {
   toolContext?: ToolContext;
 }
@@ -181,7 +200,7 @@ export class OpenAIAgentFactory {
             found: true, 
             information: formattedResponse 
           };
-        } catch (error: any) {
+        } catch (error) {
           logger.error(`[KB Tool] Error:`, error.message);
           return { 
             found: false, 
@@ -471,7 +490,7 @@ export class OpenAIAgentFactory {
             appointmentId,
             message: `Appointment booked for ${params.contactName} on ${params.appointmentDate} at ${params.appointmentTime}` 
           };
-        } catch (error: any) {
+        } catch (error) {
           logger.error(`[Appointment Tool] Error:`, [error.message, error.stack]);
           return { 
             success: false, 
@@ -510,7 +529,7 @@ export class OpenAIAgentFactory {
     logger.info(`[Agent Factory] Adding form tool for form ${formId} (${formName})`);
 
     // Build field descriptions for the tool
-    const fieldProperties: Record<string, any> = {
+    const fieldProperties: Record<string, unknown> = {
       contactName: {
         type: 'string',
         description: 'Name of the person providing the information'
@@ -626,7 +645,7 @@ export class OpenAIAgentFactory {
               },
             });
             logger.info(`[Form Tool] Triggered form.submitted webhook event`);
-          } catch (webhookError: any) {
+          } catch (webhookError) {
             logger.error(`[Form Tool] Failed to trigger webhook:`, webhookError.message);
           }
           
@@ -635,7 +654,7 @@ export class OpenAIAgentFactory {
             submissionId,
             message: 'Your information has been saved successfully.' 
           };
-        } catch (error: any) {
+        } catch (error) {
           logger.error(`[Form Tool] Error:`, error.message);
           return { 
             success: false, 
@@ -766,7 +785,8 @@ export class OpenAIAgentFactory {
 
     logger.info(`[Agent Factory] Adding send_email tool`);
 
-    const emailTool: AgentTool = {
+    // NOTE: these messaging tools have no handler (pre-existing gap; the type used to be hidden by `as any`).
+    const emailTool: Omit<AgentTool, 'handler'> & { _messagingContext: MessagingToolContext } = {
       name: 'send_email',
       description: `Send an email to the caller. You MUST ask for their email address first before using this tool. ${templateInstruction} The system will automatically fill in agent_name and appointment details (appointment_date, appointment_time, service_name, duration, appointment_notes) from the current call. You should provide contact_name from the conversation. Any additional variables can be passed via dynamic_variables.`,
       parameters: {
@@ -794,11 +814,11 @@ export class OpenAIAgentFactory {
         required: ['recipient_email', 'template_name'],
       },
       _messagingContext: { userId, agentId, callId, defaultTemplate: templateName || undefined },
-    } as any;
+    };
 
     return {
       ...config,
-      tools: [...(config.tools || []), emailTool],
+      tools: [...(config.tools || []), emailTool as unknown as AgentTool],
     };
   }
 
@@ -857,7 +877,7 @@ export class OpenAIAgentFactory {
       templateInstruction = 'Use the template name configured by the user.';
     }
 
-    let parsedVars: Record<string, any> = {};
+    let parsedVars: Record<string, unknown> = {};
     try {
       if (variableDescriptions) parsedVars = JSON.parse(variableDescriptions);
     } catch { /* Variables are optional; malformed JSON leaves parsedVars empty. */ }
@@ -868,15 +888,15 @@ export class OpenAIAgentFactory {
     for (const [idx, val] of Object.entries(parsedVars)) {
       if (typeof val === 'string') {
         collectVars[idx] = val;
-      } else if (val && typeof val === 'object' && (val as any).componentType === 'button') {
+      } else if (val && typeof val === 'object' && (val as ParsedTemplateVar).componentType === 'button') {
         const btnIdx = idx.startsWith('btn_') ? parseInt(idx.replace('btn_', '')) : parseInt(idx);
         if (!isNaN(btnIdx)) {
-          fixedButtonVars[btnIdx] = (val as any).value || '';
+          fixedButtonVars[btnIdx] = (val as ParsedTemplateVar).value || '';
         }
-      } else if (val && typeof val === 'object' && (val as any).mode === 'fixed') {
-        fixedVars[idx] = (val as any).value || '';
-      } else if (val && typeof val === 'object' && (val as any).mode === 'collect') {
-        collectVars[idx] = (val as any).value || '';
+      } else if (val && typeof val === 'object' && (val as ParsedTemplateVar).mode === 'fixed') {
+        fixedVars[idx] = (val as ParsedTemplateVar).value || '';
+      } else if (val && typeof val === 'object' && (val as ParsedTemplateVar).mode === 'collect') {
+        collectVars[idx] = (val as ParsedTemplateVar).value || '';
       }
     }
 
@@ -896,7 +916,7 @@ export class OpenAIAgentFactory {
 
     logger.info(`[Agent Factory] Adding send_whatsapp tool (${hasCollectVars ? Object.keys(collectVars).length + ' collect' : '0 collect'}, ${hasFixedVars ? Object.keys(fixedVars).length + ' fixed' : '0 fixed'})`);
 
-    const properties: Record<string, any> = {
+    const properties: Record<string, unknown> = {
       template_name: {
         type: 'string',
         description: templateName
@@ -914,7 +934,7 @@ export class OpenAIAgentFactory {
     };
 
     if (hasCollectVars) {
-      const varProperties: Record<string, any> = {};
+      const varProperties: Record<string, unknown> = {};
       const varRequired: string[] = [];
       for (const [idx, desc] of Object.entries(collectVars)) {
         const key = `var_${idx}`;
@@ -932,7 +952,8 @@ export class OpenAIAgentFactory {
       };
     }
 
-    const whatsappTool: AgentTool = {
+    // NOTE: no handler, same pre-existing gap as send_email.
+    const whatsappTool: Omit<AgentTool, 'handler'> & { _messagingContext: MessagingToolContext } = {
       name: 'send_whatsapp',
       description: `Send a WhatsApp message to the caller using an approved template. The caller's phone number is automatically available from the call. ${templateInstruction}${variableInstruction}`,
       parameters: {
@@ -941,11 +962,11 @@ export class OpenAIAgentFactory {
         required: hasCollectVars ? ['template_name', 'variables'] : ['template_name'],
       },
       _messagingContext: { userId, agentId, callId, defaultTemplate: templateName || undefined, fixedVariables: hasFixedVars ? fixedVars : undefined, fixedButtonVariables: Object.keys(fixedButtonVars).length > 0 ? fixedButtonVars : undefined },
-    } as any;
+    };
 
     return {
       ...config,
-      tools: [...(config.tools || []), whatsappTool],
+      tools: [...(config.tools || []), whatsappTool as unknown as AgentTool],
     };
   }
 
@@ -1007,9 +1028,9 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
     webhookUrl: string,
     toolName: string,
     description: string,
-    parameters: Record<string, any>,
+    parameters: { properties?: Record<string, unknown>; required?: string[] },
     webhookMethod: string = 'POST',
-    payloadTemplate?: Record<string, any>
+    payloadTemplate?: Record<string, unknown>
   ): AgentConfigWithContext {
     logger.info(`[Agent Factory] Adding webhook tool: ${toolName} (${webhookMethod})`);
     if (payloadTemplate) {
@@ -1033,7 +1054,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
       required: ['contact_name', 'contact_phone', ...(parameters.required || [])]
     };
 
-    const webhookTool: AgentTool & { _webhookUrl: string; _webhookMethod: string; _payloadTemplate?: Record<string, any> } = {
+    const webhookTool: AgentTool & { _webhookUrl: string; _webhookMethod: string; _payloadTemplate?: Record<string, unknown> } = {
       name: toolName,
       description,
       parameters: enhancedParameters,
@@ -1075,7 +1096,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
           const data = await response.json();
           logger.info(`[Webhook Tool] Response received`);
           return data;
-        } catch (error: any) {
+        } catch (error) {
           logger.error(`[Webhook Tool] Error:`, error.message);
           return { success: false, error: error.message };
         }
@@ -1159,16 +1180,16 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
 
           // Add body for POST/PUT/PATCH
           if (['POST', 'PUT', 'PATCH'].includes(method.toUpperCase())) {
-            let body: any;
+            let body: unknown;
             if (apiConfig.bodyTemplate) {
               // Use template, substituting variables
               body = apiConfig.bodyTemplate;
               if (params.bodyData && typeof params.bodyData === 'object') {
                 for (const [key, value] of Object.entries(params.bodyData)) {
-                  body = body.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), String(value));
+                  body = (body as string).replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), String(value));
                 }
               }
-              body = JSON.parse(body);
+              body = JSON.parse(body as string);
             } else {
               body = params.bodyData || {};
             }
@@ -1187,7 +1208,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
           }
 
           const contentType = response.headers.get('content-type');
-          let data: any;
+          let data: unknown;
           
           if (contentType?.includes('application/json')) {
             data = await response.json();
@@ -1207,7 +1228,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
           }
 
           return { success: true, data };
-        } catch (error: any) {
+        } catch (error) {
           logger.error(`[API Call Tool] Error:`, error.message);
           return { success: false, error: error.message };
         }
@@ -1229,8 +1250,8 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
   /**
    * Helper to get nested value from object using dot notation
    */
-  private static getNestedValue(obj: any, path: string): unknown {
-    return path.split('.').reduce((current, key) => current?.[key], obj);
+  private static getNestedValue(obj: unknown, path: string): unknown {
+    return path.split('.').reduce<unknown>((current, key) => (current as Record<string, unknown> | undefined)?.[key], obj);
   }
 
   /**
@@ -1241,7 +1262,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
     toolConfig: {
       name: string;
       description: string;
-      parameters: Record<string, any>;
+      parameters: Record<string, unknown>;
       action: 'log' | 'store' | 'webhook';
       webhookUrl?: string;
     }
@@ -1280,7 +1301,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
                   throw new Error(`Webhook returned ${response.status}`);
                 }
                 return await response.json();
-              } catch (error: any) {
+              } catch (error) {
                 return { success: false, error: error.message };
               }
             }
@@ -1304,7 +1325,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
    */
   private static getNodeType(node: FlowNode): string {
     const data = node.data || {};
-    return (data.type as string) || (data.config as any)?.type || node.type || 'unknown';
+    return (data.type as string) || (data.config as { type?: string } | undefined)?.type || node.type || 'unknown';
   }
 
   /**
@@ -1312,8 +1333,8 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
    */
   private static getNodeContent(node: FlowNode, field: string): string {
     const data = node.data || {};
-    const config = (data.config as any) || {};
-    return config[field] || (data as any)[field] || '';
+    const config = (data.config as Record<string, unknown> | undefined) || {};
+    return (config[field] || data[field] || '') as string;
   }
 
   /**
@@ -1321,9 +1342,9 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
    */
   private static getNodeData<T>(node: FlowNode, field: string, defaultValue?: T): T | undefined {
     const data = node.data || {};
-    const config = (data.config as any) || {};
-    const value = config[field] ?? (data as any)[field];
-    return value !== undefined ? value : defaultValue;
+    const config = (data.config as Record<string, unknown> | undefined) || {};
+    const value = config[field] ?? data[field];
+    return (value !== undefined ? value : defaultValue) as T | undefined;
   }
 
   /**
@@ -1405,13 +1426,13 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
           const url = this.getNodeContent(node, 'url');
           const toolName = this.getNodeContent(node, 'toolName');
           if (url && toolName) {
-            const webhookPayload = this.getNodeData<Record<string, any>>(node, 'payload');
+            const webhookPayload = this.getNodeData<Record<string, unknown>>(node, 'payload');
             config = this.addWebhookTool(
               config,
               url,
               toolName,
               this.getNodeContent(node, 'description') || 'Custom webhook action',
-              this.getNodeData<Record<string, any>>(node, 'parameters') || { type: 'object', properties: {} },
+              this.getNodeData<Record<string, unknown>>(node, 'parameters') || { type: 'object', properties: {} },
               this.getNodeContent(node, 'method') || 'POST',
               webhookPayload
             );
@@ -1440,7 +1461,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
             config = this.addCustomTool(config, {
               name: customToolName,
               description: this.getNodeContent(node, 'description') || 'Custom action',
-              parameters: this.getNodeData<Record<string, any>>(node, 'parameters') || { type: 'object', properties: {} },
+              parameters: this.getNodeData<Record<string, unknown>>(node, 'parameters') || { type: 'object', properties: {} },
               action: this.getNodeData<'log' | 'store' | 'webhook'>(node, 'action') || 'log',
               webhookUrl: this.getNodeContent(node, 'webhookUrl') || undefined,
             });
