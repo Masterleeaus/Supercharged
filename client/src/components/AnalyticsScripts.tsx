@@ -35,7 +35,7 @@ const HIDDEN_SCRIPTS_STORAGE_KEY = 'agentlabs_hidden_analytics_scripts';
 const WIDGET_CONTAINER_SELECTORS = [
   '#vw-container',       // Voice widget container
   '#vw-widget',          // Voice widget element
-  '[id^="agentlabs-"]',  // Any AgentLabs prefixed elements
+  '[id^="agentlabs-"]',  // Legacy elements with the agentlabs- prefix (compatibility selector)
 ];
 
 // Load hidden script IDs from localStorage (runs synchronously on module load)
