@@ -20,7 +20,7 @@ import { OpenAIPoolService } from '../../plivo/services/openai-pool.service';
 import { OpenAIAgentFactory } from '../services/openai-agent-factory';
 import { hydrateCompiledTools, type CompiledFunctionTool } from '../../../services/openai-voice-agent';
 import { db } from '../../../db';
-import { twilioOpenaiCalls, calls, users, creditTransactions, flowExecutions } from '@shared/schema';
+import { twilioOpenaiCalls, calls, users, creditTransactions, flowExecutions, agents } from '@shared/schema';
 import { eq, sql, and, desc } from 'drizzle-orm';
 import { logger } from '../../../utils/logger';
 import { TWILIO_OPENAI_CONFIG, getRecordingWebhookUrl } from '../config/twilio-openai-config';
@@ -296,6 +296,12 @@ async function initializeSession(
       return;
     }
 
+    // The calls table has no company column; the company comes from the call's agent.
+    const [callAgent] = callRecord.agentId
+      ? await db.select({ companyId: agents.companyId }).from(agents).where(eq(agents.id, callRecord.agentId)).limit(1)
+      : [];
+    const callCompanyId = callAgent?.companyId ?? null;
+
     // Get OpenAI API key from the reserved credential
     if (!callRecord.openaiCredentialId) {
       logger.error(`No OpenAI credential attached to call ${callSid}`, undefined, 'TwilioOpenAI Stream');
@@ -340,6 +346,7 @@ async function initializeSession(
       const hydratedTools = hydrateCompiledTools(compiledTools, {
         userId: callRecord.userId || '',
         agentId: callRecord.agentId || '',
+        companyId: callCompanyId,
         callId: callRecord.id,
         knowledgeBaseIds: metadata?.knowledgeBaseIds as string[] || [],
         transferPhoneNumber: metadata?.transferPhoneNumber as string || undefined,
@@ -347,8 +354,8 @@ async function initializeSession(
       
       // Build agent config with hydrated flow tools, using factory for tier-validated model
       const flowConfig = OpenAIAgentFactory.createAgentConfig({
-        voice: (callRecord.openaiVoice as OpenAIVoice) || TWILIO_OPENAI_CONFIG.defaultVoice,
-        model: (callRecord.openaiModel as OpenAIRealtimeModel) || TWILIO_OPENAI_CONFIG.openaiRealtimeModel,
+        voice: (callRecord.openaiVoice as OpenAIVoice) || (TWILIO_OPENAI_CONFIG.defaultVoice as OpenAIVoice),
+        model: (callRecord.openaiModel as OpenAIRealtimeModel) || (TWILIO_OPENAI_CONFIG.openaiRealtimeModel as OpenAIRealtimeModel),
         systemPrompt: (metadata?.systemPrompt as string) || 'You are a helpful AI assistant.',
         firstMessage: (metadata?.firstMessage as string) || undefined,
         temperature: (metadata?.temperature as number) ?? 0.7,
@@ -374,8 +381,8 @@ async function initializeSession(
     } else {
       // Natural agent - build agent config from scratch
       agentConfig = OpenAIAgentFactory.createAgentConfig({
-        voice: (callRecord.openaiVoice as OpenAIVoice) || TWILIO_OPENAI_CONFIG.defaultVoice,
-        model: (callRecord.openaiModel as OpenAIRealtimeModel) || TWILIO_OPENAI_CONFIG.openaiRealtimeModel as OpenAIRealtimeModel,
+        voice: (callRecord.openaiVoice as OpenAIVoice) || (TWILIO_OPENAI_CONFIG.defaultVoice as OpenAIVoice),
+        model: (callRecord.openaiModel as OpenAIRealtimeModel) || (TWILIO_OPENAI_CONFIG.openaiRealtimeModel as OpenAIRealtimeModel),
         systemPrompt: (metadata?.systemPrompt as string) || 'You are a helpful AI assistant.',
         firstMessage: (metadata?.firstMessage as string) || undefined,
         temperature: (metadata?.temperature as number) ?? 0.7,
@@ -394,7 +401,8 @@ async function initializeSession(
         agentConfig = OpenAIAgentFactory.addKnowledgeBaseTool(
           agentConfig,
           knowledgeBaseIds,
-          callRecord.userId
+          callRecord.userId,
+          callCompanyId
         );
       }
 
