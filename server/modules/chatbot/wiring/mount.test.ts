@@ -8,7 +8,7 @@ import {
   WIRING_PREFIXES,
   type ChatbotWiringDeps,
 } from "./mount.ts";
-import type { SecretBox } from "../secrets/secret-box.ts";
+import type { SecretBox } from "../contracts/secrets.ts";
 import type { ChannelRegistry } from "../channels/framework.ts";
 
 type UseCall = unknown[];

@@ -9,12 +9,11 @@
  */
 
 import { getDomain } from '../../../utils/domain';
-import type { OpenAIRealtimeModel, OpenAIVoice } from '../types';
 
 export interface TwilioOpenAIConfig {
   openaiRealtimeUrl: string;
-  openaiRealtimeModel: OpenAIRealtimeModel;
-  defaultVoice: OpenAIVoice;
+  openaiRealtimeModel: string;
+  defaultVoice: string;
   defaultTemperature: number;
   webhookTimeout: number;
   maxCallDuration: number;

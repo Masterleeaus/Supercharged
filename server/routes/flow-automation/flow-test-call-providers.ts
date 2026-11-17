@@ -78,6 +78,7 @@ export async function placePlivoFlowTestCall({
         temperature: agent.temperature ?? 0.7,
         toolContext: {
           userId,
+          companyId,
           agentId: agent.id,
           callId: tempCallId,
         },

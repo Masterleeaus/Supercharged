@@ -321,7 +321,7 @@ export function createReadToolDefinitions(store: ReadStore, group00Db?: SqlExecu
     // Group 04 handler definitions: reads and writes, each with its own access class and timeout (handlers/group-04.ts).
     ...createGroup04ToolDefinitions({ db: group00Db }),
     // Declared ids with no handler group yet: not_implemented stubs (handlers/group-missing.ts).
-    ...createGroupMissingToolDefinitions(),
+    ...createGroupMissingToolDefinitions(group00Db),
   ];
 }
 

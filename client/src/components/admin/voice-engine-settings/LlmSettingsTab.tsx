@@ -18,7 +18,7 @@ import { ProviderSettings, ProviderKeyCard } from "@/components/admin/voice-engi
 
 export interface LlmSettingsTabProps {
   settings: ProviderSettings;
-  updateMutation: UseMutationResult<any, any, Record<string, any>, unknown>;
+  updateMutation: UseMutationResult<unknown, Error, Record<string, unknown>, unknown>;
   testProvider: (provider: string) => Promise<void>;
   testingProvider: string;
   testResults: Record<string, { connected: boolean; details: string; }>;

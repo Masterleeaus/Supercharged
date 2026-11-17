@@ -42,7 +42,7 @@ export function createSqlOutbox(pool:TenantPool):OutboxRepository {
   async loadDelivery(companyId,messageId){
    const co=assertCompanyId(companyId);
    return withTenant(pool,co,async db=>{
-    const q=await db.query<{ body: string; subject: string | null; recipient: string | null }>(`SELECT m.body,t.subject,p.address AS recipient
+    const q=await db.query(`SELECT m.body,t.subject,p.address AS recipient
      FROM public.inbox_messages m
      JOIN public.inbox_threads t ON t.company_id=m.company_id AND t.id=m.thread_id
      LEFT JOIN LATERAL (
@@ -53,7 +53,7 @@ export function createSqlOutbox(pool:TenantPool):OutboxRepository {
       ORDER BY pa.id ASC LIMIT 1
      ) p ON true
      WHERE m.company_id=$1 AND m.id=$2 AND m.direction='outbound' AND m.status='queued'`,[co,messageId]);
-    const row=q.rows[0];
+    const row=q.rows[0] as {body:string;subject:string|null;recipient:string|null}|undefined;
     if(!row)return null;
     return{body:row.body,subject:row.subject??null,recipient:row.recipient??null};
    });

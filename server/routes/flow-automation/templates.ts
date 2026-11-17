@@ -24,7 +24,7 @@ export function registerFlowTemplateRoutes(router: Router): void {
       }));
 
       res.json(templates);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Error fetching templates:", error);
       res.status(500).json({ error: "Failed to fetch templates" });
     }
@@ -80,7 +80,7 @@ export function registerFlowTemplateRoutes(router: Router): void {
         .returning();
 
       res.json(newFlow);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Error cloning template:", error);
       res.status(500).json({ error: "Failed to clone template" });
     }
@@ -146,7 +146,7 @@ export function registerFlowTemplateRoutes(router: Router): void {
         .returning();
 
       res.json(clonedFlow);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Error cloning flow:", error);
       res.status(500).json({ error: "Failed to clone flow" });
     }

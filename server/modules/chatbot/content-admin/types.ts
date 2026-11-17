@@ -39,8 +39,8 @@ export interface KnowledgeBaseArticle {
 export interface NewKnowledgeBaseArticle {
   title: string;
   description: string;
-  content?: string | null;
-  isFeatured?: boolean;
+  content: string | null;
+  isFeatured: boolean;
   chatbotIds: string[];
 }
 

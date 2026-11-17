@@ -3,6 +3,7 @@
  * Shows navigation based on granted permissions for team members
  * Supports both user team members and admin sub-admins
  */
+import type { LucideIcon } from "lucide-react";
 import { Users, BookOpen, Mic, Link as LinkIcon, Phone, Settings, ChevronsUpDown, Plus, BarChart3, Home, Target, LogOut, Coins, Shield, CreditCard, TrendingUp, UserCheck, Workflow, Webhook, ClipboardList, Calendar, Layout, FileText, Wrench, Globe, Building2, Key, Puzzle, MessageSquare, Headphones, ListOrdered, ContactRound, Package, DollarSign, Brain, Bot } from "lucide-react";
 import {
   Sidebar,
@@ -73,7 +74,7 @@ interface TeamAuthResponse {
 }
 
 // User section mappings to routes
-const USER_SECTION_ROUTES: Record<string, { url: string; icon: any; label: string; group: string; iconColor?: string }[]> = {
+const USER_SECTION_ROUTES: Record<string, { url: string; icon: LucideIcon; label: string; group: string; iconColor?: string }[]> = {
   dashboard: [
     { url: "/app", icon: Home, label: "Home", group: "build", iconColor: "text-blue-500" },
   ],
@@ -131,7 +132,7 @@ const USER_SECTION_ROUTES: Record<string, { url: string; icon: any; label: strin
 };
 
 // Admin section mappings to tab values
-const ADMIN_SECTION_TABS: Record<string, { tabValue: string; icon: any; label: string }[]> = {
+const ADMIN_SECTION_TABS: Record<string, { tabValue: string; icon: LucideIcon; label: string }[]> = {
   user_management: [
     { tabValue: "users", icon: Users, label: "Users" },
     { tabValue: "contacts", icon: ContactRound, label: "Contacts" },
@@ -229,7 +230,7 @@ export function TeamMemberSidebar() {
 
   // Build navigation items based on permissions
   const buildNavItems = () => {
-    const groups: Record<string, { url: string; icon: any; label: string; iconColor?: string }[]> = {
+    const groups: Record<string, { url: string; icon: LucideIcon; label: string; iconColor?: string }[]> = {
       build: [],
       telephony: [],
       monitor: [],
@@ -277,10 +278,10 @@ export function TeamMemberSidebar() {
   };
 
   // Build admin tab items for admin team members
-  const buildAdminTabs = (): { tabValue: string; icon: any; label: string }[] => {
+  const buildAdminTabs = (): { tabValue: string; icon: LucideIcon; label: string }[] => {
     if (!isAdminTeam) return [];
     
-    const tabs: { tabValue: string; icon: any; label: string }[] = [];
+    const tabs: { tabValue: string; icon: LucideIcon; label: string }[] = [];
     const addedTabs = new Set<string>();
 
     Object.entries(ADMIN_SECTION_TABS).forEach(([sectionId, sectionTabs]) => {

@@ -35,7 +35,7 @@
 import { Router, type Express, type RequestHandler } from "express";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { CONTRACT_FLAGS, readFlag, type FlagEnv } from "../contracts/flags.ts";
-import type { SecretBox } from "../secrets/secret-box.ts";
+import type { SecretBox } from "../contracts/secrets.ts";
 
 // Builder
 import { BUILDER_ROUTES_FLAG, createBuilderRouter } from "../builder-routes/builder-router.ts";
@@ -291,7 +291,7 @@ export function mountChatbotModule(app: Pick<Express, "use">, deps: ChatbotWirin
   // Bookings: needs the chatbot SecretBox for stored calendar credentials.
   if (readFlag(WIRING_FLAGS.BOOKINGS, env)) {
     const secretBox = requireDep(deps.secretBox, WIRING_FLAGS.BOOKINGS, "secretBox");
-    const storage = createDrizzleBookingStorage({ db: deps.db, secretBox, now: clock });
+    const storage = createDrizzleBookingStorage({ db: deps.db, secretBox: secretBox as unknown as Parameters<typeof createDrizzleBookingStorage>[0]["secretBox"], now: clock });
     const service = createBookingService({ storage, now: clock, enabled: true });
     const router = createBookingRouter({
       service: createBookingRoutesService({ service, storage }),

@@ -70,7 +70,7 @@ export class CartError extends ChatbotError {
 
 export type CustomisationValue = string | number | boolean;
 
-export interface CartLine {
+export type CartLine = {
   /** Stable line id: sha256 of variant id plus canonical customisation. Clients reference lines by this. */
   readonly lineKey: string;
   readonly variantId: string;
@@ -83,7 +83,7 @@ export interface CartLine {
   readonly lineTotalMinor: number;
   readonly currency: string;
   readonly customisation: Readonly<Record<string, CustomisationValue>>;
-}
+};
 
 export interface CartRecord {
   readonly id: string;

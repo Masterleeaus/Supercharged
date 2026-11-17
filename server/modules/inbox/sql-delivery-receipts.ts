@@ -16,7 +16,7 @@ export function createSqlDeliveryReceipts(pool:TenantPool):ReceiptRepository{
    return withTenant(pool,companyId,async db=>{
     // Prevent a second event ID from being applied to an unrelated outbox row.
     // An immutable event can only refer to a previously acknowledged outbox send.
-    const result=await db.query<{ matching: number; inserted: number }>(`WITH matched AS (
+    const result=await db.query(`WITH matched AS (
       SELECT id FROM public.inbox_outbox
        WHERE company_id=$1 AND provider_id=$4 AND status='sent'
        ORDER BY updated_at DESC,id ASC LIMIT 1
@@ -44,7 +44,7 @@ export function createSqlDeliveryReceipts(pool:TenantPool):ReceiptRepository{
             (SELECT count(*)::integer FROM inserted) AS inserted`,
      [companyId,receipt.provider,receipt.eventId,receipt.providerId,receipt.outcome,
       receipt.payloadSha256,receipt.providerEventAt]);
-    const row=result.rows[0];
+    const row=result.rows[0] as {matching?:number|string;inserted?:number|string}|undefined;
     if(Number(row?.matching)===0)return 'unmatched';
     return Number(row?.inserted)===1?'recorded':'duplicate';
    });
