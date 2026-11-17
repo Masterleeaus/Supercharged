@@ -1,18 +1,13 @@
 'use strict';
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
 import type { Express, RequestHandler } from "express";
@@ -40,6 +35,7 @@ import { createCommsAuditSink } from "./modules/comms/audit-sink.ts";
 import { logAuditEvent } from "./services/audit-log";
 const commsAudit = createCommsAuditSink({ write: logAuditEvent as unknown as Parameters<typeof createCommsAuditSink>[0]["write"] });
 import { registerPublicAuthRoutes } from "./routes/core/public-auth-routes";
+import { mountCentralSso } from "./routes/core/central-sso-routes";
 import { registerPlatformRoutes } from "./routes/core/platform-routes";
 import { registerVoiceEngineRoutes } from "./routes/core/voice-engine-routes";
 import { registerPluginEngineRoutes } from "./routes/core/plugin-engine-routes";
@@ -117,6 +113,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Routes: public and auth, see server/routes/core/public-auth-routes.ts
   registerPublicAuthRoutes(app, { routeContext });
+
+  // Central sign-in (#53): mounted only when CENTRAL_SSO_ENABLED === "true". Off by default.
+  mountCentralSso(app);
 
   // Apply team context middleware globally for all user-facing /api routes
   // This allows team members to access data using their parent user's userId

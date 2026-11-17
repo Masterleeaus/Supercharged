@@ -48,7 +48,23 @@ test('compatibility identifiers keep their names', () => {
   assert.match(read('client/src/components/AnalyticsScripts.tsx'), /\[id\^="agentlabs-"\]/);
 });
 
-test('the Diploy/Envato copyright notice is untouched (issue #37)', () => {
+test('the copyright header line names Titan Zero, not the Diploy brand line (owner decision)', () => {
+  const HEADER_FILES = [
+    'client/src/components/admin/SEOModule.tsx',
+    'client/src/components/admin/SMTPSettings.tsx',
+    'client/src/pages/Dashboard.tsx',
+    'client/src/pages/Blog.tsx',
+    'client/src/pages/BlogPost.tsx',
+  ];
+  for (const file of HEADER_FILES) {
+    assert.match(read(file), /^ \* © 2025 Titan Zero Private Limited$/m, `${file} must carry the Titan Zero header line`);
+  }
+  for (const file of USER_SURFACES) {
+    assert.doesNotMatch(read(file), /Diploy— a brand of Bisht Technologies/, `${file} must not carry the old header line`);
+  }
+});
+
+test('the Diploy @copyright notice in correlation-id.ts and the LICENSE file are untouched (issue #37)', () => {
   assert.match(read('server/middleware/correlation-id.ts'), /@copyright Diploy - AgentLabs/);
   assert.match(read('LICENSE'), /.+/);
 });

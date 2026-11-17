@@ -1,17 +1,12 @@
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
 'use strict';
@@ -26,6 +21,7 @@ import { registerRoutes } from "./routes";
 import { resolveTrustProxy } from "./middleware/trust-proxy";
 import { publicRouteRateLimit } from "./middleware/public-route-rate-limit";
 import { isChatbotWebhookPath } from "./middleware/raw-body";
+import { redactWebhookTokenPath } from "./utils/redact-webhook-path";
 import { perRouteBodyParser } from "./middleware/body-limits";
 import { db } from "./db";
 import { sql } from "drizzle-orm";
@@ -201,7 +197,7 @@ app.get("/health/detailed", async (_req, res) => {
 
 app.use((req, res, next) => {
   const start = Date.now();
-  const path = req.path;
+  const path = redactWebhookTokenPath(req.path);
   let capturedJsonResponse: Record<string, any> | undefined = undefined;
 
   const originalResJson = res.json;
@@ -387,7 +383,7 @@ app.use((req, res, next) => {
     res.status(404).json({
       success: false,
       error: "API endpoint not found",
-      path: req.originalUrl,
+      path: redactWebhookTokenPath(req.originalUrl),
       method: req.method
     });
   });

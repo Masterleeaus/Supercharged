@@ -19,7 +19,7 @@ export function createSqlInboxStore(pool:TenantPool):InboxStore {
   // A lock transaction can only be reused for its own tenant. Check the
   // transaction-local setting instead of trusting the ambient JS context.
   if(locked)return locked.query("SELECT current_setting('app.company_id',true) AS tenant").then(x=>{
-   if(x.rows[0]?.tenant!==co)throw new Error('inbox: inbound lock belongs to another company');
+   if((x.rows[0] as {tenant?:string}|undefined)?.tenant!==co)throw new Error('inbox: inbound lock belongs to another company');
    return fn(locked);
   });
   return withTenant(pool,co,fn);

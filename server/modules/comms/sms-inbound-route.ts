@@ -102,7 +102,7 @@ export async function processPlivoDeliveryReceipt(
     if (!companyId) return { code: 404 };
 
     const receipt = handlePlivoDeliveryReceipt({ companyId, payload });
-    if (!receipt.ok) {
+    if (receipt.ok === false) {
       return { code: receipt.reason === 'unknown_status' ? 200 : 400 };
     }
 

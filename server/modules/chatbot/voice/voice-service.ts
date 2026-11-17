@@ -232,7 +232,7 @@ export function createVoiceService(deps: VoiceServiceDeps) {
     const charge = duration.ms ?? 0;
 
     const reserved = await storage.reserve(companyId, sessionId, charge);
-    if (!reserved.ok) {
+    if (reserved.ok === false) {
       if (reserved.reason === "limit_reached") {
         await endSession(companyId, sessionId, "limit_reached");
         log(safeLogFields({ event: "voice.turn.rejected", companyId, sessionId, code: "limit_reached" }));

@@ -1,7 +1,7 @@
 'use strict';
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
@@ -46,7 +46,7 @@ import { findCallForWebhook } from '../../services/call-matcher';
  * - Stores both AI-collected and verified phone numbers for discrepancy detection
  * 
  * Security: The secret is read from the X-Appointment-Webhook-Secret header and compared in constant time.
- * The legacy URL-token route is accepted only while APPOINTMENT_WEBHOOK_ALLOW_URL_TOKEN is not "false".
+ * The legacy URL-token route is accepted only when APPOINTMENT_WEBHOOK_ALLOW_URL_TOKEN is exactly "true" (off by default).
  *
  * Endpoints: POST /api/webhooks/elevenlabs/appointment/:elevenLabsAgentId (header auth)
  *            POST /api/webhooks/elevenlabs/appointment/:token/:elevenLabsAgentId (legacy, time-bounded)
@@ -68,7 +68,7 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
     // Dynamic imports added 200-500ms latency causing ElevenLabs timeouts
 
     // Secret travels in the X-Appointment-Webhook-Secret header. The legacy URL token is honoured only
-    // while APPOINTMENT_WEBHOOK_ALLOW_URL_TOKEN is not "false" (time-bounded migration).
+    // only when APPOINTMENT_WEBHOOK_ALLOW_URL_TOKEN is exactly "true" (off by default, time-bounded migration).
     const rawHeaderToken = req.get(APPOINTMENT_WEBHOOK_SECRET_HEADER);
     let auth: { ok: boolean; via: 'header' | 'url' | null };
     try {

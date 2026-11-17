@@ -1,7 +1,7 @@
 'use strict';
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
@@ -53,7 +53,8 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
 
     // Get the raw body as string for signature verification
     // Must use the actual raw body buffer, not re-stringified JSON, for HMAC to match
-    const rawBody = req.rawBody ? Buffer.from(req.rawBody as Uint8Array).toString() : JSON.stringify(req.body);
+    const rawBodyBytes = (req as { rawBody?: Uint8Array }).rawBody;
+    const rawBody = rawBodyBytes ? Buffer.from(rawBodyBytes).toString() : JSON.stringify(req.body);
     const signatureHeader = req.headers['elevenlabs-signature'] as string | undefined;
 
     // Debug: Log signature header format
