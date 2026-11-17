@@ -317,21 +317,53 @@ function functionBodySpan(seg, idx) {
 }
 
 /** Guard in a handler preamble: a guard line that comes before any business line. */
-function preambleGuarded(codeBody, textBody) {
+function preambleGuarded(codeBody, textBody, aliasRe) {
   const cl = codeBody.split('\n');
   const tl = textBody.split('\n');
   for (let k = 0; k < cl.length; k++) {
-    if (AUTH_RE.test(cl[k]) || HEADER_RE.test(tl[k] ?? '')) return true;
+    if (isGuardText(cl[k], aliasRe) || HEADER_RE.test(tl[k] ?? '')) return true;
     if (BUSINESS_RE.test(cl[k])) return false;
   }
   return false;
 }
 
 /**
+ * Guard identifier in masked code: a known guard name, or a local alias of one (see findGuardAliases).
+ */
+function isGuardText(codeText, aliasRe) {
+  return AUTH_RE.test(codeText) || (aliasRe !== null && aliasRe.test(codeText));
+}
+
+/**
+ * Local aliases of a known guard. A const, let or var assigned from a bare identifier or dotted name
+ * that matches AUTH_RE, with an optional type annotation and optional `as` / `as unknown as` casts:
+ *   const auth = authenticateToken as unknown as RequestHandler;
+ * Anything else (a call, an unknown name, a value that is not a guard) is not an alias.
+ * Returns { name, index } in source order. Input is masked code, so strings and comments never count.
+ */
+const ALIAS_DECL_RE = /(?<![\w$.])(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?::[^=;\n]+)?=\s*([A-Za-z_$][\w$.]*)\s*(?:as\s+unknown\s+as\s+[^;\n]+|as\s+[^;\n]+)?\s*(?:;|\n|$)/g;
+export function findGuardAliases(code) {
+  const out = [];
+  const re = new RegExp(ALIAS_DECL_RE.source, 'g');
+  let m;
+  while ((m = re.exec(code))) {
+    if (AUTH_RE.test(m[2])) out.push({ name: m[1], index: m.index });
+  }
+  return out;
+}
+
+/** Regex matching any of the given alias names as a whole identifier, or null when there are none. */
+function aliasPattern(names) {
+  if (names.length === 0) return null;
+  const alts = names.map((n) => n.replace(/\$/g, '\\$'));
+  return new RegExp(`(?<![\\w$])(?:${alts.join('|')})(?![\\w$])`);
+}
+
+/**
  * Split one call argument into the text outside its function bodies and whether a function body in it
  * has a guard in its preamble. Function bodies are removed from the outside text.
  */
-function splitSegment(code, text, seg) {
+function splitSegment(code, text, seg, aliasRe) {
   const c = code.slice(seg.start, seg.end);
   const t = text.slice(seg.start, seg.end);
   let outC = '';
@@ -345,7 +377,7 @@ function splitSegment(code, text, seg) {
     outC += c.slice(cursor, bs);
     outT += t.slice(cursor, bs);
     cursor = be;
-    if (preambleGuarded(c.slice(bs, be), t.slice(bs, be))) inBody = true;
+    if (preambleGuarded(c.slice(bs, be), t.slice(bs, be), aliasRe)) inBody = true;
     re.lastIndex = Math.max(be, f.index + 1);
   }
   outC += c.slice(cursor);
@@ -354,12 +386,12 @@ function splitSegment(code, text, seg) {
 }
 
 /**
- * Does one call argument count as a guard? Guard names outside function bodies count anywhere in the
- * argument. A function body counts only through its preamble (see preambleGuarded).
+ * Does one call argument count as a guard? Guard names (or aliases of them) outside function bodies count
+ * anywhere in the argument. A function body counts only through its preamble (see preambleGuarded).
  */
-function segmentGuarded(code, text, seg) {
-  const { outC, outT, inBody } = splitSegment(code, text, seg);
-  return inBody || AUTH_RE.test(outC) || HEADER_RE.test(outT);
+function segmentGuarded(code, text, seg, aliasRe) {
+  const { outC, outT, inBody } = splitSegment(code, text, seg, aliasRe);
+  return inBody || isGuardText(outC, aliasRe) || HEADER_RE.test(outT);
 }
 
 const collapse = (s) => s.replace(/\s+/g, ' ').slice(0, 80);
@@ -369,6 +401,9 @@ export function scanSource(input) {
   const { code, text } = maskSource(input);
   const routes = [];
   const uses = [];
+  // Guard aliases count only for calls written after their declaration (source order). A call that
+  // runs before a module-level const would throw on load, so a later alias is never a guard here.
+  const aliases = findGuardAliases(code);
   const callRe = new RegExp(ROUTE_CALL_SRC, 'g');
   let m;
   while ((m = callRe.exec(code))) {
@@ -377,11 +412,12 @@ export function scanSource(input) {
     const openIdx = m.index + m[0].length - 1;
     const closeIdx = callEnd(code, openIdx) - 1;
     const segs = splitArgs(code, openIdx, closeIdx);
+    const aliasRe = aliasPattern(aliases.filter((a) => a.index < m.index).map((a) => a.name));
 
     if (method === 'use') {
-      if (segs.some((s) => segmentGuarded(code, text, s))) {
+      if (segs.some((s) => segmentGuarded(code, text, s, aliasRe))) {
         // identifiers outside function bodies: the routers and middleware this use mounts
-        const mountIdents = segs.flatMap((s) => splitSegment(code, text, s).outC.match(/[A-Za-z_$][\w$]*/g) ?? []);
+        const mountIdents = segs.flatMap((s) => splitSegment(code, text, s, aliasRe).outC.match(/[A-Za-z_$][\w$]*/g) ?? []);
         uses.push({ receiver, index: m.index, mountIdents });
       }
       continue;
@@ -398,7 +434,7 @@ export function scanSource(input) {
     else if (/^[A-Za-z_$][\w$]*$/.test(pathCode)) routePath = `<${pathCode}>`;
     else routePath = `<expr ${collapse(pathText)}>`;
 
-    const inlineAuth = segs.slice(1).some((s) => segmentGuarded(code, text, s));
+    const inlineAuth = segs.slice(1).some((s) => segmentGuarded(code, text, s, aliasRe));
     routes.push({
       receiver,
       method: method.toUpperCase(),
@@ -720,6 +756,74 @@ for (const p of streamPaths) {
   assert.equal(routes.length, 1);
   assert.ok(routes[0].path.startsWith('<template'), `got ${routes[0].path}`);
   assert.equal(routes[0].inlineAuth, false);
+});
+
+test('local alias of a known guard counts as a guard (plain, cast, let, and router.use)', () => {
+  const fixture = `
+import { Router } from 'express';
+import { authenticateToken, requireAdmin } from './middleware/auth';
+const router = Router();
+const auth = authenticateToken as unknown as RequestHandler;
+let guard: RequestHandler = requireAdmin as RequestHandler;
+var plain = authenticateToken;
+router.get('/cast-alias', auth, (req, res) => res.json({}));
+router.post('/let-alias', guard, (req, res) => res.json({}));
+router.get('/var-alias', plain, (req, res) => res.json({}));
+const admin = requireAdmin;
+router.use(admin);
+router.delete('/after-alias-use', (req, res) => res.json({}));
+`;
+  const results = analyze(new Map([['server/alias.ts', fixture]]));
+  const byPath = Object.fromEntries(results.map((r) => [r.path, r.reason]));
+  assert.equal(byPath['/cast-alias'], 'inline guard');
+  assert.equal(byPath['/let-alias'], 'inline guard');
+  assert.equal(byPath['/var-alias'], 'inline guard');
+  assert.equal(byPath['/after-alias-use'], 'same-file guard');
+});
+
+test('an identifier that is not a known guard alias does NOT count', () => {
+  const fixture = `
+import { Router } from 'express';
+const router = Router();
+const helper = makeHandler();
+const notAuth = someHelper as unknown as RequestHandler;
+const label = 'authenticateToken';
+const built = buildAuth();
+router.get('/unknown-alias', notAuth, (req, res) => res.json({}));
+router.get('/call-result', built, (req, res) => res.json({}));
+router.get('/string-name', label, (req, res) => res.json({}));
+router.get('/helper', helper, (req, res) => res.json({}));
+router.get('/no-guard', (req, res) => res.json({}));
+`;
+  const results = analyze(new Map([['server/unknown.ts', fixture]]));
+  const byPath = Object.fromEntries(results.map((r) => [r.path, r.reason]));
+  assert.equal(byPath['/unknown-alias'], null, 'alias of a non-guard name is not a guard');
+  assert.equal(byPath['/call-result'], null, 'a call result is not an alias');
+  assert.equal(byPath['/string-name'], null, 'a string is not an alias');
+  assert.equal(byPath['/helper'], null);
+  assert.equal(byPath['/no-guard'], null, 'a route with no guard is still flagged');
+});
+
+test('a guard alias declared after the route does not count (declared before use only)', () => {
+  const fixture = `
+import { Router } from 'express';
+import { authenticateToken } from './middleware/auth';
+const router = Router();
+router.get('/before-alias', auth, (req, res) => res.json({}));
+const auth = authenticateToken as unknown as RequestHandler;
+router.get('/after-alias', auth, (req, res) => res.json({}));
+`;
+  const results = analyze(new Map([['server/order.ts', fixture]]));
+  const byPath = Object.fromEntries(results.map((r) => [r.path, r.reason]));
+  assert.equal(byPath['/before-alias'], null, 'a call before the const declaration is not guarded by it');
+  assert.equal(byPath['/after-alias'], 'inline guard');
+});
+
+test('the real user-sip-gateways alias pattern is recognised', () => {
+  const src = `
+const auth = authenticateToken as unknown as import('express').RequestHandler;
+`;
+  assert.deepEqual(findGuardAliases(maskSource(src).code).map((a) => a.name), ['auth']);
 });
 
 test('route count sanity: scanner finds the real route set', (t) => {
