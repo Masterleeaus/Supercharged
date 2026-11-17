@@ -2,7 +2,7 @@ import { logger } from './logger.ts';
 'use strict';
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  *
  * Licensed under the MIT License. See the LICENSE file at the repository root.
  * Copyright (c) Titan Zero.
