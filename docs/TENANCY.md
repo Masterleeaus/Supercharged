@@ -79,3 +79,23 @@ only in an approved window, and step 5 needs a rollback path (`NO FORCE`,
 - Choose the real example table for step 5.
 - Team-member sessions (`hybrid-auth.ts`) set `req.userId` to the parent user.
   They need the same company claim before they can use scoped routes.
+
+## Test database variables (issue #254)
+
+Each PostgreSQL test suite reads its own variables. Do not point any of them at a real database.
+
+| Variable | Used by | Gate |
+| --- | --- | --- |
+| `TENANT_PG_INTEGRATION_URL` | `tests/postgres/tenant-postgres-*.test.mjs` (CI job `tenant-postgres`) | `TENANT_PG_DISPOSABLE=true` |
+| `TEST_DATABASE_URL` | `tests/postgres/tenant-postgres-migration-recovery.test.mjs` and `tests/postgres/support/tenancy-migration-chain.mjs`. Creates and drops its own scratch database on the same server. | `TENANT_PG_DISPOSABLE=true` |
+| `DESK_TEST_DATABASE_URL` | `tests/modules/approvals-resubmit-guard.test.mjs` (a DB-backed test outside `tests/postgres`) | set the URL to a scratch database |
+| `MARKETING_PG_INTEGRATION_URL`, `INBOX_PG_INTEGRATION_URL`, `APPROVALS_PG_INTEGRATION_URL` | the Marketing, Inbox and Approvals CI jobs | `*_PG_DISPOSABLE=true` |
+
+Local run against a scratch server (never a persistent one):
+
+```
+TENANT_PG_DISPOSABLE=true TEST_DATABASE_URL=postgres://postgres:<pw>@127.0.0.1:5432/postgres \
+  node --test --experimental-transform-types tests/postgres/tenant-postgres-migration-recovery.test.mjs
+```
+
+The issue text names `TEST_DATABASE_URL`, and the repo uses `DESK_TEST_DATABASE_URL` for one older test. The recovery test reads `TEST_DATABASE_URL` first and falls back to `TENANT_PG_INTEGRATION_URL`, so the CI job works without a new secret.
