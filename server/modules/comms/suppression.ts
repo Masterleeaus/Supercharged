@@ -35,7 +35,8 @@ export type SuppressionErrorCode =
   | 'invalid_channel'
   | 'invalid_address'
   | 'permanent'
-  | 'not_suppressed';
+  | 'not_suppressed'
+  | 'not_loaded';
 
 export interface AddressInput {
   address: string;
@@ -87,6 +88,41 @@ export interface SuppressionList {
   unsuppress(companyId: string, input: AddressInput): UnsuppressResult;
 }
 
+/** One change to the suppression set, written to durable storage. The address is already normalised. */
+export type SuppressionWrite =
+  | { op: 'suppressed'; companyId: string; channel: Channel; address: string; reason: StoredSuppressionReason }
+  | { op: 'soft_bounce'; companyId: string; channel: Channel; address: string; count: number }
+  | { op: 'unsuppressed'; companyId: string; channel: Channel; address: string };
+
+/** Rows read back for one company when its state is loaded. */
+export interface SuppressionRows {
+  suppressions: Array<{ channel: Channel; address: string; reason: StoredSuppressionReason }>;
+  softBounces: Array<{ channel: Channel; address: string; count: number }>;
+}
+
+/** Durable backing store. Implementations must scope every call to the company id they are given. */
+export interface SuppressionPersistence {
+  load(companyId: string): Promise<SuppressionRows>;
+  write(change: SuppressionWrite): Promise<void>;
+}
+
+/**
+ * Same synchronous interface as SuppressionList, backed by PostgreSQL. A company is unknown
+ * until warm() has loaded its rows, and every check for an unknown company fails closed.
+ * Writes are applied to memory at once and queued to the database in order; flush() resolves
+ * only after the queued writes have been committed, and rejects if any of them failed.
+ */
+export interface DurableSuppressionList extends SuppressionList {
+  /** Loads (or refreshes) one company from storage. Call before any check or change for that company. */
+  warm(companyId: string): Promise<void>;
+  /** Resolves when every change made so far has reached storage. Rejects if any write failed. */
+  flush(): Promise<void>;
+}
+
+export interface DurableSuppressionListOptions extends SuppressionListOptions {
+  persistence: SuppressionPersistence;
+}
+
 interface Suppression {
   reason: StoredSuppressionReason;
 }
@@ -94,6 +130,8 @@ interface Suppression {
 interface CompanyState {
   suppressions: Map<string, Suppression>;
   softBounces: Map<string, number>;
+  // Only the durable list sets this to false before warm(). The in-memory list is always loaded.
+  loaded: boolean;
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -145,12 +183,52 @@ function addressHash(channel: string, address: string): string {
 }
 
 export function createSuppressionList(options: SuppressionListOptions = {}): SuppressionList {
+  return buildSuppressionList(options, null).list;
+}
+
+/**
+ * Suppression list whose state is durable in PostgreSQL (or any SuppressionPersistence).
+ * Same methods as createSuppressionList. Call warm(companyId) before checking or changing a company.
+ */
+export function createDurableSuppressionList(options: DurableSuppressionListOptions): DurableSuppressionList {
+  const persistence = options?.persistence;
+  if (!persistence || typeof persistence.load !== 'function' || typeof persistence.write !== 'function') {
+    throw new TypeError('persistence_required');
+  }
+  const built = buildSuppressionList(options, persistence);
+  return built.durable!;
+}
+
+function buildSuppressionList(
+  options: SuppressionListOptions,
+  persistence: SuppressionPersistence | null,
+): { list: SuppressionList; durable: DurableSuppressionList | null } {
   const companies = new Map<string, CompanyState>();
   if (options.audit !== undefined && typeof options.clock !== 'function') {
     throw new TypeError('clock_missing');
   }
   const audit = options.audit;
   const clock = options.clock;
+
+  // Durable writes run one after another in the order the changes were made.
+  // A failed write is kept: flush() keeps rejecting, so no caller can read success for a lost write.
+  let writeQueue: Promise<void> = Promise.resolve();
+  let writeFailed = false;
+  function persist(change: SuppressionWrite): void {
+    if (!persistence) return;
+    writeQueue = writeQueue
+      .then(() => persistence.write(change))
+      .catch(() => {
+        // The error text can carry the address, so it is not kept or logged.
+        writeFailed = true;
+      });
+  }
+
+  // Unknown (not warmed) companies fail closed in the durable list. The in-memory list is always loaded.
+  function isLoaded(companyId: string): boolean {
+    if (!persistence) return true;
+    return companies.get(companyId.toLowerCase())?.loaded === true;
+  }
 
   function record(
     change: SuppressionAuditEntry['change'],
@@ -177,7 +255,7 @@ export function createSuppressionList(options: SuppressionListOptions = {}): Sup
     const id = companyId.toLowerCase();
     let state = companies.get(id);
     if (!state) {
-      state = { suppressions: new Map(), softBounces: new Map() };
+      state = { suppressions: new Map(), softBounces: new Map(), loaded: true };
       companies.set(id, state);
     }
     return state;
@@ -187,13 +265,14 @@ export function createSuppressionList(options: SuppressionListOptions = {}): Sup
     return companies.get(companyId.toLowerCase());
   }
 
-  return {
+  const list: SuppressionList = {
     suppress(companyId, input) {
       if (!isCompanyId(companyId)) return { ok: false, error: 'invalid_company' };
       if (!input || !isReason(input.reason)) return { ok: false, error: 'invalid_reason' };
       if (!isChannel(input.channel)) return { ok: false, error: 'invalid_channel' };
       const address = normaliseAddress(input.channel, input.address);
       if (address === null) return { ok: false, error: 'invalid_address' };
+      if (!isLoaded(companyId)) return { ok: false, error: 'not_loaded' };
 
       const state = stateFor(companyId);
       const key = addressKey(input.channel, address);
@@ -209,6 +288,7 @@ export function createSuppressionList(options: SuppressionListOptions = {}): Sup
           stored = 'soft_bounce_count';
         } else {
           state.softBounces.set(key, count);
+          persist({ op: 'soft_bounce', companyId: companyId.toLowerCase(), channel: input.channel, address, count });
           return { ok: true, suppressed: false, softBounces: count };
         }
       } else {
@@ -217,6 +297,7 @@ export function createSuppressionList(options: SuppressionListOptions = {}): Sup
 
       state.suppressions.set(key, { reason: stored });
       state.softBounces.delete(key);
+      persist({ op: 'suppressed', companyId: companyId.toLowerCase(), channel: input.channel, address, reason: stored });
       // The suppression is applied before the audit call, so a failing sink never lets an opt-out through.
       // A throw here still reaches the caller; a retry sees the address as already suppressed.
       record('suppressed', companyId, input.channel as Channel, address, stored, input.actorId);
@@ -228,6 +309,8 @@ export function createSuppressionList(options: SuppressionListOptions = {}): Sup
       if (!isCompanyId(companyId) || !input || !isChannel(input.channel)) return true;
       const address = normaliseAddress(input.channel, input.address);
       if (address === null) return true;
+      // Not warmed yet (durable list): the stored state is unknown, so the address is treated as suppressed.
+      if (!isLoaded(companyId)) return true;
       const state = existingState(companyId);
       if (!state) return false;
       return state.suppressions.has(addressKey(input.channel, address));
@@ -235,6 +318,8 @@ export function createSuppressionList(options: SuppressionListOptions = {}): Sup
 
     reasonFor(companyId, input) {
       if (!isCompanyId(companyId)) throw new TypeError('invalid_company');
+      // Null would read as "not suppressed", so an unknown company throws instead.
+      if (!isLoaded(companyId)) throw new TypeError('not_loaded');
       if (!input || !isChannel(input.channel)) return null;
       const address = normaliseAddress(input.channel, input.address);
       if (address === null) return null;
@@ -247,6 +332,7 @@ export function createSuppressionList(options: SuppressionListOptions = {}): Sup
       if (!input || !isChannel(input.channel)) return { ok: false, error: 'invalid_channel' };
       const address = normaliseAddress(input.channel, input.address);
       if (address === null) return { ok: false, error: 'invalid_address' };
+      if (!isLoaded(companyId)) return { ok: false, error: 'not_loaded' };
 
       const state = existingState(companyId);
       const key = addressKey(input.channel, address);
@@ -258,7 +344,47 @@ export function createSuppressionList(options: SuppressionListOptions = {}): Sup
       record('unsuppressed', companyId, input.channel as Channel, address, current.reason, input.actorId);
       state!.suppressions.delete(key);
       state!.softBounces.delete(key);
+      persist({ op: 'unsuppressed', companyId: companyId.toLowerCase(), channel: input.channel, address });
       return { ok: true };
     },
   };
+
+  if (!persistence) return { list, durable: null };
+
+  const durable: DurableSuppressionList = {
+    ...list,
+
+    async warm(companyId) {
+      if (!isCompanyId(companyId)) throw new TypeError('invalid_company');
+      const key = companyId.toLowerCase();
+      // Let this process's queued writes land first, so the read below includes its own changes.
+      // A failed write is not thrown here: the address stays blocked, and flush() still reports it.
+      await writeQueue;
+      const rows = await persistence.load(key);
+
+      // Merge, never remove: rows read from storage add to what is held in memory. A row removed
+      // by another process is kept until restart, which errs on the side of blocking a send.
+      let state = companies.get(key);
+      if (!state) {
+        state = { suppressions: new Map(), softBounces: new Map(), loaded: false };
+        companies.set(key, state);
+      }
+      for (const row of rows.suppressions) {
+        const mapKey = addressKey(row.channel, row.address);
+        if (!state.suppressions.has(mapKey)) state.suppressions.set(mapKey, { reason: row.reason });
+      }
+      for (const row of rows.softBounces) {
+        const mapKey = addressKey(row.channel, row.address);
+        state.softBounces.set(mapKey, Math.max(row.count, state.softBounces.get(mapKey) ?? 0));
+      }
+      state.loaded = true;
+    },
+
+    async flush() {
+      await writeQueue;
+      // Sticky: once any write has failed, the flush keeps rejecting. The message carries no address.
+      if (writeFailed) throw new Error('suppression_write_failed');
+    },
+  };
+  return { list: durable, durable };
 }
