@@ -24,6 +24,9 @@ import { useTranslation } from "react-i18next";
 import { TIMEZONE_OPTIONS, DAY_OPTIONS, COLOR_PRESETS, WidgetFormData, WidgetStats, WidgetLimits, defaultFormData } from "./widgets/types";
 import { InteractiveWidgetPreview } from "./widgets/InteractiveWidgetPreview";
 
+/** Widget fields the API may return that are not on WebsiteWidget. */
+type WidgetLegacyFields = { buttonLabel?: string; iconPath?: string; requireTermsAcceptance?: boolean; appointmentBookingEnabled?: boolean; cooldownMinutes?: number };
+
 export default function WidgetsPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -117,7 +120,7 @@ export default function WidgetsPage() {
       resetForm();
       toast({ title: t('widgetsPage.toasts.created', 'Widget created'), description: t('widgetsPage.toasts.createdDesc', 'Your website widget has been created successfully.') });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       const message = error?.message || t('common.error', 'Error');
       toast({ title: t('common.error', 'Error'), description: message, variant: "destructive" });
     },
@@ -180,7 +183,7 @@ export default function WidgetsPage() {
       resetForm();
       toast({ title: t('widgetsPage.toasts.updated', 'Widget updated'), description: t('widgetsPage.toasts.updatedDesc', 'Your widget has been updated successfully.') });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({ title: t('common.error', 'Error'), description: error.message || t('widgetsPage.toasts.updatedFailed', 'Failed to update widget'), variant: "destructive" });
     },
   });
@@ -193,7 +196,7 @@ export default function WidgetsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/widgets-limits"] });
       toast({ title: t('widgetsPage.toasts.deleted', 'Widget deleted'), description: t('widgetsPage.toasts.deletedDesc', 'Your widget has been deleted.') });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({ title: t('common.error', 'Error'), description: error.message || t('widgetsPage.toasts.deleteFailed', 'Failed to delete widget'), variant: "destructive" });
     },
   });
@@ -204,7 +207,7 @@ export default function WidgetsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/widgets"] });
       toast({ title: t('widgetsPage.toasts.tokenRegenerated', 'Token regenerated'), description: t('widgetsPage.toasts.tokenRegeneratedDesc', 'A new embed token has been generated.') });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({ title: t('common.error', 'Error'), description: error.message || t('widgetsPage.toasts.regenerateFailed', 'Failed to regenerate token'), variant: "destructive" });
     },
   });
@@ -224,14 +227,14 @@ export default function WidgetsPage() {
       agentId: widget.agentId,
       agentType: widget.agentType,
       brandName: widget.brandName || "",
-      buttonLabel: (widget as any).buttonLabel || "VOICE CHAT",
+      buttonLabel: (widget as WebsiteWidget & WidgetLegacyFields).buttonLabel || "VOICE CHAT",
       primaryColor: widget.primaryColor,
       backgroundColor: widget.backgroundColor,
       textColor: widget.textColor,
       iconFile: null,
-      iconPreview: widget.iconUrl || (widget as any).iconPath || null,
-      requireTermsAcceptance: (widget as any).requireTermsAcceptance || false,
-      appointmentBookingEnabled: (widget as any).appointmentBookingEnabled || false,
+      iconPreview: widget.iconUrl || (widget as WebsiteWidget & WidgetLegacyFields).iconPath || null,
+      requireTermsAcceptance: (widget as WebsiteWidget & WidgetLegacyFields).requireTermsAcceptance || false,
+      appointmentBookingEnabled: (widget as WebsiteWidget & WidgetLegacyFields).appointmentBookingEnabled || false,
       allowedDomains: widget.allowedDomains || [],
       businessHoursEnabled: widget.businessHoursEnabled,
       businessHoursStart: widget.businessHoursStart || "09:00",
@@ -240,7 +243,7 @@ export default function WidgetsPage() {
       businessTimezone: widget.businessTimezone || "America/New_York",
       maxConcurrentCalls: widget.maxConcurrentCalls,
       maxCallDuration: widget.maxCallDuration,
-      cooldownMinutes: (widget as any).cooldownMinutes || 0,
+      cooldownMinutes: (widget as WebsiteWidget & WidgetLegacyFields).cooldownMinutes || 0,
     });
     setActiveTab("general");
   };
@@ -428,8 +431,8 @@ export default function WidgetsPage() {
                           className="h-10 w-10 rounded-lg flex items-center justify-center shrink-0 overflow-hidden"
                           style={{ backgroundColor: widget.primaryColor }}
                         >
-                          {widget.iconUrl || (widget as any).iconPath ? (
-                            <img src={widget.iconUrl || (widget as any).iconPath} alt="" className="h-full w-full object-cover" />
+                          {widget.iconUrl || (widget as WebsiteWidget & WidgetLegacyFields).iconPath ? (
+                            <img src={widget.iconUrl || (widget as WebsiteWidget & WidgetLegacyFields).iconPath} alt="" className="h-full w-full object-cover" />
                           ) : (
                             <Phone className="h-5 w-5 text-white" />
                           )}
@@ -484,7 +487,7 @@ export default function WidgetsPage() {
                           {t('widgetsPage.dialogs.form.days', 'Hours')}
                         </Badge>
                       )}
-                      {(widget as any).requireTermsAcceptance && (
+                      {(widget as WebsiteWidget & WidgetLegacyFields).requireTermsAcceptance && (
                         <Badge variant="outline">Terms</Badge>
                       )}
                     </div>

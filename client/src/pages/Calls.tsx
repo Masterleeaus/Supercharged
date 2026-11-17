@@ -42,7 +42,7 @@ interface Call {
   recordingUrl: string | null;
   transcript: string | null;
   aiSummary: string | null;
-  metadata: Record<string, any> | null;
+  metadata: Record<string, unknown> | null;
   startedAt: string | null;
   endedAt: string | null;
   createdAt: string;
@@ -459,14 +459,14 @@ export default function Calls() {
       };
       
       await audio.play();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (currentPlayingIdRef.current === call.id) {
         setLoadingRecording(null);
         setPlayingCallId(null);
       }
       toast({
         title: "Recording Unavailable",
-        description: error.message || "Could not load recording. Try syncing recordings first.",
+        description: (error as Error).message || "Could not load recording. Try syncing recordings first.",
         variant: "destructive",
       });
     }
@@ -523,7 +523,7 @@ export default function Calls() {
                     {(() => {
                       // Widget calls: show widget name or "Website Widget"
                       if (call.widgetId) {
-                        return call.widget?.name || (call.metadata as any)?.widgetName || 'Website Widget';
+                        return call.widget?.name || (call.metadata?.widgetName as string | undefined) || 'Website Widget';
                       }
                       const hasContactName = call.contact?.firstName && call.contact.firstName.toLowerCase() !== 'unknown';
                       if (hasContactName) {

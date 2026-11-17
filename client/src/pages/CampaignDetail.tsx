@@ -34,7 +34,7 @@ interface Contact {
   lastName?: string;
   phone: string;
   email?: string;
-  customFields?: Record<string, any>;
+  customFields?: Record<string, unknown>;
   status: string;
   createdAt: string;
   attemptCount?: number;
@@ -75,6 +75,14 @@ interface Campaign {
   retryOnFailed?: boolean;
   currentRetryPass?: number;
   batchJobHistory?: Array<{ batchJobId: string; pass: number; contactCount: number; createdAt: string }>;
+}
+
+interface BatchJobRecord {
+  id?: string;
+  status?: string;
+  total_calls_scheduled?: number;
+  total_calls_dispatched?: number;
+  [key: string]: unknown;
 }
 
 interface BatchJobStats {
@@ -185,7 +193,7 @@ export default function CampaignDetail() {
         description: t('campaignDetail.toast.batchCancelledDesc'),
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('campaignDetail.toast.batchCancelFailed'),
         description: error.message || t('common.tryAgain'),
@@ -204,7 +212,7 @@ export default function CampaignDetail() {
         description: t('campaignDetail.toast.retryInitiatedDesc'),
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('campaignDetail.toast.retryFailed'),
         description: error.message || t('common.tryAgain'),
@@ -213,7 +221,7 @@ export default function CampaignDetail() {
     },
   });
 
-  const { data: batchJobData, isLoading: batchLoading } = useQuery<{ batchJob: any; stats: BatchJobStats }>({
+  const { data: batchJobData, isLoading: batchLoading } = useQuery<{ batchJob: BatchJobRecord | null; stats: BatchJobStats }>({
     queryKey: [`/api/campaigns/${id}/batch`],
     enabled: !!id && !!campaign,
     refetchInterval: (query) => {
@@ -972,7 +980,7 @@ export default function CampaignDetail() {
                           ) : "—"}
                         </TableCell>
                         <TableCell className="text-muted-foreground">
-                          {contact.customFields?.city || "—"}
+                          {(contact.customFields?.city as string | undefined) || "—"}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">

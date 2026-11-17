@@ -65,6 +65,14 @@ interface Campaign {
   owner?: CampaignOwner;
 }
 
+interface BatchJobRecord {
+  id?: string;
+  status?: string;
+  total_calls_scheduled?: number;
+  total_calls_dispatched?: number;
+  [key: string]: unknown;
+}
+
 interface BatchJobStats {
   pending: number;
   scheduled: number;
@@ -106,7 +114,7 @@ export default function AdminCampaignDetail() {
     },
   });
 
-  const { data: batchJobData } = useQuery<{ batchJob: any; stats: BatchJobStats }>({
+  const { data: batchJobData } = useQuery<{ batchJob: BatchJobRecord | null; stats: BatchJobStats }>({
     queryKey: [`/api/admin/campaigns/${id}/batch`],
     enabled: !!id && !!campaign,
     refetchInterval: (query) => {

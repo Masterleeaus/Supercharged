@@ -26,7 +26,7 @@ export interface SystemToolsSectionProps {
   hasEmailTemplates: boolean;
   emailTemplates: { id: string; name: string; }[];
   isWhatsAppActive: boolean;
-  whatsappTemplates: { name: string; id?: string; components?: any[]; }[];
+  whatsappTemplates: { name: string; id?: string; components?: Array<{ type?: string; format?: string; text?: string; buttons?: Array<{ type?: string; text?: string; url?: string }> }>; }[];
   getWhatsAppTemplateVariables: (templateName: string) => number[];
   getWhatsAppTemplateButtonVariables: (templateName: string) => Array<{ index: number; label: string; url: string; }>;
   getWhatsAppTemplateHeaderInfo: (templateName: string) => { format: string; hasVariable: boolean; text?: string; } | null;
@@ -243,7 +243,7 @@ export function SystemToolsSection({ t, formData, setFormData, hasEmailTemplates
                                     if (varIndices.length === 0 && buttonVarDefs.length === 0 && !headerInfo?.hasVariable) return null;
                                     const currentVars = parseWhatsAppVariables(formData.messagingWhatsappVariables);
                                     const selectedTemplate = whatsappTemplates.find(t => t.name === formData.messagingWhatsappTemplate);
-                                    const bodyComponent = selectedTemplate?.components?.find((c: any) => c.type === 'BODY');
+                                    const bodyComponent = selectedTemplate?.components?.find((c: Record<string, unknown>) => c.type === 'BODY');
                                     let sectionCount = 0;
                                     return (
                                       <div className="space-y-2 p-3 rounded-md border bg-muted/30">

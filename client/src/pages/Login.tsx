@@ -90,10 +90,10 @@ export default function Login() {
       } else {
         window.location.href = "/app";
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: t('auth.loginFailed'),
-        description: error.message,
+        description: (error as Error).message,
         variant: "destructive",
       });
     } finally {
@@ -130,10 +130,10 @@ export default function Login() {
       setOtpTimer(300); // 5 minutes countdown
       setCanResendOtp(false);
       setOtpCode("");
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Failed to send code",
-        description: error.message,
+        description: (error as Error).message,
         variant: "destructive",
       });
     } finally {
@@ -167,10 +167,10 @@ export default function Login() {
       setOtpTimer(300);
       setCanResendOtp(false);
       setOtpCode("");
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Failed to resend code",
-        description: error.message,
+        description: (error as Error).message,
         variant: "destructive",
       });
     } finally {
@@ -225,10 +225,10 @@ export default function Login() {
       } else {
         window.location.href = "/app";
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Verification failed",
-        description: error.message,
+        description: (error as Error).message,
         variant: "destructive",
       });
     } finally {

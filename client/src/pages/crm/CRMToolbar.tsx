@@ -21,7 +21,7 @@ export interface CRMToolbarProps {
   allTags: string[];
   tagFilter: string;
   setTagFilter: Dispatch<SetStateAction<string>>;
-  backfillCategoriesMutation: UseMutationResult<any, any, void, unknown>;
+  backfillCategoriesMutation: UseMutationResult<unknown, Error, void, unknown>;
   queryClientRef: QueryClient;
   viewMode: "kanban" | "list" | "analytics";
   setViewMode: Dispatch<SetStateAction<"kanban" | "list" | "analytics">>;

@@ -106,7 +106,7 @@ export default function Integrations() {
     queryKey: ['/api/webhooks'],
   });
 
-  const { data: campaigns = [] } = useQuery<any[]>({
+  const { data: campaigns = [] } = useQuery<Array<{ id: string; name: string }>>({
     queryKey: ['/api/campaigns'],
   });
 
@@ -116,7 +116,7 @@ export default function Integrations() {
   });
 
   const createWebhookMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: Record<string, unknown>) => {
       return await apiRequest('POST', '/api/webhooks', data);
     },
     onSuccess: () => {
@@ -128,7 +128,7 @@ export default function Integrations() {
       setIsCreateDialogOpen(false);
       setFormData({ name: '', url: '', campaignId: '' });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('integrations.toast.createFailed'),
         description: error.message || t('integrations.toast.createFailedDesc'),
@@ -138,7 +138,7 @@ export default function Integrations() {
   });
 
   const updateWebhookMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+    mutationFn: async ({ id, data }: { id: string; data: Record<string, unknown> }) => {
       return await apiRequest('PUT', `/api/webhooks/${id}`, data);
     },
     onSuccess: () => {
@@ -148,7 +148,7 @@ export default function Integrations() {
         description: t('integrations.toast.updatedDesc'),
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('integrations.toast.updateFailed'),
         description: error.message || t('integrations.toast.updateFailedDesc'),
@@ -169,7 +169,7 @@ export default function Integrations() {
       });
       setWebhookToDelete(null);
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('integrations.toast.deleteFailed'),
         description: error.message || t('integrations.toast.deleteFailedDesc'),
@@ -188,7 +188,7 @@ export default function Integrations() {
         description: t('integrations.toast.testSentDesc'),
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('integrations.toast.testFailed'),
         description: error.message || t('integrations.toast.testFailedDesc'),

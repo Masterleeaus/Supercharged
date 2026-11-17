@@ -426,11 +426,11 @@ export default function Billing() {
           });
           clearUrlParams();
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('Payment verification error:', error);
         toast({
           title: 'Verification Failed',
-          description: error.message || 'Could not verify your payment. Please contact support.',
+          description: (error as Error).message || 'Could not verify your payment. Please contact support.',
           variant: 'destructive',
         });
         clearUrlParams();
@@ -471,10 +471,10 @@ export default function Billing() {
       setCancelDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["/api/user-subscription"] });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('billing.cancelFailed'),
-        description: error.message,
+        description: (error as Error).message,
         variant: "destructive",
       });
     },
@@ -505,7 +505,7 @@ export default function Billing() {
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({ message: t('billing.exportFailed') }));
-        throw new Error(error.message || t('billing.exportFailed'));
+        throw new Error((error as Error).message || t('billing.exportFailed'));
       }
 
       const blob = await response.blob();
@@ -522,10 +522,10 @@ export default function Billing() {
         title: t('billing.exportSuccess', { defaultValue: 'Export Successful' }),
         description: t('billing.exportSuccessDesc', { defaultValue: 'Your transactions have been exported.' }),
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: t('billing.exportFailed', { defaultValue: 'Export Failed' }),
-        description: error.message || t('billing.exportFailedDesc', { defaultValue: 'Failed to export transactions.' }),
+        description: (error as Error).message || t('billing.exportFailedDesc', { defaultValue: 'Failed to export transactions.' }),
         variant: 'destructive',
       });
     }

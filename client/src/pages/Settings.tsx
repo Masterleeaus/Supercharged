@@ -213,7 +213,7 @@ export default function Settings() {
       });
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('settings.updateFailed'),
         description: error.message,
@@ -240,7 +240,7 @@ export default function Settings() {
       setNewPassword("");
       setConfirmPassword("");
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('settings.passwordChangeFailed'),
         description: error.message,
@@ -266,7 +266,7 @@ export default function Settings() {
       AuthStorage.clearAuth();
       window.location.href = "/";
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('settings.deleteAccountFailed'),
         description: error.message,
@@ -300,7 +300,7 @@ export default function Settings() {
         description: "Your data has been downloaded successfully as JSON.",
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: "Export Failed",
         description: error.message,
@@ -772,7 +772,7 @@ function KycDocumentsSection({ user }: { user: User | undefined }) {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       toast({ title: t('settings.kyc.uploadSuccess') || "Document uploaded successfully" });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({ title: t('settings.kyc.uploadFailed') || "Upload failed", description: error.message, variant: "destructive" });
     },
     onSettled: () => {
@@ -794,7 +794,7 @@ function KycDocumentsSection({ user }: { user: User | undefined }) {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       toast({ title: t('settings.kyc.deleteSuccess') || "Document deleted successfully" });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({ title: t('settings.kyc.deleteFailed') || "Delete failed", description: error.message, variant: "destructive" });
     }
   });
@@ -813,7 +813,7 @@ function KycDocumentsSection({ user }: { user: User | undefined }) {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       toast({ title: t('settings.kyc.submitSuccess') || "KYC submitted for review", description: t('settings.kyc.submitSuccessDesc') || "An admin will review your documents soon." });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({ title: t('settings.kyc.submitFailed') || "Submit failed", description: error.message, variant: "destructive" });
     }
   });
@@ -1043,7 +1043,7 @@ function AddressesSection() {
       setShowAddDialog(false);
       resetForm();
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({ title: t('settings.createAddressFailed'), description: error.message, variant: "destructive" });
     },
   });
@@ -1063,7 +1063,7 @@ function AddressesSection() {
       toast({ title: t('settings.statusRefreshed') });
       setRefreshingAddressId(null);
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({ title: t('settings.refreshStatusFailed'), description: error.message, variant: "destructive" });
       setRefreshingAddressId(null);
     },
@@ -1082,7 +1082,7 @@ function AddressesSection() {
       queryClient.invalidateQueries({ queryKey: ["/api/user/addresses"] });
       toast({ title: t('settings.addressDeleted') });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({ title: t('settings.deleteAddressFailed'), description: error.message, variant: "destructive" });
     },
   });

@@ -35,6 +35,16 @@ interface Form {
   name: string;
   description: string | null;
   createdAt: string;
+  submissionCount?: number;
+}
+
+/** Field as returned by the form detail endpoint. */
+interface ApiFormField {
+  id: string;
+  question: string;
+  fieldType: string;
+  isRequired: boolean;
+  options?: unknown;
 }
 
 interface FormField {
@@ -146,7 +156,7 @@ export default function FormsPage() {
       toast({ title: t("forms.toast.created") });
       handleCloseCreate();
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t("forms.toast.createFailed"),
         description: error.message,
@@ -163,7 +173,7 @@ export default function FormsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/flow-automation/forms"] });
       toast({ title: t("forms.toast.deleted") });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t("forms.toast.deleteFailed"),
         description: error.message,
@@ -201,7 +211,7 @@ export default function FormsPage() {
       toast({ title: "Form updated successfully" });
       handleCloseEdit();
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: "Failed to update form",
         description: error.message,
@@ -219,9 +229,9 @@ export default function FormsPage() {
       });
       
       const response = await apiRequest("GET", `/api/flow-automation/forms/${form.id}`);
-      const formDetail = await response.json();
+      const formDetail: { fields?: ApiFormField[] } = await response.json();
       
-      const mappedFields = (formDetail.fields || []).map((f: any) => ({
+      const mappedFields = (formDetail.fields || []).map((f: ApiFormField) => ({
         tempId: f.id,
         label: f.question,
         type: f.fieldType,
@@ -231,10 +241,10 @@ export default function FormsPage() {
       
       setEditFields(mappedFields);
       setEditDialogOpen(true);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Failed to load form details",
-        description: error.message,
+        description: (error as Error).message,
         variant: "destructive",
       });
     }
@@ -390,7 +400,7 @@ export default function FormsPage() {
 
   const totalForms = forms.length;
   // Calculate total submissions from all forms (using submissionCount from API)
-  const totalSubmissions = forms.reduce((sum, form) => sum + ((form as any).submissionCount || 0), 0);
+  const totalSubmissions = forms.reduce((sum, form) => sum + (form.submissionCount || 0), 0);
 
   return (
     <div className="space-y-6">
@@ -504,7 +514,7 @@ export default function FormsPage() {
                     {t("forms.createdOn")} {format(new Date(form.createdAt), "MMM d, yyyy")}
                   </div>
                   <Badge variant="secondary" data-testid={`badge-submissions-${form.id}`}>
-                    {(form as any).submissionCount || 0} {t("forms.submissions").toLowerCase()}
+                    {form.submissionCount || 0} {t("forms.submissions").toLowerCase()}
                   </Badge>
                 </div>
               </CardContent>

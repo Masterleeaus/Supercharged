@@ -28,9 +28,9 @@ interface FlowExecution {
   flowName?: string;
   currentNodeId: string | null;
   status: string;
-  variables: Record<string, any>;
+  variables: Record<string, unknown>;
   pathTaken: string[];
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   error: string | null;
   startedAt: string;
   completedAt: string | null;

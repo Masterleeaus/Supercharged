@@ -61,10 +61,10 @@ export default function TeamMemberLogin() {
       });
 
       setLocation("/app");
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ 
         title: "Login failed", 
-        description: error.message || "Invalid credentials", 
+        description: (error as Error).message || "Invalid credentials", 
         variant: "destructive" 
       });
     } finally {

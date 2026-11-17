@@ -24,7 +24,7 @@ export interface KnowledgeUploadDialogProps {
   t: TFunction<"translation", undefined>;
   knowledgeData: { title: string; type: string; content: string; };
   setKnowledgeData: Dispatch<SetStateAction<{ title: string; type: string; content: string; }>>;
-  uploadKnowledgeMutation: UseMutationResult<any, any, void, unknown>;
+  uploadKnowledgeMutation: UseMutationResult<unknown, Error, void, unknown>;
 }
 
 export function KnowledgeUploadDialog({ knowledgeUploadOpen, setKnowledgeUploadOpen, t, knowledgeData, setKnowledgeData, uploadKnowledgeMutation }: KnowledgeUploadDialogProps) {

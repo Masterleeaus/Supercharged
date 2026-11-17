@@ -34,7 +34,7 @@ interface Call {
   aiSummary: string | null;
   classification: string | null;
   sentiment: string | null;
-  metadata: Record<string, any> | null;
+  metadata: Record<string, unknown> | null;
   startedAt: string | null;
   endedAt: string | null;
   createdAt: string;

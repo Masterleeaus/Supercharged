@@ -51,8 +51,9 @@ function GoogleSheetsCardActions() {
       const res = await apiRequest("GET", "/api/integrations/google/auth");
       const body = await res.json();
       window.location.href = body.url;
-    } catch (err: any) {
-      const errData = err?.data ?? err?.response;
+    } catch (err: unknown) {
+      type ToolsApiError = { data?: { errorCode?: string; error?: string }; response?: { errorCode?: string; error?: string } };
+      const errData = (err as ToolsApiError | undefined)?.data ?? (err as ToolsApiError | undefined)?.response;
       const description = errData?.errorCode === "not_configured"
         ? t('toolsPage.googleOAuthNotConfigured', 'Google OAuth credentials are not configured. Please add them in Admin > Settings.')
         : errData?.error || undefined;

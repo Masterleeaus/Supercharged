@@ -103,7 +103,7 @@ interface Plan {
   canChooseLlm: boolean;
   canPurchaseNumbers: boolean;
   includedCredits: number;
-  features: any;
+  features: unknown;
   sipEnabled?: boolean;
   restApiEnabled?: boolean;
 }
@@ -168,7 +168,7 @@ interface RazorpayConfig {
 
 declare global {
   interface Window {
-    Razorpay: any;
+    Razorpay: new (options: Record<string, unknown>) => { open(): void };
   }
 }
 
@@ -370,7 +370,7 @@ export function UpgradePlansContent() {
         window.location.href = data.url;
       }
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('upgradePage.checkoutFailed', 'Checkout Failed'),
         description: error.message,
@@ -408,7 +408,7 @@ export function UpgradePlansContent() {
         subscription_id: data.subscriptionId,
         name: branding.app_name || '',
         description: `${selectedPlan?.displayName} - ${billingPeriod === "yearly" ? "Yearly" : "Monthly"}`,
-        handler: async function (response: any) {
+        handler: async function (response: { razorpay_subscription_id: string; razorpay_payment_id: string; razorpay_signature: string }) {
           try {
             const verifyResponse = await apiRequest("POST", "/api/razorpay/verify-subscription", {
               razorpay_subscription_id: response.razorpay_subscription_id,
@@ -426,10 +426,10 @@ export function UpgradePlansContent() {
               const error = await verifyResponse.json();
               throw new Error(error.error || t('upgradePage.verificationFailed', 'Verification failed'));
             }
-          } catch (error: any) {
+          } catch (error: unknown) {
             toast({
               title: t('upgradePage.verificationFailed', 'Verification Failed'),
-              description: error.message,
+              description: (error as Error).message,
               variant: "destructive",
             });
           }
@@ -453,7 +453,7 @@ export function UpgradePlansContent() {
       const rzp = new window.Razorpay(options);
       rzp.open();
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('upgradePage.subscriptionFailed', 'Subscription Failed'),
         description: error.message,
@@ -477,7 +477,7 @@ export function UpgradePlansContent() {
         window.location.href = data.approvalUrl;
       }
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({ title: t('upgradePage.subscriptionFailed', 'Subscription Failed'), description: error.message, variant: "destructive" });
       setProcessingGateway(null);
     },
@@ -497,7 +497,7 @@ export function UpgradePlansContent() {
         window.location.href = data.authorizationUrl;
       }
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({ title: t('upgradePage.subscriptionFailed', 'Subscription Failed'), description: error.message, variant: "destructive" });
       setProcessingGateway(null);
     },
@@ -517,7 +517,7 @@ export function UpgradePlansContent() {
         window.location.href = data.initPoint;
       }
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({ title: t('upgradePage.subscriptionFailed', 'Subscription Failed'), description: error.message, variant: "destructive" });
       setProcessingGateway(null);
     },

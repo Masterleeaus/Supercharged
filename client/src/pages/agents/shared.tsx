@@ -45,7 +45,7 @@ export interface Agent {
   firstMessage: string | null;
   temperature: number | null;
   knowledgeBaseIds: string[] | null;
-  config: any;
+  config: AgentConfig | null;
   flowId: string | null;
   maxDurationSeconds: number | null;
   voiceStability: number | null;
@@ -376,3 +376,46 @@ export function CVEEstimatedCost({
   );
 }
 export type AgentFormData = { type: "incoming" | "flow" | "custom_engine"; name: string; voiceTone: string; personality: string; systemPrompt: string; elevenLabsVoiceId: string; language: string; llmModel: string; firstMessage: string; temperature: number; knowledgeBaseIds: string[]; transferNumber: string; transferKeywords: string[]; transferEnabled: boolean; transferPhoneNumber: string; detectLanguageEnabled: boolean; endConversationEnabled: boolean; appointmentBookingEnabled: boolean; messagingEmailEnabled: boolean; messagingWhatsappEnabled: boolean; messagingEmailTemplate: string; messagingWhatsappTemplate: string; messagingWhatsappVariables: string; expressiveMode: boolean; flowId: string; maxDurationSeconds: number; voiceStability: number; voiceSimilarityBoost: number; voiceSpeed: number; turnTimeout: number; telephonyProvider: "twilio" | "plivo" | "twilio_openai" | "elevenlabs-sip" | "openai-sip" | "custom-voice-engine"; openaiVoice: string; sttProvider: string; sttModel: string; ttsProvider: string; ttsModel: string; sipPhoneNumberId: string; };
+
+/** Optional Sarvam voice fields read by the voice pickers. */
+export type VoiceModelFields = { model?: string; languages?: string[] };
+
+/** Agent config JSON. Only the keys the UI reads are typed. */
+export interface AgentConfig {
+  model?: string;
+  transferRules?: { number?: string; keywords?: string[] };
+  sttProvider?: string;
+  ttsProvider?: string;
+  sttModel?: string;
+  ttsModel?: string;
+  [key: string]: unknown;
+}
+
+/** Snake_case and legacy keys the API may still send alongside Agent. */
+export type AgentLegacyFields = {
+  knowledge_base_ids?: string[] | null;
+  transfer_enabled?: boolean | null;
+  transfer_phone_number?: string | null;
+  detect_language_enabled?: boolean | null;
+  end_conversation_enabled?: boolean | null;
+  appointment_booking_enabled?: boolean | null;
+  messagingEmailEnabled?: boolean | null;
+  messaging_email_enabled?: boolean | null;
+  messagingWhatsappEnabled?: boolean | null;
+  messaging_whatsapp_enabled?: boolean | null;
+  messagingEmailTemplate?: string | null;
+  messaging_email_template?: string | null;
+  messagingWhatsappTemplate?: string | null;
+  messaging_whatsapp_template?: string | null;
+  messagingWhatsappVariables?: string | null;
+  tts_voice?: string | null;
+  stt_provider?: string | null;
+  tts_provider?: string | null;
+  stt_model?: string | null;
+  tts_model?: string | null;
+  sipPhoneNumberId?: string | null;
+  description?: string | null;
+  config?: AgentConfig | null;
+};
+
+export type AgentWithLegacyFields = Agent & AgentLegacyFields;
