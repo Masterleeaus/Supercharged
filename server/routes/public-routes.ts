@@ -290,7 +290,6 @@ export function createPublicRoutes(ctx: RouteContext): Router {
         message: "Platform installed successfully!",
         admin: {
           email: admin.email,
-          password: adminPassword,
           id: admin.id
         },
         seeds: seedResult.summary

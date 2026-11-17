@@ -27,6 +27,7 @@ import { eq } from 'drizzle-orm';
 import { users, calls, campaigns, twilioCountries } from '@shared/schema';
 import { logger } from '../utils/logger';
 import { PRODUCT_NAME } from '../../shared/brand.ts';
+import { escapeHtml } from '../modules/marketing/page-render.ts';
 
 export function createPublicMarketingRoutes(ctx: RouteContext): Router {
   const router = Router();
@@ -262,23 +263,23 @@ export function createPublicMarketingRoutes(ctx: RouteContext): Router {
             <div class="content">
               <div class="field">
                 <div class="label">Name</div>
-                <div class="value">${name}</div>
+                <div class="value">${escapeHtml(name)}</div>
               </div>
               <div class="field">
                 <div class="label">Email</div>
-                <div class="value"><a href="mailto:${email}">${email}</a></div>
+                <div class="value"><a href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a></div>
               </div>
               ${company ? `<div class="field">
                 <div class="label">Company</div>
-                <div class="value">${company}</div>
+                <div class="value">${escapeHtml(company)}</div>
               </div>` : ''}
               ${phone ? `<div class="field">
                 <div class="label">Phone</div>
-                <div class="value"><a href="tel:${phone}">${phone}</a></div>
+                <div class="value"><a href="tel:${escapeHtml(phone)}">${escapeHtml(phone)}</a></div>
               </div>` : ''}
               <div class="field">
                 <div class="label">Message</div>
-                <div class="message-box">${message}</div>
+                <div class="message-box">${escapeHtml(message)}</div>
               </div>
             </div>
             <div class="footer">
