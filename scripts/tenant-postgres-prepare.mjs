@@ -16,6 +16,7 @@ const MIGRATIONS = [
   new URL('../migrations/0016_chatbot_reminder_pipeline.sql', import.meta.url),
   new URL('../migrations/0017_user_company_memberships.sql', import.meta.url),
   new URL('../migrations/0020_scheduled_booking_mirror.sql', import.meta.url),
+  new URL('../migrations/0026_website_widgets_company_id.sql', import.meta.url),
 ];
 
 export async function prepareTenantPostgres(connectionString) {

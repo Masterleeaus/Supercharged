@@ -177,11 +177,18 @@
       "tag": "0024_inbox_tenant_rls",
       "breakpoints": true
     },
-  {
+    {
       "idx": 25,
       "version": "7",
       "when": 1794900000000,
       "tag": "0025_central_link_nonces",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1795000000000,
+      "tag": "0026_website_widgets_company_id",
       "breakpoints": true
     }
   ]
