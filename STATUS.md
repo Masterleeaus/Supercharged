@@ -135,3 +135,12 @@ Each item below is in TODO_CHECKLIST.md unless marked NEW. The checklist is at /
 - [untested] The 871-test figure, and which tests fail. No test run was done for this bundle. A4 ran three campaign test files in a scratch copy only (50 of 50 passed). The comms mount tests (tests/integration/optional-comms-mount.test.mjs and related) were not run.
 - [untested] TypeScript: tsc was not run and node_modules is absent, so type correctness is UNVERIFIED.
 - [untested] Whether the A9 flag plan or the A1 delete patch has been applied to the live code. The checklist says neither has been.
+
+## VoltAgent integration (branch voltagent/integration)
+
+Date: 18 November 2026. Phase 0 only. Nothing is mounted and no flag is on.
+
+- [verified] Foundation pins added: seven @voltagent packages at exact versions, npm install run clean. Node engine set to >=22.13.0. One side effect: transitive @opentelemetry/api moved 1.10.0 to 1.9.1 (see the fixes checklist).
+- [verified] VoltOps guard: assertNoVoltOpsKeys throws if VOLTAGENT_PUBLIC_KEY or VOLTAGENT_SECRET_KEY is set. Wired as the first call in server/index.ts. Boot itself was not run, so the wiring is [untested] at boot.
+- [verified] Flag scaffold: nine VOLTAGENT_* flags, all OFF by default, nothing mounted. Tests pass.
+- [verified] Licence gate: scripts/check-voltagent-licence.mjs, run as npm run check:licence. Passes with no /ee/ paths and no @mastra imports.
