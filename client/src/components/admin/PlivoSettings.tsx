@@ -600,19 +600,21 @@ function PlivoCredentialsSection() {
 const addPhonePricingSchema = z.object({
   countryCode: z.string().min(1, "Country code is required").max(3, "Country code too long"),
   countryName: z.string().min(1, "Country name is required").max(100, "Country name too long"),
-  purchaseCredits: z.coerce.number().int().min(0),
-  monthlyCredits: z.coerce.number().int().min(0),
+  purchaseCredits: z.coerce.number<number | string>().int().min(0),
+  monthlyCredits: z.coerce.number<number | string>().int().min(0),
   kycRequired: z.boolean(),
 });
 
 const editPhonePricingSchema = z.object({
-  purchaseCredits: z.coerce.number().int().min(0),
-  monthlyCredits: z.coerce.number().int().min(0),
+  purchaseCredits: z.coerce.number<number | string>().int().min(0),
+  monthlyCredits: z.coerce.number<number | string>().int().min(0),
   kycRequired: z.boolean(),
   isActive: z.boolean(),
 });
 
+type AddPhonePricingFormInput = z.input<typeof addPhonePricingSchema>;
 type AddPhonePricingFormData = z.infer<typeof addPhonePricingSchema>;
+type EditPhonePricingFormInput = z.input<typeof editPhonePricingSchema>;
 type EditPhonePricingFormData = z.infer<typeof editPhonePricingSchema>;
 
 function PhonePricingSection() {
@@ -623,7 +625,7 @@ function PhonePricingSection() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedPricing, setSelectedPricing] = useState<PhonePricing | null>(null);
 
-  const addForm = useForm<AddPhonePricingFormData>({
+  const addForm = useForm<AddPhonePricingFormInput, unknown, AddPhonePricingFormData>({
     resolver: zodResolver(addPhonePricingSchema),
     defaultValues: {
       countryCode: "",
@@ -634,7 +636,7 @@ function PhonePricingSection() {
     },
   });
 
-  const editForm = useForm<EditPhonePricingFormData>({
+  const editForm = useForm<EditPhonePricingFormInput, unknown, EditPhonePricingFormData>({
     resolver: zodResolver(editPhonePricingSchema),
     defaultValues: {
       purchaseCredits: 0,
