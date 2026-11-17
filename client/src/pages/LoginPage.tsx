@@ -408,7 +408,8 @@ export default function LoginPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: forgotPasswordEmail,
-          newPassword: data.newPassword
+          newPassword: data.newPassword,
+          resetToken: verifyResult.resetToken,
         }),
       });
       const resetResult = await resetResponse.json();
