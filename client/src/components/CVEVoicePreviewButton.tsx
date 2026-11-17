@@ -1,3 +1,4 @@
+import type { AppError } from "@/components/app-error";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Square, Loader2, Volume2 } from "lucide-react";
@@ -167,7 +168,8 @@ export default function CVEVoicePreviewButton({
       }
       setAudioUrl(url);
       await playAudio(url);
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       console.error("CVE voice preview error:", error);
       toast({
         title: t('voicePreview.error', "Preview Error"),

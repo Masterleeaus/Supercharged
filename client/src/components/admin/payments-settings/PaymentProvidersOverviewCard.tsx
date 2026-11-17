@@ -1,17 +1,12 @@
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,23 +21,23 @@ export interface PaymentProvidersOverviewCardProps {
   t: TFunction<"translation", undefined>;
   stripeCurrencyLocked: boolean;
   stripeFormData: { stripe_secret_key: string; stripe_publishable_key: string; stripe_webhook_secret: string; stripe_currency: string; stripe_mode: string; };
-  isStripeConfigured: any;
+  isStripeConfigured: boolean | undefined;
   stripeEnabled: boolean;
   toggleStripeEnabled: (enabled: boolean) => Promise<void>;
-  updateSettingMutation: UseMutationResult<{ key: string; data: any; }, any, { key: string; value: any; }, unknown>;
-  isRazorpayConfigured: any;
+  updateSettingMutation: UseMutationResult<{ key: string; data: unknown; }, Error, { key: string; value: unknown; }, unknown>;
+  isRazorpayConfigured: boolean | undefined;
   razorpayEnabled: boolean;
   toggleRazorpayEnabled: (enabled: boolean) => Promise<void>;
   paypalFormData: { paypal_client_id: string; paypal_client_secret: string; paypal_webhook_id: string; paypal_mode: string; paypal_currency: string; };
-  isPaypalConfigured: any;
+  isPaypalConfigured: boolean | undefined;
   paypalEnabled: boolean;
   togglePaypalEnabled: (enabled: boolean) => Promise<void>;
   paystackFormData: { paystack_public_key: string; paystack_secret_key: string; paystack_webhook_secret: string; paystack_currency: string; };
-  isPaystackConfigured: any;
+  isPaystackConfigured: boolean | undefined;
   paystackEnabled: boolean;
   togglePaystackEnabled: (enabled: boolean) => Promise<void>;
   mercadopagoFormData: { mercadopago_public_key: string; mercadopago_access_token: string; mercadopago_webhook_secret: string; mercadopago_currency: string; };
-  isMercadopagoConfigured: any;
+  isMercadopagoConfigured: boolean | undefined;
   mercadopagoEnabled: boolean;
   toggleMercadopagoEnabled: (enabled: boolean) => Promise<void>;
 }

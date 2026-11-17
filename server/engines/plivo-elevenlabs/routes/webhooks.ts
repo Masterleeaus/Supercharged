@@ -46,7 +46,7 @@ export function setupPlivoElevenLabsWebhooks(app: Express, baseUrl: string): voi
       
       res.set('Content-Type', 'text/xml');
       res.send(xml);
-    } catch (error: any) {
+    } catch (error) {
       logger.error('Answer error', error, 'PlivoElevenLabs');
       res.set('Content-Type', 'text/xml');
       res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Hangup/></Response>`);
@@ -172,7 +172,7 @@ export function setupPlivoElevenLabsWebhooks(app: Express, baseUrl: string): voi
                       'PlivoElevenLabs'
                     );
                   }
-                } catch (creditErr: any) {
+                } catch (creditErr) {
                   logger.error(
                     `Credit deduction exception for plivo-elevenlabs call ${call.id}: ${creditErr?.message || creditErr}`,
                     creditErr,
@@ -201,18 +201,18 @@ export function setupPlivoElevenLabsWebhooks(app: Express, baseUrl: string): voi
                   callerPhone,
                   callId: call.id,
                 }).catch(err => logger.error(`Post-call messaging error: ${err.message}`, err, 'PlivoElevenLabs'));
-              } catch (msgErr: any) {
+              } catch (msgErr) {
                 logger.error(`Post-call messaging setup error: ${msgErr.message}`, msgErr, 'PlivoElevenLabs');
               }
             }
           }
-        } catch (flowExecError: any) {
+        } catch (flowExecError) {
           logger.warn(`Failed to update flow execution status: ${flowExecError.message}`, undefined, 'PlivoElevenLabs');
         }
       }
       
       res.sendStatus(200);
-    } catch (error: any) {
+    } catch (error) {
       logger.error('Status error', error, 'PlivoElevenLabs');
       res.sendStatus(200);
     }
@@ -243,7 +243,7 @@ export function setupPlivoElevenLabsWebhooks(app: Express, baseUrl: string): voi
               answeredAt: new Date(),
             })
             .where(sql`${plivoCalls.metadata}->>'internalId' = ${callId} AND ${plivoCalls.metadata}->>'engine' = 'plivo-elevenlabs'`);
-        } catch (updErr: any) {
+        } catch (updErr) {
           logger.warn(
             `Failed to attach CallUUID ${CallUUID} to outbound call ${callId}: ${updErr?.message || updErr}`,
             undefined,
@@ -263,7 +263,7 @@ export function setupPlivoElevenLabsWebhooks(app: Express, baseUrl: string): voi
       
       res.set('Content-Type', 'text/xml');
       res.send(xml);
-    } catch (error: any) {
+    } catch (error) {
       logger.error('Answer error', error, 'PlivoElevenLabs');
       res.set('Content-Type', 'text/xml');
       res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Hangup/></Response>`);
@@ -394,7 +394,7 @@ export function setupPlivoElevenLabsWebhooks(app: Express, baseUrl: string): voi
           metadata: { engine: 'plivo-elevenlabs' },
         };
         await db.insert(plivoCalls).values(insertValues);
-      } catch (dbErr: any) {
+      } catch (dbErr) {
         logger.error(
           `Failed to insert inbound call record for ${CallUUID}: ${dbErr?.message || dbErr}`,
           dbErr,
@@ -413,7 +413,7 @@ export function setupPlivoElevenLabsWebhooks(app: Express, baseUrl: string): voi
       
       res.set('Content-Type', 'text/xml');
       res.send(xml);
-    } catch (error: any) {
+    } catch (error) {
       logger.error('Incoming call error', error, 'PlivoElevenLabs');
       res.set('Content-Type', 'text/xml');
       res.send(`<?xml version="1.0" encoding="UTF-8"?>

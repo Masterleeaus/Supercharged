@@ -66,6 +66,11 @@ export type WhatsAppAdapterRefusalReason =
   | WhatsAppSendFailureReason
   | 'suppressed'
   | 'invalid_company'
+  | 'invalid_idempotency_key'
+  | 'invalid_token'
+  | 'invalid_request'
+  | 'provider_error'
+  | 'uncertain'
   | 'opted_out'
   | 'quiet_hours'
   | 'invalid_contact'

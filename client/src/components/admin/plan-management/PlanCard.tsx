@@ -1,17 +1,12 @@
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,12 +30,12 @@ export interface PlanCardProps {
   isEditing: boolean;
   stripeCurrency: string;
   formData: Partial<Plan>;
-  updateField: (planId: string, field: keyof Plan, value: any) => void;
+  updateField: (planId: string, field: keyof Plan, value: unknown) => void;
   t: TFunction<"translation", undefined>;
   sipPluginInstalled: boolean;
   restApiPluginInstalled: boolean;
   handleSave: (planId: string) => void;
-  updatePlan: UseMutationResult<Response, any, { planId: string; updates: Partial<Plan>; }, unknown>;
+  updatePlan: UseMutationResult<Response, Error, { planId: string; updates: Partial<Plan>; }, unknown>;
   handleCancel: () => void;
   stripeCurrencySymbol: string;
   paypalCurrencySymbol: string;

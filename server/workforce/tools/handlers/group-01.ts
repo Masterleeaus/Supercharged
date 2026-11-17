@@ -18,8 +18,9 @@
  *   - customer_messages.send, feedback_surveys.send, job_photos.request_from_customer: category customer_send, so the
  *     registry needs owner approval first (runtime/always-approval.ts). This build has no outbound messaging provider,
  *     so after approval the handler returns not_implemented and nothing is sent.
- *   - escalations.create, human_escalation.create, identity.verify_request: there is no table and no safe write path,
- *     so the handler returns not_implemented and writes nothing.
+ *   - escalations.create, human_escalation.create: write one internal staff_tasks row (priority high). Nothing is sent
+ *     to the customer. Optional links are checked against the caller's company first.
+ *   - identity.verify_request: there is no verification source, so the handler returns not_implemented and writes nothing.
  */
 import { z } from 'zod';
 import { requireCompanyId } from '../../../services/ai-runtime/company.ts';
@@ -65,8 +66,6 @@ export const GROUP01_NOT_IMPLEMENTED_IDS: ReadonlySet<string> = new Set([
   'customer_messages.send',
   'feedback_surveys.send',
   'job_photos.request_from_customer',
-  'escalations.create',
-  'human_escalation.create',
   'identity.verify_request',
 ]);
 
@@ -319,6 +318,44 @@ interface Group01Spec<S extends z.ZodTypeAny = z.ZodTypeAny> {
  */
 function defineSpec<S extends z.ZodTypeAny>(spec: Group01Spec<S>): Group01Spec {
   return spec as Group01Spec;
+}
+
+/**
+ * Internal escalation: one staff_tasks row for a person to pick up. It is never sent to the customer. Optional visitId
+ * and clientId are checked against the caller's company before the insert, so a link to another company is refused.
+ */
+async function insertEscalation(
+  args: z.output<typeof escalationInput>,
+  companyId: CompanyId,
+  db: SqlExecutor | undefined,
+) {
+  const executor = need(db);
+  if (args.clientId !== undefined) {
+    const found = await executor.query('SELECT id FROM clients WHERE company_id = $1 AND id = $2', [companyId, args.clientId]);
+    if (found.rows.length === 0) throw new Group01InputError('invalid input: clientId');
+  }
+  if (args.visitId !== undefined) {
+    const found = await executor.query('SELECT id FROM visits WHERE company_id = $1 AND id = $2', [companyId, args.visitId]);
+    if (found.rows.length === 0) throw new Group01InputError('invalid input: visitId');
+  }
+  const description = args.clientId !== undefined ? `${args.reason}\n\nClient ID: ${args.clientId}` : args.reason;
+  const result = await executor.query(
+    `INSERT INTO staff_tasks (company_id, kind, title, description, priority, visit_id)
+     VALUES ($1, 'staff', 'Escalation for a person', $2, 'high', $3)
+     RETURNING id, kind, title, priority, status, visit_id, created_at`,
+    [companyId, description, args.visitId ?? null],
+  );
+  const row = firstRow(result.rows, 'escalation insert');
+  return {
+    created: true,
+    id: row.id,
+    kind: row.kind,
+    title: row.title,
+    priority: row.priority,
+    status: row.status,
+    visitId: row.visit_id ?? null,
+    createdAt: iso(row.created_at),
+  };
 }
 
 const SPECS: readonly Group01Spec[] = [
@@ -642,10 +679,7 @@ const SPECS: readonly Group01Spec[] = [
     risk: 'low',
     input: escalationInput,
     fields: { reason: field('string', true), visitId: field('string'), clientId: field('string') },
-    run: async () =>
-      notImplemented(
-        'No escalation table or owner-review write path exists. The review inbox is derived from runs and is not a write target. Nothing was recorded.',
-      ),
+    run: async (args, companyId, db) => insertEscalation(args, companyId, db),
   }),
   defineSpec({
     id: 'human_escalation.create',
@@ -653,10 +687,7 @@ const SPECS: readonly Group01Spec[] = [
     risk: 'low',
     input: escalationInput,
     fields: { reason: field('string', true), visitId: field('string'), clientId: field('string') },
-    run: async () =>
-      notImplemented(
-        'No escalation table or owner-review write path exists. The review inbox is derived from runs and is not a write target. Nothing was recorded.',
-      ),
+    run: async (args, companyId, db) => insertEscalation(args, companyId, db),
   }),
   defineSpec({
     id: 'identity.verify_request',
