@@ -117,3 +117,40 @@ test('the connector manifest validator copies the SDK auth and entity lists exac
   assert.match(src, new RegExp(`AUTH_TYPES = \\[${contract.AUTH_TYPES.map((v) => `'${v}'`).join(', ')}\\]`));
   assert.match(src, new RegExp(`ENTITY_TYPES = \\[${contract.ENTITY_TYPES.map((v) => `'${v}'`).join(', ')}\\]`));
 });
+
+test('startup: every repository manifest validates, has an implementation, and registers only with its flag', async () => {
+  const boot = await import('../../server/connectors/bootstrap.ts');
+  const settings = registryMod.createMemorySettingsStore();
+  const implementations = boot.createConnectorImplementations({
+    http: {}, fetch: async () => new Response('{}'), jobberApiVersion: '2025-01-01',
+  });
+  const discovered = boot.discoverAllConnectorManifests(repo);
+  assert.deepEqual(discovered.rejected, []);
+  assert.ok(discovered.manifests.length >= 6, 'expected the shipped connector manifests to be discovered');
+
+  const flagsOff = boot.buildConnectorRegistry({ repoRoot: repo, implementations, isFlagOn: () => false, settings });
+  assert.equal(flagsOff.registered().length, 0, 'no connector registers while its flag is off');
+  assert.equal(flagsOff.skipped().length, discovered.manifests.length);
+  assert.ok(flagsOff.skipped().every((s) => s.reason === 'feature flag off'), JSON.stringify(flagsOff.skipped()));
+
+  const flagsOn = boot.buildConnectorRegistry({ repoRoot: repo, implementations, isFlagOn: () => true, settings });
+  assert.deepEqual(flagsOn.skipped(), []);
+  assert.deepEqual(flagsOn.registered().map((r) => r.manifest.id).sort(), discovered.manifests.map((m) => m.id).sort());
+});
+
+test('a duplicate connector id across manifest roots is rejected and the first copy is kept', async () => {
+  const boot = await import('../../server/connectors/bootstrap.ts');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'connector-roots-'));
+  try {
+    for (const dir of ['a', 'b']) {
+      fs.mkdirSync(path.join(root, dir, 'fake-crm'), { recursive: true });
+      fs.writeFileSync(path.join(root, dir, 'fake-crm', 'connector.json'), JSON.stringify(readFixture()));
+    }
+    const out = boot.discoverAllConnectorManifests(root, ['a', 'b']);
+    assert.deepEqual(out.manifests.map((m) => m.id), ['fake-crm']);
+    assert.equal(out.rejected.length, 1);
+    assert.match(out.rejected[0].errors[0].message, /duplicate connector id/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
