@@ -3,7 +3,8 @@ import { Router, Response } from 'express';
 import { storage } from '../../storage';
 import { AdminRequest, requireAdminPermission } from '../../middleware/admin-auth';
 import nodemailer from 'nodemailer';
-import { emailService, smtpTlsOptions } from '../../services/email-service';
+import { emailService } from '../../services/email-service';
+import { smtpTlsOptions } from '../../services/smtp-tls-options';
 import { logger } from '../../utils/logger';
 
 export function registerSmtpRoutes(router: Router) {
