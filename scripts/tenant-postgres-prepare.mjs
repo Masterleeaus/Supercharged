@@ -1,8 +1,8 @@
 /**
  * CI-only PostgreSQL fixture for the tenant isolation tests.
  * Applies the promoted migrations 0010c (chatbot parent tables), 0014 (workforce tables),
- * 0015 (company quiet hours), 0016 (chatbot outbox, webhooks, reminder ledger) and 0017
- * (user company memberships) unchanged to a disposable database. A minimal users stub is created only
+ * 0015 (company quiet hours), 0016 (chatbot outbox, webhooks, reminder ledger), 0017
+ * (user company memberships) and 0020 (Scheduled booking mirror) unchanged to a disposable database. A minimal users stub is created only
  * when the table is absent, because the base schema (0000) is not applied in this job. Never run against a persistent database. Production migrations
  * and the migration manifest are not modified.
  */
@@ -15,6 +15,7 @@ const MIGRATIONS = [
   new URL('../migrations/0015_company_quiet_hours.sql', import.meta.url),
   new URL('../migrations/0016_chatbot_reminder_pipeline.sql', import.meta.url),
   new URL('../migrations/0017_user_company_memberships.sql', import.meta.url),
+  new URL('../migrations/0020_scheduled_booking_mirror.sql', import.meta.url),
 ];
 
 export async function prepareTenantPostgres(connectionString) {
@@ -53,5 +54,5 @@ export async function prepareTenantPostgres(connectionString) {
 
 if (process.argv[1] && import.meta.url === new URL('file://' + process.argv[1]).href) {
   await prepareTenantPostgres(process.env.TENANT_PG_INTEGRATION_URL);
-  console.log('Disposable tenant PostgreSQL schema prepared (0010c chatbot, 0014 workforce, 0015 quiet hours, 0016 chatbot pipeline, 0017 memberships). Production migrations unchanged.');
+  console.log('Disposable tenant PostgreSQL schema prepared (0010c chatbot, 0014 workforce, 0015 quiet hours, 0016 chatbot pipeline, 0017 memberships, 0020 scheduled booking mirror). Production migrations unchanged.');
 }
