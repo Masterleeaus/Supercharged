@@ -26,7 +26,7 @@ function checkUpgrade(requestUrl: string, prefix: string, now: number): { ok: bo
   const callId = identifierFromPath(requestUrl, prefix);
   if (!callId) return { ok: false, reason: "no_identifier" };
   const result = verifyStreamToken(streamTokenFromUrl(requestUrl), { callId }, now);
-  return result.ok ? { ok: true } : { ok: false, reason: result.reason };
+  return result.ok === false ? { ok: false, reason: result.reason } : { ok: true };
 }
 
 let savedSecret: string | undefined;

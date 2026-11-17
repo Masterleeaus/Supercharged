@@ -52,7 +52,7 @@ export function setupTwilioOpenAIStreamHandler(httpServer: HttpServer): void {
       // Security: the stream URL carries a server-issued token bound to this CallSid.
       // Reject before any database lookup when it is missing, forged, expired or for another call.
       const streamAuth = verifyStreamToken(streamTokenFromUrl(request.url), { callId: callSid });
-      if (!streamAuth.ok) {
+      if (streamAuth.ok === false) {
         logger.error(`[TwilioOpenAI Stream] Security: Rejecting stream for call ${callSid}: ${streamAuth.reason}`);
         socket.destroy();
         return;

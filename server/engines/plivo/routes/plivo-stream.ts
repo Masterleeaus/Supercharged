@@ -78,7 +78,7 @@ export function setupPlivoStream(httpServer: HttpServer): void {
 
       // Security: the stream URL carries a server-issued token bound to this call UUID.
       const streamAuth = verifyStreamToken(streamTokenFromUrl(request.url), { callId: callUuid });
-      if (!streamAuth.ok) {
+      if (streamAuth.ok === false) {
         logger.error(`Security: Rejecting Plivo stream for call ${callUuid}: ${streamAuth.reason}`, undefined, 'PlivoStream');
         socket.destroy();
         return;

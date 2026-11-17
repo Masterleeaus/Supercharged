@@ -139,7 +139,7 @@ export function checkStreamTokenAtUpgrade(
   nowSeconds: number = Date.now() / 1000,
 ): StreamTokenResult {
   const opened = openToken(token, nowSeconds);
-  return opened.ok ? { ok: true } : { ok: false, reason: opened.reason };
+  return opened.ok === false ? { ok: false, reason: opened.reason } : { ok: true };
 }
 
 /**
@@ -153,7 +153,7 @@ export function verifyStreamToken(
   nowSeconds: number = Date.now() / 1000,
 ): StreamTokenResult {
   const opened = openToken(token, nowSeconds);
-  if (!opened.ok) return { ok: false, reason: opened.reason };
+  if (opened.ok === false) return { ok: false, reason: opened.reason };
   if (opened.callId !== expected.callId) return { ok: false, reason: "wrong_call" };
   if (opened.agentId !== expected.agentId) return { ok: false, reason: "wrong_agent" };
   return { ok: true };

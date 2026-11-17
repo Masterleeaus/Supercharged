@@ -79,7 +79,7 @@ export function setupPlivoElevenLabsStream(httpServer: HttpServer): void {
 
       // Security: the stream URL carries a server-issued token bound to this call UUID.
       const streamAuth = verifyStreamToken(streamTokenFromUrl(request.url), { callId: callUuid });
-      if (!streamAuth.ok) {
+      if (streamAuth.ok === false) {
         logger.error(`[Plivo-ElevenLabs Stream] Security: Rejecting stream for call ${callUuid}: ${streamAuth.reason}`);
         socket.destroy();
         return;

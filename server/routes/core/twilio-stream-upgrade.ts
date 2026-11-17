@@ -26,7 +26,7 @@ export function registerTwilioStreamUpgrade(app: Express, deps: { httpServer: Se
       // token. Its callId and agentId are matched against the token once the 'start' event supplies them.
       const upgradeToken = streamTokenFromUrl(request.url);
       const upgradeAuth = checkStreamTokenAtUpgrade(upgradeToken);
-      if (!upgradeAuth.ok) {
+      if (upgradeAuth.ok === false) {
         logger.error(`❌ [Upgrade] Rejecting Twilio stream at upgrade: ${upgradeAuth.reason}`);
         socket.destroy();
         return;
@@ -81,7 +81,7 @@ export function registerTwilioStreamUpgrade(app: Express, deps: { httpServer: Se
 
             // Security: the token must be minted for this exact callId and agentId.
             const streamAuth = verifyStreamToken(upgradeToken, { callId, agentId });
-            if (!streamAuth.ok) {
+            if (streamAuth.ok === false) {
               logger.error(`❌ [WebSocket] Security: Rejecting Twilio stream for call ${callId}: ${streamAuth.reason}`);
               ws.close(1008, 'Invalid stream token');
               return;
