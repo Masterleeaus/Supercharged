@@ -19,7 +19,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { CONTRACT_FLAGS, readFlag, type FlagEnv } from "../contracts/flags.ts";
-import type { SecretBox } from "../contracts/secrets.ts";
+import type { SecretBox } from "../secrets/secret-box.ts";
 import { createDrizzleEventsStore, type EventsExecutor } from "../events/drizzle-store.ts";
 import { createOutboxProcessor } from "../events/outbox.ts";
 import { createStructuredActionService } from "../events/structured-actions.ts";
