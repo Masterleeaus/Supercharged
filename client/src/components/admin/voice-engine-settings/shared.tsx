@@ -3,6 +3,7 @@
  * Admin Voice Engine Settings
  * Manages API keys, active providers, FreeSWITCH nodes, and SIP trunking templates.
  */
+import type { AppError } from "@/components/app-error";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -247,7 +248,8 @@ export function StorageSettingsTab() {
       queryClient.invalidateQueries({ queryKey: ['/api/voice-engine/admin/storage'] });
       toast({ title: 'Storage settings saved', description: 'Recording storage configuration updated successfully.' });
     },
-    onError: (err: any) => {
+    onError: (raw_err: Error) => {
+      const err = raw_err as AppError;
       toast({ title: 'Save failed', description: err.message, variant: 'destructive' });
     },
   });
@@ -269,7 +271,8 @@ export function StorageSettingsTab() {
         description: `${STORAGE_PROVIDERS.find(p => p.value === provider)?.label} is now the active storage provider.`,
       });
     },
-    onError: (err: any) => {
+    onError: (raw_err: Error) => {
+      const err = raw_err as AppError;
       toast({ title: 'Activation failed', description: err.message, variant: 'destructive' });
     },
   });
@@ -288,7 +291,7 @@ export function StorageSettingsTab() {
     }
   };
 
-  const set = (field: keyof StorageConfig, value: any) => setConfig(prev => ({ ...prev, [field]: value }));
+  const set = (field: keyof StorageConfig, value: unknown) => setConfig(prev => ({ ...prev, [field]: value }));
 
   const needsS3Fields = ['s3', 'do_spaces', 'wasabi'].includes(config.provider);
   const needsEndpoint = ['do_spaces', 'wasabi'].includes(config.provider);

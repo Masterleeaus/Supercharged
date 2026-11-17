@@ -14,6 +14,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
+import type { AppError } from "@/components/app-error";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -77,7 +78,8 @@ export default function SMTPSettings() {
       toast({ title: t("admin.smtp.updateSuccess") });
       setHasChanges(false);
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("admin.smtp.updateFailed"),
         description: error.message,
@@ -91,13 +93,14 @@ export default function SMTPSettings() {
       const response = await apiRequest("POST", "/api/admin/smtp/test", { testEmail: email });
       return response.json();
     },
-    onSuccess: (data: any) => {
+    onSuccess: (data: { success?: boolean; error?: string }) => {
       setTestResult({
         success: data.success,
         message: data.success ? t("admin.smtp.testSuccess") : (data.error || t("admin.smtp.testFailed"))
       });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       setTestResult({
         success: false,
         message: error.message || t("admin.smtp.testFailed")

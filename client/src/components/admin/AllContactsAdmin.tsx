@@ -34,7 +34,7 @@ interface AdminContact {
   lastName: string | null;
   phone: string;
   email: string | null;
-  customFields: any;
+  customFields: unknown;
   status: string;
   createdAt: string;
   campaignId: string;

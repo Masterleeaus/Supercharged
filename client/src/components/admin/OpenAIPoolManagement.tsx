@@ -1,3 +1,4 @@
+import type { AppError } from "@/components/app-error";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -149,7 +150,8 @@ export default function OpenAIPoolManagement() {
       setAddDialogOpen(false);
       addForm.reset();
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.openaiPool.toasts.addFailed"),
         description: error.message,
@@ -174,7 +176,8 @@ export default function OpenAIPoolManagement() {
       setEditDialogOpen(false);
       setSelectedCredential(null);
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.openaiPool.toasts.updateFailed"),
         description: error.message,
@@ -194,7 +197,8 @@ export default function OpenAIPoolManagement() {
       setDeleteDialogOpen(false);
       setSelectedCredential(null);
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.openaiPool.toasts.deleteFailed"),
         description: error.message,
@@ -213,7 +217,8 @@ export default function OpenAIPoolManagement() {
       queryClient.invalidateQueries({ queryKey: ["/api/plivo/admin/openai/pool/stats"] });
       toast({ title: t("adminDashboard.openaiPool.toasts.statusUpdated") });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.openaiPool.toasts.statusUpdateFailed"),
         description: error.message,
@@ -231,7 +236,8 @@ export default function OpenAIPoolManagement() {
       queryClient.invalidateQueries({ queryKey: ["/api/plivo/admin/openai/pool/stats"] });
       toast({ title: t("adminDashboard.openaiPool.toasts.healthCheckComplete") });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.openaiPool.toasts.healthCheckFailed"),
         description: error.message,
@@ -249,7 +255,8 @@ export default function OpenAIPoolManagement() {
       queryClient.invalidateQueries({ queryKey: ["/api/plivo/admin/openai/pool/stats"] });
       toast({ title: t("adminDashboard.openaiPool.toasts.recalculated") });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.openaiPool.toasts.recalculationFailed"),
         description: error.message,

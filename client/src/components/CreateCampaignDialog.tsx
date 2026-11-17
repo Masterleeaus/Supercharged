@@ -14,6 +14,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
+import type { AppError } from "@/components/app-error";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -88,6 +89,14 @@ interface CreateCampaignDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+
+/** Custom SIP phone number the campaign form can call from. */
+interface SipPhoneNumber {
+  id: string;
+  phone_number: string;
+  label?: string | null;
+  gateway_name?: string | null;
+}
 
 export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialogProps) {
   const { t } = useTranslation();
@@ -166,7 +175,7 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
     enabled: open,
   });
 
-  const { data: userSipPhoneNumbersResponse } = useQuery<{ success: boolean; data: any[] }>({
+  const { data: userSipPhoneNumbersResponse } = useQuery<{ success: boolean; data: SipPhoneNumber[] }>({
     queryKey: ["/api/user/sip-phone-numbers"],
     enabled: open,
   });
@@ -231,7 +240,8 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
         handleClose();
       }, 1500);
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       setAnimationState('error');
       setTimeout(() => setAnimationState('idle'), 600);
 

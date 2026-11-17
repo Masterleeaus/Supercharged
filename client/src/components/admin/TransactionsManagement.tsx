@@ -21,6 +21,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import type { AppError } from "@/components/app-error";
 import { AuthStorage } from "@/lib/auth-storage";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -138,7 +139,8 @@ export default function TransactionsManagement() {
         title: "Invoice Downloaded",
         description: `Invoice ${invoiceNumber} has been downloaded`,
       });
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: "Download Failed",
         description: error.message || "Failed to download invoice",
@@ -179,7 +181,8 @@ export default function TransactionsManagement() {
 
       refetch();
       queryClient.invalidateQueries({ queryKey: ["/api/admin/transactions/invoices/all"] });
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: "Generation Failed",
         description: error.message || "Failed to generate invoice",

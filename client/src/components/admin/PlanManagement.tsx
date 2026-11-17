@@ -14,6 +14,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
+import type { AppError } from "@/components/app-error";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
@@ -175,7 +176,8 @@ export default function PlanManagement() {
         isActive: true
       });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.plans.createFailed"),
         description: error.message,
@@ -193,7 +195,8 @@ export default function PlanManagement() {
       toast({ title: t("adminDashboard.plans.planUpdated") });
       setEditingPlan(null);
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.plans.updateFailed"),
         description: error.message,
@@ -217,7 +220,8 @@ export default function PlanManagement() {
       setDeletingPlan(null);
       setMigrationState(null);
     },
-    onError: async (error: any) => {
+    onError: async (raw_error: Error) => {
+      const error = raw_error as AppError;
       // Check if this is a migration required error
       if (error.error === 'USERS_NEED_MIGRATION' && deletingPlan) {
         // Show migration dialog
@@ -261,7 +265,8 @@ export default function PlanManagement() {
         deletePlan.mutate(migrationState.plan.id);
       }
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.plans.migrationFailed"),
         description: error.message,
@@ -286,7 +291,8 @@ export default function PlanManagement() {
         description: data.message
       });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: "Stripe Sync Failed",
         description: error.message,
@@ -311,7 +317,8 @@ export default function PlanManagement() {
         description: data.message
       });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: "Razorpay Sync Failed",
         description: error.message,
@@ -336,7 +343,8 @@ export default function PlanManagement() {
         description: data.message
       });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: "PayPal Sync Failed",
         description: error.message,
@@ -361,7 +369,8 @@ export default function PlanManagement() {
         description: data.message
       });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: "Paystack Sync Failed",
         description: error.message,
@@ -386,7 +395,8 @@ export default function PlanManagement() {
         description: data.message
       });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: "MercadoPago Sync Failed",
         description: error.message,
@@ -484,7 +494,7 @@ export default function PlanManagement() {
     setEditingPlan(null);
   };
 
-  const updateField = (planId: string, field: keyof Plan, value: any) => {
+  const updateField = (planId: string, field: keyof Plan, value: unknown) => {
     setPlanForms({
       ...planForms,
       [planId]: {
@@ -494,7 +504,7 @@ export default function PlanManagement() {
     });
   };
 
-  const updateNewPlanField = (field: keyof Plan, value: any) => {
+  const updateNewPlanField = (field: keyof Plan, value: unknown) => {
     setNewPlanForm({
       ...newPlanForm,
       [field]: value

@@ -1,3 +1,4 @@
+import type { AppError } from "@/components/app-error";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -126,7 +127,7 @@ export function CveTestCallWidget() {
       const hasVoiceOverride = selectedVoiceObj && selectedVoiceObj.value !== "default";
       const fullPhoneNumber = `${countryCode}${phoneNumber.replace(/^\+/, "").replace(/\D/g, "")}`;
 
-      const payload: Record<string, any> = {
+      const payload: Record<string, unknown> = {
         toNumber: fullPhoneNumber,
         fromNumber: "FreeSWITCH",
       };
@@ -182,7 +183,8 @@ export function CveTestCallWidget() {
       } else {
         throw new Error(data.error || "Failed to trigger outbound call");
       }
-    } catch (err: any) {
+    } catch (raw_err) {
+      const err = raw_err as AppError;
       toast({
         title: "Call Failed",
         description: err.message || "An error occurred while placing the call.",

@@ -1,3 +1,4 @@
+import type { AppError } from "@/components/app-error";
 import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -59,7 +60,7 @@ interface PlivoCredential {
   authId: string;
   isPrimary: boolean;
   isActive: boolean;
-  metadata: any;
+  metadata: unknown;
   createdAt: string;
   updatedAt: string;
 }
@@ -181,7 +182,8 @@ function PlivoCredentialsSection() {
       setAddDialogOpen(false);
       addForm.reset();
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: "Failed to add credential",
         description: error.message,
@@ -200,7 +202,8 @@ function PlivoCredentialsSection() {
       setEditDialogOpen(false);
       setSelectedCredential(null);
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: "Failed to update credential",
         description: error.message,
@@ -219,7 +222,8 @@ function PlivoCredentialsSection() {
       setDeleteDialogOpen(false);
       setSelectedCredential(null);
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: "Failed to delete credential",
         description: error.message,
@@ -236,7 +240,8 @@ function PlivoCredentialsSection() {
       queryClient.invalidateQueries({ queryKey: ["/api/plivo/admin/credentials"] });
       toast({ title: "Credential status updated" });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: "Failed to update status",
         description: error.message,
@@ -664,7 +669,8 @@ function PhonePricingSection() {
       setAddDialogOpen(false);
       addForm.reset();
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: "Failed to add pricing",
         description: error.message,
@@ -688,7 +694,8 @@ function PhonePricingSection() {
       setEditDialogOpen(false);
       setSelectedPricing(null);
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: "Failed to update pricing",
         description: error.message,
@@ -707,7 +714,8 @@ function PhonePricingSection() {
       setDeleteDialogOpen(false);
       setSelectedPricing(null);
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: "Failed to delete pricing",
         description: error.message,
@@ -724,7 +732,8 @@ function PhonePricingSection() {
       queryClient.invalidateQueries({ queryKey: ["/api/plivo/admin/phone-pricing"] });
       toast({ title: "Pricing status updated" });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: "Failed to update status",
         description: error.message,
@@ -1233,14 +1242,17 @@ function PhoneNumbersSection() {
     mutationFn: async () => {
       return apiRequest("POST", "/api/plivo/admin/sync-numbers");
     },
-    onSuccess: (data: any) => {
+    onSuccess: (response: Response) => {
+      // The mutation returns the raw Response, so these counts read as undefined at runtime (existing behaviour, see PR notes).
+      const data = response as unknown as { imported?: number; skipped?: number };
       queryClient.invalidateQueries({ queryKey: ["/api/plivo/admin/phone-numbers"] });
       toast({
         title: "Sync Complete",
         description: `Imported ${data.imported} numbers, skipped ${data.skipped}`
       });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: "Sync Failed",
         description: error.message,
@@ -1262,7 +1274,8 @@ function PhoneNumbersSection() {
       setAssignDialogOpen(false);
       setSelectedPhone(null);
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: "Failed to assign phone number",
         description: error.message,
