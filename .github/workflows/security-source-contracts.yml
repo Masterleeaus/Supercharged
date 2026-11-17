@@ -14,6 +14,7 @@ on:
       - tests/infrastructure/plugin-loader-policy.test.mjs
       - tests/security/knowledge-search-scope.test.mjs
       - tests/security/plivo-voice-route-order.test.mjs
+      - tests/security/webhook-secret-files.test.mjs
   pull_request:
     branches: [main]
     paths:
@@ -24,6 +25,7 @@ on:
       - tests/infrastructure/plugin-loader-policy.test.mjs
       - tests/security/knowledge-search-scope.test.mjs
       - tests/security/plivo-voice-route-order.test.mjs
+      - tests/security/webhook-secret-files.test.mjs
   workflow_dispatch:
 
 permissions:
@@ -48,4 +50,5 @@ jobs:
           node --test \
             tests/infrastructure/plugin-loader-policy.test.mjs \
             tests/security/knowledge-search-scope.test.mjs \
-            tests/security/plivo-voice-route-order.test.mjs
+            tests/security/plivo-voice-route-order.test.mjs \
+            tests/security/webhook-secret-files.test.mjs

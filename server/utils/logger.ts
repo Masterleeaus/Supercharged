@@ -11,7 +11,7 @@
  * ============================================================
  */
 /**
- * Professional logging utility for AgentLabs platform
+ * Professional logging utility for the Supercharged platform
  * Provides structured logging with different log levels and environment awareness
  * 
  * Every message, source and data value is redacted before it is written.

@@ -216,9 +216,8 @@ export class ElevenLabsFlowCompiler {
   }
 
   private getNodeType(node: FlowNode): string {
-    const data = node.data || {};
-    const config = data.config || {};
-    return (config as CompilerNodeConfig).type || node.type || 'unknown';
+    const config = (node.data?.config || {}) as CompilerNodeConfig;
+    return config.type || node.type || 'unknown';
   }
 
   private generateEdgeId(source: string, target: string): string {

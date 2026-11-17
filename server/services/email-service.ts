@@ -12,7 +12,7 @@
  */
 
 import nodemailer from 'nodemailer';
-import type { Transporter } from 'nodemailer';
+import type { Transporter, SendMailOptions } from 'nodemailer';
 import { storage } from '../storage';
 import { logger } from '../utils/logger';
 import type { EmailTemplate } from '@shared/schema';
@@ -1199,7 +1199,7 @@ export class EmailService {
     // Custom headers are validated before anything is sent. A bad header fails the send
     // (fail closed) instead of being dropped or passed through unchecked.
     const headerCheck = validateCustomHeaders(options?.headers);
-    if (!headerCheck.ok) {
+    if (headerCheck.ok === false) {
       logger.error(`[EMAIL ERROR] ${headerCheck.error}`, undefined, SOURCE);
       return { success: false, error: headerCheck.error };
     }
@@ -1251,7 +1251,7 @@ export class EmailService {
     const textBody = options?.text || htmlToText(html);
 
     try {
-      const mailOptions: nodemailer.SendMailOptions = {
+      const mailOptions: SendMailOptions = {
         from: `"${displayName}" <${fromAddress}>`,
         to,
         subject,

@@ -187,7 +187,7 @@ export function createContentAdminRouter(deps: ContentAdminRouterDeps): Router {
       if (!parsed.success) return invalidInput(res, parsed.error.issues);
       const chatbotIds = await linkableChatbots(companyId, parsed.data.chatbotIds, res);
       if (!chatbotIds) return;
-      const row = await storage.insertArticle(companyId, { ...parsed.data, chatbotIds }, getUserId(req, res), now());
+      const row = await storage.insertArticle(companyId, { ...parsed.data, content: parsed.data.content ?? null, isFeatured: parsed.data.isFeatured ?? false, chatbotIds }, getUserId(req, res), now());
       res.status(201).json(row);
     }, true),
   );
