@@ -1,3 +1,4 @@
+import type { CaughtError } from '../common';
 /** Test-call queue status and cancel routes. */
 import { Router, Response } from "express";
 import { db } from "../../db";
@@ -149,10 +150,10 @@ export function registerFlowQueueRoutes(router: Router): void {
           flowId: claimed.flowId,
           toPhone: claimed.toPhone,
           queueEntryId: claimed.id,
-        }).catch((err: any) => {
+        }).catch((err: unknown) => {
           logger.error(`[Queue] Background test call error for ${claimed.id}:`, err);
           db.update(flowTestQueue)
-            .set({ status: 'failed', errorMessage: err?.message || 'Unexpected error during call placement' })
+            .set({ status: 'failed', errorMessage: (err as CaughtError)?.message || 'Unexpected error during call placement' })
             .where(and(eq(flowTestQueue.id, claimed.id), eq(flowTestQueue.status, 'processing')))
             .then(() => { }).catch(() => { });
         })
@@ -160,7 +161,7 @@ export function registerFlowQueueRoutes(router: Router): void {
 
       return res.json({ status: 'processing', position: 0, ready: false });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Error fetching queue status:", error);
       return res.status(500).json({ error: "Failed to fetch queue status" });
     }
@@ -196,7 +197,7 @@ export function registerFlowQueueRoutes(router: Router): void {
       }
 
       return res.json({ success: true });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Error cancelling queue entry:", error);
       return res.status(500).json({ error: "Failed to cancel queue entry" });
     }

@@ -2,6 +2,7 @@
  * Voice Engine STT Test Component
  * Provides a real-time microphone test for the configured STT provider.
  */
+import type { AppError } from "@/components/app-error";
 import { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -88,7 +89,8 @@ export default function VoiceEngineSttTest() {
       };
 
       setIsRecording(true);
-    } catch (err: any) {
+    } catch (raw_err) {
+      const err = raw_err as AppError;
       setError(err.message || "Failed to access microphone");
       toast({
         title: "Mic Error",

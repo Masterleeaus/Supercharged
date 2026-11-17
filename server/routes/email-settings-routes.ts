@@ -1,18 +1,14 @@
+import type { CaughtError } from './common';
 'use strict';
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
 import { Router, Response } from 'express';
@@ -183,26 +179,26 @@ router.get('/', requireAdminPermission('communications', 'email_settings', 'read
         missingFields: smtpStatus.missingFields,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('Error fetching email notification settings:', error);
     
     let errorMessage = 'Failed to fetch email notification settings';
     let errorCode = 'EMAIL_SETTINGS_ERROR';
     
-    if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
+    if ((error as CaughtError).code === 'ECONNREFUSED' || (error as CaughtError).code === 'ETIMEDOUT') {
       errorMessage = 'Database connection failed. Please check database configuration.';
       errorCode = 'DATABASE_CONNECTION_ERROR';
-    } else if (error.message?.includes('relation') && error.message?.includes('does not exist')) {
+    } else if ((error as CaughtError).message?.includes('relation') && (error as CaughtError).message?.includes('does not exist')) {
       errorMessage = 'Database tables not found. Please run database migrations.';
       errorCode = 'DATABASE_MIGRATION_REQUIRED';
-    } else if (error.message) {
-      errorMessage = `Email settings error: ${error.message}`;
+    } else if ((error as CaughtError).message) {
+      errorMessage = `Email settings error: ${(error as CaughtError).message}`;
     }
     
     res.status(500).json({ 
       error: errorMessage,
       code: errorCode,
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      details: process.env.NODE_ENV === 'development' ? (error as CaughtError).message : undefined
     });
   }
 });
@@ -242,21 +238,21 @@ router.post('/test-smtp', requireAdminPermission('communications', 'email_settin
           port: smtpStatus.port,
         });
       }
-    } catch (verifyError: any) {
+    } catch (verifyError: unknown) {
       logger.error('[SMTP Test] Verification failed:', verifyError);
       res.json({
         success: false,
-        error: verifyError.message || 'SMTP verification failed',
-        code: verifyError.code,
+        error: (verifyError as CaughtError).message || 'SMTP verification failed',
+        code: (verifyError as CaughtError).code,
         host: smtpStatus.host,
         port: smtpStatus.port,
       });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[SMTP Test] Error:', error);
     res.status(500).json({
       success: false,
-      error: error.message || 'Failed to test SMTP connection',
+      error: (error as CaughtError).message || 'Failed to test SMTP connection',
     });
   }
 });
@@ -290,7 +286,7 @@ router.put('/:eventType', requireAdminPermission('communications', 'email_settin
   } catch (error) {
     logger.error('Error updating email notification setting:', error);
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: 'Invalid request data', details: error.issues });
+      return res.status(400).json({ error: 'Invalid request data', details: (error as CaughtError).issues });
     }
     res.status(500).json({ error: 'Failed to update email notification setting' });
   }
@@ -331,7 +327,7 @@ router.put('/', requireAdminPermission('communications', 'email_settings', 'upda
   } catch (error) {
     logger.error('Error bulk updating email notification settings:', error);
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: 'Invalid request data', details: error.issues });
+      return res.status(400).json({ error: 'Invalid request data', details: (error as CaughtError).issues });
     }
     res.status(500).json({ error: 'Failed to update email notification settings' });
   }
@@ -373,7 +369,7 @@ router.post('/save-smtp', requireAdminPermission('communications', 'email_settin
   } catch (error) {
     logger.error('Error saving SMTP settings:', error);
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: 'Invalid SMTP settings', details: error.issues });
+      return res.status(400).json({ error: 'Invalid SMTP settings', details: (error as CaughtError).issues });
     }
     res.status(500).json({ error: 'Failed to save SMTP settings' });
   }
