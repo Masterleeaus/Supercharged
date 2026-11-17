@@ -1,0 +1,51 @@
+name: Security source-contract regressions
+
+# Small, dependency-free security contracts guard previously broken checks in
+# issues #319, #321 and #322. A full runtime/provider acceptance is still
+# required separately for the Plivo and RAG integration issues.
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/security-source-contracts.yml
+      - server/engines/plivo/routes/plivo-webhooks.ts
+      - server/plugins/loader.ts
+      - server/services/rag-knowledge.ts
+      - tests/infrastructure/plugin-loader-policy.test.mjs
+      - tests/security/knowledge-search-scope.test.mjs
+      - tests/security/plivo-voice-route-order.test.mjs
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/security-source-contracts.yml
+      - server/engines/plivo/routes/plivo-webhooks.ts
+      - server/plugins/loader.ts
+      - server/services/rag-knowledge.ts
+      - tests/infrastructure/plugin-loader-policy.test.mjs
+      - tests/security/knowledge-search-scope.test.mjs
+      - tests/security/plivo-voice-route-order.test.mjs
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-source-contracts-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Verify source security contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run scoped, dependency-free security regressions
+        run: |
+          node --test \
+            tests/infrastructure/plugin-loader-policy.test.mjs \
+            tests/security/knowledge-search-scope.test.mjs \
+            tests/security/plivo-voice-route-order.test.mjs
