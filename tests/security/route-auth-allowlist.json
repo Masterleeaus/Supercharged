@@ -7,7 +7,7 @@
       "method": "GET",
       "path": "/health",
       "reason": "Liveness status only.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/index.ts",
@@ -15,7 +15,7 @@
       "method": "GET",
       "path": "/health/detailed",
       "reason": "Returns only a status string and timestamp; detail is not exposed.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/demo-mode/index.ts",
@@ -23,7 +23,7 @@
       "method": "GET",
       "path": "/api/demo-mode/status",
       "reason": "Returns a boolean demo-account flag from an optional bearer token; no tenant data.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/routes/core/provider-webhook-routes.ts",
@@ -31,7 +31,7 @@
       "method": "POST",
       "path": "/api/webhooks/elevenlabs",
       "reason": "Provider webhook: ElevenLabs signature verified inside the handler (401 on failure), or URL token validated inside the handler.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/routes/core/provider-webhook-routes.ts",
@@ -39,7 +39,7 @@
       "method": "POST",
       "path": "/api/webhooks/elevenlabs/rag-tool/:token/:agentId",
       "reason": "Provider webhook: ElevenLabs signature verified inside the handler (401 on failure), or URL token validated inside the handler.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/routes/core/provider-webhook-routes.ts",
@@ -47,7 +47,7 @@
       "method": "POST",
       "path": "/api/webhooks/elevenlabs/rag-tool/:agentId",
       "reason": "Provider webhook: ElevenLabs signature verified inside the handler (401 on failure), or URL token validated inside the handler.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/routes/core/provider-webhook-routes.ts",
@@ -55,7 +55,7 @@
       "method": "POST",
       "path": "/api/webhooks/elevenlabs/appointment/:token/:agentId",
       "reason": "Provider webhook: ElevenLabs signature verified inside the handler (401 on failure), or URL token validated inside the handler.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/routes/core/provider-webhook-routes.ts",
@@ -63,7 +63,7 @@
       "method": "POST",
       "path": "/api/webhooks/elevenlabs/form/:token/:formId/:agentId",
       "reason": "Provider webhook: ElevenLabs signature verified inside the handler (401 on failure), or URL token validated inside the handler.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/routes/core/provider-webhook-routes.ts",
@@ -71,7 +71,7 @@
       "method": "POST",
       "path": "/api/elevenlabs/tools/play-audio/:token/:agentId",
       "reason": "Provider webhook: ElevenLabs signature verified inside the handler (401 on failure), or URL token validated inside the handler.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/routes/core/stream-widget-routes.ts",
@@ -79,7 +79,7 @@
       "method": "GET",
       "path": "<template `${streamPath}*`>",
       "reason": "Non-upgrade requests are a proxy stub that re-emits the WebSocket upgrade; the upgrade handlers verify the call before accepting the stream.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/routes/public-routes.ts",
@@ -87,7 +87,7 @@
       "method": "GET",
       "path": "/api/installer/status",
       "reason": "Returns only the installed flag.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/routes/public-routes.ts",
@@ -95,7 +95,7 @@
       "method": "GET",
       "path": "/api/init",
       "reason": "Combined public bootstrap (branding, installer status, version); CORS limited to allowlisted embed domains.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/routes/public-routes.ts",
@@ -103,7 +103,7 @@
       "method": "GET",
       "path": "/api/installer/check",
       "reason": "Pre-install environment checks; refused once the application is installed. Owner to confirm what the checks reveal.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/routes/public-routes.ts",
@@ -111,7 +111,7 @@
       "method": "GET",
       "path": "/api/branding",
       "reason": "Public pre-login bootstrap data (installer status, branding, sitemap or robots).",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/routes/public-routes.ts",
@@ -119,7 +119,7 @@
       "method": "GET",
       "path": "/sitemap.xml",
       "reason": "Public pre-login bootstrap data (installer status, branding, sitemap or robots).",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/routes/public-routes.ts",
@@ -127,7 +127,7 @@
       "method": "GET",
       "path": "/robots.txt",
       "reason": "Public pre-login bootstrap data (installer status, branding, sitemap or robots).",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/routes/auth-routes.ts",
@@ -135,7 +135,7 @@
       "method": "POST",
       "path": "/api/auth/send-otp",
       "reason": "Pre-authentication flow (register, login, OTP, password reset, token refresh, logout). Each handler is the credential check itself; not re-audited line by line in this pass.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/routes/auth-routes.ts",
@@ -143,7 +143,7 @@
       "method": "POST",
       "path": "/api/auth/verify-otp",
       "reason": "Pre-authentication flow (register, login, OTP, password reset, token refresh, logout). Each handler is the credential check itself; not re-audited line by line in this pass.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/routes/auth-routes.ts",
@@ -151,7 +151,7 @@
       "method": "POST",
       "path": "/api/auth/forgot-password/send-otp",
       "reason": "Pre-authentication flow (register, login, OTP, password reset, token refresh, logout). Each handler is the credential check itself; not re-audited line by line in this pass.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/routes/auth-routes.ts",
@@ -159,7 +159,7 @@
       "method": "POST",
       "path": "/api/auth/forgot-password/verify-otp",
       "reason": "Pre-authentication flow (register, login, OTP, password reset, token refresh, logout). Each handler is the credential check itself; not re-audited line by line in this pass.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/routes/auth-routes.ts",
@@ -167,7 +167,7 @@
       "method": "POST",
       "path": "/api/auth/forgot-password/reset",
       "reason": "Pre-authentication flow (register, login, OTP, password reset, token refresh, logout). Each handler is the credential check itself; not re-audited line by line in this pass.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/routes/auth-routes.ts",
@@ -175,7 +175,7 @@
       "method": "POST",
       "path": "/api/auth/register",
       "reason": "Pre-authentication flow (register, login, OTP, password reset, token refresh, logout). Each handler is the credential check itself; not re-audited line by line in this pass.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/routes/auth-routes.ts",
@@ -183,7 +183,7 @@
       "method": "POST",
       "path": "/api/auth/login",
       "reason": "Pre-authentication flow (register, login, OTP, password reset, token refresh, logout). Each handler is the credential check itself; not re-audited line by line in this pass.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/routes/auth-routes.ts",
@@ -191,7 +191,7 @@
       "method": "POST",
       "path": "/api/auth/refresh",
       "reason": "Pre-authentication flow (register, login, OTP, password reset, token refresh, logout). Each handler is the credential check itself; not re-audited line by line in this pass.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/routes/auth-routes.ts",
@@ -199,7 +199,7 @@
       "method": "POST",
       "path": "/api/auth/logout",
       "reason": "Pre-authentication flow (register, login, OTP, password reset, token refresh, logout). Each handler is the credential check itself; not re-audited line by line in this pass.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/integrations/titan-field/route.ts",
@@ -207,7 +207,7 @@
       "method": "POST",
       "path": "/api/titan-bridge/v1/communication-intents",
       "reason": "Machine-to-machine bridge endpoint, HMAC-signed (verifyBridgeRequest or verifyLocalLinkRequest), 503 unless shadow mode.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/integrations/titan-field/local-link-route.ts",
@@ -215,7 +215,7 @@
       "method": "GET",
       "path": "/api/titan-bridge/v1/capabilities",
       "reason": "Machine-to-machine bridge endpoint, HMAC-signed (verifyBridgeRequest or verifyLocalLinkRequest), 503 unless shadow mode.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/routes/subscription-routes.ts",
@@ -223,7 +223,7 @@
       "method": "GET",
       "path": "/api/plans",
       "reason": "Public pricing catalogue (plans or credit packages) shown before sign-in.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/routes/subscription-routes.ts",
@@ -231,7 +231,7 @@
       "method": "GET",
       "path": "/api/credit-packages",
       "reason": "Public pricing catalogue (plans or credit packages) shown before sign-in.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/routes/plugin-routes.ts",
@@ -239,7 +239,7 @@
       "method": "GET",
       "path": "/health",
       "reason": "Plugin status summary for health checks; owner to confirm the fields exposed.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/routes/plugin-routes.ts",
@@ -247,7 +247,7 @@
       "method": "GET",
       "path": "/:name/docs",
       "reason": "Public plugin endpoint: health status, docs, or frontend bundle; bundle served only for enabled plugins and path-contained.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/routes/plugin-routes.ts",
@@ -255,7 +255,7 @@
       "method": "GET",
       "path": "/:name/bundle",
       "reason": "Public plugin endpoint: health status, docs, or frontend bundle; bundle served only for enabled plugins and path-contained.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/routes/platform-languages-routes.ts",
@@ -263,7 +263,7 @@
       "method": "GET",
       "path": "/",
       "reason": "Public list of enabled UI languages (public router only; the admin router is separately guarded).",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/modules/chatbot/wiring/mount.ts",
@@ -271,7 +271,7 @@
       "method": "GET",
       "path": "/:publicId/config",
       "reason": "Public chatbot widget mounted without authenticate (CHATBOT_WIDGET_ENABLED); visitor calls carry an embed token verified by verifyBearer (widget/handlers.ts), with rate limits.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/modules/chatbot/wiring/mount.ts",
@@ -279,7 +279,7 @@
       "method": "POST",
       "path": "/:publicId/session",
       "reason": "Public chatbot widget mounted without authenticate (CHATBOT_WIDGET_ENABLED); visitor calls carry an embed token verified by verifyBearer (widget/handlers.ts), with rate limits.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/modules/chatbot/wiring/mount.ts",
@@ -287,7 +287,7 @@
       "method": "POST",
       "path": "/:publicId/message",
       "reason": "Public chatbot widget mounted without authenticate (CHATBOT_WIDGET_ENABLED); visitor calls carry an embed token verified by verifyBearer (widget/handlers.ts), with rate limits.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/modules/chatbot/wiring/mount.ts",
@@ -295,7 +295,7 @@
       "method": "GET",
       "path": "/:publicId/check",
       "reason": "Public chatbot widget mounted without authenticate (CHATBOT_WIDGET_ENABLED); visitor calls carry an embed token verified by verifyBearer (widget/handlers.ts), with rate limits.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/modules/chatbot/wiring/mount.ts",
@@ -303,7 +303,7 @@
       "method": "GET",
       "path": "/:publicId/messages",
       "reason": "Public chatbot widget mounted without authenticate (CHATBOT_WIDGET_ENABLED); visitor calls carry an embed token verified by verifyBearer (widget/handlers.ts), with rate limits.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/modules/chatbot/wiring/mount.ts",
@@ -311,7 +311,7 @@
       "method": "GET",
       "path": "/:publicId/stream",
       "reason": "Public chatbot widget mounted without authenticate (CHATBOT_WIDGET_ENABLED); visitor calls carry an embed token verified by verifyBearer (widget/handlers.ts), with rate limits.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/routes/public-system-routes.ts",
@@ -319,7 +319,7 @@
       "method": "GET",
       "path": "/api/health",
       "reason": "Public system settings: health, version, public settings, or publishable keys and enabled flags only (no secrets).",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/routes/public-system-routes.ts",
@@ -327,7 +327,7 @@
       "method": "GET",
       "path": "/api/system/version",
       "reason": "Public system settings: health, version, public settings, or publishable keys and enabled flags only (no secrets).",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/routes/public-system-routes.ts",
@@ -335,7 +335,7 @@
       "method": "POST",
       "path": "/api/diagnostic/grant-admin",
       "reason": "Returns 410 Gone; the route has been removed and performs no action.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/routes/public-system-routes.ts",
@@ -343,7 +343,7 @@
       "method": "GET",
       "path": "/api/settings/public",
       "reason": "Public currency, credit and timezone defaults used before sign-in (listed as public by design in issue #320).",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/routes/public-system-routes.ts",
@@ -351,7 +351,7 @@
       "method": "GET",
       "path": "/api/settings/payment-gateway",
       "reason": "Publishable keys, client IDs and enabled flags only (no secrets). Used by the public pricing page.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/routes/public-marketing-routes.ts",
@@ -359,7 +359,7 @@
       "method": "GET",
       "path": "/api/public/stats",
       "reason": "Public marketing data: aggregate counts, SEO, analytics script tags, Twilio country list, or contact form (rate limited by authRateLimiter). Stats aggregate across tenants without rows; owner to confirm.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/routes/public-marketing-routes.ts",
@@ -367,7 +367,7 @@
       "method": "GET",
       "path": "/api/public/seo",
       "reason": "Public marketing data: aggregate counts, SEO, analytics script tags, Twilio country list, or contact form (rate limited by authRateLimiter). Stats aggregate across tenants without rows; owner to confirm.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/routes/public-marketing-routes.ts",
@@ -375,7 +375,7 @@
       "method": "GET",
       "path": "/api/public/analytics-scripts",
       "reason": "Public marketing data: aggregate counts, SEO, analytics script tags, Twilio country list, or contact form (rate limited by authRateLimiter). Stats aggregate across tenants without rows; owner to confirm.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/routes/public-marketing-routes.ts",
@@ -383,7 +383,7 @@
       "method": "POST",
       "path": "/api/contact",
       "reason": "Public marketing data: aggregate counts, SEO, analytics script tags, Twilio country list, or contact form (rate limited by authRateLimiter). Stats aggregate across tenants without rows; owner to confirm.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/routes/public-marketing-routes.ts",
@@ -391,7 +391,7 @@
       "method": "GET",
       "path": "/api/twilio-countries",
       "reason": "Public marketing data: aggregate counts, SEO, analytics script tags, Twilio country list, or contact form (rate limited by authRateLimiter). Stats aggregate across tenants without rows; owner to confirm.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/modules/chatbot/channels/telegram/router.ts",
@@ -399,7 +399,7 @@
       "method": "POST",
       "path": "/webhook/:accountId",
       "reason": "Provider webhook or subscription challenge; signature or verify token checked by the shared inbound pipeline (inbound-router.ts handleInboundPost) or the Telegram secret-token check.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/modules/chatbot/channels/whatsapp/router.ts",
@@ -407,7 +407,7 @@
       "method": "POST",
       "path": "/webhook",
       "reason": "Provider webhook or subscription challenge; signature or verify token checked by the shared inbound pipeline (inbound-router.ts handleInboundPost) or the Telegram secret-token check.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/modules/chatbot/channels/messenger/router.ts",
@@ -415,7 +415,7 @@
       "method": "GET",
       "path": "/webhook/:accountId",
       "reason": "Provider webhook or subscription challenge; signature or verify token checked by the shared inbound pipeline (inbound-router.ts handleInboundPost) or the Telegram secret-token check.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/modules/chatbot/channels/messenger/router.ts",
@@ -423,7 +423,7 @@
       "method": "POST",
       "path": "/webhook/:accountId",
       "reason": "Provider webhook or subscription challenge; signature or verify token checked by the shared inbound pipeline (inbound-router.ts handleInboundPost) or the Telegram secret-token check.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/modules/chatbot/channels/instagram/router.ts",
@@ -431,7 +431,7 @@
       "method": "GET",
       "path": "/webhook/:accountId",
       "reason": "Provider webhook or subscription challenge; signature or verify token checked by the shared inbound pipeline (inbound-router.ts handleInboundPost) or the Telegram secret-token check.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/modules/chatbot/channels/instagram/router.ts",
@@ -439,7 +439,7 @@
       "method": "POST",
       "path": "/webhook/:accountId",
       "reason": "Provider webhook or subscription challenge; signature or verify token checked by the shared inbound pipeline (inbound-router.ts handleInboundPost) or the Telegram secret-token check.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/modules/widget/public-widget-routes.ts",
@@ -447,7 +447,7 @@
       "method": "GET",
       "path": "/widget/config/:token",
       "reason": "Public widget: config by public token with domain check, or session routes that compare the session token before acting.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/modules/widget/public-widget-routes.ts",
@@ -455,7 +455,7 @@
       "method": "POST",
       "path": "/widget/session/start",
       "reason": "Public widget: config by public token with domain check, or session routes that compare the session token before acting.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/modules/widget/public-widget-routes.ts",
@@ -463,7 +463,7 @@
       "method": "POST",
       "path": "/widget/session/:sessionId/connect",
       "reason": "Public widget: config by public token with domain check, or session routes that compare the session token before acting.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/modules/widget/public-widget-routes.ts",
@@ -471,7 +471,7 @@
       "method": "POST",
       "path": "/widget/session/:sessionId/end",
       "reason": "Public widget: config by public token with domain check, or session routes that compare the session token before acting.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/modules/widget/public-widget-routes.ts",
@@ -479,7 +479,7 @@
       "method": "POST",
       "path": "/widget/session/:sessionId/heartbeat",
       "reason": "Public widget: config by public token with domain check, or session routes that compare the session token before acting.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/modules/widget/public-widget-routes.ts",
@@ -487,7 +487,7 @@
       "method": "POST",
       "path": "/widget/session/:sessionId/ephemeral-token",
       "reason": "Public widget: config by public token with domain check, or session routes that compare the session token before acting.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/modules/widget/public-widget-routes.ts",
@@ -495,7 +495,7 @@
       "method": "POST",
       "path": "/widget/session/:sessionId/book-appointment",
       "reason": "Public widget: config by public token with domain check, or session routes that compare the session token before acting.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/modules/widget/public-widget-routes.ts",
@@ -503,7 +503,7 @@
       "method": "POST",
       "path": "/widget/session/:sessionId/knowledge-lookup",
       "reason": "Public widget: config by public token with domain check, or session routes that compare the session token before acting.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/engines/payment/gateways/stripe/routes.ts",
@@ -511,7 +511,7 @@
       "method": "GET",
       "path": "/config",
       "reason": "Gateway config returns publishable key and enabled flags only; checked in service.ts config functions.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/engines/payment/gateways/razorpay/routes.ts",
@@ -519,7 +519,7 @@
       "method": "GET",
       "path": "/config",
       "reason": "Gateway config returns publishable key and enabled flags only; checked in service.ts config functions.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/engines/payment/gateways/paystack/routes.ts",
@@ -527,7 +527,7 @@
       "method": "GET",
       "path": "/config",
       "reason": "Gateway config returns publishable key and enabled flags only; checked in service.ts config functions.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/engines/payment/gateways/paypal/routes.ts",
@@ -535,7 +535,7 @@
       "method": "GET",
       "path": "/config",
       "reason": "Gateway config returns publishable key and enabled flags only; checked in service.ts config functions.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/engines/payment/gateways/paypal/routes.ts",
@@ -543,7 +543,7 @@
       "method": "POST",
       "path": "/webhook",
       "reason": "Gateway config returns publishable key and enabled flags only; checked in service.ts config functions.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
       "file": "server/engines/payment/gateways/mercadopago/routes.ts",
@@ -551,7 +551,7 @@
       "method": "GET",
       "path": "/config",
       "reason": "Gateway config returns publishable key and enabled flags only; checked in service.ts config functions.",
-      "approvedBy": "pending owner approval (issue #320)"
+      "approvedBy": "owner approved 2026-11-18 (issue #320)"
     }
   ]
 }
