@@ -77,11 +77,12 @@ export function getAppointmentWebhookSecret(): string {
 export const APPOINTMENT_WEBHOOK_SECRET_HEADER = 'x-appointment-webhook-secret';
 
 /**
- * Legacy URL-token route (/appointment/:token/:agentId) is accepted only while this flag is not
- * "false". It exists for tools configured before the header cutover; set it to "false" to retire it.
+ * Legacy URL-token route (/appointment/:token/:agentId) is OFF by default (issue #343). It is accepted only
+ * when APPOINTMENT_WEBHOOK_ALLOW_URL_TOKEN is exactly "true", as a temporary bridge for tools configured
+ * before the header cutover. Remove the flag and the route once those tools are re-synced.
  */
 export function isLegacyAppointmentUrlTokenAllowed(env: NodeJS.ProcessEnv = process.env): boolean {
-  return env.APPOINTMENT_WEBHOOK_ALLOW_URL_TOKEN !== 'false';
+  return env.APPOINTMENT_WEBHOOK_ALLOW_URL_TOKEN === 'true';
 }
 
 /** Constant-time comparison of a presented token against the configured secret. */
