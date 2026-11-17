@@ -31,6 +31,9 @@ export interface PlivoPhoneNumber {
   userId: string | null;
   userEmail?: string;
   userName?: string;
+  isSystemPool: boolean;
+  createdAt: string;
+}
 
 export interface User {
   id: string;
