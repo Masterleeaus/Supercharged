@@ -1,5 +1,12 @@
 import type { z } from 'zod';
-import { cancelBookingInput, createBookingInput, rescheduleBookingInput } from './schemas.ts';
+import {
+  cancelBookingInput,
+  createBookingInput,
+  rescheduleBookingInput,
+  type CancelBookingInput,
+  type CreateBookingInput,
+  type RescheduleBookingInput,
+} from './schemas.ts';
 import type { BookingToolName } from './types.ts';
 
 /*
@@ -8,14 +15,21 @@ import type { BookingToolName } from './types.ts';
  * it is read-only and does not book anything (see PORT-MAP.md).
  */
 
-export interface BookingToolDefinition<TName extends BookingToolName = BookingToolName> {
-  name: TName;
+/** The input type each booking tool's schema produces, so a dispatched call keeps its tool's shape. */
+export interface BookingToolInputs {
+  create_booking: CreateBookingInput;
+  cancel_booking: CancelBookingInput;
+  reschedule_booking: RescheduleBookingInput;
+}
+
+export interface BookingToolDefinition<TInput = unknown> {
+  name: BookingToolName;
   description: string;
-  schema: z.ZodTypeAny;
+  schema: z.ZodType<TInput>;
   required: readonly string[];
 }
 
-export const BOOKING_TOOLS: Record<BookingToolName, BookingToolDefinition> = {
+export const BOOKING_TOOLS: { [N in BookingToolName]: BookingToolDefinition<BookingToolInputs[N]> } = {
   create_booking: {
     name: 'create_booking',
     description:

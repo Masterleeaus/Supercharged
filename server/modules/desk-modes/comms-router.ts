@@ -108,8 +108,8 @@ export function queryString(req: HttpRequest, key: string): string | undefined {
 }
 
 export function sendServiceError(res: HttpResponse, err: unknown): void {
-  if (err instanceof Error && typeof (err as { code?: unknown }).code === 'string') {
-    const code = (err as { code: string }).code;
+  if (err instanceof Error && 'code' in err && typeof err.code === 'string') {
+    const code = err.code;
     const status = Object.prototype.hasOwnProperty.call(DOMAIN_STATUS, code) ? DOMAIN_STATUS[code] : undefined;
     if (status !== undefined) {
       res.status(status).json({ error: err.message });

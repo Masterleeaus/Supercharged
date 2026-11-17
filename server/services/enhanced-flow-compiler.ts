@@ -537,9 +537,7 @@ export class EnhancedFlowCompiler {
    * Get node type from React Flow node
    */
   private getNodeType(node: FlowNode): string {
-    const data = node.data || {};
-    const config = data.config || {};
-    return config.type || node.type || 'unknown';
+    return this.getNodeConfig(node).type || node.type || 'unknown';
   }
 
   /**

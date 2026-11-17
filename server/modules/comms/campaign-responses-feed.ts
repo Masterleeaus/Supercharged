@@ -137,7 +137,8 @@ export function buildCampaignResponses(input: {
   events: readonly CampaignEvent[];
   limit?: number;
 }): CampaignResponsesResult {
-  const { companyId, events, limit } = input ?? ({} as { companyId: string; events: CampaignEvent[] });
+  const noInput: { companyId?: string; events?: readonly CampaignEvent[]; limit?: number } = {};
+  const { companyId, events, limit } = input ?? noInput;
 
   if (!isValidCompanyId(companyId)) {
     return { ok: false, error: 'invalid_company', message: 'companyId must be a UUID' };

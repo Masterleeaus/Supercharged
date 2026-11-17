@@ -35,7 +35,7 @@
 import { Router, type Express, type RequestHandler } from "express";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { CONTRACT_FLAGS, readFlag, type FlagEnv } from "../contracts/flags.ts";
-import type { SecretBox } from "../contracts/secrets.ts";
+import type { SecretBox } from "../secrets/secret-box.ts";
 
 // Builder
 import { BUILDER_ROUTES_FLAG, createBuilderRouter } from "../builder-routes/builder-router.ts";

@@ -221,8 +221,7 @@ export class ElevenLabsFlowCompiler {
   }
 
   private getNodeType(node: FlowNode): string {
-    const data = node.data || {};
-    const config = data.config || {};
+    const config = node.data?.config || {};
     return (config as CompilerNodeConfig).type || node.type || 'unknown';
   }
 
