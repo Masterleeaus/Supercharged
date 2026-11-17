@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {registerVerifiedCommsRoutes} from '../../server/routes/core/verified-marketing-routes.ts';
 const noop=(_req,_res,next)=>next();
-const guards={authenticate:noop,requireCompanyScope:noop,requireRole:()=>noop};
+const guards={authenticate:noop,requireCompanyScope:noop,requireRole:()=>noop,auditWrite:async()=>{}};
 test('exact flag true is required to enable Marketing',async()=>{
  for(const flag of ['TRUE','1','yes','false','']) {
   const calls=[];

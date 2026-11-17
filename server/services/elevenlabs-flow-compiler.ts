@@ -1,17 +1,12 @@
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
 /**
@@ -26,6 +21,36 @@
 
 import { logger } from '../utils/logger';
 import { FlowNode, FlowEdge } from '@shared/schema';
+
+/**
+ * Config fields this compiler reads from a flow node. Node configs are loosely
+ * shaped in the visual editor, so every field is optional.
+ */
+interface CompilerNodeConfig {
+  type?: string;
+  label?: string;
+  message?: string;
+  question?: string;
+  variableName?: string;
+  phoneNumber?: string;
+  transferNumber?: string;
+  transferType?: 'conference' | 'blind';
+  serviceName?: string;
+  service?: string;
+  duration?: number;
+  confirmMessage?: string;
+  name?: string;
+  conditions?: CompilerConditionConfig[];
+}
+
+/** One branch condition on a condition node. */
+interface CompilerConditionConfig {
+  id?: string;
+  label?: string;
+  targetNodeId?: string;
+  type?: string;
+  value?: string;
+}
 
 // ElevenLabs node types
 interface ElevenLabsBaseNode {
@@ -43,8 +68,8 @@ interface ElevenLabsOverrideAgentNode extends ElevenLabsBaseNode {
   label: string;
   additional_prompt: string;
   additional_tool_ids: string[];
-  additional_knowledge_base: any[];
-  conversation_config: Record<string, any>;
+  additional_knowledge_base: unknown[];
+  conversation_config: Record<string, unknown>;
 }
 
 interface ElevenLabsEndNode extends ElevenLabsBaseNode {
@@ -80,7 +105,7 @@ interface ElevenLabsEdge {
     | { type: 'unconditional' }
     | { type: 'llm'; condition: string }
     | { type: 'result'; successful: boolean }
-    | { type: 'expression'; expression: any };
+    | { type: 'expression'; expression: unknown };
 }
 
 // Output workflow format matching ElevenLabs API
@@ -116,7 +141,7 @@ export class ElevenLabsFlowCompiler {
     let firstMessage: string | undefined;
     if (startNode) {
       const nodeType = this.getNodeType(startNode);
-      const config = (startNode.data?.config || {}) as any;
+      const config = (startNode.data?.config || {}) as CompilerNodeConfig;
       
       if (nodeType === 'message' && config.message) {
         const message: string = config.message;
@@ -191,9 +216,8 @@ export class ElevenLabsFlowCompiler {
   }
 
   private getNodeType(node: FlowNode): string {
-    const data = node.data || {};
-    const config = data.config || {};
-    return (config as any).type || node.type || 'unknown';
+    const config = (node.data?.config || {}) as CompilerNodeConfig;
+    return config.type || node.type || 'unknown';
   }
 
   private generateEdgeId(source: string, target: string): string {
@@ -203,7 +227,7 @@ export class ElevenLabsFlowCompiler {
 
   private compileNode(node: FlowNode): ElevenLabsNode | null {
     const nodeType = this.getNodeType(node);
-    const config = (node.data?.config || {}) as any;
+    const config = (node.data?.config || {}) as CompilerNodeConfig;
     const position = node.position || { x: 0, y: 0 };
 
     switch (nodeType) {
@@ -387,18 +411,18 @@ Say: "${config.message || 'I need to collect some information from you.'}"`,
     const incomingEdge = edgesToConditions.get(conditionNode.id);
     if (!incomingEdge) return;
 
-    const config = (conditionNode.data?.config || {}) as any;
+    const config = (conditionNode.data?.config || {}) as CompilerNodeConfig;
     const conditions = config.conditions || [];
 
     let conditionText = '';
     
     if (conditions.length > 0) {
-      const matchingCondition = conditions.find((c: any) => c.targetNodeId === edge.target);
+      const matchingCondition = conditions.find((c: CompilerConditionConfig) => c.targetNodeId === edge.target);
       
       if (matchingCondition) {
         conditionText = this.buildConditionText(matchingCondition, config);
       } else {
-        const handleCondition = conditions.find((c: any) => 
+        const handleCondition = conditions.find((c: CompilerConditionConfig) => 
           c.id === edge.sourceHandle || c.label === edge.sourceHandle
         );
         if (handleCondition) {
@@ -424,7 +448,7 @@ Say: "${config.message || 'I need to collect some information from you.'}"`,
     this.addEdge(incomingEdge.source, edge.target, forwardCondition);
   }
 
-  private buildConditionText(condition: any, nodeConfig: any): string {
+  private buildConditionText(condition: CompilerConditionConfig, nodeConfig: CompilerNodeConfig): string {
     const conditionType = condition.type || 'keyword';
     const value = condition.value || condition.label || '';
 

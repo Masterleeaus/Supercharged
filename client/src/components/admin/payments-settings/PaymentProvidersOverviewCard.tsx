@@ -1,17 +1,12 @@
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,32 +21,28 @@ export interface PaymentProvidersOverviewCardProps {
   t: TFunction<"translation", undefined>;
   stripeCurrencyLocked: boolean;
   stripeFormData: { stripe_secret_key: string; stripe_publishable_key: string; stripe_webhook_secret: string; stripe_currency: string; stripe_mode: string; };
-  isStripeConfigured: any;
+  isStripeConfigured: boolean | undefined;
   stripeEnabled: boolean;
   toggleStripeEnabled: (enabled: boolean) => Promise<void>;
-  updateSettingMutation: UseMutationResult<{ key: string; data: any; }, any, { key: string; value: any; }, unknown>;
-  isRazorpayConfigured: any;
+  updateSettingMutation: UseMutationResult<{ key: string; data: unknown; }, Error, { key: string; value: unknown; }, unknown>;
+  isRazorpayConfigured: boolean | undefined;
   razorpayEnabled: boolean;
   toggleRazorpayEnabled: (enabled: boolean) => Promise<void>;
   paypalFormData: { paypal_client_id: string; paypal_client_secret: string; paypal_webhook_id: string; paypal_mode: string; paypal_currency: string; };
-  isPaypalConfigured: any;
+  isPaypalConfigured: boolean | undefined;
   paypalEnabled: boolean;
   togglePaypalEnabled: (enabled: boolean) => Promise<void>;
   paystackFormData: { paystack_public_key: string; paystack_secret_key: string; paystack_webhook_secret: string; paystack_currency: string; };
-  isPaystackConfigured: any;
+  isPaystackConfigured: boolean | undefined;
   paystackEnabled: boolean;
   togglePaystackEnabled: (enabled: boolean) => Promise<void>;
   mercadopagoFormData: { mercadopago_public_key: string; mercadopago_access_token: string; mercadopago_webhook_secret: string; mercadopago_currency: string; };
-  isMercadopagoConfigured: any;
+  isMercadopagoConfigured: boolean | undefined;
   mercadopagoEnabled: boolean;
   toggleMercadopagoEnabled: (enabled: boolean) => Promise<void>;
-  yookassaFormData: { yookassa_shop_id: string; yookassa_secret_key: string; yookassa_webhook_secret: string; yookassa_currency: string; };
-  isYookassaConfigured: any;
-  yookassaEnabled: boolean;
-  toggleYookassaEnabled: (enabled: boolean) => Promise<void>;
 }
 
-export function PaymentProvidersOverviewCard({ t, stripeCurrencyLocked, stripeFormData, isStripeConfigured, stripeEnabled, toggleStripeEnabled, updateSettingMutation, isRazorpayConfigured, razorpayEnabled, toggleRazorpayEnabled, paypalFormData, isPaypalConfigured, paypalEnabled, togglePaypalEnabled, paystackFormData, isPaystackConfigured, paystackEnabled, togglePaystackEnabled, mercadopagoFormData, isMercadopagoConfigured, mercadopagoEnabled, toggleMercadopagoEnabled, yookassaFormData, isYookassaConfigured, yookassaEnabled, toggleYookassaEnabled }: PaymentProvidersOverviewCardProps) {
+export function PaymentProvidersOverviewCard({ t, stripeCurrencyLocked, stripeFormData, isStripeConfigured, stripeEnabled, toggleStripeEnabled, updateSettingMutation, isRazorpayConfigured, razorpayEnabled, toggleRazorpayEnabled, paypalFormData, isPaypalConfigured, paypalEnabled, togglePaypalEnabled, paystackFormData, isPaystackConfigured, paystackEnabled, togglePaystackEnabled, mercadopagoFormData, isMercadopagoConfigured, mercadopagoEnabled, toggleMercadopagoEnabled }: PaymentProvidersOverviewCardProps) {
   return (
     <Card>
         <CardHeader>
@@ -242,41 +233,6 @@ export function PaymentProvidersOverviewCard({ t, stripeCurrencyLocked, stripeFo
             </div>
           </div>
 
-          {/* YooKassa Toggle */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 md:p-4 rounded-lg border gap-3">
-            <div className="flex items-start sm:items-center gap-3">
-              <svg className="h-6 w-6 shrink-0 mt-0.5 sm:mt-0" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm0 4.8c3.974 0 7.2 3.226 7.2 7.2s-3.226 7.2-7.2 7.2-7.2-3.226-7.2-7.2S8.026 4.8 12 4.8z" />
-              </svg>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                  <span className="font-medium">{t("adminDashboard.payments.gatewayAvailability.yookassa")}</span>
-                  <Badge variant="outline" className="text-xs">{yookassaFormData.yookassa_currency}</Badge>
-                  {isYookassaConfigured ? (
-                    <Badge className="text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20">
-                      <CheckCircle className="h-3 w-3 mr-1" />
-                      {t("adminDashboard.payments.gatewayAvailability.configured")}
-                    </Badge>
-                  ) : (
-                    <Badge className="text-xs bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20">
-                      <XCircle className="h-3 w-3 mr-1" />
-                      {t("adminDashboard.payments.gatewayAvailability.notConfigured")}
-                    </Badge>
-                  )}
-                </div>
-                <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">{t("adminDashboard.payments.gatewayAvailability.yookassaDesc", { currency: yookassaFormData.yookassa_currency })}</p>
-              </div>
-            </div>
-            <div className="w-full sm:w-auto flex justify-end shrink-0">
-              <Switch
-                checked={yookassaEnabled}
-                onCheckedChange={toggleYookassaEnabled}
-                disabled={!isYookassaConfigured || updateSettingMutation.isPending}
-                data-testid="switch-yookassa-enabled"
-              />
-            </div>
-          </div>
-
           {/* Status Summary */}
           <Alert>
             <AlertCircle className="h-4 w-4" />
@@ -287,8 +243,7 @@ export function PaymentProvidersOverviewCard({ t, stripeCurrencyLocked, stripeFo
                   razorpayEnabled && "Razorpay (INR)",
                   paypalEnabled && `PayPal (${paypalFormData.paypal_currency})`,
                   paystackEnabled && `Paystack (${paystackFormData.paystack_currency})`,
-                  mercadopagoEnabled && `MercadoPago (${mercadopagoFormData.mercadopago_currency})`,
-                  yookassaEnabled && `YooKassa (${yookassaFormData.yookassa_currency})`
+                  mercadopagoEnabled && `MercadoPago (${mercadopagoFormData.mercadopago_currency})`
                 ].filter(Boolean);
 
                 if (enabledGateways.length === 0) {

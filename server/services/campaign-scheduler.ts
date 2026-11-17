@@ -1,18 +1,13 @@
 'use strict';
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
 import { logger } from '../utils/logger';
@@ -21,6 +16,9 @@ import { db } from '../db';
 import { eq, and, or, isNotNull, isNull, sql, lte, inArray } from 'drizzle-orm';
 import { emailService } from './email-service';
 import { BatchCallingService } from './batch-calling';
+
+/** Type-only handle to the lazily imported campaign executor (no runtime import). */
+type CampaignExecutorInstance = typeof import('./campaign-executor').campaignExecutor;
 
 /** Call rows still eligible for ElevenLabs batch recipient sync (final status from poll). */
 const EL_BATCH_SYNCABLE_CALL_STATUSES = [
@@ -133,8 +131,8 @@ export class CampaignScheduler {
           logger.info(`⏸️ [Campaign Scheduler] Auto-pausing campaign "${campaign.name}" (outside time window)`);
           try {
             await campaignExecutor.pauseCampaign(campaign.id, 'scheduled');
-          } catch (err: any) {
-            logger.error(`   Failed to pause: ${err.message}`);
+          } catch (err: unknown) {
+            logger.error(`   Failed to pause: ${(err as Error).message}`);
           }
         }
       }
@@ -153,7 +151,7 @@ export class CampaignScheduler {
 
       for (const campaign of pausedCampaigns) {
         // Only auto-resume if it was paused by the scheduler (not manually)
-        const config = campaign.config as Record<string, any> || {};
+        const config = campaign.config as Record<string, unknown> || {};
         if (config.pauseReason !== 'scheduled') {
           continue;
         }
@@ -164,8 +162,8 @@ export class CampaignScheduler {
           logger.info(`▶️ [Campaign Scheduler] Auto-resuming campaign "${campaign.name}" (inside time window)`);
           try {
             await campaignExecutor.resumeCampaign(campaign.id, 'scheduled');
-          } catch (err: any) {
-            logger.error(`   Failed to resume: ${err.message}`);
+          } catch (err: unknown) {
+            logger.error(`   Failed to resume: ${(err as Error).message}`);
           }
         }
       }
@@ -181,7 +179,7 @@ export class CampaignScheduler {
    * Check for campaigns with scheduledFor timestamp that are due to start
    * This is only called when BullMQ is NOT enabled
    */
-  private static async checkAndStartScheduledCampaigns(campaignExecutor: any): Promise<void> {
+  private static async checkAndStartScheduledCampaigns(campaignExecutor: CampaignExecutorInstance): Promise<void> {
     const now = new Date();
     
     const scheduledCampaigns = await db.select()
@@ -212,13 +210,13 @@ export class CampaignScheduler {
         
         await campaignExecutor.executeCampaign(campaign.id);
         logger.info(`[Campaign Scheduler] Started scheduled campaign ${campaign.id}`);
-      } catch (error: any) {
-        logger.error(`[Campaign Scheduler] Failed to start campaign ${campaign.id}:`, error.message);
+      } catch (error: unknown) {
+        logger.error(`[Campaign Scheduler] Failed to start campaign ${campaign.id}:`, (error as Error).message);
         
         await db.update(campaigns)
           .set({ 
             status: 'failed',
-            errorMessage: error.message,
+            errorMessage: (error as Error).message,
             errorCode: 'SCHEDULER_ERROR',
           })
           .where(eq(campaigns.id, campaign.id));
@@ -445,18 +443,18 @@ export class CampaignScheduler {
             // or when ElevenLabs batch is complete but recipients list is empty
             await this.checkCampaignCompletion(campaign.id);
           }
-        } catch (err: any) {
+        } catch (err: unknown) {
           // If ElevenLabs returns 404, the batch job has been purged from their system.
           // Stop polling by marking all pending calls as failed and completing the campaign.
-          const is404 = err.statusCode === 404 ||
-            /404/.test(err.message) ||
-            /not found/i.test(err.message);
+          const is404 = (err as { statusCode?: unknown }).statusCode === 404 ||
+            /404/.test((err as Error).message) ||
+            /not found/i.test((err as Error).message);
 
           if (is404) {
             logger.warn(`⚠️ [Campaign Scheduler] Batch job not found on ElevenLabs for "${campaign.name}" (${campaign.batchJobId}) — marking expired`);
             await this.expireBatchCampaign(campaign.id, campaign.name);
           } else {
-            logger.error(`   Error polling batch for "${campaign.name}": ${err.message}`);
+            logger.error(`   Error polling batch for "${campaign.name}": ${(err as Error).message}`);
           }
         }
       }
@@ -491,8 +489,8 @@ export class CampaignScheduler {
 
       // Now that all calls are in a final state, complete the campaign
       await this.checkCampaignCompletion(campaignId);
-    } catch (expireErr: any) {
-      logger.error(`   Failed to expire campaign "${campaignName}": ${expireErr.message}`);
+    } catch (expireErr: unknown) {
+      logger.error(`   Failed to expire campaign "${campaignName}": ${(expireErr as Error).message}`);
     }
   }
 
@@ -540,8 +538,8 @@ export class CampaignScheduler {
       if (updatedCalls.length > 0) {
         logger.info(`   [Campaign Scheduler] Marked ${updatedCalls.length} remaining pending call(s) as failed for completed campaign`);
       }
-    } catch (err: any) {
-      logger.error(`   Failed to expire remaining pending calls for campaign ${campaignId}: ${err.message}`);
+    } catch (err: unknown) {
+      logger.error(`   Failed to expire remaining pending calls for campaign ${campaignId}: ${(err as Error).message}`);
     }
   }
 
@@ -614,8 +612,8 @@ export class CampaignScheduler {
           })
         }, campaignId);
       }
-    } catch (err: any) {
-      logger.error(`   Failed to terminate campaign "${campaignName}": ${err.message}`);
+    } catch (err: unknown) {
+      logger.error(`   Failed to terminate campaign "${campaignName}": ${(err as Error).message}`);
     }
   }
 
@@ -741,7 +739,7 @@ export class CampaignScheduler {
         break;
     }
 
-    const updateData: Record<string, any> = {
+    const updateData: Partial<typeof calls.$inferInsert> = {
       status: callStatus,
       duration: typeof recipient.call_duration_secs === 'number' ? recipient.call_duration_secs : null,
     };
@@ -869,7 +867,7 @@ export class CampaignScheduler {
       // Send completion email
       await emailService.sendCampaignCompleted(campaignId);
       logger.info(`   ✅ Campaign completion email sent for "${campaign.name}"`);
-    } catch (emailError: any) {
+    } catch (emailError: unknown) {
       logger.error(`   ❌ Failed to send campaign completion email: [redacted]`);
     }
 
@@ -950,8 +948,8 @@ export class CampaignScheduler {
         }, campaignId);
         logger.info(`   ✅ Webhook triggered for campaign.completed`);
       }
-    } catch (webhookError: any) {
-      logger.error(`   ❌ Failed to trigger campaign.completed webhook: ${webhookError.message}`);
+    } catch (webhookError: unknown) {
+      logger.error(`   ❌ Failed to trigger campaign.completed webhook: ${(webhookError as Error).message}`);
     }
   }
 
@@ -964,8 +962,8 @@ export class CampaignScheduler {
    * Returns true to defer completion, false to proceed with marking completed.
    */
   private static async maybeScheduleRetryPass(
-    campaign: any,
-    campaignCalls: any[]
+    campaign: Campaign,
+    campaignCalls: Array<typeof calls.$inferSelect>
   ): Promise<boolean> {
     // 1. Defer if any contact already has a retry queued
     const [pendingRetry] = await db
@@ -1088,8 +1086,8 @@ export class CampaignScheduler {
 
         try {
           await campaignExecutor.executeRetryPass(campaign.id);
-        } catch (err: any) {
-          logger.error(`   Failed to execute retry pass for campaign ${campaign.id}: ${err.message}`);
+        } catch (err: unknown) {
+          logger.error(`   Failed to execute retry pass for campaign ${campaign.id}: ${(err as Error).message}`);
         }
       }
     } catch (error) {

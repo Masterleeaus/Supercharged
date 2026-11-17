@@ -1,17 +1,12 @@
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
 /**
@@ -98,6 +93,41 @@ export interface BatchJobWithRecipients extends BatchJob {
 export interface ListBatchesResponse {
   batch_calls: BatchJob[];
   next_doc?: string | null;
+  has_more?: boolean;
+}
+
+// Raw recipient entry as returned by the ElevenLabs batch endpoints.
+interface RawBatchRecipientResponse {
+  recipient_id?: string;
+  phone_number?: string;
+  name?: string;
+  email?: string;
+  dynamic_data?: Record<string, string>;
+  status?: RecipientStatus;
+  conversation_id?: string;
+  call_duration_secs?: number;
+  error_message?: string;
+}
+
+// Raw batch job as returned by the ElevenLabs batch endpoints. Every field is
+// optional because callers apply defaults before mapping to BatchJob.
+interface RawBatchCallResponse {
+  id?: string;
+  batch_call_id?: string;
+  name?: string;
+  agent_id?: string;
+  created_at_unix?: number;
+  scheduled_time_unix?: number;
+  total_calls_dispatched?: number;
+  total_calls_scheduled?: number;
+  last_updated_at_unix?: number;
+  status?: BatchJobStatus;
+  agent_name?: string;
+  phone_number_id?: string | null;
+  phone_provider?: 'twilio' | 'sip_trunk' | null;
+  recipients?: RawBatchRecipientResponse[];
+  batch_calls?: RawBatchCallResponse[];
+  last_doc?: string | null;
   has_more?: boolean;
 }
 
@@ -325,11 +355,11 @@ export class BatchCallingService {
       endpoint += `&last_doc=${encodeURIComponent(lastDoc)}`;
     }
 
-    const response = await this.request<any>(endpoint);
+    const response = await this.request<RawBatchCallResponse>(endpoint);
 
     // Filter out entries with missing IDs and log warning
     const rawBatches = response.batch_calls || [];
-    const validBatches = rawBatches.filter((b: any) => {
+    const validBatches = rawBatches.filter((b: RawBatchCallResponse) => {
       if (!b.batch_call_id) {
         logger.warn(`[BatchCalling] ⚠️ Skipping batch entry with missing ID`);
         return false;
@@ -337,7 +367,7 @@ export class BatchCallingService {
       return true;
     });
 
-    const batchCalls: BatchJob[] = validBatches.map((b: any) => ({
+    const batchCalls: BatchJob[] = validBatches.map((b: RawBatchCallResponse) => ({
       id: b.batch_call_id,
       name: b.name || '',
       agent_id: b.agent_id || '',
@@ -370,9 +400,9 @@ export class BatchCallingService {
   async getBatch(batchId: string): Promise<BatchJobWithRecipients> {
     logger.info(`[BatchCalling] Getting batch details: ${batchId}`);
     
-    const response = await this.request<any>(`/convai/batch-calling/${batchId}`);
+    const response = await this.request<RawBatchCallResponse>(`/convai/batch-calling/${batchId}`);
 
-    const recipients: BatchRecipientResponse[] = (response.recipients || []).map((r: any) => ({
+    const recipients: BatchRecipientResponse[] = (response.recipients || []).map((r: RawBatchRecipientResponse) => ({
       recipient_id: r.recipient_id || '',
       phone_number: r.phone_number || '',
       name: r.name,
@@ -416,7 +446,7 @@ export class BatchCallingService {
   async cancelBatch(batchId: string): Promise<BatchJob> {
     logger.info(`[BatchCalling] Cancelling batch job: ${batchId}`);
     
-    const response = await this.request<any>(`/convai/batch-calling/${batchId}/cancel`, {
+    const response = await this.request<RawBatchCallResponse>(`/convai/batch-calling/${batchId}/cancel`, {
       method: 'POST',
     });
 
@@ -452,7 +482,7 @@ export class BatchCallingService {
   async retryBatch(batchId: string): Promise<BatchJob> {
     logger.info(`[BatchCalling] Retrying batch job: ${batchId}`);
     
-    const response = await this.request<any>(`/convai/batch-calling/${batchId}/retry`, {
+    const response = await this.request<RawBatchCallResponse>(`/convai/batch-calling/${batchId}/retry`, {
       method: 'POST',
     });
 
@@ -535,7 +565,7 @@ export class BatchCallingService {
     lastName?: string | null;
     phone: string;
     email?: string | null;
-    customFields?: Record<string, any> | null;
+    customFields?: Record<string, unknown> | null;
   }>): BatchRecipient[] {
     return contacts.map(contact => {
       const recipient: BatchRecipient = {

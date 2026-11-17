@@ -1,19 +1,15 @@
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
+import type { AdminPaymentSettings } from "@/components/admin/payments-settings/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,9 +27,9 @@ import { ConnectionStatus, MERCADOPAGO_CURRENCIES } from "@/components/admin/pay
 
 export interface MercadopagoSettingsTabProps {
   t: TFunction<"translation", undefined>;
-  isMercadopagoConfigured: any;
+  isMercadopagoConfigured: boolean | undefined;
   mercadopagoConnectionStatus: ConnectionStatus;
-  settings: any;
+  settings: AdminPaymentSettings | undefined;
   mercadopagoFormData: { mercadopago_public_key: string; mercadopago_access_token: string; mercadopago_webhook_secret: string; mercadopago_currency: string; };
   handleMercadopagoChange: (key: "mercadopago_public_key" | "mercadopago_access_token" | "mercadopago_webhook_secret" | "mercadopago_currency", value: string) => void;
   showMercadopagoAccessToken: boolean;
@@ -41,11 +37,11 @@ export interface MercadopagoSettingsTabProps {
   showMercadopagoWebhookSecret: boolean;
   setShowMercadopagoWebhookSecret: Dispatch<SetStateAction<boolean>>;
   toast: ReturnType<typeof useToast>["toast"];
-  setupMercadopagoWebhookMutation: UseMutationResult<any, any, void, unknown>;
-  testMercadopagoConnectionMutation: UseMutationResult<any, any, void, unknown>;
+  setupMercadopagoWebhookMutation: UseMutationResult<unknown, Error, void, unknown>;
+  testMercadopagoConnectionMutation: UseMutationResult<unknown, Error, void, unknown>;
   saveMercadopagoSettings: () => Promise<void>;
   hasMercadopagoChanges: boolean;
-  updateSettingMutation: UseMutationResult<{ key: string; data: any; }, any, { key: string; value: any; }, unknown>;
+  updateSettingMutation: UseMutationResult<{ key: string; data: unknown; }, Error, { key: string; value: unknown; }, unknown>;
 }
 
 export function MercadopagoSettingsTab({ t, isMercadopagoConfigured, mercadopagoConnectionStatus, settings, mercadopagoFormData, handleMercadopagoChange, showMercadopagoAccessToken, setShowMercadopagoAccessToken, showMercadopagoWebhookSecret, setShowMercadopagoWebhookSecret, toast, setupMercadopagoWebhookMutation, testMercadopagoConnectionMutation, saveMercadopagoSettings, hasMercadopagoChanges, updateSettingMutation }: MercadopagoSettingsTabProps) {

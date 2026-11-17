@@ -40,8 +40,8 @@ export interface AgentFullConfig {
         prompt?: string;
         llm?: string;
         temperature?: number;
-        tools?: any[];
-        knowledge_base?: any[];
+        tools?: unknown[];
+        knowledge_base?: unknown[];
       };
       first_message?: string;
       language?: string;
@@ -72,15 +72,15 @@ export interface AgentFullConfig {
     };
   };
   workflow?: {
-    nodes?: Record<string, any>;
-    edges?: Record<string, any>;
+    nodes?: Record<string, unknown>;
+    edges?: Record<string, unknown>;
   };
   platform_settings?: {
     webhook?: {
       url?: string;
       secret?: string;
     };
-    overrides?: Record<string, any>;
+    overrides?: Record<string, unknown>;
   };
   metadata?: {
     created_at_unix_secs?: number;

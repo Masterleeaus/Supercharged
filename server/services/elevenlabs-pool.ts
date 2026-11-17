@@ -1,18 +1,13 @@
 'use strict';
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
 import { logger } from '../utils/logger';
@@ -34,6 +29,45 @@ const lastNotificationThreshold = new Map<number, number>();
  * CREDENTIAL_ENCRYPTION_KEY is missing or malformed, and decryption throws on any value that
  * is not v1 ciphertext (no plaintext passthrough).
  */
+/** Snake_case row returned by raw SQL on eleven_labs_credentials. */
+type CredentialRow = {
+  id: string;
+  name: string;
+  api_key: string;
+  webhook_secret?: string | null;
+  max_concurrency: number;
+  current_load: number;
+  total_assigned_agents: number;
+  total_assigned_users: number;
+  max_agents_threshold: number;
+  is_active: boolean;
+  health_status: string;
+  last_health_check?: string | Date | null;
+  metadata?: unknown;
+  created_at?: string | Date | null;
+  updated_at?: string | Date | null;
+};
+
+/** Subset of the ElevenLabs GET /v1/convai/agents/{id} response that the importer reads. */
+interface ElevenLabsAgentDetails {
+  conversation_config?: {
+    agent?: {
+      prompt?: { prompt?: string; llm?: string; temperature?: number | string };
+      first_message?: string;
+      language?: string;
+    };
+    tts?: {
+      voice_id?: string;
+      voice_settings?: { stability?: number | string; similarity_boost?: number | string; speed?: number | string };
+    };
+    conversation?: {
+      max_duration_seconds?: number | string;
+      turn?: { turn_timeout?: number | string };
+    };
+  };
+  workflow?: { nodes?: Record<string, unknown> } | null;
+}
+
 function sealSecrets(data: InsertElevenLabsCredential): InsertElevenLabsCredential {
   return {
     ...data,
@@ -123,8 +157,8 @@ export class ElevenLabsPoolService {
       
       logger.info("✅ ElevenLabs API key validated (v2 voices + v1 agents)");
       return true;
-    } catch (error: any) {
-      if (error.name === 'AbortError') {
+    } catch (error: unknown) {
+      if ((error as Error).name === 'AbortError') {
         logger.error("❌ ElevenLabs API key test timed out after 15s");
       } else {
         logger.error("❌ ElevenLabs API key test failed:", error);
@@ -193,7 +227,7 @@ export class ElevenLabsPoolService {
     }
     
     // Map the raw row to the credential type
-    const row = result.rows[0] as any;
+    const row = result.rows[0] as CredentialRow;
     return openSecrets({
       id: row.id,
       name: row.name,
@@ -314,7 +348,7 @@ export class ElevenLabsPoolService {
       `);
 
       if (result.rows && result.rows.length > 0) {
-        const row = result.rows[0] as any;
+        const row = result.rows[0] as CredentialRow;
         logger.info(`🔒 [Pool] Reserved slot on credential ${row.name} (load: ${row.current_load}/${row.max_concurrency})`);
         
         // Map snake_case DB columns to camelCase for TypeScript
@@ -370,7 +404,7 @@ export class ElevenLabsPoolService {
       `);
 
       if (result.rows && result.rows.length > 0) {
-        const row = result.rows[0] as any;
+        const row = result.rows[0] as CredentialRow;
         logger.info(`🔒 [Pool] Reserved slot on credential ${row.name} (load: ${row.current_load}/${row.max_concurrency})`);
         
         const shape = {
@@ -774,7 +808,7 @@ export class ElevenLabsPoolService {
 
               if (!existingAgent && !existingIncomingAgent && defaultUserId) {
                 // Fetch full details of the agent from ElevenLabs
-                let details: any = null;
+                let details: ElevenLabsAgentDetails | null = null;
                 try {
                   const detailResponse = await fetch(`https://api.elevenlabs.io/v1/convai/agents/${elAgent.agent_id}`, {
                     headers: {
@@ -837,7 +871,7 @@ export class ElevenLabsPoolService {
             }
           }
         }
-      } catch (fetchError: any) {
+      } catch (fetchError: unknown) {
         logger.error(`Failed to fetch agents for credential [redacted]:`, fetchError);
       }
     }

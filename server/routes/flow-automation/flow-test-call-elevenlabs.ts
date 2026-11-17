@@ -328,24 +328,24 @@ export async function placeElevenLabsTestCall({
 
     // Build necessary webhook tools for test execution
     let testWebhookTools: any[] = [];
-    const { buildMessagingEmailTool, buildMessagingWhatsappTool } = await import('../services/elevenlabs');
+    const { buildMessagingEmailTool, buildMessagingWhatsappTool } = await import('../../services/elevenlabs');
 
     if (hasWebhookNodes && webhookNodes && webhookNodes.length > 0) {
       for (const webhookNode of webhookNodes) {
         if (webhookNode.toolId.startsWith('send_email_') && !webhookNode.url) {
-          const templateName = webhookNode.payload?.template_name || 'default';
+          const templateName = (webhookNode.payload?.template_name as string | undefined) || 'default';
           const emailTool = buildMessagingEmailTool(agent.elevenLabsAgentId!, [templateName], templateName);
           emailTool.name = webhookNode.toolId;
           testWebhookTools.push(emailTool);
           logger.info(`   📧 Prepared test email tool: ${webhookNode.toolId}`);
         } else if (webhookNode.toolId.startsWith('send_whatsapp') && !webhookNode.url) {
-          const templateName = webhookNode.payload?.template_name || 'hello_world';
+          const templateName = (webhookNode.payload?.template_name as string | undefined) || 'hello_world';
           const whatsappTool = buildMessagingWhatsappTool(agent.elevenLabsAgentId!, [templateName], templateName, undefined, "auto");
           whatsappTool.name = webhookNode.toolId;
           testWebhookTools.push(whatsappTool);
           logger.info(`   💬 Prepared test WhatsApp tool: ${webhookNode.toolId}`);
         } else if (webhookNode.url) {
-          const { buildUniversalWebhookTool } = await import('../services/universal-webhook-tool');
+          const { buildUniversalWebhookTool } = await import('../../services/universal-webhook-tool');
           const webhookTool = buildUniversalWebhookTool({
             toolId: webhookNode.toolId,
             url: webhookNode.url,
@@ -360,7 +360,7 @@ export async function placeElevenLabsTestCall({
     }
 
     if (hasFormNodes && formNodes && formNodes.length > 0) {
-      const { getSubmitFormWebhookTool } = await import('../services/form-elevenlabs-tool');
+      const { getSubmitFormWebhookTool } = await import('../../services/form-elevenlabs-tool');
       for (const formInfo of formNodes) {
         const formTool = getSubmitFormWebhookTool(
           formInfo.formId,
@@ -375,7 +375,7 @@ export async function placeElevenLabsTestCall({
     }
 
     if (hasAppointmentNodes) {
-      const { getAppointmentToolForAgent } = await import('../services/appointment-elevenlabs-tool');
+      const { getAppointmentToolForAgent } = await import('../../services/appointment-elevenlabs-tool');
       const appointmentTool = getAppointmentToolForAgent(agent.elevenLabsAgentId!);
       testWebhookTools.push(appointmentTool);
       logger.info(`   📅 Prepared test appointment tool`);
@@ -386,7 +386,7 @@ export async function placeElevenLabsTestCall({
     // (the agent always uses its saved workflow). So we PATCH the agent first.
     logger.info(`   🔄 Pushing recompiled workflow to ElevenLabs agent before call...`);
     try {
-      const elevenlabsService = new (await import('../services/elevenlabs')).ElevenLabsService(credential.apiKey);
+      const elevenlabsService = new (await import('../../services/elevenlabs')).ElevenLabsService(credential.apiKey);
       await elevenlabsService.updateFlowAgentWorkflow(
         agent.elevenLabsAgentId!,
         testWorkflow,

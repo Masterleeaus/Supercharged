@@ -107,7 +107,7 @@ export function validateEmbeddableAgent(input: unknown): ValidationResult<Embedd
   }
 
   const theme = validateTheme(a.theme ?? DEFAULT_THEME);
-  if (!theme.ok) errors.push(...theme.errors);
+  if (theme.ok === false) errors.push(...theme.errors);
 
   if (errors.length > 0 || !theme.ok) {
     return { ok: false, errors };

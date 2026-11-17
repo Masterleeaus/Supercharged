@@ -17,14 +17,19 @@ import { eq, sql } from 'drizzle-orm';
 import { deductCallCredits } from '../../../services/credit-service';
 import { logger } from '../../../utils/logger';
 import { ElevenLabsPoolService } from '../../../services/elevenlabs-pool';
+import { requirePlivoV2Signature } from '../../plivo/plivo-signature';
+import { loadPlivoElevenLabsAuthTokens } from '../webhook-auth-tokens';
 
 export function setupPlivoElevenLabsWebhooks(app: Express, baseUrl: string): void {
-  
+  // Every route below verifies X-Plivo-Signature-V2 before its handler runs. A missing or
+  // invalid signature gets 403 and the handler never reads the body or touches credits.
+  const verifyPlivoSignature = requirePlivoV2Signature(baseUrl, loadPlivoElevenLabsAuthTokens);
+
   /**
    * Answer URL for SIP trunk calls
    * Returns XML with Stream instruction to connect to our WebSocket
    */
-  app.post('/api/plivo-elevenlabs/voice/answer', async (req: Request, res: Response) => {
+  app.post('/api/plivo-elevenlabs/voice/answer', verifyPlivoSignature, async (req: Request, res: Response) => {
     try {
       const { CallUUID, From, To, Direction } = req.body;
       
@@ -41,57 +46,7 @@ export function setupPlivoElevenLabsWebhooks(app: Express, baseUrl: string): voi
       
       res.set('Content-Type', 'text/xml');
       res.send(xml);
-    } catch (error: any) {
-      logger.error('Answer error', error, 'PlivoElevenLabs');
-      res.set('Content-Type', 'text/xml');
-      res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Hangup/></Response>`);
-    }
-  });
-  
-  /**
-   * Answer URL with call ID path (for outbound calls)
-   */
-  app.post('/api/plivo-elevenlabs/voice/:callId', async (req: Request, res: Response) => {
-    try {
-      const { callId } = req.params;
-      const { CallUUID, From, To, Direction } = req.body;
-
-      logger.info(`Answer for ${callId}: ${CallUUID} from ${From} to ${To} (${Direction})`, undefined, 'PlivoElevenLabs');
-
-      // Record Plivo's real CallUUID on the outbound row so the status webhook
-      // can find it by `plivo_call_uuid`. The row was inserted at dial time
-      // with `metadata.internalId = callId` (the synthetic id from the URL).
-      if (CallUUID && callId) {
-        try {
-          await db
-            .update(plivoCalls)
-            .set({
-              plivoCallUuid: CallUUID,
-              status: 'in-progress',
-              answeredAt: new Date(),
-            })
-            .where(sql`${plivoCalls.metadata}->>'internalId' = ${callId} AND ${plivoCalls.metadata}->>'engine' = 'plivo-elevenlabs'`);
-        } catch (updErr: any) {
-          logger.warn(
-            `Failed to attach CallUUID ${CallUUID} to outbound call ${callId}: ${updErr?.message || updErr}`,
-            undefined,
-            'PlivoElevenLabs'
-          );
-        }
-      }
-
-      const streamUrl = getSipStreamUrl(CallUUID);
-      
-      const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Stream bidirectional="true" keepCallAlive="true" contentType="audio/x-mulaw;rate=8000">
-    ${streamUrl}
-  </Stream>
-</Response>`;
-      
-      res.set('Content-Type', 'text/xml');
-      res.send(xml);
-    } catch (error: any) {
+    } catch (error) {
       logger.error('Answer error', error, 'PlivoElevenLabs');
       res.set('Content-Type', 'text/xml');
       res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Hangup/></Response>`);
@@ -101,7 +56,7 @@ export function setupPlivoElevenLabsWebhooks(app: Express, baseUrl: string): voi
   /**
    * Status callback
    */
-  app.post('/api/plivo-elevenlabs/voice/status', async (req: Request, res: Response) => {
+  app.post('/api/plivo-elevenlabs/voice/status', verifyPlivoSignature, async (req: Request, res: Response) => {
     try {
       const { CallUUID, CallStatus, Duration, HangupCause } = req.body;
       
@@ -217,7 +172,7 @@ export function setupPlivoElevenLabsWebhooks(app: Express, baseUrl: string): voi
                       'PlivoElevenLabs'
                     );
                   }
-                } catch (creditErr: any) {
+                } catch (creditErr) {
                   logger.error(
                     `Credit deduction exception for plivo-elevenlabs call ${call.id}: ${creditErr?.message || creditErr}`,
                     creditErr,
@@ -246,27 +201,79 @@ export function setupPlivoElevenLabsWebhooks(app: Express, baseUrl: string): voi
                   callerPhone,
                   callId: call.id,
                 }).catch(err => logger.error(`Post-call messaging error: ${err.message}`, err, 'PlivoElevenLabs'));
-              } catch (msgErr: any) {
+              } catch (msgErr) {
                 logger.error(`Post-call messaging setup error: ${msgErr.message}`, msgErr, 'PlivoElevenLabs');
               }
             }
           }
-        } catch (flowExecError: any) {
+        } catch (flowExecError) {
           logger.warn(`Failed to update flow execution status: ${flowExecError.message}`, undefined, 'PlivoElevenLabs');
         }
       }
       
       res.sendStatus(200);
-    } catch (error: any) {
+    } catch (error) {
       logger.error('Status error', error, 'PlivoElevenLabs');
       res.sendStatus(200);
+    }
+  });
+  
+  // Registered after the literal /voice/status route above: Express matches routes in order, and
+  // /voice/:callId would otherwise capture "status" as a callId and respond before the status handler.
+  /**
+   * Answer URL with call ID path (for outbound calls)
+   */
+  app.post('/api/plivo-elevenlabs/voice/:callId', verifyPlivoSignature, async (req: Request, res: Response) => {
+    try {
+      const { callId } = req.params;
+      const { CallUUID, From, To, Direction } = req.body;
+
+      logger.info(`Answer for ${callId}: ${CallUUID} from ${From} to ${To} (${Direction})`, undefined, 'PlivoElevenLabs');
+
+      // Record Plivo's real CallUUID on the outbound row so the status webhook
+      // can find it by `plivo_call_uuid`. The row was inserted at dial time
+      // with `metadata.internalId = callId` (the synthetic id from the URL).
+      if (CallUUID && callId) {
+        try {
+          await db
+            .update(plivoCalls)
+            .set({
+              plivoCallUuid: CallUUID,
+              status: 'in-progress',
+              answeredAt: new Date(),
+            })
+            .where(sql`${plivoCalls.metadata}->>'internalId' = ${callId} AND ${plivoCalls.metadata}->>'engine' = 'plivo-elevenlabs'`);
+        } catch (updErr) {
+          logger.warn(
+            `Failed to attach CallUUID ${CallUUID} to outbound call ${callId}: ${updErr?.message || updErr}`,
+            undefined,
+            'PlivoElevenLabs'
+          );
+        }
+      }
+
+      const streamUrl = getSipStreamUrl(CallUUID);
+      
+      const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Stream bidirectional="true" keepCallAlive="true" contentType="audio/x-mulaw;rate=8000">
+    ${streamUrl}
+  </Stream>
+</Response>`;
+      
+      res.set('Content-Type', 'text/xml');
+      res.send(xml);
+    } catch (error) {
+      logger.error('Answer error', error, 'PlivoElevenLabs');
+      res.set('Content-Type', 'text/xml');
+      res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Hangup/></Response>`);
     }
   });
   
   /**
    * Incoming call handler for SIP trunk
    */
-  app.post('/api/plivo-elevenlabs/incoming', async (req: Request, res: Response) => {
+  app.post('/api/plivo-elevenlabs/incoming', verifyPlivoSignature, async (req: Request, res: Response) => {
     try {
       const { CallUUID, From, To, Direction } = req.body;
       
@@ -387,7 +394,7 @@ export function setupPlivoElevenLabsWebhooks(app: Express, baseUrl: string): voi
           metadata: { engine: 'plivo-elevenlabs' },
         };
         await db.insert(plivoCalls).values(insertValues);
-      } catch (dbErr: any) {
+      } catch (dbErr) {
         logger.error(
           `Failed to insert inbound call record for ${CallUUID}: ${dbErr?.message || dbErr}`,
           dbErr,
@@ -406,7 +413,7 @@ export function setupPlivoElevenLabsWebhooks(app: Express, baseUrl: string): voi
       
       res.set('Content-Type', 'text/xml');
       res.send(xml);
-    } catch (error: any) {
+    } catch (error) {
       logger.error('Incoming call error', error, 'PlivoElevenLabs');
       res.set('Content-Type', 'text/xml');
       res.send(`<?xml version="1.0" encoding="UTF-8"?>

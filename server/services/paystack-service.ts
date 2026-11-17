@@ -1,17 +1,12 @@
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
 import { logger } from '../utils/logger';
@@ -78,7 +73,7 @@ export async function testPaystackConnection(): Promise<{ success: boolean; erro
       return { success: true };
     }
     return { success: false, error: 'Failed to verify Paystack connection' };
-  } catch (error: any) {
+  } catch (error) {
     logger.error('❌ [Paystack] Connection test failed:', error.message);
     return { success: false, error: error.message };
   }

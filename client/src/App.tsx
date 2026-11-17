@@ -1,17 +1,13 @@
+/// <reference types="vite/client" />
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
 import { Switch, Route, useLocation, Redirect } from "wouter";
@@ -29,7 +25,7 @@ import { BrandingProvider, useBranding } from "@/components/BrandingProvider";
 import { DirectionProvider } from "@/components/DirectionProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageSelector } from "@/components/LanguageSelector";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ComponentType } from "react";
 import { AuthStorage } from "./lib/auth-storage";
 import { TeamAuth } from "./lib/team-auth";
 import { useQuery } from "@tanstack/react-query";
@@ -364,10 +360,10 @@ function UserRouter() {
                 <Route path="/app/approvals" component={Approvals} />
                 <Route path="/app/modes/marketing">{() => <ModeRouteGuard mode="marketing"><MarketingHome /></ModeRouteGuard>}</Route>
                 <Route path="/app/modes/inbox">{() => <ModeRouteGuard mode="inbox"><InboxHome /></ModeRouteGuard>}</Route>
-                <Route path="/app/chatbot-builder" component={ChatbotBuilder} />
+                <Route path="/app/chatbot-builder">{() => <ModeRouteGuard mode="chatbot"><ChatbotBuilder /></ModeRouteGuard>}</Route>
                 <Route
                   path="/app/chatbot-builder/wizard/:id?"
-                  component={chatbotBuilderFlagOn ? ChatbotWizard : ChatbotBuilder}
+                  component={() => <ModeRouteGuard mode="chatbot">{chatbotBuilderFlagOn ? <ChatbotWizard /> : <ChatbotBuilder />}</ModeRouteGuard>}
                 />
                 <Route
                   path="/app/chatbot-inbox"
@@ -375,7 +371,7 @@ function UserRouter() {
                 />
                 <Route
                   path="/app/chatbot-admin/knowledge-base"
-                  component={chatbotAdminFlagOn ? ChatbotKnowledgeBasePage : NotFound}
+                  component={(chatbotAdminFlagOn ? ChatbotKnowledgeBasePage : NotFound) as ComponentType}
                 />
                 <Route
                   path="/app/chatbot-admin/canned-responses"

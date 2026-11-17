@@ -17,7 +17,7 @@
 
 /** Minimal shape of a pg client that withTenant needs. */
 export interface TenantQueryClient {
-  query(text: string, values?: unknown[]): Promise<{ rows: any[] }>;
+  query<R = unknown>(text: string, values?: unknown[]): Promise<{ rows: R[] }>;
   release(err?: unknown): void;
 }
 

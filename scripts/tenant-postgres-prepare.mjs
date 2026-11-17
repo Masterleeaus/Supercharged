@@ -1,7 +1,8 @@
 /**
  * CI-only PostgreSQL fixture for the tenant isolation tests.
- * Applies the promoted migrations 0015 (company quiet hours), 0017 (user company
- * memberships) and 0018 (website widget company_id) unchanged to a disposable database. A minimal users stub is created only
+ * Applies the promoted migrations 0010c (chatbot parent tables), 0014 (workforce tables),
+ * 0015 (company quiet hours), 0016 (chatbot outbox, webhooks, reminder ledger), 0017
+ * (user company memberships) and 0020 (Scheduled booking mirror) unchanged to a disposable database. A minimal users stub is created only
  * when the table is absent, because the base schema (0000) is not applied in this job. Never run against a persistent database. Production migrations
  * and the migration manifest are not modified.
  */
@@ -9,9 +10,13 @@ import { readFileSync } from 'node:fs';
 import pg from 'pg';
 
 const MIGRATIONS = [
+  new URL('../migrations/0010c_chatbot.sql', import.meta.url),
+  new URL('../migrations/0014_workforce_tool_tables.sql', import.meta.url),
   new URL('../migrations/0015_company_quiet_hours.sql', import.meta.url),
+  new URL('../migrations/0016_chatbot_reminder_pipeline.sql', import.meta.url),
   new URL('../migrations/0017_user_company_memberships.sql', import.meta.url),
-  new URL('../migrations/0018_website_widgets_company_id.sql', import.meta.url),
+  new URL('../migrations/0020_scheduled_booking_mirror.sql', import.meta.url),
+  new URL('../migrations/0026_website_widgets_company_id.sql', import.meta.url),
 ];
 
 export async function prepareTenantPostgres(connectionString) {
@@ -34,8 +39,6 @@ export async function prepareTenantPostgres(connectionString) {
     try {
       // Test-only stub so the membership foreign key has a target. Not created when the real table exists.
       await client.query('CREATE TABLE IF NOT EXISTS users (id varchar PRIMARY KEY)');
-      // Test-only stub so 0018 has a table to alter. The real website_widgets table comes from 0000.
-      await client.query('CREATE TABLE IF NOT EXISTS website_widgets (id varchar PRIMARY KEY, user_id varchar NOT NULL)');
       for (const file of MIGRATIONS) await client.query(readFileSync(file, 'utf8'));
       await client.query('GRANT USAGE ON SCHEMA public TO desk_app');
       await client.query('GRANT SELECT, INSERT, UPDATE, DELETE ON company_quiet_hours TO desk_app');
@@ -52,5 +55,5 @@ export async function prepareTenantPostgres(connectionString) {
 
 if (process.argv[1] && import.meta.url === new URL('file://' + process.argv[1]).href) {
   await prepareTenantPostgres(process.env.TENANT_PG_INTEGRATION_URL);
-  console.log('Disposable tenant PostgreSQL schema prepared (0015 quiet hours, 0017 memberships, 0018 widget company_id). Production migrations unchanged.');
+  console.log('Disposable tenant PostgreSQL schema prepared (0010c chatbot, 0014 workforce, 0015 quiet hours, 0016 chatbot pipeline, 0017 memberships, 0020 scheduled booking mirror). Production migrations unchanged.');
 }

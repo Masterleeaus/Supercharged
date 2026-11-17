@@ -22,7 +22,7 @@ export class PaymentAuditService {
     type: 'subscription' | 'credits',
     amount: number,
     currency: string,
-    details?: Record<string, any>
+    details?: Record<string, unknown>
   ): Promise<void> {
     await this.log({
       action: 'payment_initiated',
@@ -39,7 +39,7 @@ export class PaymentAuditService {
     transactionId: string,
     amount: number,
     currency: string,
-    details?: Record<string, any>
+    details?: Record<string, unknown>
   ): Promise<void> {
     await this.log({
       action: 'payment_completed',
@@ -55,7 +55,7 @@ export class PaymentAuditService {
     gateway: PaymentGateway,
     userId: string,
     error: string,
-    details?: Record<string, any>
+    details?: Record<string, unknown>
   ): Promise<void> {
     await this.log({
       action: 'payment_failed',
@@ -72,7 +72,7 @@ export class PaymentAuditService {
     subscriptionId: string,
     planId: string,
     billingPeriod: string,
-    details?: Record<string, any>
+    details?: Record<string, unknown>
   ): Promise<void> {
     await this.log({
       action: 'subscription_created',
@@ -90,7 +90,7 @@ export class PaymentAuditService {
     subscriptionId: string,
     amount: number,
     currency: string,
-    details?: Record<string, any>
+    details?: Record<string, unknown>
   ): Promise<void> {
     await this.log({
       action: 'subscription_renewed',
@@ -107,7 +107,7 @@ export class PaymentAuditService {
     userId: string,
     subscriptionId: string,
     cancelAtPeriodEnd: boolean,
-    details?: Record<string, any>
+    details?: Record<string, unknown>
   ): Promise<void> {
     await this.log({
       action: 'subscription_cancelled',
@@ -127,7 +127,7 @@ export class PaymentAuditService {
     amount: number,
     currency: string,
     adminId?: string,
-    details?: Record<string, any>
+    details?: Record<string, unknown>
   ): Promise<void> {
     await this.log({
       action: 'refund_initiated',
@@ -148,7 +148,7 @@ export class PaymentAuditService {
     refundId: string,
     amount: number,
     currency: string,
-    details?: Record<string, any>
+    details?: Record<string, unknown>
   ): Promise<void> {
     await this.log({
       action: 'refund_completed',
@@ -169,7 +169,7 @@ export class PaymentAuditService {
     amount: number,
     currency: string,
     reason?: string,
-    details?: Record<string, any>
+    details?: Record<string, unknown>
   ): Promise<void> {
     await this.log({
       action: 'dispute_opened',
@@ -188,7 +188,7 @@ export class PaymentAuditService {
     transactionId: string,
     disputeId: string,
     outcome: 'won' | 'lost',
-    details?: Record<string, any>
+    details?: Record<string, unknown>
   ): Promise<void> {
     await this.log({
       action: 'dispute_resolved',
@@ -205,7 +205,7 @@ export class PaymentAuditService {
     gateway: PaymentGateway,
     eventType: string,
     success: boolean,
-    details?: Record<string, any>
+    details?: Record<string, unknown>
   ): Promise<void> {
     await this.log({
       action: 'webhook_received',
@@ -220,7 +220,7 @@ export class PaymentAuditService {
     adminId: string,
     field: string,
     ipAddress?: string,
-    details?: Record<string, any>
+    details?: Record<string, unknown>
   ): Promise<void> {
     await this.log({
       action: 'configuration_changed',
@@ -237,7 +237,7 @@ export class PaymentAuditService {
     userId: string,
     transactionId: string,
     credits: number,
-    details?: Record<string, any>
+    details?: Record<string, unknown>
   ): Promise<void> {
     await this.log({
       action: 'credits_awarded',
@@ -255,7 +255,7 @@ export class PaymentAuditService {
     transactionId: string,
     credits: number,
     reason: string,
-    details?: Record<string, any>
+    details?: Record<string, unknown>
   ): Promise<void> {
     await this.log({
       action: 'credits_reversed',

@@ -190,7 +190,7 @@ export async function calculateGlobalAnalytics(timeRange: string): Promise<Globa
     filteredCalls = await db.select().from(calls).where(gte(calls.createdAt, startDate));
   } catch (callFetchError: any) {
     if (callFetchError?.code === '42703') {
-      logger.warn('[GlobalAnalytics] Missing database column (run pre-upgrade-cleanup.sql then drizzle-kit push):', callFetchError.message);
+      logger.warn('[GlobalAnalytics] Missing database column (run pre-upgrade-cleanup.sql then npm run db:migrate):', callFetchError.message);
     } else {
       logger.error('[GlobalAnalytics] Error fetching filtered calls:', callFetchError.message);
     }
@@ -581,7 +581,7 @@ export async function calculateUserAnalytics(userId: string, timeRange: string =
     }
   } catch (callFetchError: any) {
     if (callFetchError?.code === '42703') {
-      logger.warn('[Analytics] Missing database column (run pre-upgrade-cleanup.sql then drizzle-kit push):', callFetchError.message);
+      logger.warn('[Analytics] Missing database column (run pre-upgrade-cleanup.sql then npm run db:migrate):', callFetchError.message);
     } else {
       logger.error('[Analytics] Error fetching calls:', callFetchError.message);
     }
@@ -872,7 +872,7 @@ export async function calculateDashboardData(userId: string): Promise<DashboardD
     }
   } catch (callFetchError: any) {
     if (callFetchError?.code === '42703') {
-      logger.warn('[Dashboard] Missing database column (run pre-upgrade-cleanup.sql then drizzle-kit push):', callFetchError.message);
+      logger.warn('[Dashboard] Missing database column (run pre-upgrade-cleanup.sql then npm run db:migrate):', callFetchError.message);
     } else {
       logger.error('[Dashboard] Error fetching calls:', callFetchError.message);
     }

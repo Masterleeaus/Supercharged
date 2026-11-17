@@ -12,7 +12,7 @@
  * ============================================================
  */
 
-import { Worker, Job } from 'bullmq';
+import { Worker, Job, type ConnectionOptions } from 'bullmq';
 import { getRedisConnection } from './redis-connection';
 import { QUEUE_NAMES, SchedulerJob, RecoveryJob, getCampaignSchedulerQueue, getCampaignRecoveryQueue } from './queues';
 import { logger } from '../../utils/logger.ts';
@@ -75,20 +75,20 @@ async function checkScheduledCampaigns(): Promise<void> {
         await campaignExecutor.executeCampaign(campaign.id);
         
         logger.info(`[SchedulerWorker] Started campaign ${campaign.id}`);
-      } catch (error: any) {
-        logger.error(`[SchedulerWorker] Failed to start campaign ${campaign.id}:`, error.message);
+      } catch (error: unknown) {
+        logger.error(`[SchedulerWorker] Failed to start campaign ${campaign.id}:`, (error as Error).message);
         
         await db.update(campaigns)
           .set({ 
             status: 'failed',
-            errorMessage: error.message,
+            errorMessage: (error as Error).message,
             errorCode: 'SCHEDULER_ERROR',
           })
           .where(eq(campaigns.id, campaign.id));
       }
     }
-  } catch (error: any) {
-    logger.error('[SchedulerWorker] Failed to check scheduled campaigns:', error.message);
+  } catch (error: unknown) {
+    logger.error('[SchedulerWorker] Failed to check scheduled campaigns:', (error as Error).message);
     throw error;
   }
 }
@@ -98,8 +98,8 @@ async function resumeCampaign(campaignId: string): Promise<void> {
     const { campaignExecutor } = await import('../../services/campaign-executor');
     await campaignExecutor.resumeCampaign(campaignId);
     logger.info(`[SchedulerWorker] Resumed campaign ${campaignId}`);
-  } catch (error: any) {
-    logger.error(`[SchedulerWorker] Failed to resume campaign ${campaignId}:`, error.message);
+  } catch (error: unknown) {
+    logger.error(`[SchedulerWorker] Failed to resume campaign ${campaignId}:`, (error as Error).message);
     throw error;
   }
 }
@@ -160,8 +160,8 @@ async function recoverStuckCampaigns(maxAgeMs: number): Promise<void> {
       
       logger.info(`[RecoveryWorker] Reset ${stuckContacts.length} stuck contacts for campaign ${campaign.id}`);
     }
-  } catch (error: any) {
-    logger.error('[RecoveryWorker] Failed to recover stuck campaigns:', error.message);
+  } catch (error: unknown) {
+    logger.error('[RecoveryWorker] Failed to recover stuck campaigns:', (error as Error).message);
     throw error;
   }
 }
@@ -193,8 +193,8 @@ async function cleanupStaleCalls(maxAgeMs: number): Promise<void> {
     
     let cleanedUp = 0;
     for (const call of staleCalls) {
-      const metadata = call.metadata as Record<string, any> || {};
-      const lastWebhookAt = metadata.lastWebhookAt ? new Date(metadata.lastWebhookAt) : null;
+      const metadata = call.metadata as Record<string, unknown> || {};
+      const lastWebhookAt = metadata.lastWebhookAt ? new Date(metadata.lastWebhookAt as string) : null;
       
       if (lastWebhookAt && lastWebhookAt > cutoffTime) {
         logger.info(`[RecoveryWorker] Skipping call ${call.id} - recent webhook at ${lastWebhookAt.toISOString()}`);
@@ -214,8 +214,8 @@ async function cleanupStaleCalls(maxAgeMs: number): Promise<void> {
       logger.info(`[RecoveryWorker] Cleaned up ${cleanedUp} stale calls`);
     }
     
-  } catch (error: any) {
-    logger.error('[RecoveryWorker] Failed to cleanup stale calls:', error.message);
+  } catch (error: unknown) {
+    logger.error('[RecoveryWorker] Failed to cleanup stale calls:', (error as Error).message);
     throw error;
   }
 }
@@ -229,7 +229,7 @@ export function startSchedulerWorker(): Worker<SchedulerJob> {
     QUEUE_NAMES.CAMPAIGN_SCHEDULER,
     processSchedulerJob,
     {
-      connection: getRedisConnection() as any,
+      connection: getRedisConnection() as ConnectionOptions,
       concurrency: 1,
     }
   );
@@ -257,7 +257,7 @@ export function startRecoveryWorker(): Worker<RecoveryJob> {
     QUEUE_NAMES.CAMPAIGN_RECOVERY,
     processRecoveryJob,
     {
-      connection: getRedisConnection() as any,
+      connection: getRedisConnection() as ConnectionOptions,
       concurrency: 1,
     }
   );

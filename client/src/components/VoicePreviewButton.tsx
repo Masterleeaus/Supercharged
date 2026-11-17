@@ -1,19 +1,15 @@
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
+import type { AppError } from "@/components/app-error";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -204,7 +200,8 @@ export default function VoicePreviewButton({
       const url = URL.createObjectURL(blob);
       setAudioUrl(url);
       await playAudio(url);
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       console.error("Voice preview error:", error);
       toast({
         title: t('voicePreview.error'),
@@ -266,7 +263,8 @@ export default function VoicePreviewButton({
       }
       setAudioUrl(url);
       await playAudio(url);
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       console.error("Voice preview error:", error);
       toast({
         title: t('voicePreview.error'),

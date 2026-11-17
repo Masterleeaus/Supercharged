@@ -6,6 +6,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { logger } from '../../utils/logger.ts';
+import { PRODUCT_NAME } from '../../../shared/brand.ts';
 
 const uploadsDir = path.join(process.cwd(), 'client', 'public', 'uploads');
 if (!fs.existsSync(uploadsDir)) {
@@ -46,7 +47,7 @@ export function registerBrandingRoutes(router: Router) {
         'theme_website_accent', 'theme_website_foreground',
         'branding_updated_at'
       ];
-      const branding: Record<string, any> = { app_name: 'Supercharged', app_tagline: '' };
+      const branding: Record<string, unknown> = { app_name: PRODUCT_NAME, app_tagline: '' };
       
       for (const key of brandingKeys) {
         const setting = await storage.getGlobalSetting(key);

@@ -5,6 +5,7 @@ import { eq, sql } from "drizzle-orm";
 import { users } from "@shared/schema";
 import type { WebsiteWidget, InsertWebsiteWidget } from "@shared/schema";
 import { logger } from '../../utils/logger';
+import { isWidgetDomainAllowed } from './domain-gate';
 
 export interface BusinessHoursCheck {
   isOpen: boolean;
@@ -72,18 +73,7 @@ export class WidgetService {
   }
 
   validateDomain(widget: WebsiteWidget, requestDomain: string): boolean {
-    if (!widget.allowedDomains || widget.allowedDomains.length === 0) {
-      return true;
-    }
-    const normalizedDomain = requestDomain.toLowerCase().replace(/^www\./, '');
-    return widget.allowedDomains.some(allowed => {
-      const normalizedAllowed = allowed.toLowerCase().replace(/^www\./, '');
-      if (normalizedAllowed.startsWith('*.')) {
-        const baseDomain = normalizedAllowed.slice(2);
-        return normalizedDomain === baseDomain || normalizedDomain.endsWith('.' + baseDomain);
-      }
-      return normalizedDomain === normalizedAllowed;
-    });
+    return isWidgetDomainAllowed(widget.allowedDomains, requestDomain);
   }
 
   checkBusinessHours(widget: WebsiteWidget): BusinessHoursCheck {

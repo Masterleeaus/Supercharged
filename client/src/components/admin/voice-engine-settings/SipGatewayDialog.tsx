@@ -29,7 +29,7 @@ export interface SipGatewayDialogProps {
   gwCallerIdInFrom: boolean;
   setGwCallerIdInFrom: Dispatch<SetStateAction<boolean>>;
   handleSaveGateway: () => void;
-  saveGatewayMutation: UseMutationResult<any, any, any, unknown>;
+  saveGatewayMutation: UseMutationResult<unknown, Error, unknown, unknown>;
   isDemoMode: boolean;
 }
 

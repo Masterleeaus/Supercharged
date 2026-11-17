@@ -1,3 +1,4 @@
+import type { AppError } from "@/components/app-error";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -9,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { useForm } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -81,18 +82,20 @@ const addCredentialSchema = z.object({
   name: z.string().min(1, "Name is required").max(100, "Name too long"),
   apiKey: z.string().min(1, "API key is required").regex(/^sk-/, "API key must start with 'sk-'"),
   modelTier: z.enum(["free", "pro"]),
-  maxConcurrency: z.coerce.number().int().min(1).max(1000),
-  maxAgentsThreshold: z.coerce.number().int().min(1).max(10000),
+  maxConcurrency: z.coerce.number<number | string>().int().min(1).max(1000),
+  maxAgentsThreshold: z.coerce.number<number | string>().int().min(1).max(10000),
 });
 
 const editCredentialSchema = z.object({
   name: z.string().min(1, "Name is required").max(100, "Name too long"),
   modelTier: z.enum(["free", "pro"]),
-  maxConcurrency: z.coerce.number().int().min(1).max(1000),
-  maxAgentsThreshold: z.coerce.number().int().min(1).max(10000),
+  maxConcurrency: z.coerce.number<number | string>().int().min(1).max(1000),
+  maxAgentsThreshold: z.coerce.number<number | string>().int().min(1).max(10000),
 });
 
+type AddCredentialFormInput = z.input<typeof addCredentialSchema>;
 type AddCredentialFormData = z.infer<typeof addCredentialSchema>;
+type EditCredentialFormInput = z.input<typeof editCredentialSchema>;
 type EditCredentialFormData = z.infer<typeof editCredentialSchema>;
 
 export default function OpenAIPoolManagement() {
@@ -104,7 +107,7 @@ export default function OpenAIPoolManagement() {
   const [selectedCredential, setSelectedCredential] = useState<OpenAICredential | null>(null);
 
   const addForm = useForm<AddCredentialFormData>({
-    resolver: zodResolver(addCredentialSchema),
+    resolver: zodResolver(addCredentialSchema) as Resolver<AddCredentialFormData>,
     defaultValues: {
       name: "",
       apiKey: "",
@@ -115,7 +118,7 @@ export default function OpenAIPoolManagement() {
   });
 
   const editForm = useForm<EditCredentialFormData>({
-    resolver: zodResolver(editCredentialSchema),
+    resolver: zodResolver(editCredentialSchema) as Resolver<EditCredentialFormData>,
     defaultValues: {
       name: "",
       modelTier: "free",
@@ -149,7 +152,8 @@ export default function OpenAIPoolManagement() {
       setAddDialogOpen(false);
       addForm.reset();
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.openaiPool.toasts.addFailed"),
         description: error.message,
@@ -174,7 +178,8 @@ export default function OpenAIPoolManagement() {
       setEditDialogOpen(false);
       setSelectedCredential(null);
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.openaiPool.toasts.updateFailed"),
         description: error.message,
@@ -194,7 +199,8 @@ export default function OpenAIPoolManagement() {
       setDeleteDialogOpen(false);
       setSelectedCredential(null);
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.openaiPool.toasts.deleteFailed"),
         description: error.message,
@@ -213,7 +219,8 @@ export default function OpenAIPoolManagement() {
       queryClient.invalidateQueries({ queryKey: ["/api/plivo/admin/openai/pool/stats"] });
       toast({ title: t("adminDashboard.openaiPool.toasts.statusUpdated") });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.openaiPool.toasts.statusUpdateFailed"),
         description: error.message,
@@ -231,7 +238,8 @@ export default function OpenAIPoolManagement() {
       queryClient.invalidateQueries({ queryKey: ["/api/plivo/admin/openai/pool/stats"] });
       toast({ title: t("adminDashboard.openaiPool.toasts.healthCheckComplete") });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.openaiPool.toasts.healthCheckFailed"),
         description: error.message,
@@ -249,7 +257,8 @@ export default function OpenAIPoolManagement() {
       queryClient.invalidateQueries({ queryKey: ["/api/plivo/admin/openai/pool/stats"] });
       toast({ title: t("adminDashboard.openaiPool.toasts.recalculated") });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("adminDashboard.openaiPool.toasts.recalculationFailed"),
         description: error.message,

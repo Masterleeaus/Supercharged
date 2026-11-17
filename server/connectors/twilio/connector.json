@@ -1,0 +1,11 @@
+{
+  "id": "twilio",
+  "version": "0.1.0",
+  "vendor": "Twilio",
+  "auth": "api_key",
+  "entities": ["message"],
+  "requiredScopes": [],
+  "webhookEvents": [],
+  "configSchema": {},
+  "featureFlag": "connector_twilio"
+}

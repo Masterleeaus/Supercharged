@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { A, B, enabled, fixture } from './tenant-postgres-support.mjs';
 
-const migration = readFileSync(new URL('../../migrations/0018_website_widgets_company_id.sql', import.meta.url), 'utf8');
+const migration = readFileSync(new URL('../../migrations/0026_website_widgets_company_id.sql', import.meta.url), 'utf8');
 const rollback = [
   'DROP INDEX IF EXISTS website_widgets_company_id_idx',
   'ALTER TABLE website_widgets DROP COLUMN IF EXISTS company_id',
@@ -11,7 +11,7 @@ const rollback = [
 const OWNER_A = 'widget-owner-company-a';
 const OWNER_NONE = 'widget-owner-no-company';
 
-test('PostgreSQL 0018: backfill sets company_id from the owner, keeps NULL when the owner has none, never overwrites', { skip: !enabled }, async () => {
+test('PostgreSQL 0026: backfill sets company_id from the owner, keeps NULL when the owner has none, never overwrites', { skip: !enabled }, async () => {
   const f = fixture();
   try {
     // Test-only stub columns. The disposable fixture does not run the base schema.
@@ -40,7 +40,7 @@ test('PostgreSQL 0018: backfill sets company_id from the owner, keeps NULL when 
   }
 });
 
-test('PostgreSQL 0018: the documented rollback removes the column and index, and a re-apply restores them', { skip: !enabled }, async () => {
+test('PostgreSQL 0026: the documented rollback removes the column and index, and a re-apply restores them', { skip: !enabled }, async () => {
   const f = fixture();
   const client = await f.pool.connect();
   try {

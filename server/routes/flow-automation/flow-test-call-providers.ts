@@ -67,7 +67,7 @@ export async function placePlivoFlowTestCall({
       // Use pre-compiled flow data (compiled at save time)
       logger.info(`   Using pre-compiled flow data (${(flow.compiledTools as any[]).length} tools, ${(flow.compiledStates as any[]).length} states)`);
 
-      const { hydrateCompiledFlow } = await import('../services/openai-voice-agent/hydrator');
+      const { hydrateCompiledFlow } = await import('../../services/openai-voice-agent/hydrator');
       compiledConfig = hydrateCompiledFlow({
         compiledSystemPrompt: flow.compiledSystemPrompt,
         compiledFirstMessage: flow.compiledFirstMessage || null,
@@ -78,6 +78,7 @@ export async function placePlivoFlowTestCall({
         temperature: agent.temperature ?? 0.7,
         toolContext: {
           userId,
+          companyId,
           agentId: agent.id,
           callId: tempCallId,
         },
