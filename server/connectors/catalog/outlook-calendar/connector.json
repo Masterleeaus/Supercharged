@@ -1,0 +1,11 @@
+{
+  "id": "outlook-calendar",
+  "version": "0.1.0",
+  "vendor": "Microsoft 365 Outlook Calendar",
+  "auth": "oauth2",
+  "entities": ["booking"],
+  "requiredScopes": ["Calendars.ReadWrite", "offline_access"],
+  "webhookEvents": [],
+  "configSchema": {},
+  "featureFlag": "connector_outlook_calendar"
+}
