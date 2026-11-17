@@ -178,7 +178,7 @@ function prepare(input: OutcomeSummaryInput | undefined): PrepareResult {
  */
 export function summarizeChannelOutcomes(input: OutcomeSummaryInput): ChannelOutcomeSummaryResult {
   const prepared = prepare(input);
-  if (!prepared.ok) return prepared;
+  if (prepared.ok === false) return prepared;
 
   const byChannel = new Map<string, Tally>();
   for (const row of prepared.rows) {
@@ -208,7 +208,7 @@ export function summarizeChannelOutcomes(input: OutcomeSummaryInput): ChannelOut
  */
 export function summarizeCampaignOutcomes(input: OutcomeSummaryInput): CampaignOutcomeSummaryResult {
   const prepared = prepare(input);
-  if (!prepared.ok) return prepared;
+  if (prepared.ok === false) return prepared;
 
   const byCampaign = new Map<string, Tally>();
   let unattributed = 0;
