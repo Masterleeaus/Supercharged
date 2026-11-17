@@ -1,0 +1,45 @@
+{
+  "note": "Hand-written from the documented Microsoft Graph calendarView and events shapes. Not captured from a live tenant.",
+  "interactions": [
+    {
+      "method": "GET",
+      "path": "/v1.0/me/calendarView",
+      "status": 200,
+      "body": {
+        "value": [
+          { "id": "AAMk-busy-1", "isCancelled": false, "showAs": "busy", "start": { "dateTime": "2026-11-20T00:00:00.0000000", "timeZone": "UTC" }, "end": { "dateTime": "2026-11-20T01:00:00.0000000", "timeZone": "UTC" } },
+          { "id": "AAMk-free-1", "isCancelled": false, "showAs": "free", "start": { "dateTime": "2026-11-20T02:00:00.0000000", "timeZone": "UTC" }, "end": { "dateTime": "2026-11-20T03:00:00.0000000", "timeZone": "UTC" } }
+        ],
+        "@odata.nextLink": "https://graph.microsoft.com/v1.0/me/calendarView?$skiptoken=next"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/v1.0/me/calendarView",
+      "status": 200,
+      "body": {
+        "value": [
+          { "id": "AAMk-busy-2", "isCancelled": false, "showAs": "tentative", "start": { "dateTime": "2026-11-20T05:00:00.0000000", "timeZone": "UTC" }, "end": { "dateTime": "2026-11-20T06:00:00.0000000", "timeZone": "UTC" } }
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/v1.0/me/events",
+      "status": 201,
+      "body": { "id": "AAMk-created-1", "showAs": "tentative" }
+    },
+    {
+      "method": "PATCH",
+      "path": "/v1.0/me/events/AAMk-created-1",
+      "status": 200,
+      "body": { "id": "AAMk-created-1", "showAs": "busy" }
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1.0/me/events/AAMk-created-1",
+      "status": 204,
+      "body": ""
+    }
+  ]
+}
