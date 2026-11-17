@@ -81,16 +81,23 @@ test('a valid path token is ignored when a wrong header is also sent', () => {
   assert.equal(r.via, 'header');
 });
 
-test('legacy URL token works by default during migration', () => {
+test('legacy URL token is refused by default (off unless explicitly enabled)', () => {
   assert.deepEqual(
     authenticateAppointmentRequest({ pathToken: FAKE_SECRET }, FAKE_SECRET, {}),
-    { ok: true, via: 'url' },
+    { ok: false, via: null },
   );
+  assert.equal(svc.isLegacyAppointmentUrlTokenAllowed({}), false);
+  assert.equal(svc.isLegacyAppointmentUrlTokenAllowed({ APPOINTMENT_WEBHOOK_ALLOW_URL_TOKEN: 'false' }), false);
+  assert.equal(svc.isLegacyAppointmentUrlTokenAllowed({ APPOINTMENT_WEBHOOK_ALLOW_URL_TOKEN: 'TRUE' }), false);
 });
 
-test('legacy URL token is refused once APPOINTMENT_WEBHOOK_ALLOW_URL_TOKEN=false', () => {
-  const env = { APPOINTMENT_WEBHOOK_ALLOW_URL_TOKEN: 'false' };
-  assert.equal(authenticateAppointmentRequest({ pathToken: FAKE_SECRET }, FAKE_SECRET, env).ok, false);
+test('legacy URL token works only when APPOINTMENT_WEBHOOK_ALLOW_URL_TOKEN is exactly "true"', () => {
+  const env = { APPOINTMENT_WEBHOOK_ALLOW_URL_TOKEN: 'true' };
+  assert.deepEqual(
+    authenticateAppointmentRequest({ pathToken: FAKE_SECRET }, FAKE_SECRET, env),
+    { ok: true, via: 'url' },
+  );
+  assert.equal(authenticateAppointmentRequest({ pathToken: 'wrong' }, FAKE_SECRET, env).ok, false);
   assert.equal(authenticateAppointmentRequest({ headerToken: FAKE_SECRET }, FAKE_SECRET, env).ok, true);
 });
 
@@ -133,4 +140,25 @@ test('route wiring: replay check runs before the appointment insert and the cros
   const insertAt = handler.indexOf('.insert(appointments)');
   assert.ok(replayAt > 0 && insertAt > replayAt, 'replay check must precede insert');
   assert.match(handler, /Refusing cross-company call link/);
+});
+
+// Log redaction for legacy token paths (issue #343). The token segment is replaced before any access log line.
+const { redactWebhookTokenPath } = await import('../../server/utils/redact-webhook-path.ts');
+
+test('legacy appointment URL-token path is redacted in logs', () => {
+  const out = redactWebhookTokenPath(`/api/webhooks/elevenlabs/appointment/${FAKE_SECRET}/el_agent_1?callId=c1`);
+  assert.equal(out, '/api/webhooks/elevenlabs/appointment/[redacted]/el_agent_1');
+  assert.ok(!out.includes(FAKE_SECRET));
+});
+
+test('other token-bearing webhook paths are redacted', () => {
+  assert.equal(redactWebhookTokenPath('/api/webhooks/elevenlabs/rag-tool/SECRET/agent'), '/api/webhooks/elevenlabs/rag-tool/[redacted]/agent');
+  assert.equal(redactWebhookTokenPath('/api/webhooks/elevenlabs/form/SECRET/form-1/agent'), '/api/webhooks/elevenlabs/form/[redacted]/form-1/agent');
+  assert.equal(redactWebhookTokenPath('/api/elevenlabs/tools/play-audio/SECRET/agent'), '/api/elevenlabs/tools/play-audio/[redacted]/agent');
+});
+
+test('header-auth and single-segment paths are left unchanged', () => {
+  assert.equal(redactWebhookTokenPath('/api/webhooks/elevenlabs/appointment/el_agent_1'), '/api/webhooks/elevenlabs/appointment/el_agent_1');
+  assert.equal(redactWebhookTokenPath('/api/webhooks/elevenlabs/rag-tool/agent'), '/api/webhooks/elevenlabs/rag-tool/agent');
+  assert.equal(redactWebhookTokenPath('/api/plivo/voice/status'), '/api/plivo/voice/status');
 });
