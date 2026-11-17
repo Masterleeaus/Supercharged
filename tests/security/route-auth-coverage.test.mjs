@@ -74,6 +74,14 @@ const AUTH_RE = new RegExp(
 const HEADER_RE = /['"`](?:x-hub-signature|stripe-signature|x-razorpay-signature|x-paystack-signature|x-signature|x-twilio-signature)(?:-\w+)?['"`]/i;
 const ROUTER_RECEIVER_RE = /^(app|r|api|router|\w*[Rr]outer)$/;
 const ROUTE_CALL_SRC = /(?<![\w$.])([A-Za-z_$][\w$]*)\s*\.\s*(get|post|put|patch|delete|all|use)\s*(?:<[^()]*?>)?\s*\(/.source;
+// Mount-level patterns (see analyze, step c2). Matched against masked code, so strings and comments never count.
+const LOCAL_ROUTER_RE = /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?::[^=;\n]+)?=\s*(?:express\.)?Router\s*\(/g;
+// A local arrow helper that forwards its handler list into .use(), e.g. const mountAt = (p, handlers) => { app.use(p, ...handlers) }
+const MOUNT_HELPER_RE = /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*\(([^)]*)\)\s*(?::[^=;{]*)?=>\s*\{/g;
+// A local array of handlers: const guards = [authenticate, router]
+const HANDLER_ARRAY_RE = /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?::[^=;\n]+)?=\s*\[/g;
+// A dynamic import bound to a name: const pluginRoutes = await import('./plugin-routes'). Read from text (specs are strings).
+const NS_IMPORT_RE = /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:await\s+)?import\(\s*['"]([^'"]+)['"]\s*\)/g;
 const FUNC_RE = /=>|\bfunction\b/;
 // Business work: reading the request body or query, touching data, or calling out. A guard must appear
 // before the first line that does one of these. Config lookups and error responses are not business work.
@@ -396,6 +404,70 @@ function segmentGuarded(code, text, seg, aliasRe) {
 
 const collapse = (s) => s.replace(/\s+/g, ' ').slice(0, 80);
 
+/** Local arrays of handlers (const NAME = [ ... ]). start and end bound the items, without the brackets. */
+function findHandlerArrays(code) {
+  const out = [];
+  const re = new RegExp(HANDLER_ARRAY_RE.source, 'g');
+  let m;
+  while ((m = re.exec(code))) {
+    const open = m.index + m[0].length - 1;
+    out.push({ name: m[1], index: m.index, start: open + 1, end: callEnd(code, open) - 1 });
+  }
+  return out;
+}
+
+/**
+ * Names of local arrow helpers that pass a handler list to .use(): the param named in `...param` inside
+ * the body must be forwarded to a .use() call. Calls to these helpers are mounts (see mountArgs).
+ */
+function findMountHelpers(code) {
+  const names = new Set();
+  const re = new RegExp(MOUNT_HELPER_RE.source, 'g');
+  let m;
+  while ((m = re.exec(code))) {
+    const params = m[2].split(',').map((p) => p.trim().split(/[:=\s?]/)[0]).filter(Boolean);
+    const open = m.index + m[0].length - 1;
+    const body = code.slice(open + 1, callEnd(code, open) - 1);
+    // the spread may be wrapped in a cast: ...(handlers as Foo[])
+    const forwarded = params.some((p) => new RegExp(`\\.\\.\\.\\s*\\(?\\s*${p.replace(/\$/g, '\\$')}(?![\\w$])`).test(body));
+    if (forwarded && /\.use\s*\(/.test(body)) names.add(m[1]);
+  }
+  return names;
+}
+
+/**
+ * One mount call (app.use, a router .use, or a mount helper). Returns:
+ *  - guarded: a known guard name sits in the args (outside function bodies), or in a local handler array
+ *    declared before the call. Unknown identifiers never count.
+ *  - flat: every identifier in the args (the routers and middleware it mounts), as before.
+ *  - refs: { name, member } for each `name.member` in the args, so a namespace import (`ns.default`) can be resolved.
+ */
+function mountArgs(code, text, segs, aliasRe, arrays, index) {
+  const arrayByName = new Map();
+  for (const a of arrays) if (a.index < index) arrayByName.set(a.name, a); // last declaration before the call
+  const spans = [...segs];
+  for (const s of segs) {
+    const { outC } = splitSegment(code, text, s, aliasRe);
+    // a spread (...guards) names the array; a member access (x.guards) does not
+    for (const id of outC.matchAll(/(?<![\w$]\s*\.)(?<![\w$])([A-Za-z_$][\w$]*)/g)) {
+      const a = arrayByName.get(id[1]);
+      if (a) spans.push({ start: a.start, end: a.end });
+    }
+  }
+  let guarded = false;
+  const flat = [];
+  const refs = [];
+  for (const s of spans) {
+    const { outC, outT, inBody } = splitSegment(code, text, s, aliasRe);
+    if (inBody || isGuardText(outC, aliasRe) || HEADER_RE.test(outT)) guarded = true;
+    flat.push(...(outC.match(/[A-Za-z_$][\w$]*/g) ?? []));
+    for (const r of outC.matchAll(/(?<![\w$])([A-Za-z_$][\w$]*)(?:\s*\.\s*([A-Za-z_$][\w$]*))?/g)) {
+      refs.push({ name: r[1], member: r[2] ?? null });
+    }
+  }
+  return { guarded, flat, refs };
+}
+
 /** Return every route definition and auth .use() call in one source file. */
 export function scanSource(input) {
   const { code, text } = maskSource(input);
@@ -404,24 +476,26 @@ export function scanSource(input) {
   // Guard aliases count only for calls written after their declaration (source order). A call that
   // runs before a module-level const would throw on load, so a later alias is never a guard here.
   const aliases = findGuardAliases(code);
+  // Routers built in this file (const x = Router()). Their .use() calls can carry a guard (builder mount).
+  const localRouters = new Set([...code.matchAll(new RegExp(LOCAL_ROUTER_RE.source, 'g'))].map((m) => m[1]));
+  const arrays = findHandlerArrays(code);
   const callRe = new RegExp(ROUTE_CALL_SRC, 'g');
   let m;
   while ((m = callRe.exec(code))) {
     const [, receiver, method] = m;
-    if (!ROUTER_RECEIVER_RE.test(receiver)) continue;
+    const isRouter = ROUTER_RECEIVER_RE.test(receiver);
+    if (!isRouter && !(method === 'use' && localRouters.has(receiver))) continue;
     const openIdx = m.index + m[0].length - 1;
     const closeIdx = callEnd(code, openIdx) - 1;
     const segs = splitArgs(code, openIdx, closeIdx);
     const aliasRe = aliasPattern(aliases.filter((a) => a.index < m.index).map((a) => a.name));
 
     if (method === 'use') {
-      if (segs.some((s) => segmentGuarded(code, text, s, aliasRe))) {
-        // identifiers outside function bodies: the routers and middleware this use mounts
-        const mountIdents = segs.flatMap((s) => splitSegment(code, text, s, aliasRe).outC.match(/[A-Za-z_$][\w$]*/g) ?? []);
-        uses.push({ receiver, index: m.index, mountIdents });
-      }
+      const mount = mountArgs(code, text, segs, aliasRe, arrays, m.index);
+      if (mount.guarded) uses.push({ receiver, index: m.index, mountIdents: mount.flat, mountRefs: mount.refs });
       continue;
     }
+    if (!isRouter) continue;
 
     // Express route methods always take a path and a handler. One argument is a settings getter.
     if (segs.length < 2) continue;
@@ -442,6 +516,19 @@ export function scanSource(input) {
       index: m.index,
       inlineAuth,
     });
+  }
+
+  // Mount helpers: mountAt(prefix, [guard, router]) is a mount whose handlers the helper passes to .use().
+  for (const name of findMountHelpers(code)) {
+    const callRe2 = new RegExp(`(?<![\\w$.])${name.replace(/\$/g, '\\$')}\\s*\\(`, 'g');
+    let h;
+    while ((h = callRe2.exec(code))) {
+      const openIdx = h.index + h[0].length - 1;
+      const segs = splitArgs(code, openIdx, callEnd(code, openIdx) - 1);
+      const aliasRe = aliasPattern(aliases.filter((a) => a.index < h.index).map((a) => a.name));
+      const mount = mountArgs(code, text, segs, aliasRe, arrays, h.index);
+      if (mount.guarded) uses.push({ receiver: null, index: h.index, mountIdents: mount.flat, mountRefs: mount.refs });
+    }
   }
   return { routes, uses };
 }
@@ -567,23 +654,54 @@ export function reachableFiles(readFile, listFiles, entry = 'server/index.ts') {
 /**
  * files: Map<relPath, source> (the reachable set). Returns every route with its coverage reason.
  */
+/** Factory that built a local router before the given index: the last `const x = factory(` above it. */
+function factoryOf(code, ident, before) {
+  const re = new RegExp(`(?:const|let|var)\\s+${ident}\\s*=\\s*(?:await\\s+)?([A-Za-z_$][\\w$]*)\\s*\\(`, 'g');
+  let last = null;
+  let f;
+  while ((f = re.exec(code))) if (f.index < before && f[1] !== 'import') last = f[1];
+  return last;
+}
+
+/** Name of the default export when it is a plain identifier: export default router. */
+function defaultExportName(code) {
+  return /export\s+default\s+([A-Za-z_$][\w$]*)\s*;?/.exec(code)?.[1] ?? null;
+}
+
 export function analyze(files) {
-  const mountCovered = new Map(); // rel -> reason
+  const mountCovered = new Map(); // rel -> reason (whole file)
+  const routerCovered = new Map(); // `${rel}#${variable}` -> reason (one router variable, e.g. a public router in the same file)
   const results = [];
 
   for (const [rel, src] of files) {
-    const { code } = maskSource(src);
+    const { code, text } = maskSource(src);
     const { routes, uses } = scanSource(src);
+    const nsImports = new Map(); // const x = await import('spec')
+    for (const n of text.matchAll(new RegExp(NS_IMPORT_RE.source, 'g'))) nsImports.set(n[1], n[2]);
 
     // (c) files named by an auth .use() call in this file (router or middleware imports).
     for (const use of uses) {
       for (const ident of new Set(use.mountIdents)) {
+        if (AUTH_RE.test(ident)) continue; // a guard is not a router
         let target = resolveImported(files, rel, ident);
-        // a local router built by a factory: const router = createXRouter(...)
-        const factory = new RegExp(`(?:const|let|var)\\s+${ident}\\s*=\\s*(?:await\\s+)?([A-Za-z_$][\\w$]*)\\s*\\(`).exec(code);
-        if (!target && factory) target = resolveImported(files, rel, factory[1]) ?? definingFile(files, rel, factory[1]);
+        // a local router built by a factory: const router = createXRouter(...), nearest declaration above the mount
+        const factory = factoryOf(code, ident, use.index);
+        if (!target && factory) target = resolveImported(files, rel, factory) ?? definingFile(files, rel, factory);
         if (target && !mountCovered.has(target)) mountCovered.set(target, `mounted behind auth in ${rel}`);
       }
+      // (c2) namespace members of a dynamic import: ns.default or ns.someRouter. Covers that one router variable only.
+      for (const ref of use.mountRefs) {
+        if (!ref.member || !nsImports.has(ref.name)) continue;
+        const target = resolveSpec(files, rel, nsImports.get(ref.name));
+        if (!target || !files.has(target)) continue;
+        const tcode = maskSource(files.get(target)).code;
+        const variable = ref.member === 'default' ? defaultExportName(tcode) : ref.member;
+        const declared = variable !== null && new RegExp(`(?:const|let|var)\\s+${variable}\\b`).test(tcode);
+        if (!variable || (!declared && defaultExportName(tcode) !== variable)) continue;
+        const key = `${target}#${variable}`;
+        if (!routerCovered.has(key)) routerCovered.set(key, `mounted behind auth in ${rel}`);
+      }
+      if (use.receiver === null) continue; // helper mounts have no receiver for the register step
       // register functions called with the same router after the auth .use()
       const callRe = new RegExp(`([A-Za-z_$][\\w$]*)\\s*\\(\\s*${use.receiver}\\s*\\)`, 'g');
       let c;
@@ -598,7 +716,7 @@ export function analyze(files) {
       let reason = null;
       if (route.inlineAuth) reason = 'inline guard';
       else if (uses.some((u) => u.receiver === route.receiver && u.index < route.index)) reason = 'same-file guard';
-      results.push({ file: rel, method: route.method, path: route.path, reason });
+      results.push({ file: rel, method: route.method, path: route.path, receiver: route.receiver, reason });
     }
   }
 
@@ -630,6 +748,7 @@ export function analyze(files) {
   }
 
   for (const r of results) {
+    if (!r.reason && routerCovered.has(`${r.file}#${r.receiver}`)) r.reason = routerCovered.get(`${r.file}#${r.receiver}`);
     if (!r.reason && mountCovered.has(r.file)) r.reason = mountCovered.get(r.file);
   }
   return results;
@@ -850,4 +969,170 @@ test('allowlist has no stale entries (each entry matches a reachable route)', ()
 
 test('allowlist has no entries that are already guarded', () => {
   assert.deepEqual(liveAnalysis().allowedButGuarded, [], 'allowlist entries that are already guarded; remove them');
+});
+
+// ---------- mount-level guard awareness (fixtures) ----------
+
+const ITEMS_ROUTER = `
+import { Router } from 'express';
+const router = Router();
+router.get('/items', (req, res) => res.json({}));
+export default router;
+`;
+
+function routesByPath(files) {
+  return Object.fromEntries(analyze(new Map(Object.entries(files))).map((r) => [r.path, r.reason]));
+}
+
+test('a router mounted through a helper behind a known guard counts as guarded', () => {
+  const byPath = routesByPath({
+    'server/routes/items.ts': ITEMS_ROUTER,
+    'server/index.ts': `
+import itemRoutes from './routes/items';
+import { authenticateToken } from './middleware/auth';
+const mountAt = (prefix: string, handlers: RequestHandler[]): void => { app.use(prefix, ...(handlers as Foo[])); };
+mountAt('/api/items', [authenticateToken, itemRoutes]);
+`,
+  });
+  assert.ok(byPath['/items'], 'router mounted behind authenticateToken must be covered');
+});
+
+test('a router mounted with no guard through the same helper stays flagged', () => {
+  const byPath = routesByPath({
+    'server/routes/items.ts': ITEMS_ROUTER,
+    'server/index.ts': `
+import itemRoutes from './routes/items';
+const mountAt = (prefix: string, handlers: RequestHandler[]): void => { app.use(prefix, ...handlers); };
+mountAt('/api/open', [itemRoutes]);
+`,
+  });
+  assert.equal(byPath['/items'], null, 'a mount with no guard must not cover the router');
+});
+
+test('a router mounted behind an unknown identifier stays flagged', () => {
+  const byPath = routesByPath({
+    'server/routes/items.ts': ITEMS_ROUTER,
+    'server/index.ts': `
+import itemRoutes from './routes/items';
+const mountAt = (prefix: string, handlers: RequestHandler[]): void => { app.use(prefix, ...handlers); };
+mountAt('/api/items', [runGate, itemRoutes]);
+app.use('/api/more', runGate, itemRoutes);
+`,
+  });
+  assert.equal(byPath['/items'], null, 'an unknown identifier is not a guard');
+});
+
+test('the public widget mount stays flagged (no guard, even through the same helper)', () => {
+  const byPath = routesByPath({
+    'server/modules/widget/router.ts': `
+import { Router } from 'express';
+const router = Router();
+router.get('/:publicId/config', (req, res) => res.json({}));
+export default router;
+`,
+    'server/index.ts': `
+import widgetRoutes from './modules/widget/router';
+const mountAt = (prefix: string, handlers: RequestHandler[]): void => { app.use(prefix, ...handlers); };
+mountAt('/api/chatbot/widget', [widgetRoutes]);
+`,
+  });
+  assert.equal(byPath['/:publicId/config'], null, 'widget mount with no guard stays flagged');
+});
+
+test('a namespace import mount covers only the router variable it names (public router stays flagged)', () => {
+  const byPath = routesByPath({
+    'server/routes/plugins.ts': `
+import { Router } from 'express';
+const router = Router();
+export const publicRouter = Router();
+router.get('/list', (req, res) => res.json({}));
+publicRouter.get('/bundle', (req, res) => res.json({}));
+export default router;
+`,
+    'server/index.ts': `
+const pluginRoutes = await import('./routes/plugins');
+app.use('/api/admin/plugins', checkAdminOrTeamMember, pluginRoutes.default);
+app.use('/api/plugins', pluginRoutes.publicRouter);
+`,
+  });
+  assert.ok(byPath['/list'], 'default router behind checkAdminOrTeamMember must be covered');
+  assert.equal(byPath['/bundle'], null, 'publicRouter has no guard and must stay flagged');
+});
+
+test('a local router with a guarded .use() (builder-style mount) covers the router it mounts', () => {
+  const byPath = routesByPath({
+    'server/modules/builder/router.ts': `
+import { Router } from 'express';
+const router = Router();
+router.get('/builder/:id', (req, res) => res.json({}));
+export default router;
+`,
+    'server/index.ts': `
+import builderRoutes from './modules/builder/router';
+const builderMount = Router();
+builderMount.use(modeGuard, deps.authenticate, deps.requireCompanyScope, builderRoutes);
+app.use('/api/chatbot', builderMount);
+`,
+  });
+  assert.ok(byPath['/builder/:id'], 'builderMount.use with authenticate must cover the builder router');
+});
+
+test('a handler array declared before the mount counts; one declared after does not', () => {
+  const before = routesByPath({
+    'server/routes/items.ts': ITEMS_ROUTER,
+    'server/index.ts': `
+import itemRoutes from './routes/items';
+import { authenticateToken } from './middleware/auth';
+const guards = [authenticateToken];
+app.use('/api/items', ...guards, itemRoutes);
+`,
+  });
+  assert.ok(before['/items'], 'guard array declared before the mount must count');
+  const after = routesByPath({
+    'server/routes/items.ts': ITEMS_ROUTER,
+    'server/index.ts': `
+import itemRoutes from './routes/items';
+import { authenticateToken } from './middleware/auth';
+app.use('/api/items', ...guards, itemRoutes);
+const guards = [authenticateToken];
+`,
+  });
+  assert.equal(after['/items'], null, 'a guard array declared after the mount is not a guard here');
+});
+
+test('factory routers: each mount uses the nearest router declaration above it', () => {
+  const byPath = routesByPath({
+    'server/agent/router.ts': `
+import { Router } from 'express';
+export function createAgentRouter() {
+  const router = Router();
+  router.get('/inbox', (req, res) => res.json({}));
+  return router;
+}
+`,
+    'server/widget/router.ts': `
+import { Router } from 'express';
+export function createWidgetRouter() {
+  const router = Router();
+  router.get('/:publicId/config', (req, res) => res.json({}));
+  return router;
+}
+`,
+    'server/index.ts': `
+import { createAgentRouter } from './agent/router';
+import { createWidgetRouter } from './widget/router';
+import { authenticateToken } from './middleware/auth';
+const mountAt = (prefix: string, handlers: RequestHandler[]): void => { app.use(prefix, ...handlers); };
+{
+  const router = createAgentRouter();
+  mountAt('/api/agent', [authenticateToken, router]);
+}
+{
+  const router = createWidgetRouter();
+  mountAt('/api/widget', [router]);
+}
+`,
+  });
+  assert.ok(byPath['/inbox'], 'agent router mounted behind authenticateToken must be covered');
+  assert.equal(byPath['/:publicId/config'], null, 'widget router mounted with no guard stays flagged');
 });
