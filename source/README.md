@@ -11,5 +11,5 @@ Reference copies of third-party source. Used for reading and for copying permitt
 
 ## Not included
 
-- Mastra source. It contains 212 files under ee/ folders, which are under the Mastra Enterprise Edition License. That licence forbids redistribution, and this repository is public, so Mastra source is not stored here. Only the Apache-2.0 code we copy will be added, with attribution, as described in docs/mastra-attribution.md.
+- Mastra source. It contains 172 files under ee/ folders, which are under the Mastra Enterprise Edition License. That licence forbids redistribution, and this repository is public, so Mastra source is not stored here. Only the Apache-2.0 code we copy will be added, with attribution, as described in docs/mastra-attribution.md.
 - Langfuse source. It also contains enterprise-licensed folders, for the same reason.
