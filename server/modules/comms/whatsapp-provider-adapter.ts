@@ -13,7 +13,7 @@
 
 import { checkConsent, type Contact, type QuietHours } from './consent.ts';
 import { decideWhatsAppSend, type WindowTime } from './whatsapp-window.ts';
-import { buildWhatsAppRequest, sendWhatsApp, type WhatsAppHttp } from './whatsapp-send.ts';
+import { buildWhatsAppRequest, sendWhatsApp, type WhatsAppBuildFailureReason, type WhatsAppHttp, type WhatsAppSendFailureReason } from './whatsapp-send.ts';
 import { renderTemplate, type RenderRefusalReason, type Template } from './template-rules.ts';
 import type { SuppressionList } from './suppression.ts';
 import {
@@ -62,6 +62,8 @@ export interface WhatsAppAdapterMessage {
 }
 
 export type WhatsAppAdapterRefusalReason =
+  | WhatsAppBuildFailureReason
+  | WhatsAppSendFailureReason
   | 'suppressed'
   | 'invalid_company'
   | 'invalid_idempotency_key'

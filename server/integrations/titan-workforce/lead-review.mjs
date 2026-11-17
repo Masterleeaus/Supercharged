@@ -1,4 +1,4 @@
-/** Native AgentLabs adapter for Titan's ORIGINAL revenue lifecycle engine.
+/** Native host-platform adapter for Titan's ORIGINAL revenue lifecycle engine.
  * Review-only, fail-closed. Requires a trusted identity/ownership adapter
  * supplied by the separate integration authority; does not read/write a DB.
  */
@@ -65,7 +65,7 @@ export async function previewLeadTransition(raw,authContext,{ports,observedAt}={
   });
 }
 
-/** Native AgentLabs Express route; no database migration or provider execution. */
+/** Native Express route; no database migration or provider execution. */
 export function registerLeadPreviewRoute(app,{adminAuthMiddleware,ports,mode}={}){
   if(mode!=='shadow'||typeof adminAuthMiddleware!=='function'||
     ['resolveIdentity','resolveResource','authorize'].some(x=>typeof ports?.[x]!=='function'))

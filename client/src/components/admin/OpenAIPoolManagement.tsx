@@ -82,18 +82,20 @@ const addCredentialSchema = z.object({
   name: z.string().min(1, "Name is required").max(100, "Name too long"),
   apiKey: z.string().min(1, "API key is required").regex(/^sk-/, "API key must start with 'sk-'"),
   modelTier: z.enum(["free", "pro"]),
-  maxConcurrency: z.coerce.number().int().min(1).max(1000),
-  maxAgentsThreshold: z.coerce.number().int().min(1).max(10000),
+  maxConcurrency: z.coerce.number<number | string>().int().min(1).max(1000),
+  maxAgentsThreshold: z.coerce.number<number | string>().int().min(1).max(10000),
 });
 
 const editCredentialSchema = z.object({
   name: z.string().min(1, "Name is required").max(100, "Name too long"),
   modelTier: z.enum(["free", "pro"]),
-  maxConcurrency: z.coerce.number().int().min(1).max(1000),
-  maxAgentsThreshold: z.coerce.number().int().min(1).max(10000),
+  maxConcurrency: z.coerce.number<number | string>().int().min(1).max(1000),
+  maxAgentsThreshold: z.coerce.number<number | string>().int().min(1).max(10000),
 });
 
+type AddCredentialFormInput = z.input<typeof addCredentialSchema>;
 type AddCredentialFormData = z.infer<typeof addCredentialSchema>;
+type EditCredentialFormInput = z.input<typeof editCredentialSchema>;
 type EditCredentialFormData = z.infer<typeof editCredentialSchema>;
 
 export default function OpenAIPoolManagement() {
