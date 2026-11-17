@@ -432,13 +432,13 @@ export function registerFlowRoutes(router: Router): void {
                         const { buildMessagingEmailTool, buildMessagingWhatsappTool } = await import('../../services/elevenlabs');
                         for (const webhookNode of webhookNodes) {
                           if (webhookNode.toolId.startsWith('send_email_') && !webhookNode.url) {
-                            const templateName = String(webhookNode.payload?.template_name || 'default');
+                            const templateName = (webhookNode.payload?.template_name as string | undefined) || 'default';
                             const emailTool = buildMessagingEmailTool(elevenLabsAgent.agent_id, [templateName], templateName);
                             emailTool.name = webhookNode.toolId;
                             newAgentWebhookTools.push(emailTool);
                             logger.info(`   📧 Added email messaging tool: ${webhookNode.toolId} -> template="${templateName}"`);
                           } else if (webhookNode.toolId.startsWith('send_whatsapp_') && !webhookNode.url) {
-                            const templateName = String(webhookNode.payload?.template_name || 'hello_world');
+                            const templateName = (webhookNode.payload?.template_name as string | undefined) || 'hello_world';
                             const whatsappTool = buildMessagingWhatsappTool(elevenLabsAgent.agent_id, [templateName], templateName);
                             whatsappTool.name = webhookNode.toolId;
                             newAgentWebhookTools.push(whatsappTool);
@@ -555,13 +555,13 @@ export function registerFlowRoutes(router: Router): void {
                         const { buildMessagingEmailTool, buildMessagingWhatsappTool } = await import('../../services/elevenlabs');
                         for (const webhookNode of webhookNodes) {
                           if (webhookNode.toolId.startsWith('send_email_') && !webhookNode.url) {
-                            const templateName = String(webhookNode.payload?.template_name || 'default');
+                            const templateName = (webhookNode.payload?.template_name as string | undefined) || 'default';
                             const emailTool = buildMessagingEmailTool(agent.elevenLabsAgentId, [templateName], templateName);
                             emailTool.name = webhookNode.toolId;
                             webhookTools.push(emailTool);
                             logger.info(`   📧 Added email messaging tool: ${webhookNode.toolId} -> template="${templateName}"`);
                           } else if (webhookNode.toolId.startsWith('send_whatsapp_') && !webhookNode.url) {
-                            const templateName = String(webhookNode.payload?.template_name || 'hello_world');
+                            const templateName = (webhookNode.payload?.template_name as string | undefined) || 'hello_world';
                             const whatsappTool = buildMessagingWhatsappTool(agent.elevenLabsAgentId, [templateName], templateName);
                             whatsappTool.name = webhookNode.toolId;
                             webhookTools.push(whatsappTool);

@@ -111,9 +111,8 @@ const DEFAULT_CLOCK = () => new Date().toISOString();
 const FORBIDDEN_BOUNDARY_KEYS = new Set(["tenant_id", "tenant_company_id"]);
 
 function canonicalJson(value: unknown, path = "value", stack = new WeakSet<object>()): JsonValue {
-  if (value === null) return null;
-  if (typeof value === "string" || typeof value === "boolean") {
-    return value;
+  if (value === null || typeof value === "string" || typeof value === "boolean") {
+    return value as null | string | boolean;
   }
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (Array.isArray(value)) {

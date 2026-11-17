@@ -12,7 +12,7 @@
  */
 
 import nodemailer from 'nodemailer';
-import type { SendMailOptions, Transporter } from 'nodemailer';
+import type { Transporter, SendMailOptions } from 'nodemailer';
 import { storage } from '../storage';
 import { logger } from '../utils/logger';
 import type { EmailTemplate } from '@shared/schema';
