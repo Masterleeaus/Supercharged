@@ -560,6 +560,22 @@
       "path": "/config",
       "reason": "Gateway config returns publishable key and enabled flags only; checked in service.ts config functions.",
       "approvedBy": "owner approved 2026-11-18 (issue #320)"
+    },
+    {
+      "file": "server/routes/core/central-sso-routes.ts",
+      "receiver": "app",
+      "method": "GET",
+      "path": "<START_PATH>",
+      "reason": "Central OIDC sign-in start; must be unauthenticated. Mounted only when CENTRAL_SSO_ENABLED=true (default off). Starts the flow and stores state in the pending store; no tenant data.",
+      "approvedBy": "pending owner sign-off (#425 central SSO; mounted only when CENTRAL_SSO_ENABLED=true)"
+    },
+    {
+      "file": "server/routes/core/central-sso-routes.ts",
+      "receiver": "app",
+      "method": "GET",
+      "path": "<CALLBACK_PATH>",
+      "reason": "Central OIDC callback; must be unauthenticated. Validates state and the signed ID token in the flow; fails closed until the entitlement check (#194) is configured.",
+      "approvedBy": "pending owner sign-off (#425 central SSO; mounted only when CENTRAL_SSO_ENABLED=true)"
     }
   ]
 }
