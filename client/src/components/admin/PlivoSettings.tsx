@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { useForm } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -624,7 +624,7 @@ function PhonePricingSection() {
   const [selectedPricing, setSelectedPricing] = useState<PhonePricing | null>(null);
 
   const addForm = useForm<AddPhonePricingFormData>({
-    resolver: zodResolver(addPhonePricingSchema),
+    resolver: zodResolver(addPhonePricingSchema) as Resolver<AddPhonePricingFormData>,
     defaultValues: {
       countryCode: "",
       countryName: "",
@@ -635,7 +635,7 @@ function PhonePricingSection() {
   });
 
   const editForm = useForm<EditPhonePricingFormData>({
-    resolver: zodResolver(editPhonePricingSchema),
+    resolver: zodResolver(editPhonePricingSchema) as Resolver<EditPhonePricingFormData>,
     defaultValues: {
       purchaseCredits: 0,
       monthlyCredits: 0,

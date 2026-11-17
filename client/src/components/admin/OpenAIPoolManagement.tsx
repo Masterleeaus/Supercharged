@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { useForm } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -104,7 +104,7 @@ export default function OpenAIPoolManagement() {
   const [selectedCredential, setSelectedCredential] = useState<OpenAICredential | null>(null);
 
   const addForm = useForm<AddCredentialFormData>({
-    resolver: zodResolver(addCredentialSchema),
+    resolver: zodResolver(addCredentialSchema) as Resolver<AddCredentialFormData>,
     defaultValues: {
       name: "",
       apiKey: "",
@@ -115,7 +115,7 @@ export default function OpenAIPoolManagement() {
   });
 
   const editForm = useForm<EditCredentialFormData>({
-    resolver: zodResolver(editCredentialSchema),
+    resolver: zodResolver(editCredentialSchema) as Resolver<EditCredentialFormData>,
     defaultValues: {
       name: "",
       modelTier: "free",
