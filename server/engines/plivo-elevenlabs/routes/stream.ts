@@ -18,6 +18,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { ElevenLabsBridgeService } from '../services/elevenlabs-bridge.service';
 import { logger } from '../../../utils/logger';
 import { isKnownPlivoStreamCall } from '../../../utils/plivo-stream-call-check';
+import { streamTokenFromUrl, verifyStreamToken } from '../../../utils/stream-token.ts';
 import { db } from '../../../db';
 import { plivoCalls } from '@shared/schema';
 import { eq } from 'drizzle-orm';
@@ -72,6 +73,14 @@ export function setupPlivoElevenLabsStream(httpServer: HttpServer): void {
       
       if (!callUuid) {
         logger.error(`[Plivo-ElevenLabs Stream] Invalid stream URL: ${pathname}`);
+        socket.destroy();
+        return;
+      }
+
+      // Security: the stream URL carries a server-issued token bound to this call UUID.
+      const streamAuth = verifyStreamToken(streamTokenFromUrl(request.url), { callId: callUuid });
+      if (!streamAuth.ok) {
+        logger.error(`[Plivo-ElevenLabs Stream] Security: Rejecting stream for call ${callUuid}: ${streamAuth.reason}`);
         socket.destroy();
         return;
       }

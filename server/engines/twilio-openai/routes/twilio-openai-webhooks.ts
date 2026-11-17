@@ -298,7 +298,7 @@ router.post('/voice/incoming', async (req: Request, res: Response) => {
       },
     });
 
-    logger.info(`Call ${callId} connected to stream: ${streamUrl}`, undefined, 'TwilioOpenAI');
+    logger.info(`Call ${callId} connected to stream: ${streamUrl.split('?')[0]}`, undefined, 'TwilioOpenAI');
 
     res.type('text/xml');
     res.send(twiml);
