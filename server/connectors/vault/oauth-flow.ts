@@ -107,7 +107,7 @@ export function createOAuthFlow(options: OAuthFlowOptions) {
       const p = provider(connectorId);
       const state = base64url(randomBytes(32));
       const verifier = base64url(randomBytes(32));
-      const challenge = base64url(createHash('sha256').update(verifier).digest());
+      const challenge = Buffer.from(createHash('sha256').update(verifier).digest('hex'), 'hex').toString('base64url');
       await options.pending.put(state, { companyId, connectorId, verifier, expiresAt: now() + PENDING_TTL_MS });
       const url = new URL(p.authorizeUrl);
       url.search = new URLSearchParams({
