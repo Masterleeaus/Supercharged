@@ -66,7 +66,7 @@ function assertActor(actor: unknown): BridgeActor {
 }
 
 function mapResult(result: RunToolResult): BridgeOutcome {
-  if (!result.ok) return { status: 'refused', reason: String(result.reason) };
+  if (result.ok === false) return { status: 'refused', reason: String(result.reason) };
   const tool = result.tool;
   switch (tool.outcome) {
     case 'executed':
