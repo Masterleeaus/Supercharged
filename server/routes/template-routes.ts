@@ -1,18 +1,14 @@
+import type { CaughtError } from './common';
 'use strict';
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
 
@@ -60,7 +56,7 @@ export function createTemplateRoutes(ctx: RouteContext): Router {
       }
       
       res.json(allTemplates);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Get prompt templates error:", error);
       res.status(500).json({ error: "Failed to get prompt templates" });
     }
@@ -83,7 +79,7 @@ export function createTemplateRoutes(ctx: RouteContext): Router {
       }
       
       res.json(template);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Get prompt template error:", error);
       res.status(500).json({ error: "Failed to get prompt template" });
     }
@@ -148,7 +144,7 @@ export function createTemplateRoutes(ctx: RouteContext): Router {
       const template = await storage.createPromptTemplate(newTemplateData);
 
       res.json(template);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Create prompt template error:", error);
       res.status(500).json({ error: "Failed to create prompt template" });
     }
@@ -178,7 +174,7 @@ export function createTemplateRoutes(ctx: RouteContext): Router {
         isPublic 
       } = req.body;
 
-      const updates: any = {};
+      const updates: Record<string, unknown> = {};
       if (name !== undefined) updates.name = name;
       if (description !== undefined) updates.description = description;
       if (category !== undefined) updates.category = category;
@@ -204,7 +200,7 @@ export function createTemplateRoutes(ctx: RouteContext): Router {
       
       const updated = await storage.getPromptTemplate(req.params.id);
       res.json(updated);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Update prompt template error:", error);
       res.status(500).json({ error: "Failed to update prompt template" });
     }
@@ -224,7 +220,7 @@ export function createTemplateRoutes(ctx: RouteContext): Router {
 
       await storage.deletePromptTemplate(req.params.id);
       res.json({ success: true });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Delete prompt template error:", error);
       res.status(500).json({ error: "Failed to delete prompt template" });
     }
@@ -275,7 +271,7 @@ export function createTemplateRoutes(ctx: RouteContext): Router {
           !variableValues || !(v in variableValues)
         )
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Use prompt template error:", error);
       res.status(500).json({ error: "Failed to use prompt template" });
     }
@@ -314,7 +310,7 @@ export function createTemplateRoutes(ctx: RouteContext): Router {
       } as PromptTemplateInsertRow);
 
       res.json(template);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Create system prompt template error:", error);
       res.status(500).json({ error: "Failed to create system prompt template" });
     }

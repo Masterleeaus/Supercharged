@@ -184,3 +184,124 @@ export function validatePluginManifest(raw: unknown): ManifestResult {
     },
   };
 }
+
+/*
+ * Connector manifests (#350). A connector lives in plugins/<name>/connector.json and is validated
+ * on its own: an invalid connector manifest blocks only that connector, never the plugins around it.
+ * Pure, like validatePluginManifest. Unknown keys are rejected so a typo cannot silently drop a rule.
+ */
+
+/*
+ * The lists below copy server/connectors/sdk/contract.ts. This file imports no other connector code
+ * (the plugin validator test pins its imports). tests/connectors/registry.test.mjs checks they match.
+ */
+const AUTH_TYPES = ['oauth2', 'api_key', 'none'] as const;
+const ENTITY_TYPES = ['contact', 'booking', 'job', 'quote', 'invoice', 'message'] as const;
+type AuthType = (typeof AUTH_TYPES)[number];
+type EntityType = (typeof ENTITY_TYPES)[number];
+
+export interface ConnectorManifest {
+  id: string;
+  version: string;
+  vendor: string;
+  auth: AuthType;
+  entities: EntityType[];
+  requiredScopes: string[];
+  webhookEvents: string[];
+  configSchema: Record<string, { type: 'string' | 'number' | 'boolean'; required: boolean }>;
+  featureFlag: string;
+}
+
+export type ConnectorManifestResult =
+  | { ok: true; manifest: ConnectorManifest }
+  | { ok: false; errors: ManifestIssue[] };
+
+const CONNECTOR_KEYS = new Set(['id', 'version', 'vendor', 'auth', 'entities', 'requiredScopes', 'webhookEvents', 'configSchema', 'featureFlag']);
+const FLAG_PATTERN = /^[a-z][a-z0-9_]{2,63}$/;
+const TOKEN_PATTERN = /^[A-Za-z0-9_.:/-]{1,120}$/;
+const CONFIG_KEY_PATTERN = /^[a-z][a-zA-Z0-9_]{0,63}$/;
+const CONFIG_TYPES = ['string', 'number', 'boolean'] as const;
+const MAX_LIST = 50;
+
+function stringList(value: unknown, path: string, errors: ManifestIssue[]): string[] {
+  if (!Array.isArray(value) || value.length > MAX_LIST) {
+    errors.push({ path, message: `must be an array of at most ${MAX_LIST} strings` });
+    return [];
+  }
+  const out: string[] = [];
+  value.forEach((item, index) => {
+    if (typeof item !== 'string' || !TOKEN_PATTERN.test(item)) {
+      errors.push({ path: `${path}.${index}`, message: 'must be a short token string' });
+    } else out.push(item);
+  });
+  return out;
+}
+
+export function validateConnectorManifest(raw: unknown): ConnectorManifestResult {
+  const errors: ManifestIssue[] = [];
+  if (!isRecord(raw)) return { ok: false, errors: [{ path: '(root)', message: 'connector manifest must be a JSON object' }] };
+
+  for (const key of Object.keys(raw)) {
+    if (!CONNECTOR_KEYS.has(key)) errors.push({ path: key, message: 'unknown connector manifest key' });
+  }
+  if (typeof raw.id !== 'string' || !NAME_PATTERN.test(raw.id)) {
+    errors.push({ path: 'id', message: 'must be kebab-case, 2 to 64 characters, starting with a letter' });
+  }
+  if (typeof raw.version !== 'string' || !SEMVER_PATTERN.test(raw.version)) {
+    errors.push({ path: 'version', message: 'must be a semantic version, e.g. 0.1.0' });
+  }
+  boundedString(raw.vendor, 'vendor', 1, 120, errors);
+  if (typeof raw.auth !== 'string' || !(AUTH_TYPES as readonly string[]).includes(raw.auth)) {
+    errors.push({ path: 'auth', message: `must be one of ${AUTH_TYPES.join(', ')}` });
+  }
+
+  if (!Array.isArray(raw.entities) || raw.entities.length === 0) {
+    errors.push({ path: 'entities', message: 'must be a non-empty array of entity types' });
+  } else {
+    raw.entities.forEach((entity, index) => {
+      if (typeof entity !== 'string' || !(ENTITY_TYPES as readonly string[]).includes(entity)) {
+        errors.push({ path: `entities.${index}`, message: `must be one of ${ENTITY_TYPES.join(', ')}` });
+      }
+    });
+  }
+
+  const requiredScopes = stringList(raw.requiredScopes ?? [], 'requiredScopes', errors);
+  const webhookEvents = stringList(raw.webhookEvents ?? [], 'webhookEvents', errors);
+
+  const configSchema: ConnectorManifest['configSchema'] = {};
+  if (raw.configSchema !== undefined && !isRecord(raw.configSchema)) {
+    errors.push({ path: 'configSchema', message: 'must be an object of field definitions' });
+  } else if (isRecord(raw.configSchema)) {
+    for (const [key, def] of Object.entries(raw.configSchema)) {
+      if (!CONFIG_KEY_PATTERN.test(key)) errors.push({ path: `configSchema.${key}`, message: 'invalid field name' });
+      if (!isRecord(def) || !(CONFIG_TYPES as readonly unknown[]).includes(def.type)) {
+        errors.push({ path: `configSchema.${key}.type`, message: `must be one of ${CONFIG_TYPES.join(', ')}` });
+        continue;
+      }
+      if (def.required !== undefined && typeof def.required !== 'boolean') {
+        errors.push({ path: `configSchema.${key}.required`, message: 'must be a boolean' });
+      }
+      configSchema[key] = { type: def.type as ConnectorManifest['configSchema'][string]['type'], required: def.required === true };
+    }
+  }
+
+  if (typeof raw.featureFlag !== 'string' || !FLAG_PATTERN.test(raw.featureFlag)) {
+    errors.push({ path: 'featureFlag', message: 'must be a lowercase flag name, 3 to 64 characters' });
+  }
+
+  if (errors.length > 0) return { ok: false, errors };
+  return {
+    ok: true,
+    manifest: {
+      id: raw.id as string,
+      version: raw.version as string,
+      vendor: (raw.vendor as string).trim(),
+      auth: raw.auth as AuthType,
+      entities: [...(raw.entities as EntityType[])],
+      requiredScopes,
+      webhookEvents,
+      configSchema,
+      featureFlag: raw.featureFlag as string,
+    },
+  };
+}

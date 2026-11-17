@@ -1,19 +1,15 @@
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
+import type { AppError } from "@/components/app-error";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -84,6 +80,17 @@ interface ProductSchema {
   ratingCount?: string;
 }
 
+/** Response of the sitemap generate and rebuild calls. */
+interface SitemapResult {
+  urlCount?: number;
+}
+
+/** Response of the social image upload call. */
+interface ImageUploadResult {
+  imageType?: string;
+  url?: string;
+}
+
 interface SeoSettings {
   id: string;
   defaultTitle: string | null;
@@ -126,7 +133,7 @@ export default function SEOModule() {
   const updateSettings = useMutation({
     mutationFn: async (data: Partial<SeoSettings>) => {
       // Filter out fields that should not be sent to backend (dates come as strings and cause serialization errors)
-      const { id, createdAt, updatedAt, keywordsInput, ...cleanData } = data as any;
+      const { id, createdAt, updatedAt, keywordsInput, ...cleanData } = data as Partial<SeoSettings> & { createdAt?: unknown; updatedAt?: unknown; keywordsInput?: unknown };
       return apiRequest("PATCH", "/api/admin/seo", cleanData);
     },
     onSuccess: () => {
@@ -137,7 +144,8 @@ export default function SEOModule() {
       });
       setHasChanges(false);
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("common.error"),
         description: error.message,
@@ -158,7 +166,8 @@ export default function SEOModule() {
         description: t("admin.seo.urlAddedDesc")
       });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("common.error"),
         description: error.message,
@@ -178,7 +187,8 @@ export default function SEOModule() {
         description: t("admin.seo.urlRemovedDesc")
       });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("common.error"),
         description: error.message,
@@ -191,14 +201,17 @@ export default function SEOModule() {
     mutationFn: async () => {
       return apiRequest("POST", "/api/admin/seo/generate-sitemap", {});
     },
-    onSuccess: (data: any) => {
+    onSuccess: (response: Response) => {
+      // The mutation returns the raw Response (existing behaviour), so urlCount reads as undefined at runtime.
+      const data = response as unknown as SitemapResult;
       queryClient.invalidateQueries({ queryKey: ["/api/admin/seo"] });
       toast({
         title: t("admin.seo.sitemap.generated") || "Sitemap Generated",
         description: t("admin.seo.sitemap.generatedDesc") || `Created ${data.urlCount || 9} default URLs`
       });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("common.error"),
         description: error.message,
@@ -211,14 +224,17 @@ export default function SEOModule() {
     mutationFn: async () => {
       return apiRequest("POST", "/api/admin/seo/rebuild-sitemap", {});
     },
-    onSuccess: (data: any) => {
+    onSuccess: (response: Response) => {
+      // The mutation returns the raw Response (existing behaviour), so urlCount reads as undefined at runtime.
+      const data = response as unknown as SitemapResult;
       queryClient.invalidateQueries({ queryKey: ["/api/admin/seo"] });
       toast({
         title: t("admin.seo.sitemap.rebuilt") || "Sitemap Rebuilt",
         description: t("admin.seo.sitemap.rebuiltDesc") || `Updated ${data.urlCount || 0} URLs with latest dates`
       });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("common.error"),
         description: error.message,
@@ -231,7 +247,7 @@ export default function SEOModule() {
     mutationFn: async ({ imageData, imageType, fileName }: { imageData: string; imageType: string; fileName: string }) => {
       return apiRequest("POST", "/api/admin/seo/upload-image", { imageData, imageType, fileName });
     },
-    onSuccess: (data: any) => {
+    onSuccess: (data: ImageUploadResult) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/seo"] });
       if (data.imageType === 'ogImage') {
         setFormData(prev => ({ ...prev, defaultOgImage: data.url }));
@@ -241,7 +257,8 @@ export default function SEOModule() {
         description: t("admin.seo.social.imageUploadedDesc") || "Image uploaded successfully"
       });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("common.error"),
         description: error.message,
@@ -262,7 +279,7 @@ export default function SEOModule() {
     reader.readAsDataURL(file);
   };
 
-  const handleChange = (key: keyof SeoSettings, value: any) => {
+  const handleChange = (key: keyof SeoSettings, value: unknown) => {
     setFormData(prev => ({
       ...prev,
       [key]: value

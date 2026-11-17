@@ -1,17 +1,12 @@
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
 /**
@@ -78,6 +73,65 @@ export function getAppointmentWebhookSecret(): string {
   return appointmentWebhookSecret;
 }
 
+/** Header that carries the shared secret on tool calls. The secret never appears in a URL. */
+export const APPOINTMENT_WEBHOOK_SECRET_HEADER = 'x-appointment-webhook-secret';
+
+/**
+ * Legacy URL-token route (/appointment/:token/:agentId) is accepted only while this flag is not
+ * "false". It exists for tools configured before the header cutover; set it to "false" to retire it.
+ */
+export function isLegacyAppointmentUrlTokenAllowed(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.APPOINTMENT_WEBHOOK_ALLOW_URL_TOKEN !== 'false';
+}
+
+/** Constant-time comparison of a presented token against the configured secret. */
+export function appointmentTokenMatches(providedToken: string | undefined, secret: string): boolean {
+  if (!providedToken || !secret) {
+    return false;
+  }
+  const providedBuffer = Buffer.from(providedToken);
+  const secretBuffer = Buffer.from(secret);
+  if (providedBuffer.length !== secretBuffer.length) {
+    return false;
+  }
+  return crypto.timingSafeEqual(providedBuffer, secretBuffer);
+}
+
+/**
+ * Decide whether a booking request is authenticated. The header is preferred. The URL token is
+ * accepted only while the legacy flag allows it, and a request presenting both must match on the header.
+ */
+export function authenticateAppointmentRequest(
+  input: { headerToken?: string; pathToken?: string },
+  secret: string,
+  env: NodeJS.ProcessEnv = process.env,
+): { ok: boolean; via: 'header' | 'url' | null } {
+  if (input.headerToken !== undefined) {
+    return { ok: appointmentTokenMatches(input.headerToken, secret), via: 'header' };
+  }
+  if (input.pathToken !== undefined && isLegacyAppointmentUrlTokenAllowed(env)) {
+    return { ok: appointmentTokenMatches(input.pathToken, secret), via: 'url' };
+  }
+  return { ok: false, via: null };
+}
+
+/**
+ * Stable key for one booking attempt. ElevenLabs can retry a tool call, so the same call must not
+ * create a second appointment. The key covers the conversation, company, slot and caller phone.
+ */
+export function appointmentReplayKey(parts: {
+  companyId: string;
+  conversationId: string;
+  date: string;
+  time: string;
+  phone: string;
+}): string {
+  return crypto
+    .createHash('sha256')
+    .update(JSON.stringify([parts.companyId, parts.conversationId, parts.date, parts.time, parts.phone.replace(/[^0-9+]/g, '')]))
+    .digest('hex');
+}
+
 export function validateAppointmentWebhookToken(providedToken: string | undefined): boolean {
   if (!providedToken) {
     return false;
@@ -89,15 +143,7 @@ export function validateAppointmentWebhookToken(providedToken: string | undefine
     // No configured secret: refuse every token rather than guess one.
     return false;
   }
-
-  const providedBuffer = Buffer.from(providedToken);
-  const secretBuffer = Buffer.from(secret);
-  
-  if (providedBuffer.length !== secretBuffer.length) {
-    return false;
-  }
-  
-  return crypto.timingSafeEqual(providedBuffer, secretBuffer);
+  return appointmentTokenMatches(providedToken, secret);
 }
 
 export interface AppointmentWebhookToolConfig {
@@ -122,26 +168,26 @@ export function getBookAppointmentWebhookTool(agentId: string, callId?: string):
   const secret = getAppointmentWebhookSecret();
   
   const queryParams = callId ? `?callId=${encodeURIComponent(callId)}` : '';
-  const webhookUrl = `${domain}/api/webhooks/elevenlabs/appointment/${secret}/${agentId}${queryParams}`;
-  
+  const webhookUrl = `${domain}/api/webhooks/elevenlabs/appointment/${agentId}${queryParams}`;
+
   const agentIdSuffix = agentId.slice(-8);
   const toolName = `book_appointment_${agentIdSuffix}`;
-  
+
   // Get current date for context (so AI knows what "tomorrow" means)
   const now = new Date();
   const currentYear = now.getFullYear();
-  const currentDateStr = now.toLocaleDateString('en-US', { 
-    weekday: 'long', 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
+  const currentDateStr = now.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
   });
-  
+
   logger.info(`📅 [Appointment Tool] Creating webhook tool config for agent ${agentId}`);
   logger.info(`   Tool name: ${toolName}`);
   logger.info(`   Current date context: ${currentDateStr}`);
-  logger.info(`   Webhook URL: ${webhookUrl.replace(secret, '[TOKEN]')}`);
-  
+  logger.info(`   Webhook URL: ${webhookUrl}`);
+
   return {
     type: "webhook",
     name: toolName,
@@ -150,7 +196,8 @@ export function getBookAppointmentWebhookTool(agentId: string, callId?: string):
       url: webhookUrl,
       method: "POST",
       headers: {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        [APPOINTMENT_WEBHOOK_SECRET_HEADER]: secret
       },
       request_body_schema: {
         type: "object",
@@ -208,25 +255,25 @@ export function getAppointmentToolForAgent(elevenLabsAgentId: string): Appointme
   const domain = getDomain();
   const secret = getAppointmentWebhookSecret();
   
-  const webhookUrl = `${domain}/api/webhooks/elevenlabs/appointment/${secret}/${elevenLabsAgentId}`;
-  
+  const webhookUrl = `${domain}/api/webhooks/elevenlabs/appointment/${elevenLabsAgentId}`;
+
   const agentIdSuffix = elevenLabsAgentId.slice(-8);
   const toolName = `book_appointment_${agentIdSuffix}`;
-  
+
   const now = new Date();
   const currentYear = now.getFullYear();
-  const currentDateStr = now.toLocaleDateString('en-US', { 
-    weekday: 'long', 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
+  const currentDateStr = now.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
   });
-  
+
   logger.info(`📅 [Appointment Tool] Creating webhook tool for ElevenLabs agent ${elevenLabsAgentId}`);
   logger.info(`   Tool name: ${toolName}`);
   logger.info(`   Current date context: ${currentDateStr}`);
-  logger.info(`   Webhook URL: ${webhookUrl.replace(secret, '[TOKEN]')}`);
-  
+  logger.info(`   Webhook URL: ${webhookUrl}`);
+
   return {
     type: "webhook",
     name: toolName,
@@ -235,7 +282,8 @@ export function getAppointmentToolForAgent(elevenLabsAgentId: string): Appointme
       url: webhookUrl,
       method: "POST",
       headers: {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        [APPOINTMENT_WEBHOOK_SECRET_HEADER]: secret
       },
       request_body_schema: {
         type: "object",

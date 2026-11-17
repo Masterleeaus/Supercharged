@@ -121,3 +121,91 @@ test("unsigned POSTs to literal voice webhooks are refused with 403 by the real 
     realServer.close();
   }
 });
+
+// Signed callback paths (issue #319). Uses the real requirePlivoV2Signature with an injected token list, so no DB is
+// needed. The signature is computed here with node:crypto directly, following the V2 signing rule, so the test does not
+// depend on the helper it checks. Signed requests must reach their own literal route; bad or missing signatures must not.
+import { createHmac } from "node:crypto";
+const { requirePlivoV2Signature } = await import("../../server/engines/plivo/plivo-signature.ts");
+
+const SIGN_BASE = "https://routing.test.invalid";
+const FAKE_TOKEN = "fake-plivo-auth-token-for-route-tests";
+
+function v2Signature(path, nonce, form) {
+  let base = `${SIGN_BASE}${path}${nonce}`;
+  for (const key of Object.keys(form).sort()) base += key + form[key];
+  return createHmac("sha256", FAKE_TOKEN).update(base, "utf8").digest("base64");
+}
+
+const signedRouter = express.Router();
+const signedRecorded = [];
+{
+  const sigGate = requirePlivoV2Signature(SIGN_BASE, async () => [FAKE_TOKEN]);
+  const proxy = new Proxy({}, {
+    get(_t, prop) {
+      if (METHODS.includes(prop)) {
+        return (path, ...handlers) => {
+          if (typeof path !== "string") return proxy;
+          signedRecorded.push({ method: prop.toUpperCase(), path });
+          signedRouter[prop](path, sigGate, (req, res) => res.json({ matched: path }));
+          return proxy;
+        };
+      }
+      if (prop === "use") return (...args) => { signedRouter.use(...args); return proxy; };
+      return undefined;
+    },
+  });
+  setupPlivoWebhooks(proxy, SIGN_BASE);
+}
+
+const signedApp = express();
+signedApp.use(express.urlencoded({ extended: false }));
+signedApp.use(signedRouter);
+const signedServer = signedApp.listen(0, "127.0.0.1");
+await new Promise((resolve) => signedServer.once("listening", resolve));
+const signedBase = `http://127.0.0.1:${signedServer.address().port}`;
+test.after(() => signedServer.close());
+
+async function postSigned(path, form, { signature, nonce = "nonce-1" } = {}) {
+  const body = new URLSearchParams(form).toString();
+  const sig = signature ?? v2Signature(path, nonce, form);
+  const headers = { "content-type": "application/x-www-form-urlencoded" };
+  if (signature !== null) {
+    headers["x-plivo-signature-v2"] = sig;
+    headers["x-plivo-signature-v2-nonce"] = nonce;
+  }
+  const res = await fetch(`${signedBase}${path}`, { method: "POST", headers, body });
+  return { status: res.status, text: await res.text() };
+}
+
+test("correctly signed callbacks reach their own literal route", async () => {
+  for (const path of ["/api/plivo/voice/status", "/api/plivo/voice/recording", "/api/plivo/voice/hangup", "/api/plivo/voice/post-stream", "/api/plivo/voice/transfer"]) {
+    const res = await postSigned(path, { CallUUID: "uuid-1", CallStatus: "completed" });
+    assert.equal(res.status, 200, `signed POST ${path} returned ${res.status}`);
+    assert.equal(JSON.parse(res.text).matched, path);
+  }
+});
+
+test("a signed call-id callback reaches the :callId route", async () => {
+  const res = await postSigned("/api/plivo/voice/abc123", { CallUUID: "uuid-2" }, { nonce: "nonce-2" });
+  assert.equal(res.status, 200);
+  assert.equal(JSON.parse(res.text).matched, "/api/plivo/voice/:callId");
+});
+
+test("a signature made over a different path is refused on a literal callback", async () => {
+  const sig = v2Signature("/api/plivo/voice/answer", "nonce-3", { CallUUID: "uuid-3" });
+  const res = await postSigned("/api/plivo/voice/status", { CallUUID: "uuid-3" }, { signature: sig, nonce: "nonce-3" });
+  assert.equal(res.status, 403);
+});
+
+test("a signature over different form values is refused", async () => {
+  const sig = v2Signature("/api/plivo/voice/status", "nonce-4", { CallUUID: "uuid-4" });
+  const res = await postSigned("/api/plivo/voice/status", { CallUUID: "tampered" }, { signature: sig, nonce: "nonce-4" });
+  assert.equal(res.status, 403);
+});
+
+test("a callback with no signature headers never reaches its handler", async () => {
+  const res = await postSigned("/api/plivo/voice/status", { CallUUID: "uuid-5" }, { signature: null });
+  assert.equal(res.status, 403);
+  assert.equal(res.text, "Forbidden");
+});

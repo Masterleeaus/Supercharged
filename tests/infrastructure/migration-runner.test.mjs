@@ -80,10 +80,26 @@ test('runner exits nonzero on a missing required file before connecting to the d
 });
 
 test('every committed numbered migration is registered, or is a known exclusion', () => {
-  const committed = readdirSync(new URL('migrations/', ROOT)).filter((f) => f.endsWith('.sql'));
+  const committed = readdirSync(new URL('migrations/', ROOT)).filter((f) => f.endsWith('.sql') && !f.endsWith('.down.sql'));
   const registered = new Set(entries.map((e) => e.file));
   const unexplained = committed.filter((f) => !registered.has(f) && !NOT_RUN_BY_RUNNER.has(f) && !f.startsWith('DRAFT_'));
   assert.deepEqual(unexplained, [], `committed migrations not registered: ${unexplained.join(', ')}`);
+});
+
+// Issue #251: every tenancy migration from 0014 on ships a reviewed down file next to its up file.
+// Down files are never run by the runner; they are for rollback on disposable databases and by hand.
+test('each tenancy migration from 0014 onward has a matching .down.sql, and no orphan down files exist', () => {
+  const files = readdirSync(new URL('migrations/', ROOT));
+  const ups = files.filter((f) => /^00(1[4-9]|2\d)_.*\.sql$/.test(f) && !f.endsWith('.down.sql'));
+  const downs = files.filter((f) => f.endsWith('.down.sql'));
+  const missing = ups.filter((f) => !existsSync(new URL(`migrations/${f.replace(/\.sql$/, '.down.sql')}`, ROOT)));
+  assert.deepEqual(missing, [], `up migrations without a down file: ${missing.join(', ')}`);
+  const orphans = downs.filter((f) => !existsSync(new URL(`migrations/${f.replace(/\.down\.sql$/, '.sql')}`, ROOT)));
+  assert.deepEqual(orphans, [], `down files without an up file: ${orphans.join(', ')}`);
+});
+
+test('the runner never executes a .down.sql file', () => {
+  assert.doesNotMatch(runnerSource, /down\.sql/);
 });
 
 test('journal lists the base schema and then exactly the runner entries, in the same order', () => {

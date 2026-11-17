@@ -14,7 +14,7 @@ import { useTranslation } from "react-i18next";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select } from "@/components/ui/select";
-import type { PlivoPhoneNumber, UserSearchResponse, User } from "./types";
+import type { PlivoPhoneNumber, UserSearchResponse } from "./types";
 
 export function PhoneNumbersSection() {
   const { toast } = useToast();

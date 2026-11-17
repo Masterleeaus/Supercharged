@@ -1,3 +1,4 @@
+import type { CaughtError } from '../common';
 'use strict';
 import { Router, Response } from 'express';
 import { storage } from '../../storage';
@@ -148,11 +149,11 @@ export function registerUsersRoutes(router: Router) {
           ...parsed,
           planType: normalizePlanType(parsed.planType)
         };
-      } catch (validationError: any) {
-        if (validationError.issues) {
+      } catch (validationError: unknown) {
+        if ((validationError as CaughtError).issues) {
           return res.status(400).json({ 
             error: 'Validation failed', 
-            details: validationError.issues 
+            details: (validationError as CaughtError).issues 
           });
         }
         throw validationError;
@@ -308,10 +309,10 @@ export function registerUsersRoutes(router: Router) {
           isActive: newUser.isActive,
         }
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error creating user:', error);
-      if (error.name === 'ZodError') {
-        return res.status(400).json({ error: 'Invalid input data', details: error.issues });
+      if ((error as CaughtError).name === 'ZodError') {
+        return res.status(400).json({ error: 'Invalid input data', details: (error as CaughtError).issues });
       }
       res.status(500).json({ error: 'Failed to create user' });
     }
@@ -385,7 +386,7 @@ export function registerUsersRoutes(router: Router) {
       logger.info(`✅ [Admin] Successfully deleted user and all data: ${userId}`);
       
       res.json({ success: true, message: `User ${user.email} and all associated data have been permanently deleted` });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error deleting user:', error);
       res.status(500).json({ error: 'Failed to delete user' });
     }

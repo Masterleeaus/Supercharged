@@ -1,19 +1,15 @@
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
+import type { AppError } from "@/components/app-error";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -65,7 +61,7 @@ export default function AutoRestartModule() {
 
   const { data: settings, isLoading } = useQuery<AutoRestartSettings>({
     queryKey: ["/api/admin/settings"],
-    select: (data: any) => ({
+    select: (data: Partial<AutoRestartSettings>) => ({
       auto_restart_enabled: data.auto_restart_enabled ?? false,
       auto_restart_ram_percent: data.auto_restart_ram_percent ?? 75,
       auto_restart_cpu_percent: data.auto_restart_cpu_percent ?? 85
@@ -89,7 +85,7 @@ export default function AutoRestartModule() {
   }, [settings]);
 
   const updateSetting = useMutation({
-    mutationFn: async ({ key, value }: { key: string; value: any }) => {
+    mutationFn: async ({ key, value }: { key: string; value: unknown }) => {
       return apiRequest("PATCH", `/api/admin/settings/${key}`, { value });
     },
     onSuccess: async (_, variables) => {
@@ -103,7 +99,8 @@ export default function AutoRestartModule() {
         description: t("admin.settings.autoRestart.title"),
       });
     },
-    onError: (error: any) => {
+    onError: (raw_error: Error) => {
+      const error = raw_error as AppError;
       toast({
         title: t("admin.settings.updateFailed"),
         description: error.message,
@@ -112,7 +109,7 @@ export default function AutoRestartModule() {
     }
   });
 
-  const handleChange = (key: keyof AutoRestartSettings, value: any) => {
+  const handleChange = (key: keyof AutoRestartSettings, value: unknown) => {
     let clampedValue = value;
     
     if (key === 'auto_restart_ram_percent') {
