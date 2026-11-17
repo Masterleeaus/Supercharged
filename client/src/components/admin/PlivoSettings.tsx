@@ -138,8 +138,10 @@ const editPlivoCredentialSchema = z.object({
   isPrimary: z.boolean(),
 });
 
-type AddPlivoCredentialFormData = z.infer<typeof addPlivoCredentialSchema>;
-type EditPlivoCredentialFormData = z.infer<typeof editPlivoCredentialSchema>;
+type AddPlivoCredentialFormData = z.output<typeof addPlivoCredentialSchema>;
+type AddPlivoCredentialFormInput = z.input<typeof addPlivoCredentialSchema>;
+type EditPlivoCredentialFormData = z.output<typeof editPlivoCredentialSchema>;
+type EditPlivoCredentialFormInput = z.input<typeof editPlivoCredentialSchema>;
 
 function PlivoCredentialsSection() {
   const { toast } = useToast();
@@ -149,7 +151,7 @@ function PlivoCredentialsSection() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedCredential, setSelectedCredential] = useState<PlivoCredential | null>(null);
 
-  const addForm = useForm<AddPlivoCredentialFormData>({
+  const addForm = useForm<AddPlivoCredentialFormInput, unknown, AddPlivoCredentialFormData>({
     resolver: zodResolver(addPlivoCredentialSchema),
     defaultValues: {
       name: "",
@@ -159,7 +161,7 @@ function PlivoCredentialsSection() {
     },
   });
 
-  const editForm = useForm<EditPlivoCredentialFormData>({
+  const editForm = useForm<EditPlivoCredentialFormInput, unknown, EditPlivoCredentialFormData>({
     resolver: zodResolver(editPlivoCredentialSchema),
     defaultValues: {
       name: "",
@@ -612,8 +614,10 @@ const editPhonePricingSchema = z.object({
   isActive: z.boolean(),
 });
 
-type AddPhonePricingFormData = z.infer<typeof addPhonePricingSchema>;
-type EditPhonePricingFormData = z.infer<typeof editPhonePricingSchema>;
+type AddPhonePricingFormData = z.output<typeof addPhonePricingSchema>;
+type AddPhonePricingFormInput = z.input<typeof addPhonePricingSchema>;
+type EditPhonePricingFormData = z.output<typeof editPhonePricingSchema>;
+type EditPhonePricingFormInput = z.input<typeof editPhonePricingSchema>;
 
 function PhonePricingSection() {
   const { toast } = useToast();
@@ -623,7 +627,7 @@ function PhonePricingSection() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedPricing, setSelectedPricing] = useState<PhonePricing | null>(null);
 
-  const addForm = useForm<AddPhonePricingFormData>({
+  const addForm = useForm<AddPhonePricingFormInput, unknown, AddPhonePricingFormData>({
     resolver: zodResolver(addPhonePricingSchema),
     defaultValues: {
       countryCode: "",
@@ -634,7 +638,7 @@ function PhonePricingSection() {
     },
   });
 
-  const editForm = useForm<EditPhonePricingFormData>({
+  const editForm = useForm<EditPhonePricingFormInput, unknown, EditPhonePricingFormData>({
     resolver: zodResolver(editPhonePricingSchema),
     defaultValues: {
       purchaseCredits: 0,
@@ -932,6 +936,7 @@ function PhonePricingSection() {
                       <FormControl>
                         <Input
                           {...field}
+                          value={field.value as string | number}
                           type="number"
                           data-testid="input-purchase-credits"
                         />
@@ -949,6 +954,7 @@ function PhonePricingSection() {
                       <FormControl>
                         <Input
                           {...field}
+                          value={field.value as string | number}
                           type="number"
                           data-testid="input-monthly-credits"
                         />
@@ -1042,6 +1048,7 @@ function PhonePricingSection() {
                       <FormControl>
                         <Input
                           {...field}
+                          value={field.value as string | number}
                           type="number"
                           data-testid="input-edit-purchase-credits"
                         />
@@ -1059,6 +1066,7 @@ function PhonePricingSection() {
                       <FormControl>
                         <Input
                           {...field}
+                          value={field.value as string | number}
                           type="number"
                           data-testid="input-edit-monthly-credits"
                         />

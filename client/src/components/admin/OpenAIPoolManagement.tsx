@@ -92,8 +92,10 @@ const editCredentialSchema = z.object({
   maxAgentsThreshold: z.coerce.number().int().min(1).max(10000),
 });
 
-type AddCredentialFormData = z.infer<typeof addCredentialSchema>;
-type EditCredentialFormData = z.infer<typeof editCredentialSchema>;
+type AddCredentialFormData = z.output<typeof addCredentialSchema>;
+type AddCredentialFormInput = z.input<typeof addCredentialSchema>;
+type EditCredentialFormData = z.output<typeof editCredentialSchema>;
+type EditCredentialFormInput = z.input<typeof editCredentialSchema>;
 
 export default function OpenAIPoolManagement() {
   const { t } = useTranslation();
@@ -103,7 +105,7 @@ export default function OpenAIPoolManagement() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedCredential, setSelectedCredential] = useState<OpenAICredential | null>(null);
 
-  const addForm = useForm<AddCredentialFormData>({
+  const addForm = useForm<AddCredentialFormInput, unknown, AddCredentialFormData>({
     resolver: zodResolver(addCredentialSchema),
     defaultValues: {
       name: "",
@@ -114,7 +116,7 @@ export default function OpenAIPoolManagement() {
     },
   });
 
-  const editForm = useForm<EditCredentialFormData>({
+  const editForm = useForm<EditCredentialFormInput, unknown, EditCredentialFormData>({
     resolver: zodResolver(editCredentialSchema),
     defaultValues: {
       name: "",
@@ -626,6 +628,7 @@ export default function OpenAIPoolManagement() {
                       <FormControl>
                         <Input
                           {...field}
+                          value={field.value as string | number}
                           type="number"
                           data-testid="input-max-concurrency"
                         />
@@ -643,6 +646,7 @@ export default function OpenAIPoolManagement() {
                       <FormControl>
                         <Input
                           {...field}
+                          value={field.value as string | number}
                           type="number"
                           data-testid="input-max-agents"
                         />
@@ -731,6 +735,7 @@ export default function OpenAIPoolManagement() {
                       <FormControl>
                         <Input
                           {...field}
+                          value={field.value as string | number}
                           type="number"
                           data-testid="input-edit-max-concurrency"
                         />
@@ -748,6 +753,7 @@ export default function OpenAIPoolManagement() {
                       <FormControl>
                         <Input
                           {...field}
+                          value={field.value as string | number}
                           type="number"
                           data-testid="input-edit-max-agents"
                         />
