@@ -31,6 +31,8 @@ const NONCE_PATTERN = /^[0-9a-f]{32}$/;
 const SIGNATURE_PATTERN = /^sha256=[0-9a-f]{64}$/;
 const TIMESTAMP_PATTERN = /^[0-9]{1,11}$/;
 const RESPONSE_STATUSES = new Set(['ok', 'allowance_exhausted', 'service_error', 'contract_unsupported']);
+/** Every scope name any feature uses. An offered scope outside this set is a malformed request. */
+const KNOWN_SCOPES: ReadonlySet<string> = new Set([...FEATURES.values()].flatMap((definition) => definition.scopes));
 
 export type RefusalReason =
   | 'method_not_allowed'
@@ -41,7 +43,6 @@ export type RefusalReason =
   | 'bad_signature'
   | 'tenant_mismatch'
   | 'feature_not_allowed'
-  | 'scope_not_allowed'
   | 'scope_not_granted'
   | 'replay'
   | 'internal_error';
@@ -55,7 +56,6 @@ const REFUSAL_STATUS: Record<RefusalReason, number> = {
   bad_signature: 401,
   tenant_mismatch: 403,
   feature_not_allowed: 400,
-  scope_not_allowed: 403,
   scope_not_granted: 403,
   replay: 409,
   internal_error: 500,
@@ -150,8 +150,12 @@ async function handle(request: ConnectorRequest, deps: Resolved): Promise<Connec
   if (!Array.isArray(consent.scopes) || !consent.scopes.every((scope) => typeof scope === 'string')) {
     return refusal('invalid_request');
   }
-  const scopes = consent.scopes as string[];
-  if (!scopes.every((scope) => definition.scopes.includes(scope))) return refusal('scope_not_allowed');
+  const offered = consent.scopes as string[];
+  if (!offered.every((scope) => KNOWN_SCOPES.has(scope))) return refusal('invalid_request');
+  // The plugin sends every granted scope. Offered scopes this feature does not use are ignored:
+  // they are neither refused nor passed on. Only the feature's own scopes that were offered are used.
+  const scopes = definition.scopes.filter((scope) => offered.includes(scope));
+  if (scopes.length === 0) return refusal('scope_not_granted');
   const granted = await deps.grantedScopes(site);
   if (!scopes.every((scope) => granted.includes(scope))) return refusal('scope_not_granted');
 

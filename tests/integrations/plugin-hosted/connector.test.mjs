@@ -247,12 +247,39 @@ test('feature outside the allowlist is refused with 400, including prototype nam
   }
 });
 
-test('consent scope the feature does not need is refused with 403 scope_not_allowed', async () => {
+test('extra granted scope the feature does not use is accepted, and the feature receives only its own scope', async () => {
   const body = defaultBody({ consent: { version: CONSENT_VERSION, scopes: ['faq.read', 'booking.write'] } });
   const feature = spyFeature();
   const response = await makeHandler({ feature })(buildRequest({ body, nonce: nonceOf(13) }));
+  assert.equal(response.status, 200);
+  assert.equal(feature.calls.length, 1);
+  assert.deepEqual(feature.calls[0].scopes, ['faq.read']);
+});
+
+test('feature still refused with 403 when none of its required scopes is in the grant', async () => {
+  const body = defaultBody({ consent: { version: CONSENT_VERSION, scopes: ['booking.write'] } });
+  const feature = spyFeature();
+  const response = await makeHandler({ feature })(buildRequest({ body, nonce: nonceOf(33) }));
   assert.equal(response.status, 403);
-  assert.equal(refused(response).reason, 'scope_not_allowed');
+  assert.equal(refused(response).reason, 'scope_not_granted');
+  assert.equal(feature.calls.length, 0);
+});
+
+test('unknown scope name in consent is refused with 400 invalid_request', async () => {
+  const body = defaultBody({ consent: { version: CONSENT_VERSION, scopes: ['faq.read', 'made.up'] } });
+  const feature = spyFeature();
+  const response = await makeHandler({ feature })(buildRequest({ body, nonce: nonceOf(34) }));
+  assert.equal(response.status, 400);
+  assert.equal(refused(response).reason, 'invalid_request');
+  assert.equal(feature.calls.length, 0);
+});
+
+test('non-string consent scope is refused with 400 invalid_request', async () => {
+  const body = defaultBody({ consent: { version: CONSENT_VERSION, scopes: ['faq.read', 7] } });
+  const feature = spyFeature();
+  const response = await makeHandler({ feature })(buildRequest({ body, nonce: nonceOf(35) }));
+  assert.equal(response.status, 400);
+  assert.equal(refused(response).reason, 'invalid_request');
   assert.equal(feature.calls.length, 0);
 });
 
