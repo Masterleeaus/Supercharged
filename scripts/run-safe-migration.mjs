@@ -82,6 +82,7 @@ const MIGRATIONS = [
   { file: '0020_scheduled_booking_mirror.sql', required: true },
   { file: '0023_marketing_tables_tenant_rls.sql', required: true },
   { file: '0024_inbox_tenant_rls.sql', required: true },
+  { file: '0025_central_link_nonces.sql', required: true },
 ];
 
 const migrationPath = (file) => resolve(rootDir, 'migrations', file);
