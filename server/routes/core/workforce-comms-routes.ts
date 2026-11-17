@@ -14,7 +14,8 @@ import { createCampaignRouterForProduction, createDrizzleCampaignStore, type App
 import { createCompanySettingsStore } from "../../modules/settings/company-settings.ts";
 import { pool } from "../../db";
 import type { TenantPool } from "../../infrastructure/database/tenant-context";
-import { createSuppressionList } from "../../modules/comms/suppression.ts";
+import { createDurableSuppressionList } from "../../modules/comms/suppression.ts";
+import { createPostgresSuppressionPersistence } from "../../modules/comms/suppression-postgres.ts";
 import { logAuditEvent } from "../../services/audit-log";
 import { deskModeMiddleware } from "../../modules/desk-modes/index.ts";
 import { featureEnabled } from "../../lib/feature-flags";
@@ -98,20 +99,42 @@ export async function registerWorkforceCommsRoutes(app: Express, deps: { commsAu
   // Flag COMMS_CAMPAIGNS_ENABLED: new, unfinished module, so it defaults OFF. Set it to 1 to mount.
   const commsCampaignsEnabled = featureEnabled("COMMS_CAMPAIGNS_ENABLED", false);
   logger.info(`[flags] COMMS_CAMPAIGNS_ENABLED=${commsCampaignsEnabled ? "on" : "off"} (default off)`);
-  if (commsCampaignsEnabled) app.use(
-    "/api/comms",
-    authenticateToken as unknown as import('express').RequestHandler,
-    requireCompanyScope(),
-    setCommsActor,
-    setCommsEventSink,
-    deskModeMiddleware(DEFAULT_MODE_CONFIG) as unknown as import('express').RequestHandler,
-    createCampaignRouterForProduction({
-      store: createDrizzleCampaignStore(),
-      approvals: campaignApprovals,
-      transport: campaignTransport,
-      companySettings: createCompanySettingsStore({ pool: pool as unknown as TenantPool }),
-      suppression: createSuppressionList({ audit: commsAudit.audit, clock: () => new Date().toISOString() }),
-      requireRole: (...roles: string[]) => requireRole(...roles) as unknown as import('express').RequestHandler,
-    }),
-  );
+  if (commsCampaignsEnabled) {
+    // Suppression is durable in PostgreSQL (migration 0027). Each request reloads its company's rows
+    // before the router runs, so a bounce or STOP recorded before a restart is still honoured.
+    const suppression = createDurableSuppressionList({
+      persistence: createPostgresSuppressionPersistence({ pool: pool as unknown as TenantPool }),
+      audit: commsAudit.audit,
+      clock: () => new Date().toISOString(),
+    });
+    const warmSuppression: import('express').RequestHandler = async (_req, res, next) => {
+      const companyId = (res.locals as { companyId?: unknown }).companyId;
+      try {
+        if (typeof companyId !== "string") throw new TypeError("missing_company");
+        await suppression.warm(companyId);
+        next();
+      } catch (error) {
+        // Fail closed: the router is not reached when suppression cannot be loaded.
+        next(error);
+      }
+    };
+    app.use(
+      "/api/comms",
+      authenticateToken as unknown as import('express').RequestHandler,
+      requireCompanyScope(),
+      setCommsActor,
+      setCommsEventSink,
+      deskModeMiddleware(DEFAULT_MODE_CONFIG) as unknown as import('express').RequestHandler,
+      warmSuppression,
+      createCampaignRouterForProduction({
+        store: createDrizzleCampaignStore(),
+        approvals: campaignApprovals,
+        transport: campaignTransport,
+        companySettings: createCompanySettingsStore({ pool: pool as unknown as TenantPool }),
+        suppression,
+        // Role guard factory, as on main (commit ebe4fe3): the router calls it with the roles it needs.
+        requireRole: (...roles: string[]) => requireRole(...roles) as unknown as import('express').RequestHandler,
+      }),
+    );
+  }
 }
