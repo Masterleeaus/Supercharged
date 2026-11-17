@@ -146,7 +146,7 @@ export function createPublicSystemRoutes(ctx: RouteContext): Router {
     }
   });
 
-  router.get("/api/settings/llm-margin", async (_req: Request, res: Response) => {
+  router.get("/api/settings/llm-margin", authenticateToken, async (_req: AuthRequest, res: Response) => {
     try {
       const setting = await storage.getGlobalSetting('llm_pricing_margin');
       const marginPercentage = setting?.value || 15;
@@ -157,7 +157,7 @@ export function createPublicSystemRoutes(ctx: RouteContext): Router {
     }
   });
 
-  router.get("/api/settings/voice-engine", async (_req: Request, res: Response) => {
+  router.get("/api/settings/voice-engine", authenticateToken, async (_req: AuthRequest, res: Response) => {
     try {
       const toBool = (value: any): boolean => {
         if (value === true || value === 'true') return true;
