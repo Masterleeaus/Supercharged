@@ -30,7 +30,7 @@ export async function sweepCallLimits(
     try {
       const result = await service.enforceLimitsForCompany(companyId, { limit });
       reports.push(
-        result.ok
+        result.ok === true
           ? { companyId, ok: true, ended: result.value.ended, error: null }
           : { companyId, ok: false, ended: 0, error: `refused with status ${result.status}` },
       );

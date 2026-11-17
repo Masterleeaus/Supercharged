@@ -136,6 +136,7 @@ export class TwilioOpenAICallService {
             const compiledTools = flow.compiledTools as CompiledFunctionTool[];
             const hydratedTools = hydrateCompiledTools(compiledTools, {
               userId,
+              companyId,
               agentId,
               callId,
               knowledgeBaseIds: agent.knowledgeBaseIds || [],
@@ -182,6 +183,7 @@ export class TwilioOpenAICallService {
               temperature: agent.temperature ?? 0.7,
               toolContext: {
                 userId,
+                companyId,
                 agentId,
                 callId,
               },
@@ -239,7 +241,8 @@ export class TwilioOpenAICallService {
           naturalConfig = OpenAIAgentFactory.addKnowledgeBaseTool(
             naturalConfig, 
             agent.knowledgeBaseIds, 
-            userId
+            userId,
+            companyId
           );
         }
 

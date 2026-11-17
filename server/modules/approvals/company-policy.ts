@@ -49,7 +49,7 @@ function describeIssue(error: z.ZodError): string {
       : issue.path.join('.');
   let message: string;
   switch (issue.code) {
-    case 'invalid_enum_value':
+    case 'invalid_value':
       message = 'not an allowed value';
       break;
     case 'unrecognized_keys':
@@ -89,7 +89,7 @@ export type MergeResult = ({ ok: true } & EffectivePolicy) | { ok: false; reason
  */
 export function mergeWithOwnerRules(companyPolicy: unknown): MergeResult {
   const parsed = parseCompanyPolicy(companyPolicy);
-  if (!parsed.ok) return { ok: false, reason: parsed.reason };
+  if (parsed.ok === false) return { ok: false, reason: parsed.reason };
 
   const company = parsed.policy;
   const corrections: string[] = [];

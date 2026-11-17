@@ -112,7 +112,7 @@ export async function sendMessengerMessage(
     return { status: "failed", errorCode: "credentials_missing", retryable: false, message: "No page access token on this account." };
   }
   const built = buildMessengerBody(message);
-  if (!built.ok) return built.result;
+  if (built.ok === false) return built.result;
 
   let response: HttpResponse;
   try {

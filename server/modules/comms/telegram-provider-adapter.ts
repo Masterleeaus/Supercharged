@@ -95,7 +95,7 @@ export function createTelegramProviderAdapter(
         now: input.now,
         quietHours: input.quietHours,
       });
-      if (!decision.allowed) {
+      if (decision.allowed === false) {
         throw new TelegramAdapterRefusedError(decision.reason);
       }
 
