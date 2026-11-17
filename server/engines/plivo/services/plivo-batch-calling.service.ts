@@ -578,6 +578,7 @@ export class PlivoBatchCallingService {
               temperature: this.agent.temperature ?? 0.7,
               toolContext: {
                 userId: this.config.userId,
+                companyId: this.config.companyId,
                 agentId: this.config.agentId,
                 callId: '', // Will be set after call creation
               },

@@ -1,0 +1,11 @@
+{
+  "id": "calendly",
+  "version": "0.1.0",
+  "vendor": "Calendly",
+  "auth": "api_key",
+  "entities": ["booking"],
+  "requiredScopes": ["default"],
+  "webhookEvents": ["invitee.created", "invitee.canceled"],
+  "configSchema": {},
+  "featureFlag": "connector_calendly"
+}

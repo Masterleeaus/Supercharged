@@ -222,7 +222,7 @@ function buildReminderService(
   const bookingsDb = deps.db as unknown as Parameters<typeof createDrizzleBookingStorage>[0]["db"];
   const providerDb = deps.db as unknown as BookingProvidersDb;
   const bookings = createBookingService({
-    storage: createDrizzleBookingStorage({ db: bookingsDb, secretBox: deps.secretBox, now: clock }),
+    storage: createDrizzleBookingStorage({ db: bookingsDb, secretBox: deps.secretBox as unknown as Parameters<typeof createDrizzleBookingStorage>[0]["secretBox"], now: clock }),
     now: clock,
     enabled: isBookingsEnabled(deps.env),
   });

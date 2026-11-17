@@ -171,7 +171,7 @@ export function createWidgetHandlers(deps: WidgetHandlerDeps): WidgetHandlers {
     const auth = header(req, "authorization") ?? "";
     const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
     const verified = await deps.verifier.verify(token, origin ?? "", "chat", Math.floor(now().getTime() / 1000));
-    if (!verified.ok) {
+    if (verified.ok === false) {
       const status = verified.reason === "origin_mismatch" || verified.reason === "scope_denied" ? 403 : 401;
       return { ok: false, response: error(status, "unauthorised", cors) };
     }
@@ -241,7 +241,7 @@ export function createWidgetHandlers(deps: WidgetHandlerDeps): WidgetHandlers {
       const origin = header(req, "origin");
       // An origin that is missing or not on the chatbot's trusted list is refused before the body is read.
       const verified = await verifyBearer(req, publicId, corsFor(origin, []));
-      if (!verified.ok) return verified.response;
+      if (verified.ok === false) return verified.response;
       const { claims } = verified;
       // The verifier has checked the origin against the trusted list, so the claim's origin is safe to echo.
       const cors = { "Access-Control-Allow-Origin": claims.origin, Vary: "Origin" };
@@ -270,7 +270,7 @@ export function createWidgetHandlers(deps: WidgetHandlerDeps): WidgetHandlers {
       if (!isWidgetPublicId(publicId)) return NOT_FOUND;
       const origin = header(req, "origin");
       const verified = await verifyBearer(req, publicId, corsFor(origin, []));
-      if (!verified.ok) return error(401, "unauthorised", corsFor(origin, []));
+      if (verified.ok === false) return error(401, "unauthorised", corsFor(origin, []));
       // Expiry and scope only. The claims (company, visitor) are not returned.
       return {
         status: 200,
@@ -285,7 +285,7 @@ export function createWidgetHandlers(deps: WidgetHandlerDeps): WidgetHandlers {
       if (!deps.feed || !isWidgetPublicId(publicId)) return NOT_FOUND;
       const origin = header(req, "origin");
       const verified = await verifyBearer(req, publicId, corsFor(origin, []));
-      if (!verified.ok) return verified.response;
+      if (verified.ok === false) return verified.response;
       const { claims } = verified;
       const cors = { "Access-Control-Allow-Origin": claims.origin, Vary: "Origin" };
       const limiter = deps.limits.feed ?? deps.limits.message;
@@ -307,7 +307,7 @@ export function createWidgetHandlers(deps: WidgetHandlerDeps): WidgetHandlers {
       if (!deps.feed || !isWidgetPublicId(publicId)) return NOT_FOUND;
       const origin = header(req, "origin");
       const verified = await verifyBearer(req, publicId, corsFor(origin, []));
-      if (!verified.ok) return verified.response;
+      if (verified.ok === false) return verified.response;
       const { claims } = verified;
       const cors = { "Access-Control-Allow-Origin": claims.origin, Vary: "Origin" };
       const limited = await sharedGate(deps.shared?.feed, claims.companyId, `stream:${req.ip}:${publicId}`);
