@@ -57,7 +57,7 @@ export async function sendInstagramMessage(
     },
   });
 
-  if (!result.ok) {
+  if (result.ok === false) {
     if (result.code === "timeout" || result.code === "network") {
       return failed(result.code, true, "Instagram could not be reached.");
     }

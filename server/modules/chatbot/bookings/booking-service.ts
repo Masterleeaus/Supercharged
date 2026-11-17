@@ -160,7 +160,7 @@ export function createBookingService(deps: BookingServiceDeps): BookingService {
       guard,
       now0,
     );
-    if (!result.ok) {
+    if (result.ok === false) {
       if (result.reason === "calendar_not_found") throw new ChatbotError("Calendar not found", 404);
       throw new ChatbotError("That time is no longer available", 409);
     }
@@ -265,7 +265,7 @@ export function createBookingService(deps: BookingServiceDeps): BookingService {
         { from: current.status, to, reason: statusReason, guard },
         now(),
       );
-      if (!result.ok) {
+      if (result.ok === false) {
         if (result.reason === "not_found") throw new ChatbotError("Appointment not found", 404);
         if (result.reason === "overlap") throw new ChatbotError("That time is no longer available", 409);
         throw new ChatbotError("Appointment status changed, reload and try again", 409);
