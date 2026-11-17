@@ -5,6 +5,7 @@ import type { CaughtError } from '../common';
  */
 import { Response } from "express";
 import { db } from "../../db";
+import { withTenantTransaction } from "../../infrastructure/database/tenant-transaction.ts";
 import { type AuthRequest } from "../../middleware/auth";
 import { getCompanyScope } from "../../middleware/company-scope";
 import { appointments, appointmentSettings } from "@shared/schema";
@@ -107,10 +108,13 @@ export async function validateWorkingHours(
   duration: number = 30
 ): Promise<{ valid: boolean; message?: string }> {
   try {
-    const [userSettings] = await db
-      .select()
-      .from(appointmentSettings)
-      .where(and(eq(appointmentSettings.userId, userId), eq(appointmentSettings.companyId, companyId)));
+    // Tenant-bound read: runs inside withTenantTransaction, so app.company_id is set for this unit of work.
+    const [userSettings] = await withTenantTransaction(db, companyId, async (tx) =>
+      await tx
+        .select()
+        .from(appointmentSettings)
+        .where(and(eq(appointmentSettings.userId, userId), eq(appointmentSettings.companyId, companyId))),
+    );
 
     // Parse the date to get day of week
     const parsedDate = new Date(appointmentDate + 'T12:00:00');

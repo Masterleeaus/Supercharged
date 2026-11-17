@@ -179,6 +179,25 @@ Source: `shared/schema.ts`, 132 `pgTable` declarations (rows 1-83 as before, the
 - **D4** Indexes use CONCURRENTLY, so the runner must not wrap them in a transaction.
 - **D5** `calls` falls back to `website_widgets` through `widget_id`. This is a join on a column with no FK.
 
+## withTenant() bypass list (issue #252, 2026-11-18)
+
+Method: every non-test, non-DRAFT `.ts` file under `server/` that imports the db handle or a pg pool, and whose text does not mention `withTenant`. The same rule runs in `tests/infrastructure/withtenant-bypass-ratchet.test.mjs`, which fails on any file not in `tests/infrastructure/withtenant-bypass-baseline.json`. The baseline holds 156 files.
+
+Check by hand: `grep -rlE "import .*\b(db|pool)\b.* from" server --include=*.ts | xargs grep -L withTenant`
+
+Groups (counts from the baseline; a file can appear in more than one group):
+
+- Routes: about 71 files. Most are under `server/routes/webhook-modules/` (18), `server/routes/flow-automation/` (13), `server/routes/` (11), `server/routes/core/` (8), `server/routes/admin/` (8), and the engine route folders for Twilio, Plivo and Plivo-ElevenLabs (8 in total).
+- WebSocket and voice streams: 19 files, including `server/routes/core/twilio-stream-upgrade.ts`, `server/routes/webhook-modules/elevenlabs-stream.ts`, `server/engines/plivo/routes/plivo-stream.ts`, `server/engines/twilio-openai/routes/twilio-openai-stream.ts`, `server/infrastructure/websocket/connection-manager.ts`, and `server/modules/widget/public-widget-routes.ts`.
+- Workers, schedulers and jobs: about 21 files, including `server/services/campaign-scheduler.ts`, `server/services/campaign-executor.ts`, `server/services/webhook-retry-service.ts`, `server/services/phone-release-retry-worker.ts`, `server/services/phone-billing-cron.ts`, `server/services/credit-backfill-monitor.ts`, and `server/infrastructure/queue/campaign-recovery.service.ts`.
+- Pre-tenant resolution (exceptions, must stay on the plain pool): `server/middleware/team-member-company.ts` (resolves the company from the parent user, so the company is not yet known). The refresh-token and API-key lookups in the tenancy table above are the same kind.
+
+Converted in this change:
+
+- `server/routes/flow-automation/shared.ts`, `validateWorkingHours`: the appointment-settings read now runs inside `withTenantTransaction` (the Drizzle variant of `withTenant`, from `server/infrastructure/database/tenant-transaction.ts`). It sets `app.company_id` but does not switch role, so it is weaker than `withTenant`. Test: `tests/infrastructure/flow-working-hours-tenant.test.mjs`.
+
+Not converted, and why: the routes and workers above need a company id that is not in scope at their entry point (for example, a webhook carries a provider id, not a company). Each one needs its company resolved first, and that is a separate change per surface.
+
 ## Reconciliation and decision log (issue #250, 2026-11-18)
 
 Checked on origin/main at a215fe9.
