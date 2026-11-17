@@ -3,6 +3,9 @@
   "version": "5.4.5",
   "type": "module",
   "license": "MIT",
+  "engines": {
+    "node": ">=22.13.0"
+  },
   "scripts": {
     "dev": "cross-env NODE_ENV=development WORKFORCE_INTERNAL_DRAFT_COURSES=1 tsx server/index.ts",
     "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist && node scripts/build-server-deps.js",
@@ -10,6 +13,7 @@
     "start": "cross-env NODE_ENV=production node dist/index.js",
     "check": "tsc",
     "lint": "eslint .",
+    "check:licence": "node scripts/check-voltagent-licence.mjs",
     "typecheck:strict": "tsc -p tsconfig.strict.json --noEmit",
     "test": "node --test --experimental-transform-types $(find tests -name '*.test.*')",
     "boot:check": "node scripts/boot-check-fresh-db.mjs",
