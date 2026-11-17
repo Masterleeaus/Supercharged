@@ -21,7 +21,7 @@ export type ReplayRefusalReason =
   | "capacity";
 
 export type ReplayCheckResult =
-  | { accepted: true }
+  | { accepted: true; reason?: undefined }
   | { accepted: false; reason: ReplayRefusalReason };
 
 export interface ReplayCheckInput {

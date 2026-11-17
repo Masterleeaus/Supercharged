@@ -226,15 +226,14 @@ function customerSendRefusal(outbound: unknown): string | null {
       contact: o.contact as Contact | null | undefined,
       now: o.now as DateInput,
       quietHours: o.quietHours as QuietHours | null | undefined,
-      timezone: typeof o.timezone === 'string' ? o.timezone : undefined,
     });
-    if (!consent.allowed) return `recipient consent refused: ${consent.reason}`;
+    if (consent.allowed === false) return `recipient consent refused: ${consent.reason}`;
     if (WINDOWED_CHANNELS.has(o.channel)) {
       const window = canSendFreeForm({
         lastInboundAt: o.lastInboundAt as WindowTime | null | undefined,
         now: o.now as WindowTime,
       });
-      if (!window.freeForm) return `messaging window closed: ${window.reason}`;
+      if (window.freeForm === false) return `messaging window closed: ${window.reason}`;
     }
     return null;
   } catch {

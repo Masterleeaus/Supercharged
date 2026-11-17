@@ -72,7 +72,7 @@ function isChannel(value: unknown): value is SavedReplyChannel {
   return typeof value === 'string' && (SAVED_REPLY_CHANNELS as readonly string[]).includes(value);
 }
 
-type Validated = { ok: true; value: { title: string; body: string; channel: SavedReplyChannel; variables: string[] } } | { ok: false; reason: 'invalid_input'; message: string };
+type Validated = { ok: true; value: { title: string; body: string; channel: SavedReplyChannel; variables: string[] } } | { ok: false; reason: SavedReplyReason; message: string };
 
 /**
  * Validates a complete reply (create input, or update input merged over the stored reply).
@@ -147,7 +147,7 @@ export function createSavedReplyStore(): SavedReplyStore {
         channel: input.channel,
         variables: input.variables,
       });
-      if (!checked.ok) return checked;
+      if (checked.ok === false) return checked;
 
       const now = new Date().toISOString();
       const reply: SavedReply = {
@@ -182,7 +182,7 @@ export function createSavedReplyStore(): SavedReplyStore {
         channel: patch.channel ?? existing.channel,
         variables: patch.variables ?? existing.variables,
       });
-      if (!checked.ok) return checked;
+      if (checked.ok === false) return checked;
 
       Object.assign(existing, checked.value, { updatedAt: new Date().toISOString() });
       return { ok: true, reply: copy(existing) };

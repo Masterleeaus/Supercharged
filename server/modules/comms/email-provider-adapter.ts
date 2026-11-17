@@ -119,7 +119,7 @@ export function createEmailProviderAdapter(options: EmailProviderAdapterOptions)
         now: now(),
         quietHours: options.quietHours,
       });
-      if (!decision.allowed) return refuse(`consent_${decision.reason}`);
+      if (decision.allowed === false) return refuse(`consent_${decision.reason}`);
 
       const url = buildUnsubscribeUrl(address);
       if (!isSafeHttpUrl(url)) return refuse('unsubscribe_unavailable');

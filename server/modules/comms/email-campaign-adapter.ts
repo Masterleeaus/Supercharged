@@ -25,7 +25,7 @@ export function adaptEmailTransportToPort(
   return {
     async send(companyId, job, content) {
       const result = await transport.send(companyId, job, content);
-      if (!result.ok) {
+      if (result.ok === false) {
         throw new Error(result.reason);
       }
       if (options.onSent) {
