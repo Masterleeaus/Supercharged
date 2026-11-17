@@ -13,6 +13,7 @@
     "start": "cross-env NODE_ENV=production node dist/index.js",
     "check": "tsc",
     "lint": "eslint .",
+    "lint:any-ratchet": "node scripts/check-any-ratchet.mjs",
     "check:licence": "node scripts/check-voltagent-licence.mjs",
     "typecheck:strict": "tsc -p tsconfig.strict.json --noEmit",
     "test": "node --test --experimental-transform-types $(find tests -name '*.test.*')",
