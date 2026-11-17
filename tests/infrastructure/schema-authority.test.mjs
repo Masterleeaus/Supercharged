@@ -81,3 +81,57 @@ test('a wrapper without the ALLOW_DB_PUSH gate fails', () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+// Issue #253: app-local DDL ratchet.
+import { checkAppLocalDdl } from '../../scripts/check-schema-authority.mjs';
+const DDL_FILE = 'server/x.ts';
+const DDL_BODY = 'await db.execute(sql`ALTER TABLE leads ADD COLUMN a text`);\nawait db.execute(sql`CREATE TABLE IF NOT EXISTS t (id int)`);\n';
+
+test('app-local DDL that is not in the baseline fails', () => {
+  const dir = fixture({ ...base(), [DDL_FILE]: DDL_BODY });
+  try {
+    const f = checkAppLocalDdl(dir, {});
+    assert.ok(f.some((m) => m.startsWith(DDL_FILE) && m.includes('not in the baseline')), f.join('\n'));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('DDL growth above the baseline count fails', () => {
+  const dir = fixture({ ...base(), [DDL_FILE]: DDL_BODY });
+  try {
+    const f = checkAppLocalDdl(dir, { [DDL_FILE]: 1 });
+    assert.ok(f.some((m) => m.includes('grew from 1 to 2')), f.join('\n'));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('DDL within the baseline passes, and a count below it fails so the baseline is lowered', () => {
+  const dir = fixture({ ...base(), [DDL_FILE]: DDL_BODY });
+  try {
+    assert.deepEqual(checkAppLocalDdl(dir, { [DDL_FILE]: 2 }), []);
+    const f = checkAppLocalDdl(dir, { [DDL_FILE]: 5 });
+    assert.ok(f.some((m) => m.includes('lower APP_LOCAL_DDL_BASELINE to 2')), f.join('\n'));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('DDL in comments, tests and migrations is not counted', () => {
+  const dir = fixture({
+    ...base(),
+    'server/notes.ts': '// ALTER TABLE leads ADD COLUMN x\nexport {};\n',
+    'tests/t.test.mjs': 'const s = "CREATE TABLE x";\n',
+    'migrations/0099.sql': 'CREATE TABLE y (id int);\n',
+  });
+  try {
+    assert.deepEqual(checkAppLocalDdl(dir, {}), []);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('the real repository app-local DDL matches the ratchet baseline exactly', () => {
+  assert.deepEqual(checkAppLocalDdl(repo), []);
+});
