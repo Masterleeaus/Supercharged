@@ -42,6 +42,35 @@ function sameData(a: Record<string, unknown>, b: Record<string, unknown>): boole
   return true;
 }
 
+export type OutboundResolution =
+  | { action: 'push' }
+  | { action: 'ignore'; reason: 'system_of_record' | 'stale' }
+  | { action: 'manual' };
+
+/**
+ * Decides whether a pending local change may be pushed to the vendor. remoteUpdatedAt is the newest vendor
+ * version we have seen for the linked record (null when unlinked). baseUpdatedAt is the vendor version the
+ * local edit was made against. Pure.
+ */
+export function resolveOutbound(
+  rule: ConflictRule,
+  local: { updatedAt: string; baseUpdatedAt: string | null },
+  remoteUpdatedAt: string | null,
+): OutboundResolution {
+  if (rule.strategy === 'system_of_record') {
+    return rule.owner === 'local' ? { action: 'push' } : { action: 'ignore', reason: 'system_of_record' };
+  }
+  if (rule.strategy === 'latest_wins') {
+    return remoteUpdatedAt !== null && Date.parse(remoteUpdatedAt) > Date.parse(local.updatedAt)
+      ? { action: 'ignore', reason: 'stale' }
+      : { action: 'push' };
+  }
+  // manual: the vendor changed after the edit was made against it (or the edit never saw a linked record).
+  if (remoteUpdatedAt === null) return { action: 'push' };
+  if (local.baseUpdatedAt === null || Date.parse(remoteUpdatedAt) > Date.parse(local.baseUpdatedAt)) return { action: 'manual' };
+  return { action: 'push' };
+}
+
 /** Decides an incoming remote change against the current canonical copy. */
 export function resolveConflict(rule: ConflictRule, local: Side, incoming: Side): Resolution {
   if (rule.strategy === 'system_of_record') {
