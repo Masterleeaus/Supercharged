@@ -109,8 +109,8 @@ export async function validateWorkingHours(
 ): Promise<{ valid: boolean; message?: string }> {
   try {
     // Tenant-bound read: runs inside withTenantTransaction, so app.company_id is set for this unit of work.
-    const [userSettings] = await withTenantTransaction(db, companyId, (tx) =>
-      tx
+    const [userSettings] = await withTenantTransaction(db, companyId, async (tx) =>
+      await tx
         .select()
         .from(appointmentSettings)
         .where(and(eq(appointmentSettings.userId, userId), eq(appointmentSettings.companyId, companyId))),
