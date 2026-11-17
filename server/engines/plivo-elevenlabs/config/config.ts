@@ -9,6 +9,7 @@
  */
 
 import { getDomain } from '../../../utils/domain';
+import { withStreamToken } from '../../../utils/stream-token.ts';
 
 export const PlivoElevenLabsConfig = {
   elevenLabsWebSocketUrl: 'wss://api.elevenlabs.io/v1/convai/conversation',
@@ -38,5 +39,5 @@ export function getSipWebhookUrl(path: string): string {
 export function getSipStreamUrl(callUuid: string): string {
   const baseUrl = getWebhookBaseUrl();
   const wsBaseUrl = baseUrl.replace(/^http/, 'ws');
-  return `${wsBaseUrl}/api/plivo-elevenlabs/stream/${callUuid}`;
+  return withStreamToken(`${wsBaseUrl}/api/plivo-elevenlabs/stream/${callUuid}`, { callId: callUuid });
 }

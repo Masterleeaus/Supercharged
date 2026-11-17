@@ -68,6 +68,7 @@ const OPTIONAL_ENV_VARS = [
   { key: 'SMTP_HOST', name: 'SMTP Host' },
   { key: 'SMTP_USER', name: 'SMTP User' },
   { key: 'SMTP_PASS', name: 'SMTP Password' },
+  { key: 'STREAM_TOKEN_SECRET', name: 'Stream token secret (live call audio)' },
 ];
 
 export async function runStartupHealthCheck(): Promise<HealthCheckResult> {

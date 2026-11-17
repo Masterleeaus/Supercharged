@@ -27,6 +27,7 @@ import { TWILIO_OPENAI_CONFIG, getRecordingWebhookUrl } from '../config/twilio-o
 import { getTwilioClient } from '../../../services/twilio-connector';
 import { CallInsightsService } from '../../../services/call-insights.service';
 import type { TwilioMediaStreamEvent } from '../types';
+import { streamTokenFromUrl, verifyStreamToken } from '../../../utils/stream-token.ts';
 import type { OpenAIVoice, OpenAIRealtimeModel, AgentTool } from '../types';
 
 let sharedWss: WebSocketServer | null = null;
@@ -48,6 +49,15 @@ export function setupTwilioOpenAIStreamHandler(httpServer: HttpServer): void {
         return;
       }
       
+      // Security: the stream URL carries a server-issued token bound to this CallSid.
+      // Reject before any database lookup when it is missing, forged, expired or for another call.
+      const streamAuth = verifyStreamToken(streamTokenFromUrl(request.url), { callId: callSid });
+      if (!streamAuth.ok) {
+        logger.error(`[TwilioOpenAI Stream] Security: Rejecting stream for call ${callSid}: ${streamAuth.reason}`);
+        socket.destroy();
+        return;
+      }
+
       // Security: Verify the call exists in our database before accepting the stream
       // This prevents unauthorized WebSocket connections with arbitrary call SIDs
       try {

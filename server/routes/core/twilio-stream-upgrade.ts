@@ -6,6 +6,7 @@ import { agents, calls } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { handleTwilioStreamWebSocket } from "../../routes/webhook-routes";
 import { logger } from "../../utils/logger";
+import { checkStreamTokenAtUpgrade, streamTokenFromUrl, verifyStreamToken } from "../../utils/stream-token.ts";
 
 export function registerTwilioStreamUpgrade(app: Express, deps: { httpServer: Server }): void {
   const { httpServer } = deps;
@@ -14,12 +15,22 @@ export function registerTwilioStreamUpgrade(app: Express, deps: { httpServer: Se
   httpServer.on('upgrade', (request, socket, head) => {
     const pathname = request.url?.split('?')[0] || '';
 
-    logger.info(`🔌 [Upgrade] Request for: ${request.url}`);
+    logger.info(`🔌 [Upgrade] Request for: ${pathname}`);
     logger.info(`   Pathname: ${pathname}`);
 
     // Only handle Twilio stream WebSocket upgrades
     if (pathname === '/api/webhooks/twilio/stream') {
       logger.info(`✅ [Upgrade] Handling Twilio stream WebSocket`);
+
+      // Security: refuse before the handshake unless the TwiML stream URL carries a valid, unexpired
+      // token. Its callId and agentId are matched against the token once the 'start' event supplies them.
+      const upgradeToken = streamTokenFromUrl(request.url);
+      const upgradeAuth = checkStreamTokenAtUpgrade(upgradeToken);
+      if (!upgradeAuth.ok) {
+        logger.error(`❌ [Upgrade] Rejecting Twilio stream at upgrade: ${upgradeAuth.reason}`);
+        socket.destroy();
+        return;
+      }
 
       const wss = new WebSocketServer({ noServer: true });
 
@@ -65,6 +76,14 @@ export function registerTwilioStreamUpgrade(app: Express, deps: { httpServer: Se
             if (!agentId || !callId) {
               logger.error(`❌ [WebSocket] Missing required routing parameters (agentId or callId)`);
               ws.close(1008, 'Missing required parameters');
+              return;
+            }
+
+            // Security: the token must be minted for this exact callId and agentId.
+            const streamAuth = verifyStreamToken(upgradeToken, { callId, agentId });
+            if (!streamAuth.ok) {
+              logger.error(`❌ [WebSocket] Security: Rejecting Twilio stream for call ${callId}: ${streamAuth.reason}`);
+              ws.close(1008, 'Invalid stream token');
               return;
             }
 
