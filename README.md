@@ -1,5 +1,8 @@
 # Supercharged — Business Communications and Operations
 
+> **Titan Zero suite:** SuperchargedAt.Work is the AI workforce app upgrade. It is available with every Titan Zero plugin, alongside the AI Assistant and AI Agent Team upgrades and the other three app upgrades (SkilledAt.Work, SortedAt.Work and ScheduledAt.Work). The description below is the repository's existing text and is pending review against that role.
+
+
 **Version:** 5.4.5  
 **Last Updated:** not verified in this repo (5.4.1 was dated May 2026)  
 **License:** MIT (see [LICENSE](LICENSE))
