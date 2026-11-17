@@ -100,7 +100,7 @@ export async function registerWorkforceCommsRoutes(app: Express, deps: { commsAu
   const commsCampaignsEnabled = featureEnabled("COMMS_CAMPAIGNS_ENABLED", false);
   logger.info(`[flags] COMMS_CAMPAIGNS_ENABLED=${commsCampaignsEnabled ? "on" : "off"} (default off)`);
   if (commsCampaignsEnabled) {
-    // Suppression is durable in PostgreSQL (migration 0025). Each request reloads its company's rows
+    // Suppression is durable in PostgreSQL (migration 0027). Each request reloads its company's rows
     // before the router runs, so a bounce or STOP recorded before a restart is still honoured.
     const suppression = createDurableSuppressionList({
       persistence: createPostgresSuppressionPersistence({ pool: pool as unknown as TenantPool }),

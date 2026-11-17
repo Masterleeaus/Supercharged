@@ -1,10 +1,11 @@
 // PostgreSQL persistence for the durable suppression list (createDurableSuppressionList).
-// Tables: comms_suppressions and comms_soft_bounces (migration 0025). Every read and write runs
+// Tables: comms_suppressions and comms_soft_bounces (migration 0027). Every read and write runs
 // through withTenant, so the session carries the company and the row-level policy applies. The
 // company id is also filtered on explicitly.
 
 import { withTenant, type TenantPool } from '../../infrastructure/database/tenant-context.ts';
-import type { SuppressionPersistence, SuppressionRows, SuppressionWrite } from './suppression.ts';
+import type { SuppressionPersistence, SuppressionRows, SuppressionWrite, StoredSuppressionReason } from './suppression.ts';
+import type { Channel } from './consent.ts';
 
 export interface PostgresSuppressionOptions {
   /** The app pool. Each call takes its own connection through withTenant. */
@@ -18,11 +19,11 @@ export function createPostgresSuppressionPersistence(options: PostgresSuppressio
   return {
     async load(companyId: string): Promise<SuppressionRows> {
       return withTenant(pool, companyId, async (client) => {
-        const suppressions = await client.query(
+        const suppressions = await client.query<{ channel: Channel; address: string; reason: StoredSuppressionReason }>(
           `SELECT channel, address, reason FROM comms_suppressions WHERE company_id = $1`,
           [companyId],
         );
-        const softBounces = await client.query(
+        const softBounces = await client.query<{ channel: Channel; address: string; count: number | string }>(
           `SELECT channel, address, count FROM comms_soft_bounces WHERE company_id = $1`,
           [companyId],
         );
