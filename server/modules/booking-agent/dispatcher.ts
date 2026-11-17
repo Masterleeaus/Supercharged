@@ -208,7 +208,7 @@ export function createBookingAgent(deps: BookingAgentDeps): BookingAgent {
       }
 
       try {
-        return await execute(caller.companyId, toolName, parsed.data);
+        return await execute(caller.companyId, toolName, parsed.data as CreateBookingInput | CancelBookingInput | RescheduleBookingInput);
       } catch (e) {
         return {
           outcome: 'failed',

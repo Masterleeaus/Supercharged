@@ -587,7 +587,8 @@ async function initializeSession(
         config = OpenAIAgentFactory.addKnowledgeBaseTool(
           config,
           flowAgent.knowledgeBaseIds,
-          flowAgent.userId
+          flowAgent.userId,
+          flowAgent.companyId
         );
         agentConfig.systemPrompt = config.systemPrompt;
         agentConfig.model = config.model; // Use tier-validated model
@@ -665,7 +666,8 @@ async function initializeSession(
             config = OpenAIAgentFactory.addKnowledgeBaseTool(
               config,
               agent.knowledgeBaseIds,
-              agent.userId
+              agent.userId,
+              agent.companyId
             );
           }
 
