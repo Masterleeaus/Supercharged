@@ -1,3 +1,4 @@
+import type { CaughtError } from './common';
 'use strict';
 /**
  * ============================================================
@@ -54,7 +55,7 @@ router.get("/:invoiceId/download", authenticateHybrid, async (req: AuthRequest, 
     res.setHeader("Content-Disposition", `attachment; filename="Invoice-${invoice.invoiceNumber}.pdf"`);
     res.setHeader("Content-Length", pdfBuffer.length);
     res.send(pdfBuffer);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error(`Failed to download invoice: ${req.params.invoiceId}`, error, SOURCE);
     res.status(500).json({ message: "Failed to download invoice" });
   }
@@ -88,7 +89,7 @@ router.get("/by-number/:invoiceNumber/download", authenticateHybrid, async (req:
     res.setHeader("Content-Disposition", `attachment; filename="Invoice-${invoiceNumber}.pdf"`);
     res.setHeader("Content-Length", pdfBuffer.length);
     res.send(pdfBuffer);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error(`Failed to download invoice by number: ${req.params.invoiceNumber}`, error, SOURCE);
     res.status(500).json({ message: "Failed to download invoice" });
   }
@@ -116,7 +117,7 @@ router.get("/admin/:invoiceId/download", authenticateHybrid, requireRole("admin"
     res.setHeader("Content-Disposition", `attachment; filename="Invoice-${invoice.invoiceNumber}.pdf"`);
     res.setHeader("Content-Length", pdfBuffer.length);
     res.send(pdfBuffer);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error(`Admin failed to download invoice: ${req.params.invoiceId}`, error, SOURCE);
     res.status(500).json({ message: "Failed to download invoice" });
   }
@@ -175,7 +176,7 @@ router.post("/admin/:transactionId/generate", authenticateHybrid, requireRole("a
       invoice,
       created: true
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error(`Failed to generate invoice for transaction: ${req.params.transactionId}`, error, SOURCE);
     res.status(500).json({ message: "Failed to generate invoice" });
   }
@@ -206,7 +207,7 @@ router.get("/transaction/:transactionId", authenticateHybrid, async (req: AuthRe
     }
 
     res.json(invoice);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error(`Failed to get invoice for transaction: ${req.params.transactionId}`, error, SOURCE);
     res.status(500).json({ message: "Failed to get invoice" });
   }
