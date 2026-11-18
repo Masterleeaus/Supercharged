@@ -143,4 +143,5 @@ Date: 18 November 2026. Phase 0 only. Nothing is mounted and no flag is on.
 - [verified] Foundation pins added: seven @voltagent packages at exact versions, npm install run clean. Node engine set to >=22.13.0. One side effect: transitive @opentelemetry/api moved 1.10.0 to 1.9.1 (see the fixes checklist).
 - [verified] VoltOps guard: assertNoVoltOpsKeys throws if VOLTAGENT_PUBLIC_KEY or VOLTAGENT_SECRET_KEY is set. Wired as the first call in server/index.ts. Boot itself was not run, so the wiring is [untested] at boot.
 - [verified] Flag scaffold: nine VOLTAGENT_* flags, all OFF by default, nothing mounted. Tests pass.
+- [verified] Owner and docs: docs/voltagent/README.md and docs/mastra-attribution.md (#390).
 - [verified] Licence gate: scripts/check-voltagent-licence.mjs, run as npm run check:licence. Passes with no /ee/ paths and no @mastra imports.
