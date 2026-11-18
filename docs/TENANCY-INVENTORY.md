@@ -239,3 +239,20 @@ Checked on origin/main at a215fe9.
 - D6 (2026-11-18, default, for review): `company_id` is `uuid NOT NULL` on every tenant table. Keys and foreign keys are composite `(company_id, id)` where a parent exists. Global tables get no `company_id`. The `varchar` type in `DRAFT_approvals.sql` and `DRAFT_chatbot.sql` (B4) loses to `uuid`, because `withTenant()` uses `uuid`.
 - D7 (2026-11-18, default, for review): the 115 module tables are tenant-owned, based on the `company_id` scan above. Their migration source is recorded as missing for 108 of them (see the gap above).
 - Not decided: D1 (company id source), D2 (ambiguous tables), D3 (FK delete behaviour). These remain open.
+
+## Runtime-created tables outside shared/schema.ts (issue #250, 2026-11-18)
+
+The 132-row table above covers only `shared/schema.ts`. The tables below are created at boot or on demand by code that is not a Drizzle declaration, so the registry did not account for them. Each one is listed with its creator. None is classified yet: the class is a proposal for review under D6 and D7, and nothing here is agreed with Central.
+
+Creators (exact `CREATE TABLE IF NOT EXISTS` statements found by search):
+
+- `server/seed-all.ts`: `api_audit_logs`, `api_rate_limits`, `api_keys` (also in schema), `sip_trunks`, `sip_phone_numbers`, `sip_calls` (also in schema), `teams`, `team_roles`, `team_members`, `team_permissions`, `team_member_sessions`, `team_activity_logs`, `admin_teams`, `admin_team_roles`, `admin_team_members`, `admin_team_permissions`, `admin_team_sessions`, `admin_team_activity_logs`, `google_sheets_credentials` (also in schema).
+- `server/routes/user-sip-gateways.routes.ts`: `user_sip_gateways`, `user_sip_phone_numbers`.
+- `server/services/system-update-service.ts`: `system_updates`.
+- `server/demo-mode/index.ts`: `demo_call_limit_logs`.
+- `server/plugins/loader.ts` and `server/routes/plugin-installer.ts`: `plugin_migrations`.
+- `server/integrations/voltagent/vector-pg/pg-vector-store.ts` creates a table named by a parameter, so its name is not fixed in code. It is not listed here.
+
+Named in `drizzle.config.ts` as plugin-only (excluded from `drizzle-kit push`), with no creator found in this repo: `whatsapp_*`, `meta_whatsapp_*`, `whatsway_settings`, `messaging_logs`, `messaging_plugin_meta`, `user_email_templates`, `ve_*`. `ve_sessions` is created by `migrations/008_add_ve_session_id_and_voice_engine_tables.sql` and `migrations/009_fix_ve_session_id_and_all_missing_columns.sql`. The plugin packages that own the rest are not in this repo, so they cannot be classified here.
+
+Proposed class for the tenant-looking runtime tables above (for review, not applied): `team_*`, `admin_team_*`, `teams` and `admin_teams` are staff or team membership tables, so they are ambiguous until D1 settles who owns a team. `user_sip_gateways`, `user_sip_phone_numbers` and `demo_call_limit_logs` are tenant (keyed by user). `system_updates` and `plugin_migrations` are global platform tables. `google_sheets_credentials` is already in schema and follows its existing row.

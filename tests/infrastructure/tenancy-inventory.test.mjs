@@ -221,3 +221,23 @@ test('STEP order is A, B, C, D, and the guard sits above section 1', () => {
 test('the draft is not wired into the migration runner', () => {
   assert.equal(runner.includes('DRAFT_company_scope'), false);
 });
+
+// Issue #250: every table created at runtime by code outside shared/schema.ts must be named in the
+// inventory, so none is left unaccounted for. Names are read from the CREATE statements themselves.
+const RUNTIME_TABLE_SOURCES = [
+  'server/seed-all.ts',
+  'server/routes/user-sip-gateways.routes.ts',
+  'server/services/system-update-service.ts',
+  'server/demo-mode/index.ts',
+  'server/routes/plugin-installer.ts',
+  'server/plugins/loader.ts',
+];
+test('every runtime-created table is named in the inventory (#250)', () => {
+  const runtimeTables = new Set();
+  for (const rel of RUNTIME_TABLE_SOURCES) {
+    for (const m of read(rel).matchAll(/CREATE TABLE IF NOT EXISTS (\w+)/g)) runtimeTables.add(m[1]);
+  }
+  assert.ok(runtimeTables.size >= 20, 'expected to find the runtime tables, found ' + runtimeTables.size);
+  const unaccounted = [...runtimeTables].filter((t) => !inventory.includes('`' + t + '`'));
+  assert.deepEqual(unaccounted, []);
+});
