@@ -100,3 +100,25 @@ test('PostgreSQL approvals: a call without a company is refused before any query
     await f.close();
   }
 });
+
+// Issue #127 batch 1: names approval_rules directly. Checks the tenant key on the real table.
+// Migrations 0010b and 0013 add no row-level security, so this checks the key, not database-enforced
+// isolation. Behaviour per company is covered by the rules test above.
+test('PostgreSQL approvals: approval_rules is keyed by a NOT NULL company_id', { skip: !enabled }, async () => {
+  const f = await fixture();
+  try {
+    const col = await f.pool.query(
+      `SELECT is_nullable, data_type FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'approval_rules' AND column_name = 'company_id'`,
+    );
+    assert.equal(col.rows.length, 1);
+    assert.equal(col.rows[0].is_nullable, 'NO');
+    assert.equal(col.rows[0].data_type, 'uuid');
+    const created = await f.service.createRule(A, rule('schema-check-a'));
+    const row = await f.pool.query(`SELECT company_id::text AS company_id FROM approval_rules WHERE id = $1`, [created.id]);
+    assert.equal(row.rows[0].company_id, A);
+    await f.pool.query(`DELETE FROM approval_rules WHERE id = $1`, [created.id]);
+  } finally {
+    await f.close();
+  }
+});
