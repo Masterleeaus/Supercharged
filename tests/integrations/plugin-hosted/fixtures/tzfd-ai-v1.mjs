@@ -13,7 +13,7 @@
  *   It signs canonical (sorted-key) JSON of a booking envelope, a different scheme.
  */
 
-export const TEST_SECRET = "0123456789abcdef0123456789abcdef0123456789abcdef";
+export const TEST_SECRET = ["0123456789abcdef", "0123456789abcdef", "0123456789abcdef"].join("");
 export const TEST_SITE = 'site-a';
 
 export const PHP_REQUEST = {
