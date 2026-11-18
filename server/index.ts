@@ -10,8 +10,8 @@
  * ============================================================
  */
 'use strict';
-import { assertNoVoltOpsKeys } from "./integrations/voltagent/guard";
-assertNoVoltOpsKeys();
+// Must stay the first import: runs the VoltOps guard before any workstream loads @voltagent.
+import "./preboot";
 import express, { type Request, Response, NextFunction } from "express";
 import path from "path";
 import cookieParser from "cookie-parser";
