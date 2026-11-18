@@ -1,18 +1,13 @@
 'use strict';
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
 
@@ -25,6 +20,7 @@ import {
   campaigns, contacts, calls, agents, paymentTransactions, creditTransactions
 } from "@shared/schema";
 import { NotificationService } from "../services/notification-service";
+import { issueResetToken, canResetWithToken } from "./password-reset-binding";
 import { logger } from '../utils/logger';
 import { 
   createRefreshTokenData, 
@@ -249,14 +245,15 @@ export function createAuthRoutes(ctx: RouteContext): Router {
         });
       }
 
+      const { token: resetToken, hash: resetTokenHash } = issueResetToken();
       await db
         .update(otpVerifications)
-        .set({ verified: true })
+        .set({ verified: true, otpCode: resetTokenHash })
         .where(eq(otpVerifications.id, otpRecord.id));
 
       logger.info(`Password reset: OTP verified for ${email}`, undefined, 'Auth');
-      
-      res.json({ success: true, message: "Verification successful" });
+
+      res.json({ success: true, message: "Verification successful", resetToken });
     } catch (error: any) {
       logger.error('Forgot password verify OTP error', error, 'Auth');
       res.status(500).json({ error: "Failed to verify code" });
@@ -265,10 +262,10 @@ export function createAuthRoutes(ctx: RouteContext): Router {
 
   router.post("/api/auth/forgot-password/reset", authRateLimiter, async (req: Request, res: Response) => {
     try {
-      const { email, newPassword } = req.body;
+      const { email, newPassword, resetToken } = req.body;
 
-      if (!email || !newPassword) {
-        return res.status(400).json({ error: "Email and new password are required" });
+      if (!email || !newPassword || !resetToken) {
+        return res.status(400).json({ error: "Email, reset token and new password are required" });
       }
 
       if (newPassword.length < 6) {
@@ -285,7 +282,12 @@ export function createAuthRoutes(ctx: RouteContext): Router {
         .orderBy(desc(otpVerifications.createdAt))
         .limit(1);
 
-      if (!verifiedOTP || (new Date().getTime() - verifiedOTP.createdAt!.getTime()) > 10 * 60 * 1000) {
+      if (!verifiedOTP || !canResetWithToken({
+        presentedToken: resetToken,
+        storedHash: verifiedOTP.otpCode,
+        verifiedAt: verifiedOTP.createdAt!,
+        now: new Date(),
+      })) {
         return res.status(400).json({ error: "Password reset session expired. Please start over." });
       }
 

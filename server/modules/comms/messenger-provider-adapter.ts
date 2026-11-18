@@ -96,7 +96,7 @@ export async function sendMessengerReply(input: MessengerSendInput): Promise<Mes
       lastInboundAt,
       now,
     });
-    if (!built.ok) {
+    if (built.ok === false) {
       return { ok: false, reason: built.reason };
     }
 
@@ -111,13 +111,13 @@ export async function sendMessengerReply(input: MessengerSendInput): Promise<Mes
       now,
       quietHours: input.quietHours,
     });
-    if (!consent.allowed && consent.reason === 'opted_out') {
+    if (consent.allowed === false && consent.reason === 'opted_out') {
       return { ok: false, reason: 'opted_out' };
     }
-    if (!consent.allowed && consent.reason === 'invalid_contact') {
+    if (consent.allowed === false && consent.reason === 'invalid_contact') {
       return { ok: false, reason: 'contact_invalid' };
     }
-    if (!consent.allowed && consent.reason === 'quiet_hours') {
+    if (consent.allowed === false && consent.reason === 'quiet_hours') {
       return { ok: false, reason: 'quiet_hours' };
     }
     // Marketing needs a Messenger opt-in on record. Here the remaining refusals are no_consent and
@@ -128,7 +128,7 @@ export async function sendMessengerReply(input: MessengerSendInput): Promise<Mes
 
     // Messaging window gate. Free-form only, no template fallback.
     const window = canSendFreeForm({ lastInboundAt, now });
-    if (!window.freeForm) {
+    if (window.freeForm === false) {
       return { ok: false, reason: window.reason };
     }
 

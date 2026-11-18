@@ -1,17 +1,12 @@
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
 import { useState, useMemo, useEffect } from "react";
@@ -143,7 +138,7 @@ export default function IncomingConnectionsPage() {
       setSelectedAgentId("");
       setSelectedPhoneId("");
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: "destructive",
         title: t("incomingConnections.toast.createFailed"),
@@ -164,7 +159,7 @@ export default function IncomingConnectionsPage() {
       });
       setDeleteConnection(null);
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: "destructive",
         title: t("incomingConnections.toast.deleteFailed"),
@@ -188,7 +183,7 @@ export default function IncomingConnectionsPage() {
       setSelectedCveAgentId("");
       setSelectedCvePhoneId("");
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: "destructive",
         title: "Failed to Create Connection",
@@ -209,7 +204,7 @@ export default function IncomingConnectionsPage() {
       });
       setCveDeleteConnection(null);
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: "destructive",
         title: "Failed to Remove Connection",
@@ -265,7 +260,7 @@ export default function IncomingConnectionsPage() {
       setSelectedPlivoAgentId("");
       setSelectedPlivoPhoneId("");
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: "destructive",
         title: "Failed to Create Connection",
@@ -286,7 +281,7 @@ export default function IncomingConnectionsPage() {
       });
       setPlivoDeleteConnection(null);
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: "destructive",
         title: "Failed to Remove Connection",
@@ -334,7 +329,7 @@ export default function IncomingConnectionsPage() {
       setSelectedTwilioOpenaiAgentId("");
       setSelectedTwilioOpenaiPhoneId("");
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: "destructive",
         title: "Failed to Create Connection",
@@ -355,7 +350,7 @@ export default function IncomingConnectionsPage() {
       });
       setTwilioOpenaiDeleteConnection(null);
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: "destructive",
         title: "Failed to Remove Connection",

@@ -1,7 +1,8 @@
 import { widgetStorage } from "./widget-storage";
 import { nanoid } from "nanoid";
 import { db } from "../../db";
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
+import { users } from "@shared/schema";
 import type { WebsiteWidget, InsertWebsiteWidget } from "@shared/schema";
 import { logger } from '../../utils/logger';
 import { isWidgetDomainAllowed } from './domain-gate';
@@ -19,11 +20,28 @@ export class WidgetService {
 
   async createWidget(userId: string, data: Omit<InsertWebsiteWidget, 'userId' | 'embedToken'>): Promise<WebsiteWidget> {
     const embedToken = this.generateEmbedToken();
+    // company_id is always taken from the server-side owner row, never from request input.
+    // It is set after the spread so a client-supplied companyId cannot win.
+    const companyId = await this.resolveOwnerCompanyId(userId);
     return widgetStorage.createWidget({
       ...data,
       userId,
       embedToken,
+      companyId,
     });
+  }
+
+  async resolveOwnerCompanyId(userId: string): Promise<string | null> {
+    const [owner] = await db
+      .select({ companyId: users.companyId })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    if (!owner?.companyId) {
+      logger.warn(`[Widget] Owner ${userId} has no company_id; new widget will have no company scope`);
+      return null;
+    }
+    return owner.companyId;
   }
 
   async getWidgetsByUser(userId: string): Promise<WebsiteWidget[]> {

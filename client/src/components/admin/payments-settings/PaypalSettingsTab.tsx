@@ -1,19 +1,15 @@
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
+import type { AdminPaymentSettings } from "@/components/admin/payments-settings/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,19 +27,19 @@ import { ConnectionStatus, PAYPAL_CURRENCIES } from "@/components/admin/payments
 
 export interface PaypalSettingsTabProps {
   t: TFunction<"translation", undefined>;
-  isPaypalConfigured: any;
+  isPaypalConfigured: boolean | undefined;
   paypalConnectionStatus: ConnectionStatus;
-  settings: any;
+  settings: AdminPaymentSettings | undefined;
   paypalFormData: { paypal_client_id: string; paypal_client_secret: string; paypal_webhook_id: string; paypal_mode: string; paypal_currency: string; };
   handlePaypalChange: (key: "paypal_client_id" | "paypal_client_secret" | "paypal_webhook_id" | "paypal_mode" | "paypal_currency", value: string) => void;
   showPaypalClientSecret: boolean;
   setShowPaypalClientSecret: Dispatch<SetStateAction<boolean>>;
   toast: ReturnType<typeof useToast>["toast"];
-  setupPaypalWebhookMutation: UseMutationResult<any, any, void, unknown>;
-  testPaypalConnectionMutation: UseMutationResult<any, any, void, unknown>;
+  setupPaypalWebhookMutation: UseMutationResult<unknown, Error, void, unknown>;
+  testPaypalConnectionMutation: UseMutationResult<unknown, Error, void, unknown>;
   savePaypalSettings: () => Promise<void>;
   hasPaypalChanges: boolean;
-  updateSettingMutation: UseMutationResult<{ key: string; data: any; }, any, { key: string; value: any; }, unknown>;
+  updateSettingMutation: UseMutationResult<{ key: string; data: unknown; }, Error, { key: string; value: unknown; }, unknown>;
 }
 
 export function PaypalSettingsTab({ t, isPaypalConfigured, paypalConnectionStatus, settings, paypalFormData, handlePaypalChange, showPaypalClientSecret, setShowPaypalClientSecret, toast, setupPaypalWebhookMutation, testPaypalConnectionMutation, savePaypalSettings, hasPaypalChanges, updateSettingMutation }: PaypalSettingsTabProps) {

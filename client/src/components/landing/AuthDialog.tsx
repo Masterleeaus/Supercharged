@@ -1,19 +1,15 @@
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
+import type { AppError } from "@/components/app-error";
 import { useState, useEffect, createContext, useContext, useCallback } from "react";
 import { X, Mail, ArrowRight, AlertCircle, Loader2, KeyRound, Eye, EyeOff } from "lucide-react";
 import { motion } from "framer-motion";
@@ -165,6 +161,7 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
   const [signupStep, setSignupStep] = useState<"details" | "otp">("details");
   const [forgotPasswordStep, setForgotPasswordStep] = useState<"email" | "otp" | "new-password">("email");
   const [otpCode, setOtpCode] = useState("");
+  const [resetToken, setResetToken] = useState("");
   const [otpTimer, setOtpTimer] = useState(0);
   const [canResendOtp, setCanResendOtp] = useState(false);
 
@@ -229,7 +226,8 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
         onClose();
         window.location.href = redirectUrl;
       }
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: "Login failed",
         description: error.message,
@@ -279,7 +277,8 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
       setOtpTimer(300);
       setCanResendOtp(false);
       setOtpCode("");
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: "Failed to send code",
         description: error.message,
@@ -316,7 +315,8 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
       setOtpTimer(300);
       setCanResendOtp(false);
       setOtpCode("");
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: "Failed to resend",
         description: error.message,
@@ -378,7 +378,8 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
         onClose();
         window.location.href = redirectUrl;
       }
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: "Verification failed",
         description: error.message,
@@ -418,7 +419,8 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
       setOtpTimer(300);
       setCanResendOtp(false);
       setOtpCode("");
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: "Failed to send code",
         description: error.message,
@@ -454,7 +456,8 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
       setOtpTimer(300);
       setCanResendOtp(false);
       setOtpCode("");
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: "Failed to resend",
         description: error.message,
@@ -484,14 +487,17 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
       if (!response.ok) {
         throw new Error(data.error || "Invalid verification code");
       }
-      
+
+      setResetToken(data.resetToken);
+
       toast({
         title: "Verified!",
         description: "Now set your new password",
       });
       
       setForgotPasswordStep("new-password");
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: "Verification failed",
         description: error.message,
@@ -532,6 +538,7 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
         body: JSON.stringify({
           email: resetPasswordForm.email,
           newPassword: resetPasswordForm.newPassword,
+          resetToken,
         }),
       });
       
@@ -550,7 +557,8 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
       setActiveTab("login");
       setForgotPasswordStep("email");
       setLoginForm({ email: resetPasswordForm.email, password: "" });
-    } catch (error: any) {
+    } catch (raw_error) {
+      const error = raw_error as AppError;
       toast({
         title: "Reset failed",
         description: error.message,

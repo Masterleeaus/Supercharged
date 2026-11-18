@@ -1,7 +1,7 @@
 'use strict';
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
@@ -26,7 +26,12 @@ import { createCalendarEvent, isCalendarSyncEnabled } from '../../services/googl
 // Static imports for appointment webhook - moved from dynamic imports to reduce latency
 import * as chrono from 'chrono-node';
 import { format as formatDate, addDays } from 'date-fns';
-import { validateAppointmentWebhookToken } from '../../services/appointment-elevenlabs-tool';
+import {
+  APPOINTMENT_WEBHOOK_SECRET_HEADER,
+  appointmentReplayKey,
+  authenticateAppointmentRequest,
+  getAppointmentWebhookSecret,
+} from '../../services/appointment-elevenlabs-tool';
 import { findCallForWebhook } from '../../services/call-matcher';
 
 /**
@@ -40,9 +45,11 @@ import { findCallForWebhook } from '../../services/call-matcher';
  * - Uses actual caller phone number from call record as verified source
  * - Stores both AI-collected and verified phone numbers for discrepancy detection
  * 
- * Security: Validates token via URL path
- * 
- * Endpoint: POST /api/webhooks/elevenlabs/appointment/:token/:elevenLabsAgentId
+ * Security: The secret is read from the X-Appointment-Webhook-Secret header and compared in constant time.
+ * The legacy URL-token route is accepted only when APPOINTMENT_WEBHOOK_ALLOW_URL_TOKEN is exactly "true" (off by default).
+ *
+ * Endpoints: POST /api/webhooks/elevenlabs/appointment/:elevenLabsAgentId (header auth)
+ *            POST /api/webhooks/elevenlabs/appointment/:token/:elevenLabsAgentId (legacy, time-bounded)
  */
 export async function handleAppointmentToolWebhook(req: Request, res: Response) {
   // CRITICAL: Log immediately on entry - before ANY async operations
@@ -60,12 +67,27 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
     // NOTE: Using static imports (at top of file) instead of dynamic imports
     // Dynamic imports added 200-500ms latency causing ElevenLabs timeouts
 
-    if (!validateAppointmentWebhookToken(urlToken)) {
+    // Secret travels in the X-Appointment-Webhook-Secret header. The legacy URL token is honoured only
+    // only when APPOINTMENT_WEBHOOK_ALLOW_URL_TOKEN is exactly "true" (off by default, time-bounded migration).
+    const rawHeaderToken = req.get(APPOINTMENT_WEBHOOK_SECRET_HEADER);
+    let auth: { ok: boolean; via: 'header' | 'url' | null };
+    try {
+      auth = authenticateAppointmentRequest(
+        { headerToken: rawHeaderToken, pathToken: urlToken },
+        getAppointmentWebhookSecret(),
+      );
+    } catch {
+      auth = { ok: false, via: null }; // no secret configured: fail closed
+    }
+    if (!auth.ok) {
       logger.warn(`📅 [Appointment Webhook] Invalid authentication token`);
       return res.status(401).json({
         success: false,
         error: "Unauthorized: Invalid authentication token"
       });
+    }
+    if (auth.via === 'url') {
+      logger.warn(`📅 [Appointment Webhook] Legacy URL-token auth used; migrate this tool to the header`);
     }
 
     logger.info(`📅 [Appointment Webhook] Authentication successful`);
@@ -192,6 +214,7 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
         .select({
           id: calls.id,
           userId: calls.userId,
+          companyId: calls.companyId,
           phoneNumber: calls.phoneNumber,
           callDirection: calls.callDirection,
           contactId: calls.contactId
@@ -202,6 +225,12 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
           eq(calls.userId, userId)
         ))
         .limit(1);
+
+      // Cross-company guard: a call from another company must never be linked to this agent's booking.
+      if (callRecord.length > 0 && callRecord[0].companyId && callRecord[0].companyId !== companyId) {
+        logger.warn(`📅 [Appointment Webhook] Refusing cross-company call link for agent ${dbAgentId}`);
+        return res.status(403).json({ success: false, message: "Forbidden" });
+      }
 
       if (callRecord.length > 0) {
         validatedCallId = callRecord[0].id;
@@ -462,6 +491,36 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
     if (contactName && verifiedCallerName && contactName !== verifiedCallerName) {
       metadata.aiCollectedName = contactName;
       metadata.verifiedName = verifiedCallerName;
+    }
+
+    // Replay protection: a retried tool call for the same conversation, company, slot and phone
+    // returns the appointment already created instead of inserting a duplicate.
+    let replayKey: string | null = null;
+    if (finalConvId) {
+      replayKey = appointmentReplayKey({
+        companyId,
+        conversationId: String(finalConvId),
+        date: finalDate,
+        time: finalTime,
+        phone: finalContactPhone,
+      });
+      metadata.replayKey = replayKey;
+      const [existing] = await db
+        .select({ id: appointments.id })
+        .from(appointments)
+        .where(and(
+          eq(appointments.companyId, companyId),
+          sql`${appointments.metadata}->>'replayKey' = ${replayKey}`
+        ))
+        .limit(1);
+      if (existing) {
+        logger.info(`📅 [Appointment Webhook] Replayed request; returning existing appointment ${existing.id}`);
+        return res.json({
+          success: true,
+          message: "Your appointment is already booked.",
+          appointmentId: existing.id
+        });
+      }
     }
 
     const appointmentId = nanoid();

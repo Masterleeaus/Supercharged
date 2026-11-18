@@ -5,7 +5,25 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import tls from 'node:tls';
-import { smtpTlsOptions } from '../../server/services/smtp-tls.ts';
+import { register } from 'node:module';
+
+// Server modules import siblings without an extension; resolve them to .ts under node --test.
+const RESOLVE_HOOK = `
+import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+export async function resolve(specifier, context, next) {
+  if (specifier.startsWith('.') && !/\\.[cm]?[jt]s$/.test(specifier)) {
+    for (const candidate of [specifier + '.ts', specifier + '/index.ts']) {
+      const url = new URL(candidate, context.parentURL);
+      if (existsSync(fileURLToPath(url))) return { url: url.href, shortCircuit: true };
+    }
+  }
+  return next(specifier, context);
+}
+`;
+register('data:text/javascript,' + encodeURIComponent(RESOLVE_HOOK), import.meta.url);
+
+const { smtpTlsOptions } = await import('../../server/services/smtp-tls-options.ts');
 
 test('SMTP certificate verification remains mandatory, including the retired bypass flag', () => {
   const original = process.env.SMTP_ALLOW_SELF_SIGNED;
@@ -24,8 +42,7 @@ test('SMTP certificate verification remains mandatory, including the retired byp
 test('production and admin SMTP transports consume the single verified TLS helper', () => {
   const email = readFileSync(new URL('../../server/services/email-service.ts', import.meta.url), 'utf8');
   const admin = readFileSync(new URL('../../server/routes/admin/smtp-routes.ts', import.meta.url), 'utf8');
-  assert.match(email, /export \{ smtpTlsOptions \} from '\.\/smtp-tls\.ts';/);
-  assert.match(email, /import \{ smtpTlsOptions \} from '\.\/smtp-tls\.ts';/);
+  assert.match(email, /import \{ smtpTlsOptions \} from '\.\/smtp-tls-options\.ts';/);
   assert.equal((email.match(/tls: smtpTlsOptions\(\)/g) || []).length, 3);
   assert.match(admin, /tls: smtpTlsOptions\(\)/);
   assert.doesNotMatch(email, /SMTP_ALLOW_SELF_SIGNED|rejectUnauthorized:\s*false/);

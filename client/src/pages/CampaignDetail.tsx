@@ -1,17 +1,12 @@
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -39,7 +34,7 @@ interface Contact {
   lastName?: string;
   phone: string;
   email?: string;
-  customFields?: Record<string, any>;
+  customFields?: Record<string, unknown>;
   status: string;
   createdAt: string;
   attemptCount?: number;
@@ -80,6 +75,14 @@ interface Campaign {
   retryOnFailed?: boolean;
   currentRetryPass?: number;
   batchJobHistory?: Array<{ batchJobId: string; pass: number; contactCount: number; createdAt: string }>;
+}
+
+interface BatchJobRecord {
+  id?: string;
+  status?: string;
+  total_calls_scheduled?: number;
+  total_calls_dispatched?: number;
+  [key: string]: unknown;
 }
 
 interface BatchJobStats {
@@ -190,7 +193,7 @@ export default function CampaignDetail() {
         description: t('campaignDetail.toast.batchCancelledDesc'),
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('campaignDetail.toast.batchCancelFailed'),
         description: error.message || t('common.tryAgain'),
@@ -209,7 +212,7 @@ export default function CampaignDetail() {
         description: t('campaignDetail.toast.retryInitiatedDesc'),
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('campaignDetail.toast.retryFailed'),
         description: error.message || t('common.tryAgain'),
@@ -218,7 +221,7 @@ export default function CampaignDetail() {
     },
   });
 
-  const { data: batchJobData, isLoading: batchLoading } = useQuery<{ batchJob: any; stats: BatchJobStats }>({
+  const { data: batchJobData, isLoading: batchLoading } = useQuery<{ batchJob: BatchJobRecord | null; stats: BatchJobStats }>({
     queryKey: [`/api/campaigns/${id}/batch`],
     enabled: !!id && !!campaign,
     refetchInterval: (query) => {
@@ -977,7 +980,7 @@ export default function CampaignDetail() {
                           ) : "—"}
                         </TableCell>
                         <TableCell className="text-muted-foreground">
-                          {contact.customFields?.city || "—"}
+                          {(contact.customFields?.city as string | undefined) || "—"}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">

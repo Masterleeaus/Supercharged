@@ -178,3 +178,64 @@ Source: `shared/schema.ts`, 132 `pgTable` declarations (rows 1-83 as before, the
 - **D3** FK delete behaviour is the default (NO ACTION). Not chosen.
 - **D4** Indexes use CONCURRENTLY, so the runner must not wrap them in a transaction.
 - **D5** `calls` falls back to `website_widgets` through `widget_id`. This is a join on a column with no FK.
+
+## withTenant() bypass list (issue #252, 2026-11-18)
+
+Method: every non-test, non-DRAFT `.ts` file under `server/` that imports the db handle or a pg pool, and whose text does not mention `withTenant`. The same rule runs in `tests/infrastructure/withtenant-bypass-ratchet.test.mjs`, which fails on any file not in `tests/infrastructure/withtenant-bypass-baseline.json`. The baseline holds 156 files.
+
+Check by hand: `grep -rlE "import .*\b(db|pool)\b.* from" server --include=*.ts | xargs grep -L withTenant`
+
+Groups (counts from the baseline; a file can appear in more than one group):
+
+- Routes: about 71 files. Most are under `server/routes/webhook-modules/` (18), `server/routes/flow-automation/` (13), `server/routes/` (11), `server/routes/core/` (8), `server/routes/admin/` (8), and the engine route folders for Twilio, Plivo and Plivo-ElevenLabs (8 in total).
+- WebSocket and voice streams: 19 files, including `server/routes/core/twilio-stream-upgrade.ts`, `server/routes/webhook-modules/elevenlabs-stream.ts`, `server/engines/plivo/routes/plivo-stream.ts`, `server/engines/twilio-openai/routes/twilio-openai-stream.ts`, `server/infrastructure/websocket/connection-manager.ts`, and `server/modules/widget/public-widget-routes.ts`.
+- Workers, schedulers and jobs: about 21 files, including `server/services/campaign-scheduler.ts`, `server/services/campaign-executor.ts`, `server/services/webhook-retry-service.ts`, `server/services/phone-release-retry-worker.ts`, `server/services/phone-billing-cron.ts`, `server/services/credit-backfill-monitor.ts`, and `server/infrastructure/queue/campaign-recovery.service.ts`.
+- Pre-tenant resolution (exceptions, must stay on the plain pool): `server/middleware/team-member-company.ts` (resolves the company from the parent user, so the company is not yet known). The refresh-token and API-key lookups in the tenancy table above are the same kind.
+
+Converted in this change:
+
+- `server/routes/flow-automation/shared.ts`, `validateWorkingHours`: the appointment-settings read now runs inside `withTenantTransaction` (the Drizzle variant of `withTenant`, from `server/infrastructure/database/tenant-transaction.ts`). It sets `app.company_id` but does not switch role, so it is weaker than `withTenant`. Test: `tests/infrastructure/flow-working-hours-tenant.test.mjs`.
+
+Not converted, and why: the routes and workers above need a company id that is not in scope at their entry point (for example, a webhook carries a provider id, not a company). Each one needs its company resolved first, and that is a separate change per surface.
+
+## Postgres isolation coverage (issue #127, 2026-11-18)
+
+Premise correction: the issue says only Marketing and Inbox have a Postgres tenant-isolation check. On origin/main, `.github/workflows/pr-checks.yml` runs four such jobs: `marketing-postgres`, `inbox-postgres`, `tenant-postgres` (Settings, memberships, chatbot, workforce, scheduled booking mirror) and `approvals-postgres`.
+
+Measured: 228 tables declare a `company_id` column (shared schema plus module files). 53 are named by a test under `tests/postgres/`. 175 are not, and they are listed in `tests/infrastructure/tenant-isolation-coverage-baseline.json`. The ratchet test `tests/infrastructure/tenant-isolation-coverage.test.mjs` fails on any new uncovered table and on baseline entries that become covered.
+
+Limits: the check is a text match on the table name, so a mention counts. Tenant tables that key on `user_id` with no `company_id` column (the 104 tenant rows above, minus the company-keyed ones) are not in this count. Connector tables from #349 to #353 are on other branches, not on main, so they are not counted.
+
+## Reconciliation and decision log (issue #250, 2026-11-18)
+
+Checked on origin/main at a215fe9.
+
+### Count
+
+- `shared/schema.ts` declares 132 `pgTable` tables. The issue text says 91, which is stale. The 132 rows in the table above (104 tenant, 16 global, 11 ambiguous, 1 root) match the file.
+- Module-owned tables outside `shared/schema.ts`: 115 `pgTable` declarations in 27 files under `server/modules/` (26 files under `chatbot/`, 1 file under `approvals/`). No tables in `plugins/` or `packages/`. No name clashes with `shared/schema.ts`.
+- Migrations: 25 top-level `.sql` files in `migrations/`. `migrations/archive/` holds 25 `DRAFT_*.sql` files and a `README.md`. `migrations/candidates/` holds 4 files.
+
+### Migration source gap (blocker)
+
+- 7 of the 115 module tables have a `CREATE TABLE` in a migration: `approval_rules`, `approvals`, `chatbot_booking_reminder_attempts`, `chatbot_booking_reminder_sends`, `chatbot_event_outbox`, `chatbot_webhook_deliveries`, `chatbot_webhook_subscriptions`.
+- The other 108 exist only as Drizzle declarations. Examples: `chatbot_commerce_orders`, `chatbot_carts`, `commerce_payment_intents`, `widget_embed_keys`. No SQL file in `migrations/` or `archive/` creates them. Production refuses `db:push`, so these tables have no reviewed route to production. This must be resolved before #251 can cover them.
+- Of the 132 `shared/schema.ts` tables, 81 have no `CREATE TABLE` in any migration file. The remaining 51 do.
+
+### Scope of the module tables
+
+- Every module table declares a `company_id` column in its own block (checked by a text scan, so it is a heuristic). All 115 are tenant-owned for now. None is global. Review each one before #251 uses this list.
+
+### Shared concepts
+
+- `users`: ambiguous (D1). Holds free-text `company`. Not reconciled with Central here, because the repo has no Central canonical-entity document.
+- `companies`: root. Created with `IF NOT EXISTS` by 0014 and in `DRAFT_companies_foundation.sql`.
+- `notifications`: ambiguous (`user_id` NULL means broadcast).
+- `invoices`: tenant, from `user_id`. The other apps' invoice tables were not checked in this repo.
+- Open: agreement with Central on these four entities is not recorded in the repo. Needs a Central sign-off before #251 starts.
+
+### Decision log
+
+- D6 (2026-11-18, default, for review): `company_id` is `uuid NOT NULL` on every tenant table. Keys and foreign keys are composite `(company_id, id)` where a parent exists. Global tables get no `company_id`. The `varchar` type in `DRAFT_approvals.sql` and `DRAFT_chatbot.sql` (B4) loses to `uuid`, because `withTenant()` uses `uuid`.
+- D7 (2026-11-18, default, for review): the 115 module tables are tenant-owned, based on the `company_id` scan above. Their migration source is recorded as missing for 108 of them (see the gap above).
+- Not decided: D1 (company id source), D2 (ambiguous tables), D3 (FK delete behaviour). These remain open.

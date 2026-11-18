@@ -1,9 +1,11 @@
+import type { CaughtError } from '../common';
 /**
  * Shared helpers and constants for the flow-automation routes.
  * Moved verbatim from server/routes/flow-automation-routes.ts.
  */
 import { Response } from "express";
 import { db } from "../../db";
+import { withTenantTransaction } from "../../infrastructure/database/tenant-transaction.ts";
 import { type AuthRequest } from "../../middleware/auth";
 import { getCompanyScope } from "../../middleware/company-scope";
 import { appointments, appointmentSettings } from "@shared/schema";
@@ -41,10 +43,10 @@ export const APPOINTMENT_EDITABLE_FIELDS = [
  * Copies only the allowlisted keys present in the body. Returns null when the body is not an object
  * or holds no editable key, so the caller can answer 400.
  */
-export function pickEditableFields(body: unknown, allowed: readonly string[]): Record<string, any> | null {
+export function pickEditableFields(body: unknown, allowed: readonly string[]): Record<string, unknown> | null {
   if (!body || typeof body !== "object" || Array.isArray(body)) return null;
   const source = body as Record<string, unknown>;
-  const picked: Record<string, any> = {};
+  const picked: Record<string, unknown> = {};
   for (const key of allowed) {
     if (Object.prototype.hasOwnProperty.call(source, key) && source[key] !== undefined) {
       picked[key] = source[key];
@@ -106,10 +108,13 @@ export async function validateWorkingHours(
   duration: number = 30
 ): Promise<{ valid: boolean; message?: string }> {
   try {
-    const [userSettings] = await db
-      .select()
-      .from(appointmentSettings)
-      .where(and(eq(appointmentSettings.userId, userId), eq(appointmentSettings.companyId, companyId)));
+    // Tenant-bound read: runs inside withTenantTransaction, so app.company_id is set for this unit of work.
+    const [userSettings] = await withTenantTransaction(db, companyId, async (tx) =>
+      await tx
+        .select()
+        .from(appointmentSettings)
+        .where(and(eq(appointmentSettings.userId, userId), eq(appointmentSettings.companyId, companyId))),
+    );
 
     // Parse the date to get day of week
     const parsedDate = new Date(appointmentDate + 'T12:00:00');
@@ -169,8 +174,8 @@ export async function validateWorkingHours(
 
     logger.info(`📅 [Working Hours] Validated: ${appointmentTime} is within ${daySettings.start} - ${daySettings.end}`);
     return { valid: true };
-  } catch (error: any) {
-    logger.error(`📅 [Working Hours] Validation error:`, error.message);
+  } catch (error: unknown) {
+    logger.error(`📅 [Working Hours] Validation error:`, (error as CaughtError).message);
     return {
       valid: false,
       message: `I'm having trouble validating the appointment time. Please provide the time in HH:MM format (like "14:00" or "2:30 PM").`

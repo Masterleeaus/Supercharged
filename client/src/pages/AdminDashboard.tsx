@@ -1,17 +1,12 @@
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
 import { useTranslation } from "react-i18next";
@@ -51,6 +46,14 @@ import { AuthStorage } from "@/lib/auth-storage";
 import { useToast } from "@/hooks/use-toast";
 import { usePluginStatus } from "@/hooks/use-plugin-status";
 
+/** Configured flags read from /api/admin/settings. */
+type AdminSettingsStatus = {
+  twilio_configured?: boolean;
+  elevenlabs_configured?: boolean;
+  openai_configured?: boolean;
+  openai_realtime_configured?: boolean;
+};
+
 interface ConnectionStatus {
   connected: boolean;
   error?: string;
@@ -58,6 +61,8 @@ interface ConnectionStatus {
   accountStatus?: string;
   voiceCount?: number;
   details?: string;
+  modelCount?: number;
+  keyCount?: number;
 }
 
 export default function AdminDashboard() {
@@ -87,7 +92,7 @@ export default function AdminDashboard() {
 
   // Get global settings to check configuration
   // Auto-refresh every 60 minutes and on window focus to keep connection status current
-  const { data: settings, isLoading: settingsLoading, refetch: refetchSettings, isFetching } = useQuery({
+  const { data: settings, isLoading: settingsLoading, refetch: refetchSettings, isFetching } = useQuery<AdminSettingsStatus>({
     queryKey: ["/api/admin/settings"],
     queryFn: async () => {
       const response = await apiRequest("GET", `/api/admin/settings?t=${Date.now()}`);
@@ -144,7 +149,7 @@ export default function AdminDashboard() {
   }, [(Array.isArray(adminMenuItems) ? adminMenuItems : []).length]);
 
   // Perform the actual connection test - internal function
-  const performConnectionCheck = async (settingsToUse: any): Promise<void> => {
+  const performConnectionCheck = async (settingsToUse: AdminSettingsStatus | undefined): Promise<void> => {
     setCheckingStatus(true);
     
     try {
@@ -211,7 +216,7 @@ export default function AdminDashboard() {
 };
 
   // Queue a connection check - chains onto existing promise to ensure serial execution
-  const checkAPIConnections = (currentSettings?: any) => {
+  const checkAPIConnections = (currentSettings?: AdminSettingsStatus) => {
     const settingsToUse = currentSettings || settings;
     if (!settingsToUse) return;
     
@@ -375,8 +380,8 @@ export default function AdminDashboard() {
                       : 'text-slate-500 dark:text-slate-500'
                   }`}>
                     {openaiStatus?.connected 
-                      ? (openaiStatus as any).modelCount !== undefined 
-                        ? t("adminDashboard.status.models", { count: (openaiStatus as any).modelCount })
+                      ? openaiStatus?.modelCount !== undefined 
+                        ? t("adminDashboard.status.models", { count: openaiStatus?.modelCount })
                         : t("adminDashboard.status.connected")
                       : t("adminDashboard.status.notConnected")}
                   </span>
@@ -414,8 +419,8 @@ export default function AdminDashboard() {
                       : 'text-slate-500 dark:text-slate-500'
                   }`}>
                     {openaiRealtimeStatus?.connected 
-                      ? (openaiRealtimeStatus as any).keyCount !== undefined 
-                        ? t("adminDashboard.status.keys", { count: (openaiRealtimeStatus as any).keyCount })
+                      ? openaiRealtimeStatus?.keyCount !== undefined 
+                        ? t("adminDashboard.status.keys", { count: openaiRealtimeStatus?.keyCount })
                         : t("adminDashboard.status.connected")
                       : t("adminDashboard.status.notConnected")}
                   </span>
@@ -779,7 +784,7 @@ function VoiceAIPanel() {
           : t("adminDashboard.voiceAI.toasts.plivoDisabled")
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t("adminDashboard.voiceAI.toasts.updateFailed"),
         description: error.message,
@@ -806,7 +811,7 @@ function VoiceAIPanel() {
           : t("adminDashboard.voiceAI.toasts.twilioDisabled")
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t("adminDashboard.voiceAI.toasts.updateFailed"),
         description: error.message,

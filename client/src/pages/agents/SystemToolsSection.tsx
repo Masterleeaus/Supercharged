@@ -1,17 +1,12 @@
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
 import { Input } from "@/components/ui/input";
@@ -31,7 +26,7 @@ export interface SystemToolsSectionProps {
   hasEmailTemplates: boolean;
   emailTemplates: { id: string; name: string; }[];
   isWhatsAppActive: boolean;
-  whatsappTemplates: { name: string; id?: string; components?: any[]; }[];
+  whatsappTemplates: { name: string; id?: string; components?: Array<{ type?: string; format?: string; text?: string; buttons?: Array<{ type?: string; text?: string; url?: string }> }>; }[];
   getWhatsAppTemplateVariables: (templateName: string) => number[];
   getWhatsAppTemplateButtonVariables: (templateName: string) => Array<{ index: number; label: string; url: string; }>;
   getWhatsAppTemplateHeaderInfo: (templateName: string) => { format: string; hasVariable: boolean; text?: string; } | null;
@@ -248,7 +243,7 @@ export function SystemToolsSection({ t, formData, setFormData, hasEmailTemplates
                                     if (varIndices.length === 0 && buttonVarDefs.length === 0 && !headerInfo?.hasVariable) return null;
                                     const currentVars = parseWhatsAppVariables(formData.messagingWhatsappVariables);
                                     const selectedTemplate = whatsappTemplates.find(t => t.name === formData.messagingWhatsappTemplate);
-                                    const bodyComponent = selectedTemplate?.components?.find((c: any) => c.type === 'BODY');
+                                    const bodyComponent = selectedTemplate?.components?.find((c: Record<string, unknown>) => c.type === 'BODY');
                                     let sectionCount = 0;
                                     return (
                                       <div className="space-y-2 p-3 rounded-md border bg-muted/30">

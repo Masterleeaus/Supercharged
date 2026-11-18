@@ -1,17 +1,12 @@
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
 import { useState } from 'react';
@@ -111,7 +106,7 @@ export default function Integrations() {
     queryKey: ['/api/webhooks'],
   });
 
-  const { data: campaigns = [] } = useQuery<any[]>({
+  const { data: campaigns = [] } = useQuery<Array<{ id: string; name: string }>>({
     queryKey: ['/api/campaigns'],
   });
 
@@ -121,7 +116,7 @@ export default function Integrations() {
   });
 
   const createWebhookMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: Record<string, unknown>) => {
       return await apiRequest('POST', '/api/webhooks', data);
     },
     onSuccess: () => {
@@ -133,7 +128,7 @@ export default function Integrations() {
       setIsCreateDialogOpen(false);
       setFormData({ name: '', url: '', campaignId: '' });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('integrations.toast.createFailed'),
         description: error.message || t('integrations.toast.createFailedDesc'),
@@ -143,7 +138,7 @@ export default function Integrations() {
   });
 
   const updateWebhookMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+    mutationFn: async ({ id, data }: { id: string; data: Record<string, unknown> }) => {
       return await apiRequest('PUT', `/api/webhooks/${id}`, data);
     },
     onSuccess: () => {
@@ -153,7 +148,7 @@ export default function Integrations() {
         description: t('integrations.toast.updatedDesc'),
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('integrations.toast.updateFailed'),
         description: error.message || t('integrations.toast.updateFailedDesc'),
@@ -174,7 +169,7 @@ export default function Integrations() {
       });
       setWebhookToDelete(null);
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('integrations.toast.deleteFailed'),
         description: error.message || t('integrations.toast.deleteFailedDesc'),
@@ -193,7 +188,7 @@ export default function Integrations() {
         description: t('integrations.toast.testSentDesc'),
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('integrations.toast.testFailed'),
         description: error.message || t('integrations.toast.testFailedDesc'),

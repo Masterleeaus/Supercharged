@@ -1,17 +1,12 @@
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
 import { useQuery } from "@tanstack/react-query";
@@ -39,6 +34,24 @@ interface Campaign {
   name: string;
 }
 
+/** Call metadata JSON. Only keys the page reads are typed. */
+interface TranscriptEntry {
+  role?: string;
+  message?: string;
+  content?: string;
+}
+
+interface CallMetadata {
+  widgetName?: string;
+  creditError?: string;
+  creditDeductionError?: string;
+  creditsRequired?: number;
+  incomingAgentName?: string;
+  calledNumber?: string;
+  twilioCallSid?: string;
+  [key: string]: unknown;
+}
+
 interface Call {
   id: string;
   campaignId: string | null;
@@ -56,7 +69,7 @@ interface Call {
   aiSummary: string | null;
   classification: string | null;
   sentiment: string | null;
-  metadata: Record<string, any> | null;
+  metadata: CallMetadata | null;
   startedAt: string | null;
   endedAt: string | null;
   createdAt: string;
@@ -201,9 +214,9 @@ export default function CallDetail() {
           } else {
             console.error('Failed to fetch recording:', response.statusText);
           }
-        } catch (error: any) {
+        } catch (error: unknown) {
           // Ignore abort errors
-          if (error.name !== 'AbortError') {
+          if ((error as Error).name !== 'AbortError') {
             console.error('Failed to fetch recording:', error);
           }
         }
@@ -339,15 +352,15 @@ export default function CallDetail() {
   
   // For widget calls, show widget name instead of Unknown
   const contactName = call.widgetId 
-    ? (call.widget?.name || (call.metadata as any)?.widgetName || 'Website Widget')
+    ? (call.widget?.name || call.metadata?.widgetName || 'Website Widget')
     : (contact && contact.firstName && contact.firstName.toLowerCase() !== 'unknown'
       ? `${contact.firstName} ${contact.lastName || ""}`.trim()
       : primaryNumber);
 
-  const creditError = (call.metadata as any)?.creditError
-    || (call.metadata as any)?.creditDeductionError
+  const creditError = call.metadata?.creditError
+    || call.metadata?.creditDeductionError
     || 'Insufficient credits';
-  const creditsRequired = (call.metadata as any)?.creditsRequired;
+  const creditsRequired = call.metadata?.creditsRequired;
 
   return (
     <div className="space-y-6">
@@ -852,14 +865,14 @@ export default function CallDetail() {
             {call.transcript ? (
               <div className="max-h-[600px] overflow-y-auto space-y-4 pr-2">
                 {(() => {
-                  let parsed: any = call.transcript;
+                  let parsed: unknown = call.transcript;
                   if (typeof parsed === 'string') {
                     try { parsed = JSON.parse(parsed); } catch { parsed = null; }
                   }
-                  if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].role && ('message' in parsed[0] || 'content' in parsed[0])) {
+                  if (Array.isArray(parsed) && parsed.length > 0 && (parsed[0] as TranscriptEntry).role && ("message" in parsed[0] || "content" in parsed[0])) {
                     return parsed
-                      .filter((entry: any) => (entry.message || entry.content) && (entry.message || entry.content).trim())
-                      .map((entry: any, index: number) => {
+                      .filter((entry: TranscriptEntry) => (entry.message || entry.content) && (entry.message || entry.content).trim())
+                      .map((entry: TranscriptEntry, index: number) => {
                         const isAgent = entry.role === 'agent' || entry.role === 'ai' || entry.role === 'assistant';
                         const speaker = isAgent ? 'Agent' : 'User';
                         const message = entry.message || entry.content;

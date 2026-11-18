@@ -20,13 +20,14 @@ import { OpenAIPoolService } from '../../plivo/services/openai-pool.service';
 import { OpenAIAgentFactory } from '../services/openai-agent-factory';
 import { hydrateCompiledTools, type CompiledFunctionTool } from '../../../services/openai-voice-agent';
 import { db } from '../../../db';
-import { twilioOpenaiCalls, calls, users, creditTransactions, flowExecutions } from '@shared/schema';
+import { twilioOpenaiCalls, calls, users, creditTransactions, flowExecutions, agents } from '@shared/schema';
 import { eq, sql, and, desc } from 'drizzle-orm';
 import { logger } from '../../../utils/logger';
 import { TWILIO_OPENAI_CONFIG, getRecordingWebhookUrl } from '../config/twilio-openai-config';
 import { getTwilioClient } from '../../../services/twilio-connector';
 import { CallInsightsService } from '../../../services/call-insights.service';
 import type { TwilioMediaStreamEvent } from '../types';
+import { streamTokenFromUrl, verifyStreamToken } from '../../../utils/stream-token.ts';
 import type { OpenAIVoice, OpenAIRealtimeModel, AgentTool } from '../types';
 
 let sharedWss: WebSocketServer | null = null;
@@ -48,6 +49,15 @@ export function setupTwilioOpenAIStreamHandler(httpServer: HttpServer): void {
         return;
       }
       
+      // Security: the stream URL carries a server-issued token bound to this CallSid.
+      // Reject before any database lookup when it is missing, forged, expired or for another call.
+      const streamAuth = verifyStreamToken(streamTokenFromUrl(request.url), { callId: callSid });
+      if (streamAuth.ok === false) {
+        logger.error(`[TwilioOpenAI Stream] Security: Rejecting stream for call ${callSid}: ${streamAuth.reason}`);
+        socket.destroy();
+        return;
+      }
+
       // Security: Verify the call exists in our database before accepting the stream
       // This prevents unauthorized WebSocket connections with arbitrary call SIDs
       try {
@@ -62,7 +72,7 @@ export function setupTwilioOpenAIStreamHandler(httpServer: HttpServer): void {
           socket.destroy();
           return;
         }
-      } catch (err: any) {
+      } catch (err) {
         logger.error(`[TwilioOpenAI Stream] Security: Database error validating call SID: ${err.message}`);
         socket.destroy();
         return;
@@ -125,7 +135,7 @@ function handleTwilioStreamConnection(ws: WebSocket, callSid: string): void {
               recordingChannels: 'dual',
             });
             logger.info(`Recording started for call ${callSid} (stream start)`, undefined, 'TwilioOpenAI');
-          } catch (recordError: any) {
+          } catch (recordError) {
             logger.warn(`Recording start failed for call ${callSid}: ${recordError.message} (non-critical)`, undefined, 'TwilioOpenAI');
           }
         }
@@ -136,7 +146,7 @@ function handleTwilioStreamConnection(ws: WebSocket, callSid: string): void {
         TwilioOpenAIAudioBridge.handleTwilioMedia(callSid, event);
       }
 
-    } catch (error: any) {
+    } catch (error) {
       logger.error(`[TwilioOpenAI Stream] Error processing message:`, error.message);
     }
   });
@@ -226,7 +236,7 @@ function handleTwilioStreamConnection(ws: WebSocket, callSid: string): void {
                         })
                         .where(eq(calls.id, latestRow.id));
                     }
-                  } catch (syncErr: any) {
+                  } catch (syncErr) {
                     logger.error(`Failed to sync insights to calls table for ${callRecord.id}: ${syncErr.message}`, undefined, 'TwilioOpenAI Stream');
                   }
                 }
@@ -234,7 +244,7 @@ function handleTwilioStreamConnection(ws: WebSocket, callSid: string): void {
             } else {
               logger.warn(`No OpenAI credential available for AI analysis on call ${callRecord.id}`, undefined, 'TwilioOpenAI Stream');
             }
-          } catch (insightError: any) {
+          } catch (insightError) {
             logger.error(`Failed to generate call insights for ${callRecord.id}`, insightError, 'TwilioOpenAI Stream');
           }
         }
@@ -257,11 +267,11 @@ function handleTwilioStreamConnection(ws: WebSocket, callSid: string): void {
               .where(eq(flowExecutions.id, flowExec.id));
             logger.info(`Updated flow execution ${flowExec.id} to completed`, undefined, 'TwilioOpenAI Stream');
           }
-        } catch (flowExecError: any) {
+        } catch (flowExecError) {
           logger.warn(`Failed to update flow execution status: ${flowExecError.message}`, undefined, 'TwilioOpenAI Stream');
         }
       }
-    } catch (err: any) {
+    } catch (err) {
       logger.error(`[TwilioOpenAI Stream] Error ending session:`, err.message);
     }
   });
@@ -295,6 +305,12 @@ async function initializeSession(
       twilioWs.close();
       return;
     }
+
+    // The calls table has no company column; the company comes from the call's agent.
+    const [callAgent] = callRecord.agentId
+      ? await db.select({ companyId: agents.companyId }).from(agents).where(eq(agents.id, callRecord.agentId)).limit(1)
+      : [];
+    const callCompanyId = callAgent?.companyId ?? null;
 
     // Get OpenAI API key from the reserved credential
     if (!callRecord.openaiCredentialId) {
@@ -340,6 +356,7 @@ async function initializeSession(
       const hydratedTools = hydrateCompiledTools(compiledTools, {
         userId: callRecord.userId || '',
         agentId: callRecord.agentId || '',
+        companyId: callCompanyId,
         callId: callRecord.id,
         knowledgeBaseIds: metadata?.knowledgeBaseIds as string[] || [],
         transferPhoneNumber: metadata?.transferPhoneNumber as string || undefined,
@@ -347,8 +364,8 @@ async function initializeSession(
       
       // Build agent config with hydrated flow tools, using factory for tier-validated model
       const flowConfig = OpenAIAgentFactory.createAgentConfig({
-        voice: (callRecord.openaiVoice as OpenAIVoice) || TWILIO_OPENAI_CONFIG.defaultVoice,
-        model: (callRecord.openaiModel as OpenAIRealtimeModel) || TWILIO_OPENAI_CONFIG.openaiRealtimeModel,
+        voice: (callRecord.openaiVoice as OpenAIVoice) || (TWILIO_OPENAI_CONFIG.defaultVoice as OpenAIVoice),
+        model: (callRecord.openaiModel as OpenAIRealtimeModel) || (TWILIO_OPENAI_CONFIG.openaiRealtimeModel as OpenAIRealtimeModel),
         systemPrompt: (metadata?.systemPrompt as string) || 'You are a helpful AI assistant.',
         firstMessage: (metadata?.firstMessage as string) || undefined,
         temperature: (metadata?.temperature as number) ?? 0.7,
@@ -374,8 +391,8 @@ async function initializeSession(
     } else {
       // Natural agent - build agent config from scratch
       agentConfig = OpenAIAgentFactory.createAgentConfig({
-        voice: (callRecord.openaiVoice as OpenAIVoice) || TWILIO_OPENAI_CONFIG.defaultVoice,
-        model: (callRecord.openaiModel as OpenAIRealtimeModel) || TWILIO_OPENAI_CONFIG.openaiRealtimeModel as OpenAIRealtimeModel,
+        voice: (callRecord.openaiVoice as OpenAIVoice) || (TWILIO_OPENAI_CONFIG.defaultVoice as OpenAIVoice),
+        model: (callRecord.openaiModel as OpenAIRealtimeModel) || (TWILIO_OPENAI_CONFIG.openaiRealtimeModel as OpenAIRealtimeModel),
         systemPrompt: (metadata?.systemPrompt as string) || 'You are a helpful AI assistant.',
         firstMessage: (metadata?.firstMessage as string) || undefined,
         temperature: (metadata?.temperature as number) ?? 0.7,
@@ -394,7 +411,8 @@ async function initializeSession(
         agentConfig = OpenAIAgentFactory.addKnowledgeBaseTool(
           agentConfig,
           knowledgeBaseIds,
-          callRecord.userId
+          callRecord.userId,
+          callCompanyId
         );
       }
 
@@ -550,7 +568,7 @@ async function initializeSession(
                   classification: insights.classification 
                 }, 'TwilioOpenAI Stream');
               }
-            } catch (insightError: any) {
+            } catch (insightError) {
               logger.error('Failed to generate call insights', insightError, 'TwilioOpenAI Stream');
             }
           }
@@ -600,7 +618,7 @@ async function initializeSession(
                 logger.info(`Synced insights to calls table for contact ${callContactId} (campaign ${callCampaignId})`, undefined, 'TwilioOpenAI Stream');
               }
             }
-          } catch (syncErr: any) {
+          } catch (syncErr) {
             logger.error(`Failed to sync insights to calls table for call ${callId}: ${syncErr.message}`, undefined, 'TwilioOpenAI Stream');
           }
         }
@@ -636,7 +654,7 @@ async function initializeSession(
                   })
                   .where(eq(twilioOpenaiCalls.id, callId));
                 logger.warn(`Call ${callId} marked as credit_failed - insufficient credits (required: ${creditsToDeduct})`, undefined, 'TwilioOpenAI Stream');
-              } catch (updateError: any) {
+              } catch (updateError) {
                 logger.error(`Failed to update call status for credit failure: ${updateError.message}`, updateError, 'TwilioOpenAI Stream');
               }
               
@@ -660,7 +678,7 @@ async function initializeSession(
             } else if (result) {
               logger.info(`Call did not qualify for CRM lead`, undefined, 'TwilioOpenAI Stream');
             }
-          } catch (crmError: any) {
+          } catch (crmError) {
             logger.error(`Failed to create CRM lead: ${crmError.message}`, crmError, 'TwilioOpenAI Stream');
           }
         }
@@ -678,11 +696,11 @@ async function initializeSession(
               callerPhone,
               callId,
             });
-          } catch (msgErr: any) {
+          } catch (msgErr) {
             logger.error(`Post-call messaging error: ${msgErr.message}`, msgErr, 'TwilioOpenAI Stream');
           }
         }
-      } catch (error: any) {
+      } catch (error) {
         logger.error('Error updating call record', error, 'TwilioOpenAI Stream');
       }
       
@@ -701,7 +719,7 @@ async function initializeSession(
         .where(eq(twilioOpenaiCalls.id, callId));
     }
 
-  } catch (error: any) {
+  } catch (error) {
     logger.error(`Failed to initialize session for ${callSid}: ${error.message}`, error, 'TwilioOpenAI Stream');
   }
 }

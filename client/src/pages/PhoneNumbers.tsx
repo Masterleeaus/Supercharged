@@ -1,17 +1,12 @@
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
 import { useState, useEffect, Suspense } from "react";
@@ -41,6 +36,15 @@ import UserSipGatewaysTab from "@/components/phone-numbers/UserSipGatewaysTab";
 import { DEFAULT_MONTHLY_CREDITS, PublicSettings, PhoneNumber, AvailableNumber, IncomingConnection, TwilioCountry, VoiceEngineSettings, UserWithKyc, PlivoPhoneNumber, PlivoPricing, PlivoAvailableNumber, PlivoIncomingConnection } from "./phone-numbers/types";
 import { PlivoBuyDialog } from "./phone-numbers/PlivoBuyDialog";
 import { PhoneNumberGateDialogs } from "./phone-numbers/PhoneNumberGateDialogs";
+
+/** Purchase error body the API returns for missing address, bundle or KYC. */
+type PurchaseErrorData = {
+  addressRequired?: boolean;
+  bundleRequired?: boolean;
+  kycRequired?: boolean;
+  country?: string;
+  [key: string]: unknown;
+};
 
 export default function PhoneNumbers() {
   const { t } = useTranslation();
@@ -250,9 +254,9 @@ export default function PhoneNumbers() {
       setTwilioSearchType("local");
       toast({ title: t('phoneNumbers.toast.purchaseSuccess'), description: t('phoneNumbers.toast.creditsDeducted', { credits: MONTHLY_CREDITS }) });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       // ApiError includes 'data' field with full JSON response from server
-      const errorData = error.data || error;
+      const errorData = ((error as Error & { data?: PurchaseErrorData }).data || error) as PurchaseErrorData;
       
       // Check if the error response indicates address is required
       if (errorData.addressRequired) {
@@ -299,7 +303,7 @@ export default function PhoneNumbers() {
       setNumberToRelease(null);
       toast({ title: t('phoneNumbers.toast.releaseSuccess') });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('phoneNumbers.toast.releaseFailed'),
         description: error.message || t('common.tryAgain'),
@@ -322,7 +326,7 @@ export default function PhoneNumbers() {
       setPlivoSearchRegion("");
       toast({ title: "Plivo Number Purchased", description: "Your new phone number has been added to your account." });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: "Purchase Failed",
         description: error.message || t('common.tryAgain'),
@@ -343,7 +347,7 @@ export default function PhoneNumbers() {
       setPlivoNumberToRelease(null);
       toast({ title: "Number Released", description: "The phone number has been released." });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: "Release Failed",
         description: error.message || t('common.tryAgain'),

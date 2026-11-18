@@ -92,7 +92,7 @@ export function handleInboundOptOut(input: InboundOptOutInput): InboundOptOutRes
       channel,
       reason: 'unsubscribed',
     });
-    if (!result.ok) return { action: 'not_changed', reason: result.error };
+    if (result.ok === false) return { action: 'not_changed', reason: result.error };
     return { action: 'suppressed' };
   }
 
@@ -100,7 +100,7 @@ export function handleInboundOptOut(input: InboundOptOutInput): InboundOptOutRes
     const reason = suppression.reasonFor(companyId, { address: from, channel });
     if (reason !== 'unsubscribed') return { action: 'not_changed', reason: 'not_opt_out' };
     const result = suppression.unsuppress(companyId, { address: from, channel });
-    if (!result.ok) return { action: 'not_changed', reason: result.error };
+    if (result.ok === false) return { action: 'not_changed', reason: result.error };
     return { action: 'unsuppressed' };
   }
 

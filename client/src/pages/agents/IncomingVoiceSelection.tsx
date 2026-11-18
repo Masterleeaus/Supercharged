@@ -1,17 +1,12 @@
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
 import { Info } from "lucide-react";
@@ -26,7 +21,7 @@ import { SUPPORTED_LANGUAGES, isProviderSupported } from "@/lib/languages";
 import { LanguageOptionLabel } from "@/components/LanguageProviderBadges";
 import type { TFunction } from "i18next";
 import type { Dispatch, SetStateAction } from "react";
-import { formatModelName, openaiVoices, customVoiceEngineVoices, Voice, AgentFormData } from "@/pages/agents/shared";
+import { VoiceModelFields, formatModelName, openaiVoices, customVoiceEngineVoices, Voice, AgentFormData } from "@/pages/agents/shared";
 
 export interface IncomingVoiceSelectionProps {
   t: TFunction<"translation", undefined>;
@@ -138,7 +133,7 @@ export function IncomingVoiceSelection({ t, formData, allowedSttProviders, curre
                                       setFormData({ ...formData, ttsModel: value });
                                     } else {
                                       const firstVoice = customVoiceEngineVoices.find(
-                                        v => v.provider === 'sarvam' && (v as any).model === value && (!(v as any).languages || !formData.language || (v as any).languages.includes(formData.language))
+                                        v => v.provider === 'sarvam' && (v as VoiceModelFields).model === value && (!(v as VoiceModelFields).languages || !formData.language || (v as VoiceModelFields).languages.includes(formData.language))
                                       );
                                       setFormData({ ...formData, ttsModel: value, openaiVoice: firstVoice?.value || formData.openaiVoice });
                                     }

@@ -33,9 +33,9 @@ jobs:
       - run: npm run build
 
   typecheck-required:
-    # Gating, one job per area that already passes. Each area is checked on its own
-    # (scripts/typecheck-area.mjs); whole-repo tsc is not run here. Areas still failing
-    # are not in this matrix yet; see issue #122 and the PR description.
+    # Gating, one job per area. Each area is checked on its own (scripts/typecheck-area.mjs);
+    # whole-repo tsc is not run here. Add an area only after it prints 0 errors locally.
+    # See issues #122 and #317.
     name: Typecheck ${{ matrix.area }}
     runs-on: ubuntu-latest
     strategy:
@@ -52,6 +52,19 @@ jobs:
           - client/src/widget
           - client/src/i18n
           - client/src/pages
+          - client/src/components
+          - server/services
+          - server/routes
+          - server/modules
+          - server/engines
+          - client/src/hooks
+          - client-src-root
+          - server-root
+          - server/utils
+          - server/storage
+          - server/integrations
+          - server/scripts
+          - server/workforce
           - shared
     steps:
       - uses: actions/checkout@v4
@@ -178,6 +191,36 @@ jobs:
       - name: Verify tenant isolation (Settings, memberships, chatbot tables, stores and workforce) on real PostgreSQL
         run: node --test --experimental-transform-types tests/postgres/tenant-postgres-*.test.mjs
 
+  suppression-postgres:
+    name: Durable comms suppression on PostgreSQL (restart, send refusal, RLS)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: ci-only-throwaway-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      SUPPRESSION_PG_DISPOSABLE: 'true'
+      SUPPRESSION_PG_INTEGRATION_URL: postgres://postgres:ci-only-throwaway-password@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build disposable suppression schema (migration 0025)
+        run: node scripts/suppression-postgres-prepare.mjs
+      - name: Verify suppression survives a restart and blocks sends on real PostgreSQL
+        run: node --test --experimental-transform-types tests/postgres/suppression-postgres-*.test.mjs
+
   approvals-postgres:
     name: Approvals PostgreSQL tenant isolation
     runs-on: ubuntu-latest
@@ -270,6 +313,9 @@ jobs:
           node-version: 22
       - name: Check listed migrations exist
         run: node scripts/check-migration-inventory.mjs
+      # Issue #253: block any schema push path that could change shared tables outside the migration chain.
+      - name: Schema authority drift check
+        run: node scripts/check-schema-authority.mjs
 
   docker:
     name: Docker build and smoke test

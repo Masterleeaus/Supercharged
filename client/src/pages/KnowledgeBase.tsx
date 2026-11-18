@@ -1,17 +1,12 @@
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
 import { useState, useRef, useEffect } from "react";
@@ -192,7 +187,7 @@ export default function KnowledgeBase() {
         description: t('knowledgeBase.toast.fileUploadedDesc'),
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('knowledgeBase.toast.uploadFailed'),
         description: error.message || t('knowledgeBase.toast.uploadFailedDesc'),
@@ -217,7 +212,7 @@ export default function KnowledgeBase() {
         description: t('knowledgeBase.toast.urlAddedDesc'),
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('knowledgeBase.toast.urlFailed'),
         description: error.message || t('knowledgeBase.toast.urlFailedDesc'),
@@ -242,7 +237,7 @@ export default function KnowledgeBase() {
         description: t('knowledgeBase.toast.textAddedDesc'),
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('knowledgeBase.toast.textFailed'),
         description: error.message || t('knowledgeBase.toast.textFailedDesc'),

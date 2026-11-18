@@ -68,7 +68,7 @@ export function LeadDetailModal({ lead, open, onClose, stageColor }: { lead: Lea
       queryClientRef.invalidateQueries({ queryKey: [notesQueryKey] });
       queryClientRef.invalidateQueries({ queryKey: [activitiesQueryKey] });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({ title: t("common.error"), description: error.message, variant: "destructive" });
     },
   });

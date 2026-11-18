@@ -1,0 +1,11 @@
+{
+  "id": "telegram",
+  "version": "0.1.0",
+  "vendor": "Telegram",
+  "auth": "api_key",
+  "entities": ["message"],
+  "requiredScopes": [],
+  "webhookEvents": [],
+  "configSchema": {},
+  "featureFlag": "connector_telegram"
+}

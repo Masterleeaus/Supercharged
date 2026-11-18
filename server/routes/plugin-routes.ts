@@ -60,6 +60,7 @@ const pluginsDir = path.resolve(process.cwd(), 'plugins');
 
 const SAFE_TABLE_NAME_RE = /^[a-z][a-z0-9_]{0,62}$/;
 const SAFE_PLUGIN_NAME_RE = /^[a-z][a-z0-9_-]{0,62}$/;
+const PLUGIN_HEALTH_GENERIC_ERROR = 'Plugin has a problem. Check the server logs for details.';
 
 const router = Router();
 
@@ -232,6 +233,9 @@ publicPluginRouter.get('/health', async (_req, res) => {
 
       }
 
+      if (plugin.error) {
+        logger.warn(`[Plugin Health] ${plugin.name} reported an error: ${plugin.error}`);
+      }
       healthChecks.push({
         name: plugin.name,
         displayName: manifest?.displayName || plugin.name,
@@ -241,9 +245,8 @@ publicPluginRouter.get('/health', async (_req, res) => {
         registered: plugin.registered,
         tablesStatus,
         missingTables,
-        error: plugin.error || (missingTables.length > 0 
-          ? `Missing database tables: ${missingTables.join(', ')}. Run the migration SQL file.`
-          : undefined),
+        // Generic text only: raw plugin errors and table names stay in the server logs.
+        error: (plugin.error || missingTables.length > 0) ? PLUGIN_HEALTH_GENERIC_ERROR : undefined,
       });
     }
 

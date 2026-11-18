@@ -1,17 +1,12 @@
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
 import { useState } from "react";
@@ -55,7 +50,7 @@ interface Webhook {
   events: string[];
   campaignIds: string[] | null;
   authType: string | null;
-  authCredentials: Record<string, any> | null;
+  authCredentials: Record<string, unknown> | null;
   headers: Record<string, string> | null;
   isActive: boolean;
   createdAt: string;
@@ -66,7 +61,7 @@ interface WebhookLog {
   id: number;
   webhookId: string;
   event: string;
-  payload: Record<string, any>;
+  payload: Record<string, unknown>;
   httpStatus: number | null;
   responseBody: string | null;
   responseTime: number | null;
@@ -213,7 +208,7 @@ export default function WebhookConfigPage() {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      let authCredentials: Record<string, any> | null = null;
+      let authCredentials: Record<string, unknown> | null = null;
       let authType: string | null = null;
       
       if (formData.authType === "basic") {
@@ -234,7 +229,7 @@ export default function WebhookConfigPage() {
         }
       }
 
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         name: formData.name,
         url: formData.url,
         description: formData.description || null,
@@ -258,7 +253,7 @@ export default function WebhookConfigPage() {
       toast({ title: t('webhooks.toast.created') });
       handleCloseCreate();
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('webhooks.toast.createFailed'),
         description: error.message,
@@ -276,7 +271,7 @@ export default function WebhookConfigPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/webhooks/limits"] });
       toast({ title: t('webhooks.toast.deleted') });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('webhooks.toast.deleteFailed'),
         description: error.message,
@@ -294,7 +289,7 @@ export default function WebhookConfigPage() {
       toast({ title: t('webhooks.toast.testSent') });
       queryClient.invalidateQueries({ queryKey: ["/api/webhooks", id, "logs"] });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('webhooks.toast.testFailed'),
         description: error.message,
@@ -313,7 +308,7 @@ export default function WebhookConfigPage() {
         queryClient.invalidateQueries({ queryKey: ["/api/webhooks", selectedWebhook.id, "logs"] });
       }
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t('webhooks.toast.retryFailed'),
         description: error.message,
@@ -842,7 +837,7 @@ export default function WebhookConfigPage() {
                       <Label htmlFor="auth-type">{t('webhooks.labels.authType')}</Label>
                       <Select
                         value={formData.authType}
-                        onValueChange={(value: any) => setFormData({ ...formData, authType: value })}
+                        onValueChange={(value: "custom" | "none" | "basic" | "bearer") => setFormData({ ...formData, authType: value })}
                       >
                         <SelectTrigger data-testid="select-auth-type">
                           <SelectValue />

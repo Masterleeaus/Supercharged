@@ -1,0 +1,11 @@
+{
+  "id": "web-form",
+  "version": "0.1.0",
+  "vendor": "Titan Zero",
+  "auth": "none",
+  "entities": ["contact"],
+  "requiredScopes": [],
+  "webhookEvents": [],
+  "configSchema": {},
+  "featureFlag": "connector_web_form"
+}

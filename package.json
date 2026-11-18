@@ -3,6 +3,9 @@
   "version": "5.4.5",
   "type": "module",
   "license": "MIT",
+  "engines": {
+    "node": ">=22.13.0"
+  },
   "scripts": {
     "dev": "cross-env NODE_ENV=development WORKFORCE_INTERNAL_DRAFT_COURSES=1 tsx server/index.ts",
     "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist && node scripts/build-server-deps.js",
@@ -10,6 +13,8 @@
     "start": "cross-env NODE_ENV=production node dist/index.js",
     "check": "tsc",
     "lint": "eslint .",
+    "lint:any-ratchet": "node scripts/check-any-ratchet.mjs",
+    "check:licence": "node scripts/check-voltagent-licence.mjs",
     "typecheck:strict": "tsc -p tsconfig.strict.json --noEmit",
     "test": "node --test --experimental-transform-types $(find tests -name '*.test.*')",
     "boot:check": "node scripts/boot-check-fresh-db.mjs",
@@ -73,6 +78,13 @@
     "@types/yamljs": "^0.2.34",
     "@typescript-eslint/eslint-plugin": "^8.48.0",
     "@typescript-eslint/parser": "^8.48.0",
+    "@voltagent/core": "2.11.1",
+    "@voltagent/evals": "2.0.5",
+    "@voltagent/mcp-server": "2.2.0",
+    "@voltagent/postgres": "2.1.3",
+    "@voltagent/rag": "1.0.2",
+    "@voltagent/scorers": "2.1.0",
+    "@voltagent/voice": "2.1.0",
     "@xyflow/react": "^12.9.3",
     "adm-zip": "^0.6.0",
     "archiver": "^7.0.1",

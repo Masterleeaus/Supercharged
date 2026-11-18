@@ -35,7 +35,11 @@ const entries = [...runnerSource.matchAll(/\{ file: '([^']+)', required: (true|f
 // Committed migration files that the runner intentionally does not run.
 // 0000_damp_spectrum.sql is the base schema, applied by db:push or manually before the runner.
 // The unnumbered add_missing_columns.sql was removed (issue #131, owner decision: drop it).
-const NOT_RUN_BY_RUNNER = new Set(['0000_damp_spectrum.sql']);
+const OPERATOR_ONLY_MIGRATIONS = [
+  '0018_central_sso_company_links.sql',
+  '0019_central_sso_pending_logins.sql',
+];
+const NOT_RUN_BY_RUNNER = new Set(['0000_damp_spectrum.sql', ...OPERATOR_ONLY_MIGRATIONS]);
 
 test('runner declares entries in the expected order', () => {
   assert.ok(entries.length >= 17, `expected at least 17 entries, found ${entries.length}`);
@@ -80,7 +84,8 @@ test('runner exits nonzero on a missing required file before connecting to the d
 });
 
 test('every committed numbered migration is registered, or is a known exclusion', () => {
-  const committed = readdirSync(new URL('migrations/', ROOT)).filter((f) => f.endsWith('.sql'));
+  // Reversal scripts (*.down.sql) are never run by the runner; they are checked by their own tests.
+  const committed = readdirSync(new URL('migrations/', ROOT)).filter((f) => f.endsWith('.sql') && !f.endsWith('.down.sql'));
   const registered = new Set(entries.map((e) => e.file));
   const unexplained = committed.filter((f) => !registered.has(f) && !NOT_RUN_BY_RUNNER.has(f) && !f.startsWith('DRAFT_'));
   assert.deepEqual(unexplained, [], `committed migrations not registered: ${unexplained.join(', ')}`);
@@ -89,10 +94,19 @@ test('every committed numbered migration is registered, or is a known exclusion'
 test('journal lists the base schema and then exactly the runner entries, in the same order', () => {
   const journal = JSON.parse(readFileSync(new URL('migrations/meta/_journal.json', ROOT), 'utf8'));
   const tags = journal.entries.map((e) => e.tag);
+  // The journal also inventories operator-only migrations; those entries
+  // must remain visible for audit but must not run on fresh CI databases.
+  const runnerTags = entries.map((e) => e.file.replace(/\.sql$/, ''));
+  const operatorTags = OPERATOR_ONLY_MIGRATIONS.map((f) => f.replace(/\.sql$/, ''));
   assert.deepEqual(
-    tags,
-    ['0000_damp_spectrum', ...entries.map((e) => e.file.replace(/\.sql$/, ''))],
-    'journal tags match 0000 plus the runner entries in order',
+    tags.filter((tag) => !operatorTags.includes(tag)),
+    ['0000_damp_spectrum', ...runnerTags],
+    'journal preserves the unattended runner order without operator-only entries',
+  );
+  assert.deepEqual(
+    tags.filter((tag) => operatorTags.includes(tag)),
+    operatorTags,
+    'operator-reviewed migration files remain recorded in journal order',
   );
   assert.deepEqual(
     journal.entries.map((e) => e.idx),

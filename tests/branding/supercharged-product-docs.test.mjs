@@ -16,10 +16,10 @@ test("the admin branding form displays the active product identity", () => {
 });
 
 test("the root README identifies the product and distinguishes inherited capabilities", () => {
-  assert.match(readme, /^# Supercharged — Business Communications and Operations/m);
-  assert.match(readme, /Implementation status:/);
-  assert.match(readme, /verify availability before offering to customers/i);
-  assert.match(readme, /issue #37/);
+  assert.match(readme, /^# SuperchargedAt\.Work — communications, AI workforce and business connectors/m);
+  assert.match(readme, /\*\*Readiness:\*\*/);
+  assert.match(readme, /does not certify a working end-to-end capability/i);
+  assert.match(readme, /#317/);
   assert.ok(status.length > 0, "status document remains available");
 });
 

@@ -5,7 +5,7 @@ import type { WebsiteWidget, InsertWebsiteWidget, WidgetCallSession, InsertWidge
 
 export class WidgetStorage {
   
-  async createWidget(data: InsertWebsiteWidget): Promise<WebsiteWidget> {
+  async createWidget(data: InsertWebsiteWidget & { companyId?: string | null }): Promise<WebsiteWidget> {
     const [widget] = await db.insert(websiteWidgets).values(data).returning();
     return widget;
   }

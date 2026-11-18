@@ -316,6 +316,41 @@ const agreementsList: Run = async (input, context, db) => {
   return bounded(companyId, rows, agreementShape, cap);
 };
 
+/**
+ * Renewal proposal for one service agreement of the caller's company. Nothing is written: the handler returns the
+ * current terms and a proposed status of 'draft' for a person to review. It does not invent new terms.
+ */
+const agreementsRenewalDraft: Run = async (input, context, db) => {
+  const companyId = companyOf(context);
+  const args = parse(schemas['agreements.renewal_draft'], input);
+  const rows = await rowsOf(
+    readDb(db),
+    `SELECT id, company_id AS "companyId", client_id AS "clientId", property_id AS "propertyId", name, status,
+            to_char(starts_on, 'YYYY-MM-DD') AS "startsOn", to_char(ends_on, 'YYYY-MM-DD') AS "endsOn",
+            price_cents AS "priceCents"
+       FROM service_agreements
+      WHERE company_id = $1 AND id = $2`,
+    [companyId, args.agreementId],
+  );
+  const row = rows.find((candidate) => candidate.companyId === companyId);
+  if (!row) return { persisted: false, found: false };
+  return {
+    persisted: false,
+    found: true,
+    proposal: {
+      agreementId: row.id,
+      clientId: row.clientId,
+      propertyId: row.propertyId,
+      name: row.name,
+      currentStatus: row.status,
+      currentStartsOn: row.startsOn,
+      currentEndsOn: row.endsOn,
+      currentPriceCents: row.priceCents,
+      proposedStatus: 'draft',
+    },
+  };
+};
+
 const availabilityRead: Run = async (input, context, db) => {
   const companyId = companyOf(context);
   const args = parse(schemas['availability.read'], input);
@@ -581,15 +616,7 @@ const GROUP00_SPECS: readonly Spec[] = [
     ),
   },
   { id: 'agreements.list', access: 'read', risk: 'low', run: agreementsList },
-  {
-    id: 'agreements.renewal_draft',
-    access: 'write',
-    risk: 'medium',
-    run: notImplemented(
-      'agreements.renewal_draft',
-      'Renewal drafts need a draft store, and no table holds them. The id does not end in draft or draft_, so the registry draft path does not apply. Nothing was written.',
-    ),
-  },
+  { id: 'agreements.renewal_draft', access: 'write', risk: 'medium', run: agreementsRenewalDraft },
   { id: 'availability.read', access: 'read', risk: 'low', run: availabilityRead },
   {
     id: 'booking_requests.create',
@@ -639,7 +666,6 @@ export const GROUP00_TOOL_IDS: readonly Group00Id[] = GROUP00_SPECS.map((spec) =
 /** Ids that return not_implemented. They are defined, but nothing they promise is done. */
 export const GROUP00_NOT_IMPLEMENTED_IDS: ReadonlySet<Group00Id> = new Set<Group00Id>([
   'after_hours.page_on_call',
-  'agreements.renewal_draft',
   'booking_requests.create',
   'campaign_messages.create',
   'compliance_reminders.send',

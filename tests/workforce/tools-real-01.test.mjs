@@ -51,8 +51,6 @@ const DRAFT_OR_SIDE_EFFECT = [
   'customer_messages.send',
   'feedback_surveys.send',
   'job_photos.request_from_customer',
-  'escalations.create',
-  'human_escalation.create',
   'identity.verify_request',
 ];
 
@@ -251,7 +249,7 @@ test('crew_rosters.update reports updated true for the caller company row', asyn
   assert.deepEqual(out, { updated: true, id: V1, teamName: 'North', status: 'published' });
 });
 
-test('a draft returns the text for review and sends nothing; sends and escalations return not_implemented', async () => {
+test('a draft returns the text for review and sends nothing; sends and identity checks return not_implemented', async () => {
   const db = fakeDb(SEED);
   const defs = defsById({ db });
   const draft = await defs['customer_messages.draft'].handler(CASES['customer_messages.draft'][0], ctx(CO_A, db));
@@ -272,3 +270,61 @@ test('the registry gate covers the customer contact tools: they are on the alway
     assert.equal(isAlwaysApproval(id), true, `${id} must need owner approval`);
   }
 });
+
+// ---- escalations.create and human_escalation.create: one internal staff_tasks row, nothing sent ----------------------
+
+const ESCALATION_IDS = ['escalations.create', 'human_escalation.create'];
+
+for (const id of ESCALATION_IDS) {
+  test(`${id} writes one internal staff_tasks row for the caller's company, with no outbound send`, async () => {
+    const db = fakeDb({}, [{ id: 'task-1', kind: 'staff', title: 'Escalation for a person', priority: 'high', status: 'open', visit_id: null, created_at: new Date('2026-11-18T00:00:00Z') }]);
+    const out = await defsById({ db })[id].handler({ reason: 'Gas smell in the hall' }, ctx(CO_A, db));
+    assert.deepEqual(out, {
+      created: true,
+      id: 'task-1',
+      kind: 'staff',
+      title: 'Escalation for a person',
+      priority: 'high',
+      status: 'open',
+      visitId: null,
+      createdAt: '2026-11-18T00:00:00.000Z',
+    });
+    assert.equal(db.calls.length, 1, 'one statement, no lookups without links');
+    assert.match(db.calls[0].text, /^\s*INSERT INTO staff_tasks \(company_id, kind/);
+    assert.deepEqual(db.calls[0].values, [CO_A, 'Gas smell in the hall', null]);
+  });
+
+  test(`${id} refuses a clientId the caller's company does not own, and writes nothing`, async () => {
+    const db = fakeDb({ clients: [] });
+    await assert.rejects(
+      () => defsById({ db })[id].handler({ reason: 'Follow up', clientId: V1 }, ctx(CO_A, db)),
+      Group01InputError,
+    );
+    assert.equal(db.calls.length, 1, 'only the scoped lookup runs');
+    assert.match(db.calls[0].text, /FROM clients WHERE company_id = \$1/);
+    assert.equal(db.calls[0].values[0], CO_A);
+  });
+
+  test(`${id} refuses a visitId the caller's company does not own, and writes nothing`, async () => {
+    const db = fakeDb({ visits: [] });
+    await assert.rejects(
+      () => defsById({ db })[id].handler({ reason: 'Follow up', visitId: V1 }, ctx(CO_A, db)),
+      Group01InputError,
+    );
+    assert.equal(db.calls.length, 1);
+    assert.match(db.calls[0].text, /FROM visits WHERE company_id = \$1/);
+  });
+
+  test(`${id} rejects a companyId key in the input and runs no SQL`, async () => {
+    const db = fakeDb({});
+    await assert.rejects(
+      () => defsById({ db })[id].handler({ reason: 'x', companyId: CO_B }, ctx(CO_A, db)),
+      Group01InputError,
+    );
+    assert.equal(db.calls.length, 0);
+  });
+
+  test(`${id} with no executor throws before any SQL runs`, async () => {
+    await assert.rejects(() => defsById({})[id].handler({ reason: 'x' }, ctx(CO_A)), Group01UnavailableError);
+  });
+}

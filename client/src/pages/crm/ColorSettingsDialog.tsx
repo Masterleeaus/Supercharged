@@ -9,7 +9,7 @@ export interface ColorSettingsDialogProps {
   colorSettingsOpen: boolean;
   setColorSettingsOpen: Dispatch<SetStateAction<boolean>>;
   sortedStages: LeadStage[];
-  updateStageColorMutation: UseMutationResult<Response, any, { stageId: string; color: string; }, unknown>;
+  updateStageColorMutation: UseMutationResult<Response, Error, { stageId: string; color: string; }, unknown>;
 }
 
 export function ColorSettingsDialog({ colorSettingsOpen, setColorSettingsOpen, sortedStages, updateStageColorMutation }: ColorSettingsDialogProps) {

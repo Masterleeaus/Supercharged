@@ -1,7 +1,7 @@
 'use strict';
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
@@ -22,6 +22,7 @@ import { eq, and, or, sql } from 'drizzle-orm';
 import WebSocket from 'ws';
 import { getTwilioClient } from '../../services/twilio-connector';
 import { getDomain } from '../../utils/domain';
+import { withStreamToken, redactStreamToken } from '../../utils/stream-token.ts';
 import twilio from 'twilio';
 import { logger } from '../../utils/logger';
 import { formatAndSaveTranscript, updateCampaignStats, deductCallCreditsForElevenLabs } from '../webhooks/helpers';
@@ -184,7 +185,10 @@ export async function handleTwilioVoiceWebhook(req: Request, res: Response) {
       .where(eq(calls.id, callId as string));
 
     const domain = getDomain(req.headers.host as string);
-    const streamUrl = `wss://${domain}/api/webhooks/twilio/stream`;
+    const streamUrl = withStreamToken(`wss://${domain}/api/webhooks/twilio/stream`, {
+      callId: callId as string,
+      agentId: agentId as string,
+    });
 
     logger.info(`📞 [Voice Webhook] Creating TwiML with stream URL: [redacted]`);
     logger.info(`   Parameters: callId=${callId}, agentId=${agentId}, contactName=${contactName || 'N/A'}`);
@@ -208,7 +212,7 @@ export async function handleTwilioVoiceWebhook(req: Request, res: Response) {
     }
 
     const twimlString = response.toString();
-    logger.info(`📄 [Voice Webhook] Generated TwiML:\n${twimlString}`);
+    logger.info(`📄 [Voice Webhook] Generated TwiML:\n${redactStreamToken(twimlString)}`);
 
     res.type('text/xml');
     res.send(twimlString);

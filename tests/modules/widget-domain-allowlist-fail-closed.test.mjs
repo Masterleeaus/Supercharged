@@ -45,3 +45,46 @@ test("the config route calls the helper and no longer skips the check on an empt
   assert.ok(src.includes("isWidgetDomainAllowed(widget.allowedDomains, domain)"));
   assert.ok(!src.includes("if (domain && !widgetService.validateDomain(widget, domain))"));
 });
+
+test("session-start rejects absent Origin/Referer even when client claims an allowed visitorDomain", () => {
+  // A POST body claim cannot authorize a request: authorization must use the
+  // observed request headers, as for GET /widget/config/:token.
+  const claimedVisitorDomain = "shop.example.com";
+  assert.equal(configRouteAllows(ALLOWLIST, {}), false);
+  assert.equal(configRouteAllows(ALLOWLIST, { origin: "" }), false);
+  assert.equal(configRouteAllows(ALLOWLIST, { origin: "https://evil.example.net" }), false);
+  assert.equal(configRouteAllows(ALLOWLIST, { origin: "https://shop.example.com" }), true);
+  assert.equal(claimedVisitorDomain, "shop.example.com");
+});
+
+test("session-start checks observed domain before credit or session allocation", () => {
+  const src = readFileSync(join(ROOT, "server/modules/widget/public-widget-routes.ts"), "utf8");
+  const start = src.indexOf("router.post('/widget/session/start'");
+  const end = src.indexOf("router.post('/widget/session/:sessionId/connect'", start);
+  assert.ok(start >= 0 && end > start, "session route section must remain present");
+  const sessionRoute = src.slice(start, end);
+  assert.match(sessionRoute, /const requestDomain = widgetRequestDomain\(req\.headers\);/);
+  assert.match(sessionRoute, /if \(!isWidgetDomainAllowed\(widget\.allowedDomains, requestDomain\)\)/);
+  assert.doesNotMatch(sessionRoute, /if \(visitorDomain && !widgetService\.validateDomain/);
+  assert.ok(
+    sessionRoute.indexOf("if (!isWidgetDomainAllowed") < sessionRoute.indexOf("checkUserCredits("),
+    "deny a disallowed request before any billable service work"
+  );
+  assert.ok(
+    sessionRoute.indexOf("if (!isWidgetDomainAllowed") < sessionRoute.indexOf("widgetStorage.createSession("),
+    "deny a disallowed request before persisting a session"
+  );
+  assert.match(
+    sessionRoute,
+    /visitorDomain: requestDomain \|\| claimedDomain/,
+    "persist observed domain ahead of the caller-supplied body claim"
+  );
+});
+
+test("Origin is an advisory embed restriction, not proof of site identity", () => {
+  assert.equal(configRouteAllows(ALLOWLIST, { origin: "https://shop.example.com" }), true);
+  // This is intentionally spoofable by custom clients; account auth, token
+  // permissions, cooldown/rate limits and usage controls remain necessary.
+  assert.equal(configRouteAllows(ALLOWLIST, { origin: "https://other.example.net" }), false);
+  assert.equal(configRouteAllows([], {}), true, "unrestricted widgets preserve existing behaviour");
+});

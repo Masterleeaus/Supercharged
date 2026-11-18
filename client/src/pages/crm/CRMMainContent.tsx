@@ -27,8 +27,8 @@ export interface CRMMainContentProps {
   setSelectedLead: Dispatch<SetStateAction<Lead>>;
   selectedLeadIds: Set<string>;
   toggleLeadSelection: (leadId: string) => void;
-  updateColumnSortMutation: UseMutationResult<Response, any, { categoryId: string; sortBy: "newest" | "oldest" | "score-high" | "score-low"; }, unknown>;
-  updateCategoryColorMutation: UseMutationResult<Response, any, { categoryId: string; color: string; }, { previousPrefs: CrmCategoryPreferences; }>;
+  updateColumnSortMutation: UseMutationResult<Response, Error, { categoryId: string; sortBy: "newest" | "oldest" | "score-high" | "score-low"; }, unknown>;
+  updateCategoryColorMutation: UseMutationResult<Response, Error, { categoryId: string; color: string; }, { previousPrefs: CrmCategoryPreferences; }>;
   handleLeadDrop: (leadId: string, targetCategory: AICategory) => void;
   draggingColumnId: string;
   dragOverColumnId: string;

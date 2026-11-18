@@ -131,7 +131,7 @@ export default function CRMPage() {
       }));
       return { previousPrefs };
     },
-    onError: (error: any, _variables, context) => {
+    onError: (error: Error, _variables, context) => {
       if (context?.previousPrefs) {
         queryClientRef.setQueryData(["/api/crm/preferences"], context.previousPrefs);
       }
@@ -163,7 +163,7 @@ export default function CRMPage() {
       }));
       return { previousPrefs };
     },
-    onError: (error: any, _variables, context) => {
+    onError: (error: Error, _variables, context) => {
       if (context?.previousPrefs) {
         queryClientRef.setQueryData(["/api/crm/preferences"], context.previousPrefs);
       }
@@ -181,7 +181,7 @@ export default function CRMPage() {
     onSuccess: () => {
       queryClientRef.invalidateQueries({ queryKey: ["/api/crm/preferences"] });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
@@ -204,7 +204,7 @@ export default function CRMPage() {
       queryClientRef.invalidateQueries({ queryKey: [categorizedLeadsUrl] });
       toast({ title: "Settings saved", description: "Your filter settings have been updated." });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
@@ -268,7 +268,7 @@ export default function CRMPage() {
       }});
       toast({ title: "Lead moved" });
     },
-    onError: (error: any, _variables, context) => {
+    onError: (error: Error, _variables, context) => {
       // Rollback on error
       if (context?.previousData) {
         queryClientRef.setQueryData([aiKanbanUrl], context.previousData);
@@ -336,7 +336,7 @@ export default function CRMPage() {
       queryClientRef.invalidateQueries({ queryKey: ["/api/crm/stages"] });
       toast({ title: "Color updated" });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
@@ -453,7 +453,7 @@ export default function CRMPage() {
       setLoadedLeads(prev => [...prev, ...data.leads]);
       setHasMore(data.hasMore);
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
@@ -487,7 +487,7 @@ export default function CRMPage() {
         description: `Categorized ${data.updated} of ${data.total} leads` 
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
@@ -500,7 +500,7 @@ export default function CRMPage() {
       queryClientRef.invalidateQueries({ queryKey: [leadsUrl] });
       toast({ title: "Lead moved" });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
@@ -521,7 +521,7 @@ export default function CRMPage() {
       clearSelection();
       setBulkStageDialogOpen(false);
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
@@ -538,7 +538,7 @@ export default function CRMPage() {
       setBulkTagDialogOpen(false);
       setNewTagInput("");
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
@@ -552,7 +552,7 @@ export default function CRMPage() {
       toast({ title: `${leadIds.length} leads deleted` });
       clearSelection();
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });

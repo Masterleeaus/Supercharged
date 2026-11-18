@@ -43,7 +43,8 @@ export function registerProviderWebhookRoutes(app: Express): void {
   app.post("/api/webhooks/elevenlabs/rag-tool/:token/:agentId", handleRAGToolWebhook); // New: token in URL
   app.post("/api/webhooks/elevenlabs/rag-tool/:agentId", handleRAGToolWebhook); // Legacy: header auth
   // Appointment booking tool webhook - called by ElevenLabs when appointment node executes
-  app.post("/api/webhooks/elevenlabs/appointment/:token/:agentId", handleAppointmentToolWebhook);
+  app.post("/api/webhooks/elevenlabs/appointment/:agentId", handleAppointmentToolWebhook); // Secret in X-Appointment-Webhook-Secret header
+  app.post("/api/webhooks/elevenlabs/appointment/:token/:agentId", handleAppointmentToolWebhook); // Legacy URL token: off unless APPOINTMENT_WEBHOOK_ALLOW_URL_TOKEN="true" (see isLegacyAppointmentUrlTokenAllowed)
   // Form submission tool webhook - called by ElevenLabs when form node executes
   app.post("/api/webhooks/elevenlabs/form/:token/:formId/:agentId", handleFormSubmissionWebhook);
   // Play audio tool webhook - called by ElevenLabs when play_audio node executes

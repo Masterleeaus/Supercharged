@@ -1,17 +1,12 @@
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
 import { useCallback, useState, useEffect } from "react";
@@ -37,6 +32,65 @@ import { nanoid } from "nanoid";
 import { FlowNode, FlowEdge, nodeTypeColors } from "@/pages/flow-builder/types";
 import { nodeTypes } from "@/pages/flow-builder/FlowNodeCard";
 import { NodePropertiesPanel } from "@/pages/flow-builder/NodePropertiesPanel";
+
+/** Rows the flow builder reads from its list endpoints. */
+interface FlowAgent { id: string; name?: string; type?: string; telephonyProvider?: string | null }
+/** List endpoints return either a bare array or an object with data. */
+type ListResponse<T> = T[] | { data?: T[] };
+function listOf<T>(res: unknown): T[] {
+  const r = res as ListResponse<T>;
+  if (Array.isArray(r)) return r;
+  return Array.isArray(r?.data) ? r.data : [];
+}
+/** Integration settings response, bare or wrapped in data. */
+type IntegrationSettingsResponse = { isActive?: boolean; data?: { isActive?: boolean } };
+/** Flow detail as returned by the flow endpoint. */
+interface FlowDetail { id?: string; name?: string; description?: string | null; agentId?: string | null; isActive?: boolean; nodes?: unknown[]; edges?: unknown[] }
+
+interface FlowRecord { id: string; name?: string; agentId?: string | null }
+interface WaTemplateButton { type?: string; text?: string; url?: string }
+interface WaTemplateComponent { type?: string; format?: string; text?: string; buttons?: WaTemplateButton[] }
+interface EmailTemplateOption { id: string; name: string }
+interface WaTemplate { name: string; language?: string; status?: string; body?: string; components?: WaTemplateComponent[]; buttons?: WaTemplateButton[]; header?: WaTemplateComponent | null; [key: string]: unknown }
+
+// Flow node data interface
+interface FlowNodeConfig {
+  type?: string;
+  message?: string;
+  waitForResponse?: boolean;
+  question?: string;
+  variableName?: string;
+  condition?: string;
+  trueBranch?: string;
+  falseBranch?: string;
+  phoneNumber?: string;
+  duration?: number;
+  webhookUrl?: string;
+  formId?: string;
+  appointmentType?: string;
+  endMessage?: string;
+  // Play Audio node config
+  audioUrl?: string;
+  audioFileName?: string;
+  interruptible?: boolean;
+  waitForComplete?: boolean;
+  // Google Sheets integration (appointment + form nodes)
+  googleSheetId?: string;
+  googleSheetName?: string;
+  googleSheetTitle?: string;
+  // Email node config
+  templateName?: string;
+  recipientEmail?: string;
+  // WhatsApp node config
+  templateBody?: string;
+  language?: string;
+  templateVariables?: Array<{ position: number; source: string; value: string }>;
+  headerVariable?: { type: string; url?: string; value?: string; source?: string } | null;
+  buttonVariables?: Array<{ index: number; label: string; url: string; value: string }>;
+  templateComponents?: WaTemplateComponent[];
+  formName?: string;
+}
+
 
 export default function FlowBuilderPage() {
   const { t } = useTranslation();
@@ -73,17 +127,17 @@ export default function FlowBuilderPage() {
   ];
 
   // Fetch agents for selection
-  const { data: agents, isError: agentsError } = useQuery<any[]>({
+  const { data: agents, isError: agentsError } = useQuery<FlowAgent[]>({
     queryKey: ["/api/agents"],
   });
 
   // Fetch all flows to check for agent assignments (prevent assigning one agent to multiple flows)
-  const { data: allFlows } = useQuery<any[]>({
+  const { data: allFlows } = useQuery<FlowRecord[]>({
     queryKey: ["/api/flow-automation/flows"],
   });
 
   // Check if selected agent uses ElevenLabs engine (doesn't support audio playback)
-  const selectedAgent = agents?.find((a: any) => a.id === agentId);
+  const selectedAgent = agents?.find((a: FlowAgent) => a.id === agentId);
   const isElevenLabsEngine = selectedAgent?.telephonyProvider === 'twilio' ||
     selectedAgent?.telephonyProvider === 'elevenlabs-sip' ||
     !selectedAgent?.telephonyProvider; // Default is twilio (ElevenLabs)
@@ -104,39 +158,39 @@ export default function FlowBuilderPage() {
     queryKey: ["/api/flow-automation/forms"],
   });
 
-  const { data: emailTemplatesForFlow } = useQuery<any[]>({
+  const { data: emailTemplatesForFlow } = useQuery<EmailTemplateOption[]>({
     queryKey: ["/api/messaging/email-templates"],
-    select: (res: any) => Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []),
+    select: (res) => listOf<EmailTemplateOption>(res),
   });
 
-  const { data: metaWhatsAppSettings } = useQuery<any>({
+  const { data: metaWhatsAppSettings } = useQuery<IntegrationSettingsResponse>({
     queryKey: ["/api/messaging/meta-whatsapp/settings"],
-    select: (res: any) => res?.data || res,
+    select: (res: IntegrationSettingsResponse) => res?.data || res,
   });
 
-  const { data: whatswaySettings } = useQuery<any>({
+  const { data: whatswaySettings } = useQuery<IntegrationSettingsResponse>({
     queryKey: ["/api/messaging/whatsway/settings"],
-    select: (res: any) => res?.data || res,
+    select: (res: IntegrationSettingsResponse) => res?.data || res,
   });
 
-  const { data: metaTemplatesRaw } = useQuery<any[]>({
+  const { data: metaTemplatesRaw } = useQuery<WaTemplate[]>({
     queryKey: ["/api/messaging/meta-whatsapp/templates"],
     enabled: !!metaWhatsAppSettings?.isActive,
-    select: (res: any) => Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []),
+    select: (res) => listOf<WaTemplate>(res),
   });
 
-  const { data: whatswayTemplates } = useQuery<any[]>({
+  const { data: whatswayTemplates } = useQuery<WaTemplate[]>({
     queryKey: ["/api/messaging/whatsway/templates"],
     enabled: !!whatswaySettings?.isActive,
-    select: (res: any) => Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []),
+    select: (res) => listOf<WaTemplate>(res),
   });
 
   const waTemplatesForFlow = (() => {
     if (metaWhatsAppSettings?.isActive && metaTemplatesRaw) {
-      return metaTemplatesRaw.map((tmpl: any) => {
-        const bodyComponent = (tmpl.components || []).find((c: any) => c.type === "BODY");
-        const headerComponent = (tmpl.components || []).find((c: any) => c.type === "HEADER");
-        const buttonsComponent = (tmpl.components || []).find((c: any) => c.type === "BUTTONS" || c.type === "buttons");
+      return metaTemplatesRaw.map((tmpl: WaTemplate) => {
+        const bodyComponent = (tmpl.components || []).find((c: WaTemplateComponent) => c.type === "BODY");
+        const headerComponent = (tmpl.components || []).find((c: WaTemplateComponent) => c.type === "HEADER");
+        const buttonsComponent = (tmpl.components || []).find((c: WaTemplateComponent) => c.type === "BUTTONS" || c.type === "buttons");
         return {
           name: tmpl.name,
           language: tmpl.language,
@@ -155,7 +209,7 @@ export default function FlowBuilderPage() {
   })();
 
   // Load existing flow if editing (not for new flows)
-  const { data: flow, isError: flowError, isLoading: flowLoading } = useQuery<any>({
+  const { data: flow, isError: flowError, isLoading: flowLoading } = useQuery<FlowDetail>({
     queryKey: [`/api/flow-automation/flows/${flowId}`],
     enabled: !!flowId && flowId !== "new",
   });
@@ -250,7 +304,7 @@ export default function FlowBuilderPage() {
       const data = await response.json();
       return data;
     },
-    onSuccess: (data: any) => {
+    onSuccess: (data: { id?: string } | undefined) => {
       toast({
         title: t("flows.toast.saved"),
         description: t("flows.toast.savedDescription"),
@@ -269,7 +323,7 @@ export default function FlowBuilderPage() {
         setLocation(`/app/flows/${data.id}`);
       }
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: t("flows.toast.saveError"),
         description: error.message,
@@ -298,7 +352,7 @@ export default function FlowBuilderPage() {
   };
 
   // Update selected node configuration
-  const updateNodeConfig = (config: any) => {
+  const updateNodeConfig = (config: FlowNodeConfig) => {
     if (!selectedNode) return;
 
     setNodes((nds) =>
@@ -475,9 +529,9 @@ export default function FlowBuilderPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">{t("flows.noAgent")}</SelectItem>
-                  {agents?.filter((a: any) => a.type !== 'incoming' || a.telephonyProvider === 'custom-voice-engine').map((agent: any) => {
+                  {agents?.filter((a: FlowAgent) => a.type !== 'incoming' || a.telephonyProvider === 'custom-voice-engine').map((agent: FlowAgent) => {
                     // Check if this agent is assigned to another flow
-                    const otherFlow = allFlows?.find((f: any) => f.agentId === agent.id && f.id !== flowId);
+                    const otherFlow = allFlows?.find((f: FlowRecord) => f.agentId === agent.id && f.id !== flowId);
 
                     return (
                       <SelectItem
@@ -663,4 +717,4 @@ export default function FlowBuilderPage() {
       )}
     </div>
   );
-}
+}

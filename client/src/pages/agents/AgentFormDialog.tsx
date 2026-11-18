@@ -1,17 +1,12 @@
 /**
  * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * © 2025 Titan Zero Private Limited
  * Original Author: BTPL Engineering Team
  * Website: https://diploy.in
  * Contact: cs@diploy.in
  *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
+ * Licensed under the MIT License. See the LICENSE file at the repository root.
+ * Copyright (c) Titan Zero.
  * ============================================================
  */
 import { Button } from "@/components/ui/button";
@@ -78,15 +73,15 @@ export interface AgentFormDialogProps {
   hasEmailTemplates: boolean;
   emailTemplates: { id: string; name: string; }[];
   isWhatsAppActive: boolean;
-  whatsappTemplates: { name: string; id?: string; components?: any[]; }[];
+  whatsappTemplates: { name: string; id?: string; components?: Record<string, unknown>[]; }[];
   getWhatsAppTemplateVariables: (templateName: string) => number[];
   getWhatsAppTemplateButtonVariables: (templateName: string) => Array<{ index: number; label: string; url: string; }>;
   getWhatsAppTemplateHeaderInfo: (templateName: string) => { format: string; hasVariable: boolean; text?: string; } | null;
   parseWhatsAppVariables: (varsJson: string) => Record<string, { mode: "fixed" | "collect"; value: string; componentType?: string; }>;
   handleUpdate: () => void;
   handleCreate: () => void;
-  createMutation: UseMutationResult<any, any, { type: "incoming" | "flow" | "custom_engine"; name: string; voiceTone: string; personality: string; systemPrompt: string; elevenLabsVoiceId: string; language: string; llmModel: string; firstMessage: string; temperature: number; knowledgeBaseIds: string[]; transferNumber: string; transferKeywords: string[]; transferEnabled: boolean; transferPhoneNumber: string; detectLanguageEnabled: boolean; endConversationEnabled: boolean; appointmentBookingEnabled: boolean; messagingEmailEnabled: boolean; messagingWhatsappEnabled: boolean; messagingEmailTemplate: string; messagingWhatsappTemplate: string; messagingWhatsappVariables: string; expressiveMode: boolean; flowId: string; maxDurationSeconds: number; voiceStability: number; voiceSimilarityBoost: number; voiceSpeed: number; turnTimeout: number; telephonyProvider: "twilio" | "plivo" | "twilio_openai" | "elevenlabs-sip" | "openai-sip" | "custom-voice-engine"; openaiVoice: string; sttProvider: string; sttModel: string; ttsProvider: string; ttsModel: string; sipPhoneNumberId: string; }, unknown>;
-  updateMutation: UseMutationResult<any, any, { id: string; data: Partial<{ type: "incoming" | "flow" | "custom_engine"; name: string; voiceTone: string; personality: string; systemPrompt: string; elevenLabsVoiceId: string; language: string; llmModel: string; firstMessage: string; temperature: number; knowledgeBaseIds: string[]; transferNumber: string; transferKeywords: string[]; transferEnabled: boolean; transferPhoneNumber: string; detectLanguageEnabled: boolean; endConversationEnabled: boolean; appointmentBookingEnabled: boolean; messagingEmailEnabled: boolean; messagingWhatsappEnabled: boolean; messagingEmailTemplate: string; messagingWhatsappTemplate: string; messagingWhatsappVariables: string; expressiveMode: boolean; flowId: string; maxDurationSeconds: number; voiceStability: number; voiceSimilarityBoost: number; voiceSpeed: number; turnTimeout: number; telephonyProvider: "twilio" | "plivo" | "twilio_openai" | "elevenlabs-sip" | "openai-sip" | "custom-voice-engine"; openaiVoice: string; sttProvider: string; sttModel: string; ttsProvider: string; ttsModel: string; sipPhoneNumberId: string; }>; }, unknown>;
+  createMutation: UseMutationResult<unknown, Error, { type: "incoming" | "flow" | "custom_engine"; name: string; voiceTone: string; personality: string; systemPrompt: string; elevenLabsVoiceId: string; language: string; llmModel: string; firstMessage: string; temperature: number; knowledgeBaseIds: string[]; transferNumber: string; transferKeywords: string[]; transferEnabled: boolean; transferPhoneNumber: string; detectLanguageEnabled: boolean; endConversationEnabled: boolean; appointmentBookingEnabled: boolean; messagingEmailEnabled: boolean; messagingWhatsappEnabled: boolean; messagingEmailTemplate: string; messagingWhatsappTemplate: string; messagingWhatsappVariables: string; expressiveMode: boolean; flowId: string; maxDurationSeconds: number; voiceStability: number; voiceSimilarityBoost: number; voiceSpeed: number; turnTimeout: number; telephonyProvider: "twilio" | "plivo" | "twilio_openai" | "elevenlabs-sip" | "openai-sip" | "custom-voice-engine"; openaiVoice: string; sttProvider: string; sttModel: string; ttsProvider: string; ttsModel: string; sipPhoneNumberId: string; }, unknown>;
+  updateMutation: UseMutationResult<unknown, Error, { id: string; data: Partial<{ type: "incoming" | "flow" | "custom_engine"; name: string; voiceTone: string; personality: string; systemPrompt: string; elevenLabsVoiceId: string; language: string; llmModel: string; firstMessage: string; temperature: number; knowledgeBaseIds: string[]; transferNumber: string; transferKeywords: string[]; transferEnabled: boolean; transferPhoneNumber: string; detectLanguageEnabled: boolean; endConversationEnabled: boolean; appointmentBookingEnabled: boolean; messagingEmailEnabled: boolean; messagingWhatsappEnabled: boolean; messagingEmailTemplate: string; messagingWhatsappTemplate: string; messagingWhatsappVariables: string; expressiveMode: boolean; flowId: string; maxDurationSeconds: number; voiceStability: number; voiceSimilarityBoost: number; voiceSpeed: number; turnTimeout: number; telephonyProvider: "twilio" | "plivo" | "twilio_openai" | "elevenlabs-sip" | "openai-sip" | "custom-voice-engine"; openaiVoice: string; sttProvider: string; sttModel: string; ttsProvider: string; ttsModel: string; sipPhoneNumberId: string; }>; }, unknown>;
 }
 
 export function AgentFormDialog({ createDialogOpen, editingAgent, setCreateDialogOpen, setEditingAgent, resetForm, animationState, t, isCustomVoiceEngineEnabled, formData, setFormData, flows, isV3TtsModel, hasAlternateEngines, availableLLMModels, isTwilioOpenaiEnabled, isPlivoEnabled, isOpenAISipAllowed, allowedSttProviders, currentSttAllowedModels, allowedTtsProviders, currentTtsAllowedModels, openaiRealtimeModels, isOrModelsLoading, orModels, orSearch, setOrSearch, knowledgeBase, voices, hasEmailTemplates, emailTemplates, isWhatsAppActive, whatsappTemplates, getWhatsAppTemplateVariables, getWhatsAppTemplateButtonVariables, getWhatsAppTemplateHeaderInfo, parseWhatsAppVariables, handleUpdate, handleCreate, createMutation, updateMutation }: AgentFormDialogProps) {
