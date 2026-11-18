@@ -9,12 +9,18 @@
  */
 import type { KnowledgeChunkHit, KnowledgeSearchPort } from '../../../workforce/runtime/knowledge-retrieval.ts';
 import type { VectorStore } from './vector-store.ts';
+import { governChunks, type GovernanceOptions } from './governance.ts';
 
 export type EmbedFn = (texts: readonly string[]) => Promise<number[][]>;
 
 export interface KnowledgePortOptions {
   store: VectorStore;
   embed: EmbedFn;
+  /**
+   * When set, every hit passes through governance.ts (provenance, expiry, stale versions, language, redaction)
+   * before it is returned. Left unset only in tests of the raw store.
+   */
+  governance?: { now: () => Date; language: string; fallbackLanguage?: string };
 }
 
 export function createKnowledgeSearchPort(options: KnowledgePortOptions): KnowledgeSearchPort {
@@ -33,12 +39,27 @@ export function createKnowledgeSearchPort(options: KnowledgePortOptions): Knowle
         vector: vectors[0],
         limit,
       });
-      return hits.map<KnowledgeChunkHit>((hit) => ({
+      const mapped = hits.map<KnowledgeChunkHit>((hit) => ({
         knowledgeBaseId: hit.knowledgeBaseId,
         chunkIndex: hit.chunkIndex,
         chunkText: hit.chunkText,
         companyId: hit.companyId,
         score: hit.score,
+        governance: hit.governance ?? null,
+      }));
+      if (!options.governance) return mapped;
+      const govern: GovernanceOptions = {
+        now: options.governance.now(),
+        language: options.governance.language,
+        fallbackLanguage: options.governance.fallbackLanguage,
+      };
+      return governChunks(hits, govern).kept.map<KnowledgeChunkHit>((hit) => ({
+        knowledgeBaseId: hit.knowledgeBaseId,
+        chunkIndex: hit.chunkIndex,
+        chunkText: hit.chunkText,
+        companyId: hit.companyId,
+        score: hit.score,
+        governance: hit.governance ?? null,
       }));
     },
   };
