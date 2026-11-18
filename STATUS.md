@@ -143,4 +143,8 @@ Date: 18 November 2026. Phase 0 only. Nothing is mounted and no flag is on.
 - [verified] Foundation pins added: seven @voltagent packages at exact versions, npm install run clean. Node engine set to >=22.13.0. One side effect: transitive @opentelemetry/api moved 1.10.0 to 1.9.1 (see the fixes checklist).
 - [verified] VoltOps guard: assertNoVoltOpsKeys throws if VOLTAGENT_PUBLIC_KEY or VOLTAGENT_SECRET_KEY is set. Wired as the first call in server/index.ts. Boot itself was not run, so the wiring is [untested] at boot.
 - [verified] Flag scaffold: nine VOLTAGENT_* flags, all OFF by default, nothing mounted. Tests pass.
-- [verified] Licence gate: scripts/check-voltagent-licence.mjs, run as npm run check:licence. Passes with no /ee/ paths and no @mastra imports.
+- [verified] Licence gate: scripts/check-voltagent-licence.mjs, run as npm run check:licence. Passes with no /ee/ paths and no @mastra imports. It now scans the whole repo, and requires docs/mastra-attribution.md once the Mastra snapshot is tracked (issue #388).
+- [verified] Licence gate in CI: job licence-gate in .github/workflows/pr-checks.yml runs on every PR. Its status on the PR is [untested] until the required-check setting is confirmed by the owner.
+- [verified] Security review of W1 (agent bridge), W2 (approval flow) and W9 (MCP registry), issue #389. Fixes: MCP tool errors return a fixed message; a throwing approval check is a rejection; the bridge refuses undeclared argument keys. Gate G5 is not marked passed; the owner decides it. Open points are listed in the PR.
+- [verified] Attribution: docs/mastra-attribution.md, with the Apache-2.0 copyright notice and an empty list of copied Mastra files.
+- [verified] VoltAgent docs index: docs/voltagent/README.md (issue #390).
