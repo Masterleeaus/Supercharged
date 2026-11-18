@@ -26,6 +26,10 @@
 - [`_TITAN_HANDOFF/README_FIRST.md`](../_TITAN_HANDOFF/README_FIRST.md)
 - [`vendor/dbos/README.md`](../vendor/dbos/README.md)
 
+## This directory
+
+- [`docs/README_DIRECTORY.md`](README_DIRECTORY.md) — this complete linked inventory.
+
 ## Root README
 
 - [`README.md`](../README.md)
