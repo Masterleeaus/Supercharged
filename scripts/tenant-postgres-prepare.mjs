@@ -4,7 +4,7 @@
  * 0015 (company quiet hours), 0016 (chatbot outbox, webhooks, reminder ledger), 0017
  * (user company memberships) and 0020 (Scheduled booking mirror) unchanged to a disposable database. A minimal users stub is created only
  * when the table is absent, because the base schema (0000) is not applied in this job. Never run against a persistent database. Production migrations
- * and the migration manifest are not modified.
+ * and the migration manifest are not modified. The users and website_widgets stubs are created only when absent.
  */
 import { readFileSync } from 'node:fs';
 import pg from 'pg';
@@ -39,6 +39,8 @@ export async function prepareTenantPostgres(connectionString) {
     try {
       // Test-only stub so the membership foreign key has a target. Not created when the real table exists.
       await client.query('CREATE TABLE IF NOT EXISTS users (id varchar PRIMARY KEY)');
+      // Test-only stub so migration 0026 can ALTER website_widgets. The base schema (0000) is not applied in this job.
+      await client.query('CREATE TABLE IF NOT EXISTS website_widgets (id varchar PRIMARY KEY, user_id varchar)');
       for (const file of MIGRATIONS) await client.query(readFileSync(file, 'utf8'));
       await client.query('GRANT USAGE ON SCHEMA public TO desk_app');
       await client.query('GRANT SELECT, INSERT, UPDATE, DELETE ON company_quiet_hours TO desk_app');
