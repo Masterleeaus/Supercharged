@@ -5,6 +5,8 @@
  * verified against the VoltAgent source, which is not in the repo.
  *
  * Fail closed: anything other than a verdict of exactly { pass: true } blocks.
+ *
+ * Licence: original TitanZero code. It copies no Mastra or VoltAgent source. See source/mastra-apache-only/README.md.
  */
 import type { GuardrailContract, GuardrailContext, GuardrailVerdict } from '../../../services/ai-runtime/guardrail.ts';
 import { requireCompanyId } from '../../../services/ai-runtime/company.ts';

@@ -3,6 +3,8 @@
  *
  * Every flag is OFF unless its environment variable is exactly "true".
  * Nothing reads these flags yet, and no routes are mounted from them in Phase 0.
+ *
+ * Licence: original TitanZero code. It copies no Mastra or VoltAgent source. See source/mastra-apache-only/README.md.
  */
 function readFlag(name: string, env: NodeJS.ProcessEnv): boolean {
   return env[name] === 'true';
