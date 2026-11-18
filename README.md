@@ -78,3 +78,9 @@ A small dedicated [security source-contract workflow](.github/workflows/security
 ## Roadmap and issue policy
 
 Read the [current feature/connector epic #365](https://github.com/Masterleeaus/Supercharged/issues/365), [VoltAgent staging phase #392](https://github.com/Masterleeaus/Supercharged/issues/392) and [all open issues](https://github.com/Masterleeaus/Supercharged/issues?q=is%3Aissue+is%3Aopen). Every open issue should decompose into actionable Markdown tasks. Check `[x]` only when source and appropriate tests prove completion. Close duplicates only after transferring distinct unfinished acceptance to an authoritative open issue. **Deployment, licensed redistribution and hosted service availability have not been certified by this README.**
+
+## Find every README and developer guide
+
+- **[Complete README directory](docs/README_DIRECTORY.md)** — direct links to every README-style file in this repository, including component, test, vendor and historical documentation.
+- **[Documentation index](docs/README.md)** — curated entry point to the main technical guides and developer workflows.
+- **[Seven-repository platform map](https://github.com/Masterleeaus/Central/blob/main/docs/PLATFORM_MAP.md)** — cross-product architecture, ownership and integration boundaries.
