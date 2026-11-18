@@ -2,7 +2,9 @@
  * Adapter from the ai-runtime citation stage (server/services/ai-runtime/citation.ts) to a
  * VoltAgent-style citation function. Chunk lookup and the tenant check stay in citation.ts.
  * This adapter only maps the output. Matching claims to source sentences is not done here.
- * The VoltAgent citation shape is written from docs and is NOT verified.
+ * Checked against @voltagent/core 2.11.1 (dist/index.d.ts): that release declares no citation type, so
+ * the output shape here is app-local, not a VoltAgent contract. Tenant check: chunks are loaded for the
+ * tenant and any chunk whose company_id differs is dropped (see citation.ts).
  */
 import { attachCitations, type ChunkRecord, type Citation } from '../../../services/ai-runtime/citation.ts';
 import type { RetrievalResult } from '../../../services/ai-runtime/retrieval.ts';
