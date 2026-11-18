@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createMcpRegistry } from '../../../server/integrations/voltagent/mcp/tools.ts';
+import { createMcpRegistry, TOOL_FAILED_MESSAGE } from '../../../server/integrations/voltagent/mcp/tools.ts';
+import { hashToolParams } from '../../../server/workforce/runtime/tool-registry.ts';
 
 const readTool = { name: 'jobs.list', kind: 'read', handler: (p, c) => ({ company: c, n: p.limit ?? 10 }) };
 const writeTool = { name: 'jobs.cancel', kind: 'write', handler: () => 'cancelled' };
@@ -56,9 +57,41 @@ test('write tool with no approval checker fails closed', async () => {
   assert.equal((await reg.call({ companyId: 'co-1', tool: 'jobs.cancel', approvalId: 'appr-1' })).code, 'approval_rejected');
 });
 
-test('a throwing handler becomes tool_failed', async () => {
-  const reg = createMcpRegistry({ enabled: true, tools: [{ name: 'x', kind: 'read', handler: () => { throw new Error('down'); } }] });
-  assert.deepEqual(await reg.call({ companyId: 'co-1', tool: 'x' }), { ok: false, code: 'tool_failed', message: 'down' });
+test('a throwing handler becomes tool_failed with a fixed message that leaks no handler text', async () => {
+  const reg = createMcpRegistry({ enabled: true, tools: [{ name: 'x', kind: 'read', handler: () => { throw new Error('db password=hunter2'); } }] });
+  const out = await reg.call({ companyId: 'co-1', tool: 'x' });
+  assert.deepEqual(out, { ok: false, code: 'tool_failed', message: TOOL_FAILED_MESSAGE });
+  assert.doesNotMatch(JSON.stringify(out), /hunter2/);
+});
+
+test('a write approval is bound to the exact params: other params are refused and never run', async () => {
+  let ran = 0;
+  const bound = (id, co, tool, sha) => sha === hashToolParams({ jobId: 'j1' }) && approvals.has(`${id}|${co}|${tool}`);
+  const reg = createMcpRegistry({
+    enabled: true,
+    tools: [{ name: 'jobs.cancel', kind: 'write', handler: () => { ran += 1; return 'cancelled'; } }],
+    checkApproval: bound,
+  });
+  const other = await reg.call({ companyId: 'co-1', tool: 'jobs.cancel', approvalId: 'appr-1', params: { jobId: 'j2' } });
+  assert.equal(other.code, 'approval_rejected');
+  assert.equal(ran, 0);
+  const same = await reg.call({ companyId: 'co-1', tool: 'jobs.cancel', approvalId: 'appr-1', params: { jobId: 'j1' } });
+  assert.deepEqual(same, { ok: true, result: 'cancelled' });
+  assert.equal(ran, 1);
+});
+
+test('params that cannot be serialised are refused for a write tool, not run', async () => {
+  let ran = 0;
+  const reg = createMcpRegistry({
+    enabled: true,
+    tools: [{ name: 'jobs.cancel', kind: 'write', handler: () => { ran += 1; return 'x'; } }],
+    checkApproval: () => true,
+  });
+  const cyclic = {};
+  cyclic.self = cyclic;
+  const out = await reg.call({ companyId: 'co-1', tool: 'jobs.cancel', approvalId: 'appr-1', params: cyclic });
+  assert.equal(out.code, 'approval_rejected');
+  assert.equal(ran, 0);
 });
 
 test('duplicate tool names are rejected at construction', () => {

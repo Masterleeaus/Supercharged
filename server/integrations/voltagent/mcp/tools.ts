@@ -9,6 +9,8 @@
  * The MCP wire protocol is not implemented here. The VoltAgent @voltagent/mcp-server
  * API is not in the repo and is NOT verified.
  */
+import { hashToolParams } from '../../../workforce/runtime/tool-registry.ts';
+
 export type McpToolKind = 'read' | 'write';
 
 export interface McpToolDefinition {
@@ -28,11 +30,23 @@ export type McpCallResult =
   | { ok: true; result: unknown }
   | { ok: false; code: 'company_required' | 'unknown_tool' | 'approval_required' | 'approval_rejected' | 'tool_failed'; message: string };
 
+/** Fixed message for a failed handler. The handler's own error text is never returned to the caller. */
+export const TOOL_FAILED_MESSAGE = 'tool failed';
+
 export interface McpRegistryOptions {
   enabled: boolean;
   tools?: McpToolDefinition[];
-  /** Returns true when the approval id is valid for this tenant and tool. Required for write tools. */
-  checkApproval?: (approvalId: string, companyId: string, tool: string) => boolean | Promise<boolean>;
+  /**
+   * Returns true only when the approval id is valid for this tenant, this tool and this exact params
+   * hash (paramsSha256, from hashToolParams). The checker must also refuse an approval that has already
+   * been used, so one approval covers one call. Required for write tools; absent means refuse.
+   */
+  checkApproval?: (
+    approvalId: string,
+    companyId: string,
+    tool: string,
+    paramsSha256: string,
+  ) => boolean | Promise<boolean>;
 }
 
 export interface McpRegistry {
@@ -67,9 +81,17 @@ export function createMcpRegistry(options: McpRegistryOptions): McpRegistry {
         if (!request.approvalId) {
           return { ok: false, code: 'approval_required', message: 'write tools need an approval id' };
         }
-        const approved = options.checkApproval
-          ? await options.checkApproval(request.approvalId, request.companyId, tool.name)
-          : false;
+        let approved: unknown = false;
+        if (options.checkApproval) {
+          let paramsSha256: string;
+          try {
+            paramsSha256 = hashToolParams(request.params ?? {});
+          } catch {
+            // Params that cannot be serialised cannot be bound to an approval, so they are refused.
+            return { ok: false, code: 'approval_rejected', message: 'approval was not accepted for this tenant and tool' };
+          }
+          approved = await options.checkApproval(request.approvalId, request.companyId, tool.name, paramsSha256);
+        }
         if (approved !== true) {
           return { ok: false, code: 'approval_rejected', message: 'approval was not accepted for this tenant and tool' };
         }
@@ -78,8 +100,8 @@ export function createMcpRegistry(options: McpRegistryOptions): McpRegistry {
       try {
         const result = await tool.handler(request.params ?? {}, request.companyId);
         return { ok: true, result };
-      } catch (error) {
-        return { ok: false, code: 'tool_failed', message: error instanceof Error ? error.message : 'tool failed' };
+      } catch {
+        return { ok: false, code: 'tool_failed', message: TOOL_FAILED_MESSAGE };
       }
     },
   };
