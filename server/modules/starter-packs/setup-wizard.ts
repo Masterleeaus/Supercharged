@@ -259,3 +259,48 @@ export function goLive(
   const next = record({ ...state, liveAt: input.now.toISOString() }, 'live', `went live (${minutes.toFixed(1)} minutes)`, input.actorId, input.now);
   return { ok: true, state: next, withinBudget: minutes <= SETUP_BUDGET_MINUTES, minutes };
 }
+
+export interface SetupProposal {
+  /** Connectors the business's own tools map to, in first-seen order, without duplicates. */
+  connectors: string[];
+  /** Tools with no known connector. These are set up by hand. */
+  manualTools: string[];
+  /** The pack whose connector presets overlap most with the business's connectors. Ties keep pack order. */
+  suggestedPackId: string;
+  /** How many of the suggested pack's connector presets the business already covers. */
+  coveredPresets: number;
+}
+
+/**
+ * Step 1 of the walk-through: from the tools the business already uses, propose connectors and a
+ * starter pack. The business still chooses; nothing is recorded here.
+ */
+export function proposeSetup(toolNames: string[], packs: readonly Pack[]): SetupProposal {
+  const names = toolNames.map((t) => t.trim()).filter((t) => t.length > 0);
+  const connectors: string[] = [];
+  const manualTools: string[] = [];
+  for (const name of names) {
+    const connectorId = TOOL_TO_CONNECTOR[name.toLowerCase()];
+    if (!connectorId) manualTools.push(name);
+    else if (!connectors.includes(connectorId)) connectors.push(connectorId);
+  }
+  if (packs.length === 0) throw new Error('proposeSetup needs at least one starter pack');
+  let best = packs[0];
+  let bestScore = -1;
+  for (const pack of packs) {
+    const score = pack.connectorPresets.filter((p) => connectors.includes(p.connectorId)).length;
+    if (score > bestScore) {
+      best = pack;
+      bestScore = score;
+    }
+  }
+  return { connectors, manualTools, suggestedPackId: `${best.id}@${best.version}`, coveredPresets: Math.max(bestScore, 0) };
+}
+
+/**
+ * The next step the business should do, in WIZARD_STEPS order. Returns null once every step is
+ * complete. Used to walk the business through setup one step at a time.
+ */
+export function nextStep(state: SetupState): WizardStep | null {
+  return WIZARD_STEPS.find((s) => !state.completed.includes(s)) ?? null;
+}

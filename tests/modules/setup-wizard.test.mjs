@@ -15,6 +15,8 @@ import {
   buildPreview,
   goLive,
   WIZARD_STEPS,
+  proposeSetup,
+  nextStep,
 } from '../../server/modules/starter-packs/setup-wizard.ts';
 
 const CO = '22222222-2222-4222-8222-222222222222';
@@ -172,4 +174,48 @@ test('a pack that is not valid is refused at the pack step', () => {
   broken.services[0].price = 99;
   const r = choosePack(startSetup(CO, T0), broken, OWNER, T0);
   assert.equal(r.ok, false);
+});
+
+test('proposeSetup maps tools to connectors, flags unknown tools, and suggests the pack with most overlap', () => {
+  const proposal = proposeSetup(['Gmail', 'Twilio', 'Typeform', 'gmail'], STARTER_PACKS);
+  assert.deepEqual(proposal.connectors, ['email', 'sms']);
+  assert.deepEqual(proposal.manualTools, ['Typeform']);
+  const expected = STARTER_PACKS.map((p) => ({ id: `${p.id}@${p.version}`, n: p.connectorPresets.filter((c) => ['email', 'sms'].includes(c.connectorId)).length }));
+  const best = expected.reduce((a, b) => (b.n > a.n ? b : a));
+  assert.equal(proposal.suggestedPackId, best.id);
+  assert.equal(proposal.coveredPresets, best.n);
+});
+
+test('proposeSetup with no known tools still suggests a pack, with nothing covered', () => {
+  const proposal = proposeSetup([], STARTER_PACKS);
+  assert.deepEqual(proposal.connectors, []);
+  assert.equal(proposal.coveredPresets, 0);
+  assert.equal(proposal.suggestedPackId, `${STARTER_PACKS[0].id}@${STARTER_PACKS[0].version}`);
+});
+
+test('proposeSetup refuses an empty pack list', () => {
+  assert.throws(() => proposeSetup(['Gmail'], []), /at least one starter pack/);
+});
+
+test('nextStep walks the steps in order and returns null when all are done', async () => {
+  let state = startSetup(CO, at(0));
+  assert.equal(nextStep(state), 'tools');
+  state = recordTools(state, ['Gmail'], OWNER, at(1));
+  assert.equal(nextStep(state), 'pack');
+  const chosen = choosePack(state, POOL, OWNER, at(2));
+  state = chosen.state;
+  assert.equal(nextStep(state), 'connect');
+  state = (await connectAll(state, chosen.pack, okPort(), OWNER, at(3))).state;
+  assert.equal(nextStep(state), 'fieldMap');
+  const config = loadPack({ pack: chosen.pack, company: emptyCompany(CO, 'Test Pool Co') });
+  const mapping = {
+    'Service Type': 'service_type',
+    'Pool or spa': 'pool_kind',
+    Suburb: 'suburb',
+    'Size (square metres)': 'size_sqm',
+  };
+  state = confirmFieldMap(state, chosen.pack, mapping, OWNER, at(4)).state;
+  assert.equal(nextStep(state), 'test');
+  state = runTestEnquiry(state, config.config, chosen.pack, OWNER, at(5));
+  assert.equal(nextStep(state), 'review');
 });
