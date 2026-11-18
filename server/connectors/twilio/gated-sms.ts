@@ -8,7 +8,7 @@
  * The connector call gets a single attempt: Twilio does not dedupe sends, so the shared runner's
  * retries are turned off here.
  */
-import type { PreSendBlockReason, PreSendGate, PreSendSurface } from '../../modules/comms/presend-gate.ts';
+import type { PreSendBlockReason, PreSendDecision, PreSendGate, PreSendSurface } from '../../modules/comms/presend-gate.ts';
 import type { SendTransport } from '../../modules/campaigns/ports.ts';
 import type { SendJob } from '../../modules/campaigns/types.ts';
 import { ConnectorError, type ConnectorCredentials, type ConnectorDefinition } from '../sdk/contract.ts';
@@ -51,7 +51,7 @@ export function createGatedSmsSender(deps: GatedSmsDeps) {
     let reason: PreSendBlockReason | null = null;
     try {
       const decision = await deps.gate.check(check);
-      if (!decision.allowed) reason = decision.reason;
+      if (!decision.allowed) reason = (decision as Extract<PreSendDecision, { allowed: false }>).reason;
     } catch {
       reason = 'gate_error';
     }
