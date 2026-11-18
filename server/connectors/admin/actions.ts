@@ -10,12 +10,33 @@ import type { ConnectorRegistry } from '../registry.ts';
 import type { CredentialVault } from '../vault/credential-vault.ts';
 import { guideFor, type FailureGuide } from './failure-guide.ts';
 import type { ConnectorStateStore } from './state.ts';
+import type { SyncEngine, PushFn } from '../sync/engine.ts';
+import type { DeadLetter, ReasonCode } from '../sync/stores.ts';
+
+/** A dead letter as the admin view shows it. No event payload, so no vendor or customer data leaks into the list. */
+export interface DeadLetterSummary {
+  id: string;
+  connectorId: string;
+  direction: 'inbound' | 'outbound';
+  entity: string;
+  eventId: string;
+  reason: ReasonCode;
+  attempts: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ReplayOutcome = 'replayed' | 'failed' | 'not_found';
 
 export interface AdminDeps {
   registry: ConnectorRegistry;
   vault: CredentialVault;
   state: ConnectorStateStore;
   audit: AuditSink;
+  /** Sync engine that owns the dead-letter queue (#352). Needed for the dead-letter actions. */
+  sync?: SyncEngine;
+  /** Vendor push for outbound dead letters. Server-side only; without it an outbound replay fails closed. */
+  pushFor?: (companyId: string, connectorId: string) => PushFn;
   /** Returns usable credentials, refreshing OAuth tokens when needed. */
   credentialsFor: (companyId: string, connectorId: string) => Promise<ConnectorCredentials>;
   /** Starts an OAuth connect and returns the authorize URL. Only for connectors that use oauth2. */
@@ -38,7 +59,44 @@ export function createConnectorAdmin(deps: AdminDeps) {
     return entry;
   };
 
+  const syncOrThrow = (): SyncEngine => {
+    if (!deps.sync) throw new ConnectorError('validation', 'sync engine is not configured');
+    return deps.sync;
+  };
+
+  const summarize = (letter: DeadLetter): DeadLetterSummary => ({
+    id: letter.id,
+    connectorId: letter.connectorId,
+    direction: letter.direction,
+    entity: String(letter.event.entity),
+    eventId: letter.eventId,
+    reason: letter.reason,
+    attempts: letter.attempts,
+    createdAt: letter.createdAt,
+    updatedAt: letter.updatedAt,
+  });
+
   return {
+    /** Lists the dead-lettered sync changes for one connector of one company (#352). Payloads are not returned. */
+    async deadLetters(companyId: string, connectorId: string): Promise<DeadLetterSummary[]> {
+      const sync = syncOrThrow();
+      entryOrThrow(connectorId);
+      return (await sync.deadLetters(companyId, connectorId)).map(summarize);
+    },
+
+    /**
+     * Replays one dead letter from the admin view (#352). The letter must belong to this company and connector;
+     * anything else reports not_found. Replay itself is at most once (see the sync engine).
+     */
+    async replayDeadLetter(companyId: string, connectorId: string, deadLetterId: string): Promise<{ status: ReplayOutcome }> {
+      const sync = syncOrThrow();
+      entryOrThrow(connectorId);
+      const owned = (await sync.deadLetters(companyId, connectorId)).some((l) => l.id === deadLetterId);
+      if (!owned) return { status: 'not_found' };
+      const push = deps.pushFor?.(companyId, connectorId);
+      return { status: await sync.replay(companyId, deadLetterId, push) };
+    },
+
     /** Connects an api_key connector: stores the key in the vault, then enables it for the company. */
     async connectApiKey(companyId: string, connectorId: string, apiKey: string, config: Record<string, unknown>) {
       const entry = entryOrThrow(connectorId);
