@@ -260,3 +260,33 @@ test('every catalog manifest validates and discovery reports no rejects', () => 
     assert.equal(r.ok, true, `${dir} manifest is valid`);
   }
 });
+
+// Availability read through the connector (#354): busy time from the recorded Google fixture, then travel and buffers.
+// Busy: busy-1 09:00-10:00 +10:00 is 23:00Z-00:00Z, and its travel reach runs into the window, so starts before 00:45Z
+// are blocked. busy-2 15:00-16:00 +10:00 is 05:00Z-06:00Z.
+// Job: 60 min, travel 30 min each side, buffer 15 min each side, so a start at S blocks S-45 .. S+105.
+// Clear starts are 00:45-03:15 and 06:45-07:00 (window ends 08:00Z). Starts 03:30-06:30 must not be offered.
+test('availability: busy time from the connector, with travel and buffers, leaves the expected starts', async () => {
+  const fixture = FIX('google-events.json');
+  const rec = replay(fixture.interactions);
+  const def = createGoogleCalendarConnector({ http: rec.http });
+  const a = audit();
+  const ops = createBookingOps({ definition: def, companyId: 'co-1', credentials: oauth, audit: a.sink, now: () => new Date('2026-11-18T00:00:00Z') });
+  const job = { durationMin: 60, travelBeforeMin: 30, travelAfterMin: 30, bufferBeforeMin: 15, bufferAfterMin: 15 };
+  const slots = await ops.availability({ from: '2026-11-20T00:00:00Z', to: '2026-11-20T08:00:00Z' }, job);
+  const starts = slots.map((s) => s.startsAt);
+  assert.equal(starts[0], '2026-11-20T00:45:00.000Z', 'earlier starts reach into busy-1 through travel and buffer');
+  assert.ok(starts.includes('2026-11-20T03:15:00.000Z'), 'last start before the busy block is offered');
+  assert.ok(!starts.some((s) => s > '2026-11-20T03:15:00.000Z' && s < '2026-11-20T06:45:00.000Z'), 'no start inside travel/buffer reach of the busy block');
+  assert.ok(starts.includes('2026-11-20T06:45:00.000Z'), 'first start after the busy block is offered');
+  assert.equal(slots.every((s) => s.timezone === 'UTC'), true);
+  assert.equal(a.rows.length, 1, 'the read is audited once');
+});
+
+test('availability: an invalid window is refused before any vendor call', async () => {
+  const rec = replay([]);
+  const def = createGoogleCalendarConnector({ http: rec.http });
+  const ops = createBookingOps({ definition: def, companyId: 'co-1', credentials: oauth, audit: audit().sink });
+  await assert.rejects(ops.availability({ from: '2026-11-20T08:00:00Z', to: '2026-11-20T00:00:00Z' }, { durationMin: 60, travelBeforeMin: 0, travelAfterMin: 0, bufferBeforeMin: 0, bufferAfterMin: 0 }), RangeError);
+  assert.equal(rec.calls.length, 0);
+});
