@@ -3,7 +3,7 @@
  *
  * Every read and write is scoped by companyId and by the owning user. A search never returns a chunk from
  * another company or from another user's knowledge. The in-memory store is for tests only and must not be
- * mounted in a running server. The Postgres store is the W5 work (see vector-pg/).
+ * mounted in a running server. The Postgres store (vector-pg/, W5) is the production store. Both implement this port.
  *
  * Licence: original TitanZero code. It copies no Mastra or VoltAgent source. See source/mastra-apache-only/README.md.
  */
