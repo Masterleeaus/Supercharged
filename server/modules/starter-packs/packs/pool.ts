@@ -1,5 +1,5 @@
 // Pool servicing starter pack (#362). Agent roles come from the workforce catalogue (pool-*).
-// Services follow the pool vertical: routine service, chemistry, equipment faults and openings.
+// Services follow the pool vertical (#169): routine service, chemistry, equipment faults and openings.
 // No prices: the company sets its own rates.
 import type { Pack } from '../pack.schema.ts';
 
