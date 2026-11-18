@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { resumeStep, runStep } from '../../../server/integrations/voltagent/workflows/approval-flow.ts';
+import { hashToolParams } from '../../../server/workforce/runtime/tool-registry.ts';
 
 const ACTOR = { kind: 'agent', agentId: 'a1', roleId: 'r1' };
 const PARAMS = { jobId: 'j1' };
@@ -46,7 +47,7 @@ function engine(result) {
 
 const SUSPEND = { status: 'awaiting_approval', approvalId: 'ap-1' };
 const EXECUTED = { status: 'executed', output: { id: 'j1' }, truncated: false };
-const APPROVED = { id: 'ap-1', companyId: '7', action: 'jobs.lookup', status: 'approved', decidedBy: 'u9', paramsSha256: 'h', executed: false };
+const APPROVED = { id: 'ap-1', companyId: '7', action: 'jobs.lookup', status: 'approved', decidedBy: 'u9', paramsSha256: hashToolParams(PARAMS), executed: false };
 
 async function suspendOne(store, t) {
   return runStep({ tool: t, key: 'step-1', store, companyId: 7, runId: 'run-1', toolId: 'jobs.lookup', params: PARAMS, actor: ACTOR });
@@ -66,7 +67,7 @@ test('an approval wait suspends the step and makes no further tool call', async 
   const res = await suspendOne(store, t);
   assert.deepEqual(res, { status: 'suspended', approvalId: 'ap-1' });
   assert.equal(t.calls.length, 1);
-  assert.equal(store.rows.get('step-1').status, 'suspended');
+  assert.equal(store.rows.get('7:step-1').status, 'suspended');
 });
 
 test('an approved step resumes once through engine.resumeAfterApproval', async () => {
@@ -98,7 +99,7 @@ test('a pending approval keeps the step suspended and makes no engine call', asy
   const res = await resumeStep({ key: 'step-1', store, approvals: approvals({ ...APPROVED, status: 'pending' }), engine: eng, companyId: 7 });
   assert.deepEqual(res, { status: 'suspended', approvalId: 'ap-1' });
   assert.equal(eng.calls.length, 0);
-  assert.equal(store.rows.get('step-1').status, 'suspended');
+  assert.equal(store.rows.get('7:step-1').status, 'suspended');
 });
 
 test('a rejected or expired approval ends the step and makes no engine call', async () => {
@@ -109,7 +110,7 @@ test('a rejected or expired approval ends the step and makes no engine call', as
     const res = await resumeStep({ key: 'step-1', store, approvals: approvals({ ...APPROVED, status }), engine: eng, companyId: 7 });
     assert.deepEqual(res, { status: 'refused', reason: `approval_${status}` });
     assert.equal(eng.calls.length, 0);
-    assert.equal(store.rows.get('step-1').status, status);
+    assert.equal(store.rows.get('7:step-1').status, status);
   }
 });
 
@@ -146,7 +147,7 @@ test('an engine failure on resume ends the step as failed and does not retry', a
   const eng = engine({ ok: false, reason: 'run_not_awaiting_approval', tool: null });
   const res = await resumeStep({ key: 'step-1', store, approvals: approvals(APPROVED), engine: eng, companyId: 7 });
   assert.deepEqual(res, { status: 'failed', reason: 'run_not_awaiting_approval' });
-  assert.equal(store.rows.get('step-1').status, 'failed');
+  assert.equal(store.rows.get('7:step-1').status, 'failed');
   const again = await resumeStep({ key: 'step-1', store, approvals: approvals(APPROVED), engine: eng, companyId: 7 });
   assert.equal(again.status, 'refused');
   assert.equal(eng.calls.length, 1);
@@ -168,3 +169,44 @@ test('a missing company id throws before any step runs', async () => {
   );
   assert.equal(t.calls.length, 0);
 });
+
+test('an approval for another action or other params never runs the stored step', async () => {
+  const cases = [
+    [{ ...APPROVED, action: 'jobs.cancel' }, 'approval_action_mismatch'],
+    [{ ...APPROVED, paramsSha256: hashToolParams({ jobId: 'j2' }) }, 'approval_params_mismatch'],
+    [{ ...APPROVED, paramsSha256: null }, 'approval_params_mismatch'],
+  ];
+  for (const [record, reason] of cases) {
+    const store = memoryStore();
+    await suspendOne(store, tool(SUSPEND));
+    const eng = engine({ ok: true, tool: { outcome: 'executed', output: {}, truncated: false } });
+    const res = await resumeStep({ key: 'step-1', store, approvals: approvals(record), engine: eng, companyId: 7 });
+    assert.deepEqual(res, { status: 'refused', reason });
+    assert.equal(eng.calls.length, 0);
+  }
+});
+
+test('step keys are scoped to the company: another tenant cannot see or resume the step', async () => {
+  const store = memoryStore();
+  await suspendOne(store, tool(SUSPEND));
+  // Company 8 uses the same plain key. It is a new step for company 8, not a conflict with company 7's.
+  const other = await runStep({ tool: tool(EXECUTED), key: 'step-1', store, companyId: 8, runId: 'run-9', toolId: 'jobs.lookup', params: PARAMS, actor: ACTOR });
+  assert.deepEqual(other, { status: 'completed', output: { id: 'j1' } });
+  const eng = engine({ ok: true, tool: { outcome: 'executed', output: {}, truncated: false } });
+  const res = await resumeStep({ key: 'step-1', store, approvals: approvals(APPROVED), engine: eng, companyId: 8 });
+  assert.equal(res.status, 'refused');
+  assert.equal(eng.calls.length, 0);
+});
+
+test('an engine that throws on resume ends the step as failed with a fixed reason and does not retry', async () => {
+  const store = memoryStore();
+  await suspendOne(store, tool(SUSPEND));
+  const eng = { calls: [], async resumeAfterApproval(c, r, call) { this.calls.push(call); throw new Error('secret-token-in-message'); } };
+  const res = await resumeStep({ key: 'step-1', store, approvals: approvals(APPROVED), engine: eng, companyId: 7 });
+  assert.deepEqual(res, { status: 'failed', reason: 'resume_failed' });
+  assert.doesNotMatch(JSON.stringify(res), /secret-token/);
+  const again = await resumeStep({ key: 'step-1', store, approvals: approvals(APPROVED), engine: eng, companyId: 7 });
+  assert.equal(again.status, 'refused');
+  assert.equal(eng.calls.length, 1);
+});
+

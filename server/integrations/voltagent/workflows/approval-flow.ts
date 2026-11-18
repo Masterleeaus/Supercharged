@@ -19,7 +19,7 @@
  */
 import type { CompanyId } from '../../../services/ai-runtime/types.ts';
 import { requireCompanyId } from '../../../services/ai-runtime/company.ts';
-import type { ApprovalRecord } from '../../../workforce/runtime/tool-registry.ts';
+import { hashToolParams, type ApprovalRecord } from '../../../workforce/runtime/tool-registry.ts';
 import type { BridgeActor, BridgeOutcome, VoltAgentToolLike } from '../agents/bridge.ts';
 
 export type StepStatus = 'suspended' | 'completed' | 'rejected' | 'expired' | 'failed';
@@ -54,6 +54,14 @@ export interface ResumeEngine {
   ): Promise<{ ok: boolean; reason?: string; tool: null | { outcome: string; output?: Record<string, unknown>; truncated?: boolean } }>;
 }
 
+/**
+ * Step keys are scoped to the company, so one tenant's key can never collide with or reveal another
+ * tenant's step. Callers pass the plain key; the store only ever sees the scoped form.
+ */
+export function scopedStepKey(companyId: CompanyId, key: string): string {
+  return `${companyId}:${key}`;
+}
+
 export type StepResult =
   | { status: 'completed'; output: Record<string, unknown> }
   | { status: 'suspended'; approvalId: string }
@@ -72,14 +80,15 @@ export async function runStep(options: {
   actor: BridgeActor;
 }): Promise<StepResult> {
   const companyId = requireCompanyId(options.companyId);
-  const existing = await options.store.get(options.key);
+  const key = scopedStepKey(companyId, options.key);
+  const existing = await options.store.get(key);
   if (existing) return { status: 'refused', reason: `step_already_${existing.status}` };
 
   const outcome: BridgeOutcome = await options.tool.execute(options.params);
   if (outcome.status === 'executed') return { status: 'completed', output: outcome.output };
   if (outcome.status === 'awaiting_approval') {
-    const saved = await options.store.compareAndSet(options.key, 0, {
-      key: options.key,
+    const saved = await options.store.compareAndSet(key, 0, {
+      key,
       companyId,
       runId: options.runId,
       toolId: options.toolId,
@@ -106,7 +115,8 @@ export async function resumeStep(options: {
   companyId: unknown;
 }): Promise<StepResult> {
   const companyId = requireCompanyId(options.companyId);
-  const step = await options.store.get(options.key);
+  const key = scopedStepKey(companyId, options.key);
+  const step = await options.store.get(key);
   if (!step) return { status: 'refused', reason: 'step_not_found' };
   if (step.companyId !== companyId) return { status: 'refused', reason: 'step_company_mismatch' };
   if (step.status !== 'suspended' || !step.approvalId) return { status: 'refused', reason: `step_not_suspended` };
@@ -115,33 +125,46 @@ export async function resumeStep(options: {
   if (!approval) return { status: 'refused', reason: 'approval_not_found' };
   if (approval.companyId !== companyId) return { status: 'refused', reason: 'approval_company_mismatch' };
   if (approval.executed) return { status: 'refused', reason: 'approval_already_executed' };
+  // The approval must be for this exact tool and these exact params. An approval for another action,
+  // or for other params, never runs the stored step. A missing hash is refused (fail closed).
+  if (approval.action !== step.toolId) return { status: 'refused', reason: 'approval_action_mismatch' };
+  if (!approval.paramsSha256 || approval.paramsSha256 !== hashToolParams(step.params)) {
+    return { status: 'refused', reason: 'approval_params_mismatch' };
+  }
 
   if (approval.status === 'pending') return { status: 'suspended', approvalId: step.approvalId };
   if (approval.status === 'rejected' || approval.status === 'expired') {
     const ended: StepStatus = approval.status === 'rejected' ? 'rejected' : 'expired';
-    await options.store.compareAndSet(options.key, step.version, { ...step, status: ended, version: step.version + 1 });
+    await options.store.compareAndSet(key, step.version, { ...step, status: ended, version: step.version + 1 });
     return { status: 'refused', reason: `approval_${approval.status}` };
   }
   if (approval.status !== 'approved') return { status: 'refused', reason: 'approval_not_approved' };
 
   // Claim the step first. Only one resume can move it off 'suspended'.
-  const claimed = await options.store.compareAndSet(options.key, step.version, {
+  const claimed = await options.store.compareAndSet(key, step.version, {
     ...step,
     status: 'completed',
     version: step.version + 1,
   });
   if (!claimed) return { status: 'refused', reason: 'step_state_conflict' };
 
-  const result = await options.engine.resumeAfterApproval(companyId, step.runId, {
-    toolId: step.toolId,
-    params: step.params,
-    actor: step.actor,
-  });
+  let result: Awaited<ReturnType<ResumeEngine['resumeAfterApproval']>>;
+  try {
+    result = await options.engine.resumeAfterApproval(companyId, step.runId, {
+      toolId: step.toolId,
+      params: step.params,
+      actor: step.actor,
+    });
+  } catch {
+    // The step is already claimed, so it ends as failed here. The thrown text is dropped: it can carry data.
+    await options.store.compareAndSet(key, step.version + 1, { ...step, status: 'failed', version: step.version + 2 });
+    return { status: 'failed', reason: 'resume_failed' };
+  }
   if (!result.ok || !result.tool) {
-    await options.store.compareAndSet(options.key, step.version + 1, { ...step, status: 'failed', version: step.version + 2 });
+    await options.store.compareAndSet(key, step.version + 1, { ...step, status: 'failed', version: step.version + 2 });
     return { status: 'failed', reason: result.reason ?? 'resume_failed' };
   }
   if (result.tool.outcome === 'executed') return { status: 'completed', output: result.tool.output ?? {} };
-  await options.store.compareAndSet(options.key, step.version + 1, { ...step, status: 'failed', version: step.version + 2 });
+  await options.store.compareAndSet(key, step.version + 1, { ...step, status: 'failed', version: step.version + 2 });
   return { status: 'failed', reason: result.tool.outcome };
 }
