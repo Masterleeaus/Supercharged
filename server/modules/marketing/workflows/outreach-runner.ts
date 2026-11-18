@@ -7,7 +7,13 @@
 import type { Channel } from '../../comms/consent.ts';
 import type { PreSendSurface } from '../../comms/presend-gate.ts';
 import { gatedSend, type GatedSendPorts, type GatedSendOutcome } from './gated-send.ts';
-import { DEFAULT_TEMPLATES, renderTemplate, WORKFLOW_SURFACE, type OutreachWorkflow } from './outreach-rules.ts';
+import {
+  BULK_WORKFLOWS,
+  DEFAULT_TEMPLATES,
+  renderTemplate,
+  WORKFLOW_SURFACE,
+  type OutreachWorkflow,
+} from './outreach-rules.ts';
 
 export interface OutreachCandidate {
   workflow: OutreachWorkflow;
@@ -44,6 +50,11 @@ export interface OutreachRunDeps extends GatedSendPorts {
   now: () => Date;
   /** Campaign id per workflow, so outcomes can be grouped by campaign. */
   campaignIdFor: (workflow: OutreachWorkflow) => string;
+  /**
+   * Approval gate for bulk workflows (BULK_WORKFLOWS). True only when a person approved this
+   * exact cycle. Not set: bulk cycles are never approved, so nothing is sent for them.
+   */
+  isApproved?: (companyId: string, workflow: OutreachWorkflow, cycleKey: string) => Promise<boolean>;
 }
 
 export interface OutreachRunSummary {
@@ -93,6 +104,11 @@ export async function runOutreach(
     }
 
     const surface: PreSendSurface = WORKFLOW_SURFACE[c.workflow];
+    const requiresApproval = BULK_WORKFLOWS.has(c.workflow);
+    const approved =
+      requiresApproval && deps.isApproved !== undefined
+        ? await deps.isApproved(companyId, c.workflow, c.cycleKey)
+        : false;
     const outcome: GatedSendOutcome = await gatedSend(deps, {
       companyId,
       channel: c.channel,
@@ -102,8 +118,8 @@ export async function runOutreach(
       workflow: c.workflow,
       subjectId: c.subjectId,
       surface,
-      requiresApproval: false,
-      approved: false,
+      requiresApproval,
+      approved,
     });
 
     if (outcome.status === 'sent') {

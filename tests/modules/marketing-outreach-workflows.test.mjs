@@ -231,3 +231,100 @@ test('outcomes are attributed to the most recent send for that client within the
   );
   assert.equal(none, null);
 });
+
+const CO_B = '22222222-2222-4222-8222-222222222222';
+
+function candidateFor(workflow, address, cycleKey = 'cycle-1') {
+  const vars = {
+    clientName: 'Sam',
+    companyName: 'Sparkle Co',
+    reviewUrl: 'https://example.com/review',
+    bookingUrl: 'https://example.com/book',
+    seasonName: 'Spring',
+    visitTime: 'Tuesday 9am',
+    jobTitle: 'Gutter clean',
+  };
+  return { workflow, subjectId: `subject-${workflow}`, channel: 'email', address, cycleKey, vars };
+}
+
+test('all five outreach workflows run in a test tenant, each sent once per cycle', async () => {
+  const address = 'all@example.com';
+  const w = makeWorld({ contacts: { [address]: consentedContact(address) } });
+  const deps = { ...w.deps, isApproved: async () => true };
+  const workflows = ['review_request', 'client_reactivation', 'seasonal_reminder', 'visit_reminder', 'stale_job_nudge'];
+  const cands = workflows.map((wf) => candidateFor(wf, address));
+  const first = await runOutreach(deps, CO, cands);
+  assert.equal(first.sent, 5);
+  assert.deepEqual(
+    w.sent.map((m) => m.workflow).sort(),
+    [...workflows].sort(),
+  );
+  // Every send is attributed to its own campaign id.
+  for (const s of w.sent) assert.equal(s.companyId, CO);
+  const second = await runOutreach(deps, CO, cands);
+  assert.equal(second.sent, 0);
+  assert.equal(second.skippedAlreadySent, 5);
+});
+
+test('bulk workflows need an approved cycle: no approval means no send and a recorded reason', async () => {
+  const address = 'bulk@example.com';
+  const w = makeWorld({ contacts: { [address]: consentedContact(address) } });
+  const r = await runOutreach(w.deps, CO, [candidateFor('seasonal_reminder', address)]);
+  assert.equal(r.sent, 0);
+  assert.equal(r.blocked.approval_required, 1);
+  assert.equal(w.sent.length, 0);
+  // Approval for this cycle only: a different cycle stays blocked.
+  const approvedDeps = { ...w.deps, isApproved: async (_c, _wf, cycle) => cycle === 'spring-2027' };
+  const other = await runOutreach(approvedDeps, CO, [candidateFor('seasonal_reminder', address, 'autumn-2027')]);
+  assert.equal(other.sent, 0);
+  const approved = await runOutreach(approvedDeps, CO, [candidateFor('seasonal_reminder', address, 'spring-2027')]);
+  assert.equal(approved.sent, 1);
+});
+
+test('per-event workflows are not held for approval', async () => {
+  const address = 'event@example.com';
+  const w = makeWorld({ contacts: { [address]: consentedContact(address) } });
+  const r = await runOutreach(w.deps, CO, [candidateFor('review_request', address), candidateFor('visit_reminder', address)]);
+  assert.equal(r.sent, 2);
+  assert.equal(r.blocked.approval_required, undefined);
+});
+
+test('tenant isolation: a send or consent in one company does not reach another company', async () => {
+  const address = 'tenant@example.com';
+  const suppression = createSuppressionList();
+  const gate = createPreSendGate({
+    suppression,
+    // Contact exists only under company CO.
+    async loadContact(companyId, _ch, addr) {
+      return companyId === CO && addr === address ? consentedContact(address) : null;
+    },
+    async loadQuietHours() {
+      return null;
+    },
+    now: () => new Date(NOW),
+    async recordBlocked() {},
+  });
+  const sent = [];
+  const sends = new Map();
+  const deps = {
+    gate,
+    transport: { async send(m) { sent.push(m); return { externalId: `x-${sent.length}` }; } },
+    store: {
+      async hasSent(c, k) { return sends.has(`${c}|${k}`); },
+      async recordSend(r) { sends.set(`${r.companyId}|${r.key}`, r); },
+      async listSends() { return []; },
+    },
+    now: () => new Date(NOW),
+    campaignIdFor: (wf) => `campaign-${wf}`,
+  };
+  const cand = [reviewCandidate(address)];
+  const a = await runOutreach(deps, CO, cand);
+  assert.equal(a.sent, 1);
+  // Company B has no consent for this address, so nothing is sent, and A's send does not mark B's key.
+  const b = await runOutreach(deps, CO_B, cand);
+  assert.equal(b.sent, 0);
+  assert.equal(b.blocked.no_consent, 1);
+  assert.equal(b.skippedAlreadySent, 0);
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].companyId, CO);
+});
