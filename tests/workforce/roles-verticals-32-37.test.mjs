@@ -98,6 +98,17 @@ test('water desks refuse livestock or fish treatment advice and send it to a per
   }
 });
 
+test('pond desk treats electrical, pump and child-hazard reports as urgent and hands them to a person', () => {
+  const role = roles['pond-maintenance-booking-desk'];
+  const guardrails = role.guardrails.join('\n');
+  assert.match(guardrails, /leak with electrical equipment/i, 'must flag leaks near electrical equipment');
+  assert.match(guardrails, /pump fault near water/i, 'must flag pump faults near water');
+  assert.match(guardrails, /hazard to children/i, 'must flag child hazards');
+  assert.match(guardrails, /urgent/i, 'must mark these as urgent');
+  assert.match(guardrails, /hand it to a person at once/i, 'must hand urgent reports to a person at once');
+  assert.match(role.systemPrompt, /pump that has stopped or a leak/i, 'must ask about pump stoppage or leaks');
+});
+
 test('no desk role quotes a price or takes card, key or alarm codes in chat', () => {
   for (const id of BATCH) {
     const guardrails = roles[id].guardrails.join('\n');
