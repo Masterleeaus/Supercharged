@@ -16,6 +16,8 @@ import { createGoogleCalendarConnector } from './calendar/google-calendar.ts';
 import { createOutlookCalendarConnector } from './calendar/outlook.ts';
 import { createCalendlyConnector } from './calendar/calendly.ts';
 import { createTwilioConnector } from './twilio/index.ts';
+import { createTelegramConnector } from './telegram/index.ts';
+import { createWebFormConnector } from './leads/lead-intake.ts';
 import type { ConnectorDefinition } from './sdk/contract.ts';
 import { createConnectorRegistry, type ConnectorRegistry, type SettingsStore } from './registry.ts';
 
@@ -62,6 +64,8 @@ export function createConnectorImplementations(deps: ImplementationDeps): Map<st
     createOutlookCalendarConnector({ http: deps.http }),
     createCalendlyConnector({ http: deps.http }),
     createTwilioConnector({ fetchImpl: deps.fetch }),
+    createTelegramConnector(),
+    createWebFormConnector(),
   ];
   for (const def of others) implementations.set(def.id, def);
   return implementations;
