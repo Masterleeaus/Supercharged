@@ -344,6 +344,33 @@ jobs:
       JWT_SECRET: ci-only-placeholder-jwt-secret-not-real
     steps:
       - uses: actions/checkout@v4
+      # The container refuses to start (fatal, exit 1) unless the database has the migrated schema and the
+      # restricted desk_app role. Prepare the throwaway database the same way the boot job does before the
+      # container starts, so the smoke test checks the app and not an empty database.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Prepare restricted application role for the smoke database
+        run: |
+          node --input-type=module <<'NODE'
+          import pg from 'pg';
+          const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
+          await client.connect();
+          try {
+            const { rowCount } = await client.query("SELECT 1 FROM pg_roles WHERE rolname = 'desk_app'");
+            if (rowCount === 0) await client.query('CREATE ROLE desk_app NOLOGIN');
+          } finally {
+            await client.end();
+          }
+          NODE
+      - name: Apply migrations to the throwaway smoke database
+        env:
+          BOOT_PG_DISPOSABLE: 'true'
+          BOOT_PG_URL: ${{ env.DATABASE_URL }}
+        run: npm run boot:check
       - name: Build image
         run: docker build -t supercharged-ci .
       - name: Start container
