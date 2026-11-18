@@ -15,6 +15,16 @@ export const OUTREACH_WORKFLOWS = [
 
 export type OutreachWorkflow = (typeof OUTREACH_WORKFLOWS)[number];
 
+/**
+ * Campaign-style sends that reach many clients at once (a season or a lapsed-client sweep). Each
+ * cycle needs a person's approval before any message goes out. Per-event sends (a review request
+ * after a job, a visit reminder, a stale-job nudge) are automated and need no approval.
+ */
+export const BULK_WORKFLOWS: ReadonlySet<OutreachWorkflow> = new Set<OutreachWorkflow>([
+  'client_reactivation',
+  'seasonal_reminder',
+]);
+
 /** Visit reminders and stale-job nudges are service messages. Everything else is marketing. */
 export const WORKFLOW_SURFACE: Record<OutreachWorkflow, 'inbox' | 'marketing'> = {
   review_request: 'marketing',
