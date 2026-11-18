@@ -20,6 +20,17 @@ jobs:
       - run: npm ci
       - run: npm test
 
+  licence-gate:
+    # Gating (issue #388, gate G1). Uses only git and node; no npm install is needed.
+    name: VoltAgent licence gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/check-voltagent-licence.mjs
+
   build:
     name: Build
     runs-on: ubuntu-latest
