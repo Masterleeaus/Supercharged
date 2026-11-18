@@ -58,7 +58,7 @@ test('write tool with no approval checker fails closed', async () => {
 
 test('a throwing handler becomes tool_failed', async () => {
   const reg = createMcpRegistry({ enabled: true, tools: [{ name: 'x', kind: 'read', handler: () => { throw new Error('down'); } }] });
-  assert.deepEqual(await reg.call({ companyId: 'co-1', tool: 'x' }), { ok: false, code: 'tool_failed', message: 'down' });
+  assert.deepEqual(await reg.call({ companyId: 'co-1', tool: 'x' }), { ok: false, code: 'tool_failed', message: 'tool failed' });
 });
 
 test('duplicate tool names are rejected at construction', () => {

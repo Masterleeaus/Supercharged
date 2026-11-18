@@ -67,9 +67,15 @@ export function createMcpRegistry(options: McpRegistryOptions): McpRegistry {
         if (!request.approvalId) {
           return { ok: false, code: 'approval_required', message: 'write tools need an approval id' };
         }
-        const approved = options.checkApproval
-          ? await options.checkApproval(request.approvalId, request.companyId, tool.name)
-          : false;
+        // Fail closed: a missing or throwing approval check is a rejection, never a pass.
+        let approved = false;
+        if (options.checkApproval) {
+          try {
+            approved = (await options.checkApproval(request.approvalId, request.companyId, tool.name)) === true;
+          } catch {
+            approved = false;
+          }
+        }
         if (approved !== true) {
           return { ok: false, code: 'approval_rejected', message: 'approval was not accepted for this tenant and tool' };
         }
@@ -78,8 +84,9 @@ export function createMcpRegistry(options: McpRegistryOptions): McpRegistry {
       try {
         const result = await tool.handler(request.params ?? {}, request.companyId);
         return { ok: true, result };
-      } catch (error) {
-        return { ok: false, code: 'tool_failed', message: error instanceof Error ? error.message : 'tool failed' };
+      } catch {
+        // The handler's error text can carry internal detail (SQL, hosts, keys). Callers get a fixed message.
+        return { ok: false, code: 'tool_failed', message: 'tool failed' };
       }
     },
   };

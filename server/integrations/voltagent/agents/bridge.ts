@@ -105,6 +105,13 @@ export function createAgentBridgeTools(options: AgentBridgeOptions): VoltAgentTo
       if (typeof args !== 'object' || args === null || Array.isArray(args)) {
         return { status: 'error', code: 'invalid_arguments' };
       }
+      // Defense in depth: unknown keys never reach the engine, even when this bridge is used without the zod wrapper.
+      const declared = spec.parameters.properties;
+      for (const key of Object.keys(args)) {
+        if (!Object.prototype.hasOwnProperty.call(declared, key)) {
+          return { status: 'error', code: 'invalid_arguments' };
+        }
+      }
       try {
         const result = await options.engine.callTool(companyId, options.runId, {
           toolId: spec.toolId,
