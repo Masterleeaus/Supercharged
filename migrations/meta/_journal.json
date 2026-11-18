@@ -145,54 +145,61 @@
     {
       "idx": 20,
       "version": "7",
+      "when": 1794350000000,
+      "tag": "0018a_desk_app_role",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
       "when": 1794400000000,
       "tag": "0018_central_sso_company_links",
       "breakpoints": true
     },
     {
-      "idx": 21,
+      "idx": 22,
       "version": "7",
       "when": 1794500000000,
       "tag": "0019_central_sso_pending_logins",
       "breakpoints": true
     },
     {
-      "idx": 22,
+      "idx": 23,
       "version": "7",
       "when": 1794600000000,
       "tag": "0020_scheduled_booking_mirror",
       "breakpoints": true
     },
     {
-      "idx": 23,
+      "idx": 24,
       "version": "7",
       "when": 1794700000000,
       "tag": "0023_marketing_tables_tenant_rls",
       "breakpoints": true
     },
     {
-      "idx": 24,
+      "idx": 25,
       "version": "7",
       "when": 1794800000000,
       "tag": "0024_inbox_tenant_rls",
       "breakpoints": true
     },
     {
-      "idx": 25,
+      "idx": 26,
       "version": "7",
       "when": 1794900000000,
       "tag": "0025_central_link_nonces",
       "breakpoints": true
     },
     {
-      "idx": 26,
+      "idx": 27,
       "version": "7",
       "when": 1795000000000,
       "tag": "0026_website_widgets_company_id",
       "breakpoints": true
     },
     {
-      "idx": 27,
+      "idx": 28,
       "version": "7",
       "when": 1795100000000,
       "tag": "0027_comms_suppressions",
