@@ -3,21 +3,41 @@ import { db } from "../../db";
 import { googleCalendarCredentials, appointmentSettings, users } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { getGoogleCredentials } from "../google-sheets/google-sheets.service";
+import { createPinnedHttpClient } from "../../modules/chatbot/knowledge/pinned-http.ts";
+import { systemWebhookResolver } from "../../modules/chatbot/events/ssrf.ts";
+import { createGoogleAppointmentSync, type CalendarAppointment } from "../../connectors/calendar/google-appointment-sync.ts";
+import type { AuditSink } from "../../connectors/sdk/audit.ts";
+
+export type { CalendarAppointment } from "../../connectors/calendar/google-appointment-sync.ts";
 
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
-const GOOGLE_CALENDAR_API = "https://www.googleapis.com/calendar/v3";
 
-export interface CalendarAppointment {
-  id: string;
-  contactName: string;
-  contactPhone: string;
-  contactEmail: string | null;
-  appointmentDate: string;
-  appointmentTime: string;
-  duration: number;
-  serviceName: string | null;
-  notes: string | null;
-  status: string;
+// Vendor calls go through the connector contract and the pinned HTTP port (#354).
+const googleHttp = createPinnedHttpClient({ resolve: systemWebhookResolver, maxBodyBytes: 1_000_000 });
+
+const auditToLog: AuditSink = async (record) => {
+  logger.info(
+    `📅 [GoogleCalendar] ${record.action} ${record.outcome}${record.errorCode ? ` (${record.errorCode})` : ""} attempts=${record.attempts}`,
+  );
+};
+
+function errorText(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+async function appointmentSync(userId: string) {
+  const [user] = await db
+    .select({ companyId: users.companyId, timezone: users.timezone })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  return createGoogleAppointmentSync({
+    http: googleHttp,
+    audit: auditToLog,
+    companyId: user?.companyId ?? userId,
+    timezone: user?.timezone || "UTC",
+    getAccessToken: (force) => refreshCalendarToken(userId, force),
+  });
 }
 
 async function refreshCalendarToken(userId: string, force = false): Promise<string | null> {
@@ -72,170 +92,35 @@ async function refreshCalendarToken(userId: string, force = false): Promise<stri
   }
 }
 
-function buildEventBody(apt: CalendarAppointment, timezone: string) {
-  const dateStr = apt.appointmentDate;
-  const timeStr = apt.appointmentTime.substring(0, 5);
-  const startDateTime = `${dateStr}T${timeStr}:00`;
-
-  // Parse time and date locally (without shifting timezone)
-  const [hoursStr, minutesStr] = timeStr.split(':');
-  const [yearStr, monthStr, dayStr] = dateStr.split('-');
-  
-  const startYear = parseInt(yearStr, 10);
-  const startMonth = parseInt(monthStr, 10) - 1; // 0-indexed
-  const startDay = parseInt(dayStr, 10);
-  const startHours = parseInt(hoursStr, 10);
-  const startMinutes = parseInt(minutesStr, 10);
-  
-  const startDate = new Date(startYear, startMonth, startDay, startHours, startMinutes);
-  const endDate = new Date(startDate.getTime() + apt.duration * 60 * 1000);
-  
-  // Format endDate back to local YYYY-MM-DDTHH:mm:ss format
-  const endYear = endDate.getFullYear();
-  const endMonth = String(endDate.getMonth() + 1).padStart(2, '0');
-  const endDay = String(endDate.getDate()).padStart(2, '0');
-  const endHours = String(endDate.getHours()).padStart(2, '0');
-  const endMinutes = String(endDate.getMinutes()).padStart(2, '0');
-  
-  const endDateTime = `${endYear}-${endMonth}-${endDay}T${endHours}:${endMinutes}:00`;
-
-  const descParts: string[] = [
-    `Phone: ${apt.contactPhone}`,
-  ];
-  if (apt.contactEmail) descParts.push(`Email: ${apt.contactEmail}`);
-  if (apt.serviceName) descParts.push(`Service: ${apt.serviceName}`);
-  descParts.push(`Duration: ${apt.duration} minutes`);
-  if (apt.notes) descParts.push(`Notes: ${apt.notes}`);
-  descParts.push(`\nBooked by AI agent via Diploy`);
-
-  if (apt.status === "completed") {
-    const completedAt = new Date().toLocaleString("en-US", {
-      month: "short", day: "numeric", year: "numeric",
-      hour: "numeric", minute: "2-digit", hour12: true,
-    });
-    descParts.push(`\nCompleted at: ${completedAt}`);
-  }
-
-  const statusLabel = apt.status.charAt(0).toUpperCase() + apt.status.slice(1);
-
-  return {
-    summary: `${statusLabel}: ${apt.contactName}${apt.serviceName ? ` — ${apt.serviceName}` : ""}`,
-    description: descParts.join("\n"),
-    start: { dateTime: startDateTime, timeZone: timezone },
-    end: { dateTime: endDateTime, timeZone: timezone },
-  };
-}
-
 export async function createCalendarEvent(userId: string, apt: CalendarAppointment): Promise<string | null> {
-  let token = await refreshCalendarToken(userId);
-  if (!token) return null;
-
-  // Retrieve user's timezone configuration
-  const [user] = await db
-    .select({ timezone: users.timezone })
-    .from(users)
-    .where(eq(users.id, userId))
-    .limit(1);
-  const timezone = user?.timezone || "UTC";
-
-  const body = buildEventBody(apt, timezone);
-
-  const doCreate = (t: string) =>
-    fetch(`${GOOGLE_CALENDAR_API}/calendars/primary/events`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-
   try {
-    let resp = await doCreate(token);
-    if (resp.status === 401) {
-      const fresh = await refreshCalendarToken(userId, true);
-      if (!fresh) return null;
-      resp = await doCreate(fresh);
-    }
-    if (!resp.ok) {
-      logger.error("[GoogleCalendar] Create event failed:", await resp.text());
-      return null;
-    }
-    const data = await resp.json() as { id: string };
-    logger.info(`📅 [GoogleCalendar] Created event ${data.id} for appointment ${apt.id}`);
-    return data.id;
+    const eventId = await (await appointmentSync(userId)).create(apt);
+    logger.info(`📅 [GoogleCalendar] Created event ${eventId} for appointment ${apt.id}`);
+    return eventId;
   } catch (err: unknown) {
-    logger.error("[GoogleCalendar] Create event error:", err instanceof Error ? err.message : String(err));
+    logger.error("[GoogleCalendar] Create event failed:", errorText(err));
     return null;
   }
 }
 
 export async function updateCalendarEvent(userId: string, eventId: string, apt: CalendarAppointment): Promise<boolean> {
-  let token = await refreshCalendarToken(userId);
-  if (!token) return false;
-
-  // Retrieve user's timezone configuration
-  const [user] = await db
-    .select({ timezone: users.timezone })
-    .from(users)
-    .where(eq(users.id, userId))
-    .limit(1);
-  const timezone = user?.timezone || "UTC";
-
-  const body = buildEventBody(apt, timezone);
-
-  const doUpdate = (t: string) =>
-    fetch(`${GOOGLE_CALENDAR_API}/calendars/primary/events/${encodeURIComponent(eventId)}`, {
-      method: "PATCH",
-      headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-
   try {
-    let resp = await doUpdate(token);
-    if (resp.status === 401) {
-      const fresh = await refreshCalendarToken(userId, true);
-      if (!fresh) return false;
-      resp = await doUpdate(fresh);
-    }
-    if (!resp.ok) {
-      logger.error("[GoogleCalendar] Update event failed:", await resp.text());
-      return false;
-    }
+    const ok = await (await appointmentSync(userId)).update(eventId, apt);
     logger.info(`📅 [GoogleCalendar] Updated event ${eventId}`);
-    return true;
+    return ok;
   } catch (err: unknown) {
-    logger.error("[GoogleCalendar] Update event error:", err instanceof Error ? err.message : String(err));
+    logger.error("[GoogleCalendar] Update event failed:", errorText(err));
     return false;
   }
 }
 
 export async function deleteCalendarEvent(userId: string, eventId: string): Promise<boolean> {
-  let token = await refreshCalendarToken(userId);
-  if (!token) return false;
-
-  const doDelete = (t: string) =>
-    fetch(`${GOOGLE_CALENDAR_API}/calendars/primary/events/${encodeURIComponent(eventId)}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${t}` },
-    });
-
   try {
-    let resp = await doDelete(token);
-    if (resp.status === 401) {
-      const fresh = await refreshCalendarToken(userId, true);
-      if (!fresh) return false;
-      resp = await doDelete(fresh);
-    }
-    if (resp.status === 404) {
-      logger.warn(`[GoogleCalendar] Event ${eventId} not found (already deleted?)`);
-      return true;
-    }
-    if (!resp.ok) {
-      logger.error("[GoogleCalendar] Delete event failed:", await resp.text());
-      return false;
-    }
+    const ok = await (await appointmentSync(userId)).remove(eventId);
     logger.info(`📅 [GoogleCalendar] Deleted event ${eventId}`);
-    return true;
+    return ok;
   } catch (err: unknown) {
-    logger.error("[GoogleCalendar] Delete event error:", err instanceof Error ? err.message : String(err));
+    logger.error("[GoogleCalendar] Delete event failed:", errorText(err));
     return false;
   }
 }

@@ -100,6 +100,8 @@ export function createGoogleCalendarConnector(options: GoogleCalendarOptions): C
     const id = encodeURIComponent(str(input.eventId, 'eventId'));
     const patch: Record<string, unknown> = {};
     if (input.status === 'confirmed' || input.status === 'tentative') patch.status = input.status;
+    if (typeof input.summary === 'string') patch.summary = str(input.summary, 'summary');
+    if (typeof input.description === 'string') patch.description = input.description;
     if (input.startsAt !== undefined || input.endsAt !== undefined) {
       const timezone = str(input.timezone, 'timezone');
       Object.assign(patch, eventTimes(input, timezone));
