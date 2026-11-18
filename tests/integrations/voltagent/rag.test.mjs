@@ -1,9 +1,11 @@
 // Licence: original TitanZero test code. No Mastra or VoltAgent source is copied.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { chunkText, MAX_CHUNK_SIZE } from '../../../server/integrations/voltagent/rag/chunker.ts';
+import { chunkText, MAX_CHUNK_TOKENS } from '../../../server/integrations/voltagent/rag/chunker.ts';
+import { whitespaceTokenizer } from '@voltagent/rag';
 import { createInMemoryVectorStoreForTests } from '../../../server/integrations/voltagent/rag/vector-store.ts';
 import { createKnowledgeSearchPort } from '../../../server/integrations/voltagent/rag/knowledge-port.ts';
+import { createPgVectorStore } from '../../../server/integrations/voltagent/vector-pg/pg-vector-store.ts';
 import { retrieveCompanyKnowledge } from '../../../server/workforce/runtime/knowledge-retrieval.ts';
 
 // Toy embedding: the vector is a fixed lookup so the test controls similarity exactly.
@@ -21,26 +23,35 @@ async function seededStore() {
   return store;
 }
 
-test('chunker keeps every chunk within size and overlaps consecutive chunks', () => {
-  const text = 'alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu';
-  const chunks = chunkText(text, { size: 20, overlap: 5 });
+test('chunker keeps whole sentences, overlaps them when asked, and numbers chunks in order', () => {
+  const text = 'Alpha one two. Beta three four. Gamma five six. Delta seven eight.';
+  const chunks = chunkText(text, { maxTokens: 6, overlapSentences: 1 });
   assert.ok(chunks.length > 1);
-  for (const c of chunks) assert.ok(c.text.length <= 20);
   assert.deepEqual(chunks.map((c) => c.index), chunks.map((_, i) => i));
-  assert.equal(chunks[0].text.split(' ').at(-1).length > 0, true);
+  assert.equal(chunks[0].text, 'Alpha one two. Beta three four.');
+  assert.equal(chunks[1].text, 'Beta three four. Gamma five six.');
+  for (const c of chunks) assert.ok(c.text.endsWith('.'));
+  for (const c of chunks) assert.ok(whitespaceTokenizer.countTokens(c.text) <= 6);
+});
+
+test('chunker splits an over-long sentence so every chunk stays within maxTokens', () => {
+  const long = `${'word '.repeat(40).trim()}.`;
+  const chunks = chunkText(`Short one. ${long} Short two.`, { maxTokens: 10, overlapSentences: 0 });
+  assert.ok(chunks.length > 3);
+  for (const c of chunks) assert.ok(whitespaceTokenizer.countTokens(c.text) <= 10);
 });
 
 test('chunker is deterministic and returns nothing for blank input', () => {
-  assert.deepEqual(chunkText('one two three four', { size: 8, overlap: 2 }), chunkText('one two three four', { size: 8, overlap: 2 }));
-  assert.deepEqual(chunkText('   ', { size: 8, overlap: 2 }), []);
+  assert.deepEqual(chunkText('One two. Three four.', { maxTokens: 4, overlapSentences: 0 }), chunkText('One two. Three four.', { maxTokens: 4, overlapSentences: 0 }));
+  assert.deepEqual(chunkText('   ', { maxTokens: 8, overlapSentences: 0 }), []);
 });
 
 test('chunker rejects bad options and input', () => {
-  assert.throws(() => chunkText('x', { size: 0, overlap: 0 }), /chunk_size_invalid/);
-  assert.throws(() => chunkText('x', { size: MAX_CHUNK_SIZE + 1, overlap: 0 }), /chunk_size_invalid/);
-  assert.throws(() => chunkText('x', { size: 10, overlap: 10 }), /chunk_overlap_invalid/);
-  assert.throws(() => chunkText('x', { size: 10, overlap: -1 }), /chunk_overlap_invalid/);
-  assert.throws(() => chunkText(42, { size: 10, overlap: 0 }), /chunk_input_invalid/);
+  assert.throws(() => chunkText('x', { maxTokens: 0, overlapSentences: 0 }), /chunk_size_invalid/);
+  assert.throws(() => chunkText('x', { maxTokens: MAX_CHUNK_TOKENS + 1, overlapSentences: 0 }), /chunk_size_invalid/);
+  assert.throws(() => chunkText('x', { maxTokens: 10, overlapSentences: -1 }), /chunk_overlap_invalid/);
+  assert.throws(() => chunkText('x', { maxTokens: 10, overlapSentences: 1.5 }), /chunk_overlap_invalid/);
+  assert.throws(() => chunkText(42, { maxTokens: 10, overlapSentences: 0 }), /chunk_input_invalid/);
 });
 
 test('search returns only the caller company and owning user, best score first', async () => {
@@ -100,4 +111,22 @@ test('a malformed embed result becomes retrieval_failed', async () => {
 test('the port factory requires a store and an embed function', () => {
   assert.throws(() => createKnowledgeSearchPort({ store: undefined, embed }), /knowledge_store_required/);
   assert.throws(() => createKnowledgeSearchPort({ store: createInMemoryVectorStoreForTests(), embed: undefined }), /knowledge_embed_required/);
+});
+
+test('the port runs over the Postgres store with company and user scope bound as SQL parameters', async () => {
+  const sql = [];
+  const db = {
+    async query(text, params) {
+      sql.push({ text, params });
+      return { rows: [{ company_id: '7', knowledge_base_id: 'kb-a', chunk_index: 0, chunk_text: 'boiler notes', score: 0.9 }] };
+    },
+  };
+  const store = createPgVectorStore({ db, table: 'kb_chunks', dimensions: 2 });
+  const port = createKnowledgeSearchPort({ store, embed });
+  const out = await retrieveCompanyKnowledge(port, { companyId: 7, userId: 'u1', query: 'boiler repair' });
+  assert.equal(out.ok, true);
+  assert.deepEqual(out.results.map((r) => r.sourceRef), ['kb:kb-a:0']);
+  assert.equal(sql.length, 1);
+  assert.ok(sql[0].text.includes('company_id = $2 AND owner_user_id = $3'));
+  assert.deepEqual(sql[0].params.slice(1, 3), ['7', 'u1']);
 });

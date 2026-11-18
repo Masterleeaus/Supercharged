@@ -9,6 +9,7 @@
  */
 import type { KnowledgeChunkHit, KnowledgeSearchPort } from '../../../workforce/runtime/knowledge-retrieval.ts';
 import type { VectorStore } from './vector-store.ts';
+// The store can be the in-memory test store or the Postgres store in ../vector-pg/pg-vector-store.ts (W5).
 
 export type EmbedFn = (texts: readonly string[]) => Promise<number[][]>;
 
