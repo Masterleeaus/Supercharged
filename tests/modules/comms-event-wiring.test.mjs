@@ -11,6 +11,7 @@ import assert from 'node:assert/strict';
 import { recordCommsEvent, toCommsIsoTime } from '../../server/modules/comms/audit-sink.ts';
 import { createTelegramProviderAdapter, TelegramAdapterRefusedError } from '../../server/modules/comms/telegram-provider-adapter.ts';
 import { createWhatsAppProviderAdapter } from '../../server/modules/comms/whatsapp-provider-adapter.ts';
+import { consentingGate } from './presend-fixture.mjs';
 import { createSmsProviderAdapter } from '../../server/modules/comms/sms-provider-adapter.ts';
 import { createEmailProviderAdapter } from '../../server/modules/comms/email-provider-adapter.ts';
 import { createSuppressionList } from '../../server/modules/comms/suppression.ts';
@@ -215,6 +216,7 @@ function waAdapter({ auditSink, companyId = CO } = {}) {
     accessToken: 'EAAG-FAKE-TOKEN',
     company: 'Clean Smart',
     companyId,
+    gate: consentingGate(),
     auditSink,
     http: async () => ({ ok: true, status: 200, json: async () => ({ messages: [{ id: 'wamid.T1' }] }) }),
   });

@@ -13,6 +13,7 @@ import { createCommsAuditSink } from '../../server/modules/comms/audit-sink.ts';
 import { createSmsProviderAdapter } from '../../server/modules/comms/sms-provider-adapter.ts';
 import { createTelegramProviderAdapter } from '../../server/modules/comms/telegram-provider-adapter.ts';
 import { createWhatsAppProviderAdapter } from '../../server/modules/comms/whatsapp-provider-adapter.ts';
+import { consentingGate } from './presend-fixture.mjs';
 import { createEmailProviderAdapter } from '../../server/modules/comms/email-provider-adapter.ts';
 import { createSuppressionList } from '../../server/modules/comms/suppression.ts';
 import { sendMessengerReply } from '../../server/modules/comms/messenger-provider-adapter.ts';
@@ -128,6 +129,7 @@ const CASES = [
         accessToken: 'EAAG-FAKE-TOKEN',
         company: 'Clean Smart',
         companyId: CO,
+        gate: consentingGate(),
         auditSink: sink,
         http: async () => {
           hit();

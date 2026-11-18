@@ -16,6 +16,7 @@ import { decideWhatsAppSend, type WindowTime } from './whatsapp-window.ts';
 import { buildWhatsAppRequest, sendWhatsApp, type WhatsAppBuildFailureReason, type WhatsAppHttp, type WhatsAppSendFailureReason } from './whatsapp-send.ts';
 import { renderTemplate, type RenderRefusalReason, type Template } from './template-rules.ts';
 import type { SuppressionList } from './suppression.ts';
+import type { PreSendBlockReason, PreSendGate, PreSendSurface } from './presend-gate.ts';
 import {
   NO_SEND_AUDIT,
   openSendAudit,
@@ -29,8 +30,14 @@ export interface WhatsAppAdapterConfig {
   accessToken: string;
   http: WhatsAppHttp;
   company: string;
-  /** Company id for the suppression check. Required when `suppression` is wired (missing means refuse). */
-  companyId?: string;
+  /**
+   * Pre-send compliance gate (presend-gate.ts). Required. Every send runs check() before the
+   * provider is called. A block is recorded with recordBlock() and the provider is never called.
+   * A gate that throws fails closed.
+   */
+  gate: PreSendGate;
+  /** Company whose gate and suppression rules apply. Required: a send without it is refused. */
+  companyId: string;
   /** Company suppression list. When wired, a suppressed recipient is refused before any request. */
   suppression?: SuppressionList;
   /** Optional comms audit sink. When absent, a send is still made and nothing is recorded. */
@@ -59,6 +66,8 @@ export interface WhatsAppAdapterMessage {
   quietHours?: QuietHours | null;
   /** Human or system actor for the audit event. Without it, no event is recorded. */
   actorId?: string | null;
+  /** Send path for the gate's block record. Defaults to 'inbox'. */
+  surface?: PreSendSurface;
 }
 
 export type WhatsAppAdapterRefusalReason =
@@ -90,6 +99,7 @@ export type WhatsAppAdapterRefusalReason =
   | 'invalid_token'
   | 'invalid_request'
   | 'audit_unavailable'
+  | PreSendBlockReason
   | 'provider_error';
 
 /** Results of a send that reached the audit gate carry auditRecorded. Earlier refusals do not. */
@@ -126,8 +136,35 @@ export function createWhatsAppProviderAdapter(config: WhatsAppAdapterConfig): Wh
         const purpose = message.purpose ?? 'transactional';
         if (purpose !== 'marketing' && purpose !== 'transactional') return refuse('invalid_purpose');
 
+        if (typeof config.companyId !== 'string' || config.companyId.length === 0) return refuse('invalid_company');
+        // Recipient shape is checked here so a malformed number keeps its own reason, not the gate's.
+        if (typeof message.to !== 'string' || !/^\+?[0-9]+$/.test(message.to)) return refuse('invalid_recipient');
+
+        // The pre-send gate runs before anything else that could reach the provider. A gate that
+        // throws is a block (fail closed). A block is recorded before the refusal is returned.
+        let gateBlock: PreSendBlockReason | null = null;
+        try {
+          const decision = await config.gate.check({
+            companyId: config.companyId,
+            channel: 'whatsapp',
+            address: message.to,
+            surface: message.surface ?? 'inbox',
+            actorId: message.actorId ?? 'system',
+            quietHours: message.quietHours,
+          });
+          if (decision.allowed === false) gateBlock = decision.reason;
+        } catch {
+          gateBlock = 'gate_error';
+        }
+        if (gateBlock !== null) {
+          await config.gate.recordBlock(
+            { companyId: config.companyId, channel: 'whatsapp', surface: message.surface ?? 'inbox', actorId: message.actorId ?? 'system' },
+            gateBlock,
+          );
+          return refuse(gateBlock);
+        }
+
         if (config.suppression) {
-          if (typeof config.companyId !== 'string') return refuse('invalid_company');
           if (config.suppression.isSuppressed(config.companyId, { address: message.to, channel: 'whatsapp' })) {
             return refuse('suppressed');
           }
@@ -208,7 +245,7 @@ export function createWhatsAppProviderAdapter(config: WhatsAppAdapterConfig): Wh
         let audit: CommsSendAudit | null;
         try {
           audit = await openSendAudit(config.auditSink, {
-            companyId: config.companyId ?? '',
+            companyId: config.companyId,
             actorId: message.actorId,
             channel: 'whatsapp',
             now: () => message.now,

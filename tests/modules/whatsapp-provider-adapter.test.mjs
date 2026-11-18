@@ -2,6 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWhatsAppProviderAdapter } from '../../server/modules/comms/whatsapp-provider-adapter.ts';
+import { consentingGate } from './presend-fixture.mjs';
 import { defineTemplate } from '../../server/modules/comms/template-rules.ts';
 
 const HOUR = 60 * 60 * 1000;
@@ -10,6 +11,7 @@ const PHONE_ID = '109876543210987';
 const TO = '61412345678';
 const TOKEN = 'EAAG-secret-token-value-123';
 const COMPANY = 'Clean Smart';
+const COMPANY_ID = '11111111-1111-4111-8111-111111111111';
 
 const optedInContact = {
   handles: { phone: TO },
@@ -84,6 +86,8 @@ function adapterWith(http) {
     accessToken: TOKEN,
     http,
     company: COMPANY,
+    companyId: COMPANY_ID,
+    gate: consentingGate(),
   });
 }
 

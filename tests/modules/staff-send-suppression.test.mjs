@@ -8,6 +8,7 @@ import {
   TelegramAdapterRefusedError,
 } from '../../server/modules/comms/telegram-provider-adapter.ts';
 import { createWhatsAppProviderAdapter } from '../../server/modules/comms/whatsapp-provider-adapter.ts';
+import { consentingGate } from './presend-fixture.mjs';
 import { createSuppressionList } from '../../server/modules/comms/suppression.ts';
 
 // Keep test output off stdout so the test runner's IPC stays clean.
@@ -139,6 +140,7 @@ function waAdapter({ suppression, companyId, http }) {
     http: http.fn,
     company: 'Clean Smart',
     ...(companyId !== undefined ? { companyId } : {}),
+    gate: consentingGate(),
     ...(suppression ? { suppression } : {}),
   });
 }
