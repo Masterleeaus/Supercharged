@@ -27,6 +27,7 @@ import { evaluatePolicy, type CompanyPolicy } from '../../modules/approvals/poli
 import type { RoleCatalogue } from '../catalogue/loader.ts';
 import { registerReadTools, type ReadStore } from '../tools/read-handlers.ts';
 import { createRunEngine, type RunEngine, type RunResult } from './run.ts';
+import { createTelemetry, withRunTelemetry, type Telemetry } from '../../infrastructure/telemetry/index.ts';
 import { createToolRegistry, type ApprovalGate, type Redactor, type ToolRegistry } from './tool-registry.ts';
 import type { AuditSink, RunStore } from './store.ts';
 import type { BudgetLedger } from './budgets.ts';
@@ -81,6 +82,8 @@ export interface WorkforceRuntimeDeps {
   newId?: () => string;
   /** Called after a run completes, fails or is cancelled. Absent: nothing is called. */
   onRunFinished?: (companyId: string, runId: string) => unknown;
+  /** Optional. Run start, finish and failure spans (issue #381). Absent: no spans are emitted. */
+  telemetry?: Telemetry;
 }
 
 export interface ModelRefusal {
@@ -204,7 +207,7 @@ export function composeWorkforceRuntime(deps: WorkforceRuntimeDeps): WorkforceRu
   const registry = createToolRegistry({ gate, redact: deps.redact, audit, now: deps.now, companyPolicy: deps.companyPolicy });
   registerReadTools(registry, deps.readStore);
 
-  const engineCore = createRunEngine({
+  const engineCore = withRunTelemetry(createRunEngine({
     registry,
     store: deps.store,
     audit,
@@ -214,7 +217,7 @@ export function composeWorkforceRuntime(deps: WorkforceRuntimeDeps): WorkforceRu
     controls: controls ?? undefined,
     budgets: deps.budgets,
     rosterAgents,
-  });
+  }), deps.telemetry ?? createTelemetry({ enabled: false }));
 
   // Sweep interrupted runs once per process for each company, on that company's first call. The call waits for
   // the sweep, so no engine work for a company runs before its sweep has finished.
