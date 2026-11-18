@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { A, B, enabled, fixture } from './tenant-postgres-support.mjs';
+import { A, B, enabled, fixture, insertUsers } from './tenant-postgres-support.mjs';
 
 const migration = readFileSync(new URL('../../migrations/0026_website_widgets_company_id.sql', import.meta.url), 'utf8');
 const rollback = [
@@ -18,10 +18,11 @@ test('PostgreSQL 0026: backfill sets company_id from the owner, keeps NULL when 
     await f.pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS company_id uuid');
     await f.pool.query('DELETE FROM website_widgets');
     await f.pool.query('DELETE FROM users');
-    await f.pool.query('INSERT INTO users (id, company_id) VALUES ($1, $2), ($3, NULL)', [OWNER_A, A, OWNER_NONE]);
+    await insertUsers(f.pool, [{ id: OWNER_A, company_id: A }, { id: OWNER_NONE, company_id: null }]);
     await f.pool.query(
-      'INSERT INTO website_widgets (id, user_id, company_id) VALUES ($1, $2, NULL), ($3, $4, NULL), ($5, $2, $6)',
-      ['w-owned', OWNER_A, 'w-no-company', OWNER_NONE, 'w-preset', B],
+      // name and embed_token are NOT NULL in the base 0000 table; the stub accepts them too.
+      'INSERT INTO website_widgets (id, user_id, name, embed_token, company_id) VALUES ($1, $2, $3, $4, NULL), ($5, $6, $7, $8, NULL), ($9, $2, $10, $11, $12)',
+      ['w-owned', OWNER_A, 'owned', 'tok-owned', 'w-no-company', OWNER_NONE, 'no-company', 'tok-none', 'w-preset', 'preset', 'tok-preset', B],
     );
 
     await f.pool.query(migration);
