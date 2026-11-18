@@ -80,3 +80,22 @@ behind the flag once the open items below are closed.
 6. Global logout parameters and the Central-side `/auth/titan/global-logout` behaviour.
 7. The pending-login store is in memory (single process). A shared store is needed for more than one instance.
 8. The migration in `docs/pending/` is still unapplied (owned by lane F).
+
+## Issue #53 evidence and owner-only items
+
+Evidence (run in this checkout, mocked, no live Central):
+
+- `node --test --experimental-transform-types tests/infrastructure/central-oidc-*.test.mjs tests/infrastructure/central-sso-*.test.mjs`: 137 pass, 0 fail.
+- Discovery, PKCE S256, state, nonce, issuer, audience, `azp`, expiry, `nbf`/`iat` skew, subject and company-claim checks: `central-sso-id-token.test.mjs`, `central-oidc-signin.test.mjs`, `central-sso-http.test.mjs`.
+- State mismatch, wrong audience and expired token: `central-sso-id-token.test.mjs` and `central-oidc-signin.test.mjs`.
+- Missing, revoked, ambiguous and cross-company links fail closed: `central-sso-account-resolver.test.mjs`, `central-sso-link-query.test.mjs`.
+- Feature flag off by default and enabled only by `CENTRAL_SSO_ENABLED=true`: `central-oidc-config.test.mjs`. Routes are mounted only when enabled (`mountCentralSso` in `server/routes/core/central-sso-routes.ts`).
+
+Owner-only, not done here:
+
+1. Verify against live Central (`Masterleeaus/Central` #25, #28, #29). Confirm the company claim name, the audience parameter (`audience` vs `resource`), and whether Central issues JWT access tokens. Live Central was not reached.
+2. Logout. No local logout route exists. Adding one touches the session gate and auth, so the owner must approve the design. Global logout parameters are also unconfirmed.
+3. Two-company isolation in integration tests needs `TEST_DATABASE_URL` against a real database. Run in CI or staging.
+4. Migrations `0018`, `0019`, `0025` are present. Apply only after the live schema check in the section above.
+5. The pending-login store is in memory for the single-process path. A shared store is needed before more than one instance.
+6. Rollback is `CENTRAL_SSO_ENABLED=false`. Staging run and any production cutover need the owner's sign-off.
