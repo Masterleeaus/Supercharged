@@ -103,9 +103,11 @@ export async function resumeFlowAutomationPilot(
   if (res.status === 'suspended') {
     return { status: 'suspended', completed, suspendedStep, approvalId: res.approvalId };
   }
-  if (res.status !== 'completed') {
-    const reason = res.status === 'refused' || res.status === 'failed' ? res.reason : res.status;
-    return { status: res.status === 'failed' ? 'failed' : 'refused', completed, failedStep: suspendedStep, reason };
+  if (res.status === 'refused') {
+    return { status: 'refused', completed, failedStep: suspendedStep, reason: res.reason };
+  }
+  if (res.status === 'failed') {
+    return { status: 'failed', completed, failedStep: suspendedStep, reason: res.reason };
   }
   completed.push(suspendedStep);
   return runFrom(steps, index + 1, completed, deps);
