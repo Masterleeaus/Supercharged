@@ -195,3 +195,20 @@ test('with telemetry disabled the tool still runs and no span is created', async
   toVoltAgentTools([bridge], { createTool: (o) => { execute = o.execute; }, telemetry: createTelemetry({ enabled: false }) });
   assert.deepEqual(await execute({ jobId: 'j1' }), { status: 'refused', reason: 'run_not_running' });
 });
+
+// ---- Governance guard (issue #375): the bridge and its adapter must reach tools only through the engine ----
+import { readFileSync } from 'node:fs';
+
+test('bridge modules import no registry or handler module, so the engine is the only route to a tool', () => {
+  const files = [
+    'server/integrations/voltagent/agents/bridge.ts',
+    'server/integrations/voltagent/agents/voltagent-tools.ts',
+  ];
+  for (const file of files) {
+    const source = readFileSync(new URL(`../../../${file}`, import.meta.url), 'utf8');
+    const specs = [...source.matchAll(/from\s+'([^']+)'/g)].map((m) => m[1]);
+    for (const spec of specs) {
+      assert.equal(/registry|handler/i.test(spec), false, `${file} imports ${spec}`);
+    }
+  }
+});
