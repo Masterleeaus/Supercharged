@@ -32,6 +32,17 @@ jobs:
       - run: npm ci
       - run: npm run build
 
+  licence-gate:
+    # VoltAgent R1 gate (issue #480): every merge must pass the licence auditor.
+    name: Licence gate (VoltAgent R1)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm run check:licence
+
   typecheck-required:
     # Gating, one job per area. Each area is checked on its own (scripts/typecheck-area.mjs);
     # whole-repo tsc is not run here. Add an area only after it prints 0 errors locally.
