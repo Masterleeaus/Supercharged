@@ -3,6 +3,8 @@
  * VoltAgent-style citation function. Chunk lookup and the tenant check stay in citation.ts.
  * This adapter only maps the output. Matching claims to source sentences is not done here.
  * The VoltAgent citation shape is written from docs and is NOT verified.
+ *
+ * Licence: original TitanZero code. It copies no Mastra or VoltAgent source. See source/mastra-apache-only/README.md.
  */
 import { attachCitations, type ChunkRecord, type Citation } from '../../../services/ai-runtime/citation.ts';
 import type { RetrievalResult } from '../../../services/ai-runtime/retrieval.ts';

@@ -7,6 +7,8 @@
  * and is NOT verified, so no call to it is made here.
  *
  * Disabled unless the voice flag is on. The disabled path returns a refusal and starts nothing.
+ *
+ * Licence: original TitanZero code. It copies no Mastra or VoltAgent source. See source/mastra-apache-only/README.md.
  */
 export interface VoiceTurn {
   companyId: string;

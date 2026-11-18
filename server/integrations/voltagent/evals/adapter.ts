@@ -8,6 +8,8 @@
  *
  * When evals are disabled (VOLTAGENT_EVALS_ENABLED is not "true") the adapter does
  * nothing and returns a skipped result without calling the evaluator.
+ *
+ * Licence: original TitanZero code. It copies no Mastra or VoltAgent source. See source/mastra-apache-only/README.md.
  */
 import {
   evaluateResponse,

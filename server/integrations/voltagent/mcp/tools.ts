@@ -8,6 +8,8 @@
  *
  * The MCP wire protocol is not implemented here. The VoltAgent @voltagent/mcp-server
  * API is not in the repo and is NOT verified.
+ *
+ * Licence: original TitanZero code. It copies no Mastra or VoltAgent source. See source/mastra-apache-only/README.md.
  */
 export type McpToolKind = 'read' | 'write';
 

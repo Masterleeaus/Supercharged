@@ -3,6 +3,8 @@
  *
  * VoltOps (VoltAgent's hosted console) must stay off. If either VoltOps key is
  * present in the environment, the server refuses to boot.
+ *
+ * Licence: original TitanZero code. It copies no Mastra or VoltAgent source. See source/mastra-apache-only/README.md.
  */
 const VOLTOPS_KEYS = ['VOLTAGENT_PUBLIC_KEY', 'VOLTAGENT_SECRET_KEY'] as const;
 
