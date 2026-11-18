@@ -83,6 +83,7 @@ const MIGRATIONS = [
   { file: '0025_central_link_nonces.sql', required: true },
   { file: '0026_website_widgets_company_id.sql', required: true },
   { file: '0027_comms_suppressions.sql', required: true },
+  { file: '0028_desk_app_companies_select.sql', required: true },
 ];
 
 const migrationPath = (file) => resolve(rootDir, 'migrations', file);
