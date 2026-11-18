@@ -111,7 +111,7 @@ test('a site with no registry entry is refused unsigned', async () => {
 
 test('forged signature is refused and the handler never runs', async () => {
   const { opts, calls } = makeOpts();
-  const res = await handleTzfdRequest(opts, signedRequest({ secret: 'WRONG-SECRET-0123456789-ABCDEFGHIJKLMNOP' }));
+  const res = await handleTzfdRequest(opts, signedRequest({ secret: 'z'.repeat(48) }));
   assert.equal(res.status, 401);
   assert.equal(calls.length, 0);
 });
