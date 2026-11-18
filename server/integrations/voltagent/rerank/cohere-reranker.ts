@@ -11,11 +11,14 @@
  *   code, never the key or the response body.
  * - Result indexes must be integers inside the document range, and scores must be finite numbers.
  *
- * The issue asks to port Mastra's Cohere reranker. The Mastra source is not in this repository, so this file is
- * written from the public Cohere rerank API shape: POST /v2/rerank with model, query, documents and top_n, and a
- * response with results[] of { index, relevance_score }. That shape is not verified against the live API here.
+ * Port source (attribution): mastra-ai/mastra, packages/rag/src/rerank/relevance/cohere/index.ts, licence Apache-2.0
+ * (Copyright (c) 2025 Kepler Software, Inc.), read at commit b9d38c73982210c6564ee8a33d992a238e29a20b. The endpoint
+ * (POST /v2/rerank), the default model, the Bearer header and the results[] { index, relevance_score } parsing follow it.
+ * Differences: this module reranks a whole document list in one call and not one document at a time, it returns
+ * indexes, and it checks every response field and throws fixed error codes. The Mastra file is not copied verbatim.
+ * The live Cohere API is not called from tests.
  *
- * Licence: original TitanZero code. See source/mastra-apache-only/README.md. No Mastra source is copied.
+ * Licence of this file: TitanZero code under the Apache-2.0 attribution above. See source/mastra-apache-only/README.md.
  */
 export type FetchLike = (url: string, init: { method: string; headers: Record<string, string>; body: string; signal?: AbortSignal }) => Promise<{
   ok: boolean;
