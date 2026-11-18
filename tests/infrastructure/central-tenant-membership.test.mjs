@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createMembershipGate,createSessionTenantResolver,MEMBERSHIP_SQL} from '../../server/infrastructure/central-sso/tenant-membership.ts';
+import {createMembershipGate,createSessionTenantResolver,MEMBERSHIP_SQL,MEMBERSHIP_TABLE} from '../../server/infrastructure/central-sso/tenant-membership.ts';
 
 const companyA='00000000-0000-4000-8000-00000000000a';
 const companyB='00000000-0000-4000-8000-00000000000b';
@@ -63,6 +63,11 @@ test('unmapped org, bad identifiers and erroring lookups fail closed',async()=>{
  assert.equal(await broken(companyA,'u1'),false);
  const r2=createSessionTenantResolver({resolveCompanyForOrg:async()=>{throw new Error('x')},hasActiveMembership:async()=>true});
  assert.equal(await r2({orgClaim:'org_alpha',userId:'u1'}),null);
+});
+
+test('membership gate reads the table created by migration 0017',async()=>{
+ assert.equal(MEMBERSHIP_TABLE,'user_company_memberships');
+ assert.match(MEMBERSHIP_SQL,/FROM user_company_memberships\b/);
 });
 
 test('membership check is parameterised and tenant-scoped',async()=>{

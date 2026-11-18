@@ -1,12 +1,11 @@
 /** Resolves the company for a Central session from the verified org claim and a live membership row.
  * Issue #195. Central owns membership; Supercharged keeps a tenant key on its own rows.
- * Depends on the company_memberships table (migration 0016, on claude/workforce-security). Lane B
- * (claude/lane-B-tenancy) has no membership table yet; reconcile the name when lane B lands.
+ * Reads the user_company_memberships table created by migration 0017 (user_id, company_id).
  * Fail closed: any missing, revoked, unmapped or erroring lookup returns null.
  */
 import {isCompanyId} from '../database/tenant-context.ts';
 
-export const MEMBERSHIP_TABLE='company_memberships';
+export const MEMBERSHIP_TABLE='user_company_memberships';
 export const MEMBERSHIP_SQL=`SELECT 1 FROM ${MEMBERSHIP_TABLE} WHERE company_id = $1::uuid AND user_id = $2 LIMIT 1`;
 
 const ID_RE=/^[^\s\x00-\x1f\x7f]{1,256}$/u;
