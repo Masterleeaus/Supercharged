@@ -29,7 +29,6 @@ export const AREAS = {
   'server/lib': 'server/lib',
   'server/infrastructure': 'server/infrastructure',
   'server/storage': 'server/storage',
-  'server/types': 'server/types',
   'server/plugins': 'server/plugins',
   'server/integrations': 'server/integrations',
   'server/demo-mode': 'server/demo-mode',
