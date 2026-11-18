@@ -99,3 +99,50 @@ TENANT_PG_DISPOSABLE=true TEST_DATABASE_URL=postgres://postgres:<pw>@127.0.0.1:5
 ```
 
 The issue text names `TEST_DATABASE_URL`, and the repo uses `DESK_TEST_DATABASE_URL` for one older test. The recovery test reads `TEST_DATABASE_URL` first and falls back to `TENANT_PG_INTEGRATION_URL`, so the CI job works without a new secret.
+
+## Single database: pool, role, and enforcement (issue #252)
+
+### Connection pool
+
+One pg pool serves the whole app (`server/db.ts`). Settings in code today:
+
+- `max`: 20 connections
+- `idleTimeoutMillis`: 30000
+- `connectionTimeoutMillis`: 10000
+
+Each `withTenant()` call takes one connection from this pool and holds it for one
+transaction, then releases it. So the number of tenant transactions running at once
+cannot exceed `max`. Size `max` against the Postgres server's `max_connections`
+minus what other services use.
+
+### Restricted role and environment
+
+- `DATABASE_URL`: the login role the app connects as. Tenant queries do not stay on
+  this role: `withTenant()` switches to `DESK_APP_DB_ROLE` for the transaction.
+- `DESK_APP_DB_ROLE`: the restricted role `withTenant()` switches to with
+  `SET LOCAL ROLE`. Defaults to `desk_app`. Leave it unset for the default. An empty
+  value is refused (the role name must be a plain lower-case identifier), so do not
+  set it to an empty string.
+- The login role needs `GRANT desk_app TO <login role>` so the switch is allowed.
+
+### Session to company
+
+`resolveSessionCompany()` (`server/infrastructure/database/session-company.ts`) is the
+rule for a session's company. Zero companies, or two or more distinct companies, gives
+null, so `requireCompanyScope()` refuses. Malformed ids are ignored. Test:
+`tests/infrastructure/session-company.test.mjs`.
+
+Open: `lookupParentCompanyId()` still reads `users.company_id`, not the membership table,
+so this rule is not yet on the live login or team-member path.
+
+### Enforcement check
+
+The check is `tests/infrastructure/withtenant-bypass-ratchet.test.mjs`. It lists every
+server `.ts` file that imports the db handle or a pg pool and does not mention
+`withTenant`. A new file on that list fails the test. The known bypasses are in
+`tests/infrastructure/withtenant-bypass-baseline.json` and must be converted, one by
+one, before they are removed from the baseline.
+
+Known limit: the check matches text. A file that only mentions `withTenant` in a comment
+passes. A lint rule that forbids the pool import outside `server/infrastructure/database/`
+is not yet in place.
