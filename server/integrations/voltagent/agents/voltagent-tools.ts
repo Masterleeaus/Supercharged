@@ -23,6 +23,20 @@ import type { BridgeOutcome, BridgeToolSpec, VoltAgentToolLike } from './bridge.
 import type { Telemetry } from '../../../infrastructure/telemetry/index.ts';
 
 export const TOOL_CALL_SPAN_NAME = 'voltagent.tool.call';
+export const AGENT_RUN_SPAN_NAME = 'voltagent.agent.run';
+
+/**
+ * Runs one agent run inside an 'voltagent.agent.run' span. The caller passes only ids and counts as attributes,
+ * never prompts or model output. Without telemetry, or with telemetry disabled, fn runs unchanged.
+ */
+export async function runAgentTraced<T>(
+  telemetry: Telemetry | undefined,
+  attrs: { role_id: string; run_id: string },
+  fn: () => Promise<T>,
+): Promise<T> {
+  if (!telemetry) return fn();
+  return telemetry.withSpan(AGENT_RUN_SPAN_NAME, { ...attrs }, async () => fn());
+}
 
 export type CreateToolFn<T> = (options: {
   name: string;
