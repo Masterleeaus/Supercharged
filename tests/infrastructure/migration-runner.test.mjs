@@ -84,7 +84,8 @@ test('runner exits nonzero on a missing required file before connecting to the d
 });
 
 test('every committed numbered migration is registered, or is a known exclusion', () => {
-  const committed = readdirSync(new URL('migrations/', ROOT)).filter((f) => f.endsWith('.sql'));
+  // Reversal scripts (*.down.sql) are never run by the runner; they are checked by their own tests.
+  const committed = readdirSync(new URL('migrations/', ROOT)).filter((f) => f.endsWith('.sql') && !f.endsWith('.down.sql'));
   const registered = new Set(entries.map((e) => e.file));
   const unexplained = committed.filter((f) => !registered.has(f) && !NOT_RUN_BY_RUNNER.has(f) && !f.startsWith('DRAFT_'));
   assert.deepEqual(unexplained, [], `committed migrations not registered: ${unexplained.join(', ')}`);
