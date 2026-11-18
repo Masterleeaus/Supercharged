@@ -11,7 +11,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { ConnectorDefinition } from '../sdk/contract.ts';
 
-export const LEAD_SOURCES = ['web_form', 'widget'] as const;
+export const LEAD_SOURCES = ['web_form', 'widget', 'google_business_profile'] as const;
 export type LeadSource = (typeof LEAD_SOURCES)[number];
 
 export interface CanonicalLead {
