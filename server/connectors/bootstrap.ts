@@ -18,6 +18,8 @@ import { createCalendlyConnector } from './calendar/calendly.ts';
 import { createTwilioConnector } from './twilio/index.ts';
 import type { ConnectorDefinition } from './sdk/contract.ts';
 import { createConnectorRegistry, type ConnectorRegistry, type SettingsStore } from './registry.ts';
+import { createWebFormConnector } from './leads/lead-intake.ts';
+import { createTelegramConnector } from './telegram/index.ts';
 
 /** Directories, relative to the repository root, that hold connector manifests. */
 export const CONNECTOR_MANIFEST_DIRS: readonly string[] = [
@@ -62,6 +64,8 @@ export function createConnectorImplementations(deps: ImplementationDeps): Map<st
     createOutlookCalendarConnector({ http: deps.http }),
     createCalendlyConnector({ http: deps.http }),
     createTwilioConnector({ fetchImpl: deps.fetch }),
+    createWebFormConnector(),
+    createTelegramConnector(),
   ];
   for (const def of others) implementations.set(def.id, def);
   return implementations;
