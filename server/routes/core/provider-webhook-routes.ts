@@ -2,7 +2,7 @@ import type { Express, Request, Response } from "express";
 import { validateTwilioWebhook } from "../../middleware/webhookValidation";
 import { handleTwilioVoiceWebhook, handleIncomingCallWebhook, handleTwilioStatusWebhook, handleTwilioRecordingWebhook, handleFlowVoiceAnswer, handleFlowNode, handleFlowGather, handleFlowContinue, handleFlowStatus, handleElevenLabsWebhook, handleRAGToolWebhook, handleAppointmentToolWebhook, handleFormSubmissionWebhook, handlePlayAudioToolWebhook } from "../../routes/webhook-routes";
 import { getDomain } from "../../utils/domain";
-import { validateAppointmentWebhookToken } from "../../services/appointment-elevenlabs-tool";
+import { APPOINTMENT_WEBHOOK_SECRET_HEADER, authenticateAppointmentRequest, getAppointmentWebhookSecret } from "../../services/appointment-elevenlabs-tool";
 import { createProviderWebhookRateLimit, readTwilioAccountSid, TWILIO_ACCOUNT_SID_PATTERN } from "../../middleware/provider-webhook-rate-limit";
 
 export function registerProviderWebhookRoutes(app: Express): void {
@@ -51,8 +51,8 @@ export function registerProviderWebhookRoutes(app: Express): void {
   // audioUrl is validated before the handler runs: https only, parsed with URL, host must be this app's own
   // domain (no external or private/loopback hosts). Relative paths resolve against the own domain.
   // Protected by the same URL-token mechanism as the appointment tool (validateAppointmentWebhookToken).
-  app.post("/api/elevenlabs/tools/play-audio/:token/:agentId", (req: Request, res: Response, next: () => void) => {
-    if (!validateAppointmentWebhookToken(req.params.token)) {
+  const playAudioAuthorize = (req: Request, res: Response, next: () => void) => {
+    if (!isAppointmentToolAuthorized(req)) {
       res.status(401).json({ success: false, error: "Unauthorized: Invalid authentication token" });
       return;
     }
@@ -94,5 +94,26 @@ export function registerProviderWebhookRoutes(app: Express): void {
       return;
     }
     next();
-  }, handlePlayAudioToolWebhook);
+  };
+  // Secret in the X-Appointment-Webhook-Secret header (issue #343). The token path route is kept only as a
+  // time-bounded bridge and answers 401 unless APPOINTMENT_WEBHOOK_ALLOW_URL_TOKEN="true".
+  app.post("/api/elevenlabs/tools/play-audio/:agentId", playAudioAuthorize, handlePlayAudioToolWebhook);
+  app.post("/api/elevenlabs/tools/play-audio/:token/:agentId", playAudioAuthorize, handlePlayAudioToolWebhook);
+}
+
+/**
+ * Header-first check for appointment-family tool calls. The path token counts only while the legacy
+ * URL-token flag allows it (see authenticateAppointmentRequest). Fails closed when no secret is configured.
+ */
+function isAppointmentToolAuthorized(req: Request): boolean {
+  let secret: string;
+  try {
+    secret = getAppointmentWebhookSecret();
+  } catch {
+    return false;
+  }
+  return authenticateAppointmentRequest(
+    { headerToken: req.get(APPOINTMENT_WEBHOOK_SECRET_HEADER), pathToken: req.params.token },
+    secret,
+  ).ok;
 }

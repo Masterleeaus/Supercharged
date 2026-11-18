@@ -816,7 +816,7 @@ function createMessagingWhatsAppHandler(
       }
 
       const { getDomain } = await import('../../utils/domain');
-      const { getAppointmentWebhookSecret } = await import('../../services/appointment-elevenlabs-tool');
+      const { getAppointmentWebhookSecret, APPOINTMENT_WEBHOOK_SECRET_HEADER } = await import('../../services/appointment-elevenlabs-tool');
       const domain = getDomain();
       const secret = getAppointmentWebhookSecret();
 
@@ -828,11 +828,11 @@ function createMessagingWhatsAppHandler(
 
       const elAgentId = agent?.elevenLabsAgentId || agentId;
       const queryParams = callId ? `?callId=${encodeURIComponent(callId)}` : '';
-      const webhookUrl = `${domain}/api/webhooks/messaging/send-whatsapp/${secret}/${elAgentId}${queryParams}`;
+      const webhookUrl = `${domain}/api/webhooks/messaging/send-whatsapp/${elAgentId}${queryParams}`;
 
       const response = await fetch(webhookUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', [APPOINTMENT_WEBHOOK_SECRET_HEADER]: secret },
         body: JSON.stringify({
           phone_number: phoneNumber,
           template_name: template,

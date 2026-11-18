@@ -15,7 +15,7 @@ import { Request } from "express";
 import { ExternalServiceError } from '../utils/errors';
 import { withServiceErrorHandling, wrapServiceError } from '../utils/service-error-wrapper';
 import { getCorrelationHeaders } from '../middleware/correlation-id';
-import { getAppointmentToolForAgent, getAppointmentWebhookSecret } from './appointment-elevenlabs-tool';
+import { APPOINTMENT_WEBHOOK_SECRET_HEADER, getAppointmentToolForAgent, getAppointmentWebhookSecret } from './appointment-elevenlabs-tool';
 import { getDomain } from '../utils/domain';
 import { sanitizeLlmModel } from '../utils/llm-sanitize';
 
@@ -185,7 +185,7 @@ export async function isAgentOnSipPhoneNumber(agentId: string): Promise<boolean>
 export function buildCollectCallerEmailTool(elevenLabsAgentId: string): ElevenLabsWebhookToolDefinition {
   const domain = getDomain();
   const secret = getAppointmentWebhookSecret();
-  const webhookUrl = `${domain}/api/webhooks/messaging/collect-email/${secret}/${elevenLabsAgentId}`;
+  const webhookUrl = `${domain}/api/webhooks/messaging/collect-email/${elevenLabsAgentId}`; // secret in header, not URL (issue #343)
   const agentIdSuffix = elevenLabsAgentId.slice(-8);
 
   return {
@@ -195,7 +195,7 @@ export function buildCollectCallerEmailTool(elevenLabsAgentId: string): ElevenLa
     api_schema: {
       url: webhookUrl,
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", [APPOINTMENT_WEBHOOK_SECRET_HEADER]: secret },
       request_body_schema: {
         type: "object",
         properties: {
@@ -217,7 +217,7 @@ export function buildCollectCallerEmailTool(elevenLabsAgentId: string): ElevenLa
 export function buildMessagingEmailTool(elevenLabsAgentId: string, templateNames: string[], selectedTemplate?: string): ElevenLabsWebhookToolDefinition {
   const domain = getDomain();
   const secret = getAppointmentWebhookSecret();
-  const webhookUrl = `${domain}/api/webhooks/messaging/send-email/${secret}/${elevenLabsAgentId}`;
+  const webhookUrl = `${domain}/api/webhooks/messaging/send-email/${elevenLabsAgentId}`; // secret in header, not URL (issue #343)
   const agentIdSuffix = elevenLabsAgentId.slice(-8);
 
   let templateInstruction: string;
@@ -236,7 +236,7 @@ export function buildMessagingEmailTool(elevenLabsAgentId: string, templateNames
     api_schema: {
       url: webhookUrl,
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", [APPOINTMENT_WEBHOOK_SECRET_HEADER]: secret },
       request_body_schema: {
         type: "object",
         properties: {
@@ -268,7 +268,7 @@ export function buildMessagingEmailTool(elevenLabsAgentId: string, templateNames
 export function buildMessagingWhatsappTool(elevenLabsAgentId: string, templateNames: string[], selectedTemplate?: string, variableConfig?: string, preToolSpeech?: string): ElevenLabsWebhookToolDefinition {
   const domain = getDomain();
   const secret = getAppointmentWebhookSecret();
-  const webhookUrl = `${domain}/api/webhooks/messaging/send-whatsapp/${secret}/${elevenLabsAgentId}`;
+  const webhookUrl = `${domain}/api/webhooks/messaging/send-whatsapp/${elevenLabsAgentId}`; // secret in header, not URL (issue #343)
   const agentIdSuffix = elevenLabsAgentId.slice(-8);
 
   let templateInstruction: string;
@@ -305,7 +305,7 @@ export function buildMessagingWhatsappTool(elevenLabsAgentId: string, templateNa
     api_schema: {
       url: webhookUrl,
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", [APPOINTMENT_WEBHOOK_SECRET_HEADER]: secret },
       request_body_schema: {
         type: "object",
         properties: {
