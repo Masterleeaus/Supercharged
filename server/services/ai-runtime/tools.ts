@@ -35,6 +35,7 @@ export type ToolErrorCode =
   | 'tool_handler_not_found'
   | 'tool_permission_denied'
   | 'tool_input_invalid'
+  | 'tool_approval_required'
   | 'tool_timed_out'
   | 'tool_failed';
 
@@ -44,6 +45,11 @@ export interface ToolContext {
   /** The acting user. Passed to the permission check, never to the handler. */
   user?: unknown;
   dryRun?: boolean;
+  /**
+   * Set by the server after a person has confirmed a sensitive action. It is read only from this
+   * context object, never from tool params, so model output cannot grant its own approval.
+   */
+  approved?: boolean;
 }
 
 export interface ToolHandlerCall {
@@ -57,6 +63,8 @@ export interface ToolDefinition {
   handler: ToolHandler;
   /** Field name to rules string, for example { email: 'required|string' }. Only `required` is enforced, as in TitanPro. */
   input_schema?: Record<string, string>;
+  /** When true, the handler runs only if the context carries `approved: true`. Dry runs are still allowed. */
+  requires_approval?: boolean;
 }
 
 export type ToolManifest = Record<string, ToolDefinition>;
@@ -217,7 +225,13 @@ export class ToolExecutor {
       };
     }
 
-    // 6. Timed execution
+    // 6. Approval for sensitive actions. Checked after the dry run, which has no side effects.
+    if (definition.requires_approval === true && ctx.approved !== true) {
+      await record('blocked', 'tool_approval_required');
+      return refuse('tool_approval_required', 'This action needs approval before it runs.');
+    }
+
+    // 7. Timed execution
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
     const timeout = new Promise<never>((_, reject) => {
@@ -243,7 +257,7 @@ export class ToolExecutor {
       if (timer !== undefined) clearTimeout(timer);
     }
 
-    // 7. Audit exactly once per attempt
+    // 8. Audit exactly once per attempt
     if (outcome.ok === true) {
       await record('success', null);
       const raw = outcome.raw;
