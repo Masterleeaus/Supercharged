@@ -11,7 +11,7 @@
  *   - user_sip_phone_numbers  : custom phone numbers linked to a gateway
  */
 
-import { Router, Response } from 'express';
+import { Router, type Response } from 'express';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { authenticateToken, type AuthRequest } from '../middleware/auth';
