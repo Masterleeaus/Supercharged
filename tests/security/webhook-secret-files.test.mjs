@@ -38,10 +38,12 @@ test('.gitignore blocks both secret files', () => {
 test('appointment and RAG loaders read the environment before any file', () => {
   const appt = read('server/services/appointment-elevenlabs-tool.ts');
   assert.match(appt, /env\.APPOINTMENT_WEBHOOK_SECRET\b[\s\S]{0,80}return env\.APPOINTMENT_WEBHOOK_SECRET/);
-  const rag = read('server/services/rag-elevenlabs-tool.ts');
-  const envIdx = rag.indexOf('process.env.RAG_WEBHOOK_SECRET');
-  const fileIdx = rag.indexOf('PERSISTED_SECRET_PATH', envIdx);
+  const rag = read('server/services/rag-webhook-secret.ts');
+  const envIdx = rag.indexOf('env.RAG_WEBHOOK_SECRET');
+  const fileIdx = rag.indexOf('secretPath', envIdx);
   assert.ok(envIdx >= 0 && fileIdx > envIdx, 'RAG loader must check RAG_WEBHOOK_SECRET before the secret file');
+  assert.doesNotMatch(rag, /writeFileSync/, 'RAG loader must never write a secret to disk');
+  assert.doesNotMatch(rag, /JWT_SECRET/, 'RAG loader must never derive its secret from JWT_SECRET');
 });
 
 test('the PR secret scan (gitleaks) is a gating job in pr-checks', () => {
