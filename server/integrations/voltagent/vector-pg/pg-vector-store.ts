@@ -5,8 +5,8 @@
  * cannot return another company's or another user's rows, even when a filter is supplied. Filters apply
  * only to the jsonb metadata column.
  *
- * The database handle is injected. It needs one method, query(text, params) returning { rows }, which pg.Pool
- * provides. Nothing here opens a connection.
+ * The database handle is injected. It needs one method, query(text, params) returning { rows }, which the pg
+ * package's Pool provides. Nothing here opens a connection.
  *
  * Gate G7 (EXPLAIN plan) is checked by tests/integrations/voltagent/vector-pg.test.mjs against a real Postgres
  * with pgvector. Cosine distance (<=>) is used, so the vector_cosine_ops HNSW index applies.

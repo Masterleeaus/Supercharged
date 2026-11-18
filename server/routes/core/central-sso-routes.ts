@@ -16,7 +16,7 @@ import { createDeskCentralLinkQuery } from "../../infrastructure/central-sso/lin
 import { createCentralSignIn } from "../../infrastructure/central-sso/sign-in.ts";
 import { createCentralSsoHandlers, CALLBACK_PATH, START_PATH, type SsoRequest, type SsoResponse } from "../../infrastructure/central-sso/http-handlers.ts";
 import { createRefreshTokenData, generateShortAccessToken, setRefreshTokenCookie } from "../../middleware/auth";
-import { isCompanyId } from "../../infrastructure/database/tenant-context.ts";
+import { isCompanyId, withTenant } from "../../infrastructure/database/tenant-context.ts";
 import { logger } from "../../utils/logger";
 
 export function mountCentralSso(app: Express, config: CentralSsoConfig = loadCentralSsoConfig(process.env)): boolean {
@@ -47,7 +47,9 @@ export function mountCentralSso(app: Express, config: CentralSsoConfig = loadCen
     queryLink: createDeskCentralLinkQuery(pool),
     resolveCompanyBinding: async (companyId: string) => {
       if (!isCompanyId(companyId)) return null;
-      const rows = await pool.query("SELECT id FROM companies WHERE id = $1::uuid LIMIT 1", [companyId]);
+      const rows = await withTenant(pool, companyId, (client) =>
+        client.query("SELECT id FROM companies WHERE id = $1::uuid LIMIT 1", [companyId]),
+      );
       return rows.rows.length === 1 ? companyId : null;
     },
   });
