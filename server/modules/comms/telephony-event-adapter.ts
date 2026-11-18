@@ -103,8 +103,8 @@ export async function processTelephonyEvent<T>(
   handle: () => Promise<T>,
 ): Promise<{ accepted: true; result: T } | { accepted: false; reason: TelephonyRefusal }> {
   const verdict = verifyTelephonyEvent(input, deps);
-  if (!verdict.accepted) {
-    return verdict;
+  if (verdict.accepted === false) {
+    return { accepted: false, reason: verdict.reason };
   }
   try {
     const result = await handle();
