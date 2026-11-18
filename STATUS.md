@@ -144,3 +144,6 @@ Date: 18 November 2026. Phase 0 only. Nothing is mounted and no flag is on.
 - [verified] VoltOps guard: assertNoVoltOpsKeys throws if VOLTAGENT_PUBLIC_KEY or VOLTAGENT_SECRET_KEY is set. Wired as the first call in server/index.ts. Boot itself was not run, so the wiring is [untested] at boot.
 - [verified] Flag scaffold: nine VOLTAGENT_* flags, all OFF by default, nothing mounted. Tests pass.
 - [verified] Licence gate: scripts/check-voltagent-licence.mjs, run as npm run check:licence. Passes with no /ee/ paths and no @mastra imports.
+
+- 2026-11-18 [#391] VoltAgent integration record: R1 gate defined; main 123/123 narrow tests pass; no workstream additions integrated (see docs/generated/voltagent-integration-391.md).
+- 2026-11-18 [#391] Integration: R1 gate defined; W2 approval step integrated with 13 tests; W13 harness test rewritten against main; main 123/123 and branch 145/145 narrow tests pass. W3, W4, W7 not integrated; W8, W10 no spec. See docs/generated/voltagent-integration-391.md.
