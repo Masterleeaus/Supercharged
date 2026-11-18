@@ -5,7 +5,7 @@
   "auth": "oauth2",
   "entities": ["contact", "job", "quote", "invoice"],
   "requiredScopes": ["clients_read", "clients_write", "jobs_read", "jobs_write", "quotes_read", "invoices_read"],
-  "webhookEvents": ["CLIENT_CREATE", "INVOICE_UPDATE"],
+  "webhookEvents": ["CLIENT_CREATE", "JOB_UPDATE", "INVOICE_UPDATE"],
   "configSchema": {},
   "featureFlag": "connector_jobber"
 }
