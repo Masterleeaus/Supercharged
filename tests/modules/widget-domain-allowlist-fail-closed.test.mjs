@@ -76,7 +76,7 @@ test("session-start checks observed domain before credit or session allocation",
   );
   assert.match(
     sessionRoute,
-    /visitorDomain: requestDomain \|\| \(typeof visitorDomain === 'string'/,
+    /visitorDomain: requestDomain \|\| claimedDomain/,
     "persist observed domain ahead of the caller-supplied body claim"
   );
 });

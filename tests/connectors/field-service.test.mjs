@@ -76,7 +76,9 @@ test('manifests are discovered, matched to implementations and gated by feature 
   assert.deepEqual(on.registered().map((r) => r.manifest.id).sort(), ['jobber', 'servicem8']);
   const off = registryMod.createConnectorRegistry({ discovery: found, implementations: impls, isFlagOn: () => false, settings: registryMod.createMemorySettingsStore() });
   assert.equal(off.registered().length, 0);
-  assert.ok(off.skipped().every((s) => s.reason === 'feature flag off'));
+  // Only the field-service manifests are built from these implementations; the others are checked by the bootstrap test.
+  const fieldService = new Set(['jobber', 'servicem8']);
+  assert.ok(off.skipped().filter((s) => fieldService.has(s.id)).every((s) => s.reason === 'feature flag off'));
 });
 
 test('Jobber webhook signature: accepts the HMAC of the raw body and rejects anything else', () => {

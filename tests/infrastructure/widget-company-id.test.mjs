@@ -29,13 +29,13 @@ test('migration 0026 documents its rollback', () => {
   assert.match(sql, /ALTER TABLE website_widgets DROP COLUMN IF EXISTS company_id;/);
 });
 
-test('runner and journal register 0026 as the last entry, after 0024', () => {
+test('runner and journal register 0026 after 0025, before the later 0027 entry', () => {
   assert.match(runner, /\{ file: '0026_website_widgets_company_id\.sql', required: true \}/);
   const tags = journal.entries.map((e) => e.tag);
-  const i24 = tags.indexOf('0024_inbox_tenant_rls');
-  assert.ok(i24 >= 0, '0024 is in the journal');
-  assert.equal(tags[i24 + 1], '0026_website_widgets_company_id');
-  assert.equal(tags.length, i24 + 2, '0026 is the last journal entry');
+  const i25 = tags.indexOf('0025_central_link_nonces');
+  assert.ok(i25 >= 0, '0025 is in the journal');
+  assert.equal(tags[i25 + 1], '0026_website_widgets_company_id');
+  assert.equal(tags[i25 + 2], '0027_comms_suppressions', '0027 follows 0026');
 });
 
 test('createWidget sets company_id from the server-side owner, after the request spread', () => {

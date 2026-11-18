@@ -169,7 +169,7 @@ export function validatePack(input: unknown): { ok: true; pack: Pack } | { ok: f
   for (const t of pack.messageTemplates) {
     if (t.channel === 'sms' && t.subject !== null) errors.push(`template ${t.id}: sms has no subject`);
     for (const m of t.body.matchAll(/\{\{(\w+)\}\}/g)) {
-      if (!ALLOWED_PLACEHOLDERS.includes(m[1])) errors.push(`template ${t.id} uses unknown placeholder ${m[1]}`);
+      if (!(ALLOWED_PLACEHOLDERS as readonly string[]).includes(m[1])) errors.push(`template ${t.id} uses unknown placeholder ${m[1]}`);
     }
   }
   const serviceIds = new Set(pack.services.map((s) => s.id));
