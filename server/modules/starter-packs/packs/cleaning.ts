@@ -1,6 +1,6 @@
 // Cleaning starter pack (#362). Agent roles come from the workforce catalogue (cleaning-*).
-// Services and questions follow the cleaning verticals (residential, bond and end-of-lease,
-// office). No prices: the company sets its own rates.
+// Services and questions follow the cleaning verticals (residential #137, office #138, bond and
+// end-of-lease #139). No prices: the company sets its own rates.
 import type { Pack } from '../pack.schema.ts';
 
 export const cleaningPack: Pack = {

@@ -1,5 +1,5 @@
 // Handyman starter pack (#362). Agent roles come from the workforce catalogue (handyman-*).
-// Services follow the handyman vertical: callouts, small repairs and fixture installs.
+// Services follow the handyman verticals (#155, #159): callouts, small repairs and fixture installs.
 // No prices: the company sets its own rates.
 import type { Pack } from '../pack.schema.ts';
 

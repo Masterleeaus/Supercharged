@@ -1,5 +1,5 @@
 // Garden maintenance starter pack (#362). Agent roles come from the workforce catalogue (garden-*).
-// Services follow the garden vertical: mowing, clean-ups, hedge trimming and mulch.
+// Services follow the garden verticals (#164, #165): mowing, clean-ups, hedge trimming and mulch.
 // No prices: the company sets its own rates.
 import type { Pack } from '../pack.schema.ts';
 
