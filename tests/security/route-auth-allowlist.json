@@ -82,6 +82,14 @@
       "approvedBy": "owner approved 2026-11-18 (issue #320)"
     },
     {
+      "file": "server/routes/core/provider-webhook-routes.ts",
+      "receiver": "app",
+      "method": "POST",
+      "path": "/api/elevenlabs/tools/play-audio/:agentId",
+      "reason": "Provider webhook (issue #343): X-Appointment-Webhook-Secret header checked inside the handler by isAppointmentToolAuthorized (constant-time compare; 401 on failure; fail closed when no secret is configured). Same pattern as the owner-approved appointment header route. No secret in the path.",
+      "approvedBy": "pending owner sign-off (issue #343)"
+    },
+    {
       "file": "server/routes/core/stream-widget-routes.ts",
       "receiver": "app",
       "method": "GET",

@@ -21,7 +21,7 @@
 
 import { logger } from '../utils/logger';
 import { getDomain } from '../utils/domain';
-import { getAppointmentWebhookSecret } from './appointment-elevenlabs-tool';
+import { APPOINTMENT_WEBHOOK_SECRET_HEADER, getAppointmentWebhookSecret } from './appointment-elevenlabs-tool';
 
 export interface PlayAudioNodeInfo {
   nodeId: string;
@@ -64,14 +64,15 @@ export function getPlayAudioWebhookTool(
 ): PlayAudioWebhookToolConfig {
   const domain = getDomain();
   const secret = getAppointmentWebhookSecret();
-  const webhookUrl = `${domain}/api/elevenlabs/tools/play-audio/${encodeURIComponent(secret)}/${elevenLabsAgentId}`;
+  // The secret travels in the auth header, never in the URL (issue #343).
+  const webhookUrl = `${domain}/api/elevenlabs/tools/play-audio/${elevenLabsAgentId}`;
 
   const toolName = `play_audio_${nodeId.slice(-8)}`;
 
   logger.info(`🔊 [PlayAudio Tool] Creating webhook tool for agent ${elevenLabsAgentId}`);
   logger.info(`   Tool name: ${toolName}`);
   logger.info(`   Audio URL: ${audioUrl}`);
-  logger.info(`   Webhook URL: ${domain}/api/elevenlabs/tools/play-audio/[REDACTED]/${elevenLabsAgentId}`);
+  logger.info(`   Webhook URL: ${webhookUrl}`);
   
   return {
     type: "webhook",
@@ -81,7 +82,8 @@ export function getPlayAudioWebhookTool(
       url: webhookUrl,
       method: "POST",
       headers: {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        [APPOINTMENT_WEBHOOK_SECRET_HEADER]: secret
       },
       request_body_schema: {
         type: "object",
