@@ -8,6 +8,7 @@
  */
 import { readFileSync } from 'node:fs';
 import pg from 'pg';
+import { ensureWebsiteWidgetsStub } from '../tests/postgres/support/website-widgets-stub.mjs';
 
 const MIGRATIONS = [
   new URL('../migrations/0010c_chatbot.sql', import.meta.url),
@@ -39,9 +40,8 @@ export async function prepareTenantPostgres(connectionString) {
     try {
       // Test-only stub so the membership foreign key has a target. Not created when the real table exists.
       await client.query('CREATE TABLE IF NOT EXISTS users (id varchar PRIMARY KEY)');
-      // Test-only stub so 0026 can ALTER website_widgets. The base schema (0000) is not applied in this job.
-      // Not created when the real table exists. Columns match what 0026 reads: id, user_id.
-      await client.query('CREATE TABLE IF NOT EXISTS website_widgets (id varchar PRIMARY KEY, user_id varchar)');
+      // Test-only stub so 0026 can ALTER website_widgets. The DDL lives in tests/ (see the helper).
+      await ensureWebsiteWidgetsStub(client);
       for (const file of MIGRATIONS) await client.query(readFileSync(file, 'utf8'));
       await client.query('GRANT USAGE ON SCHEMA public TO desk_app');
       await client.query('GRANT SELECT, INSERT, UPDATE, DELETE ON company_quiet_hours TO desk_app');
