@@ -19,6 +19,16 @@ const MIGRATIONS = [
   new URL('../migrations/0026_website_widgets_company_id.sql', import.meta.url),
 ];
 
+// The base schema (0000) is not applied in this job. website_widgets is defined only there, so take
+// that one statement from the base migration unchanged. 0026 then adds company_id to it.
+const BASE_SCHEMA = new URL('../migrations/0000_damp_spectrum.sql', import.meta.url);
+export function websiteWidgetsDefinition(baseSql = readFileSync(BASE_SCHEMA, 'utf8')) {
+  const statements = baseSql.split(/-->\s*statement-breakpoint/).map((s) => s.trim());
+  const found = statements.filter((s) => /^CREATE\s/.test(s) && s.includes('"website_widgets" ('));
+  if (found.length !== 1) throw new Error(`expected one website_widgets definition in 0000, found ${found.length}`);
+  return found[0];
+}
+
 export async function prepareTenantPostgres(connectionString) {
   if (process.env.TENANT_PG_DISPOSABLE !== 'true') {
     throw new Error('Tenant PostgreSQL fixture requires TENANT_PG_DISPOSABLE=true');
@@ -39,6 +49,7 @@ export async function prepareTenantPostgres(connectionString) {
     try {
       // Test-only stub so the membership foreign key has a target. Not created when the real table exists.
       await client.query('CREATE TABLE IF NOT EXISTS users (id varchar PRIMARY KEY)');
+      await client.query(websiteWidgetsDefinition());
       for (const file of MIGRATIONS) await client.query(readFileSync(file, 'utf8'));
       await client.query('GRANT USAGE ON SCHEMA public TO desk_app');
       await client.query('GRANT SELECT, INSERT, UPDATE, DELETE ON company_quiet_hours TO desk_app');
