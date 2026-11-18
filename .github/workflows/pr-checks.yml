@@ -19,6 +19,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+      # Issue #15: record the explicit-any baseline on every PR (count only, never fails).
+      - name: Record explicit any baseline
+        run: node scripts/check-any-ratchet.mjs --count | tee -a "$GITHUB_STEP_SUMMARY"
 
   build:
     name: Build
