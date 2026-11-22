@@ -37,9 +37,9 @@ function baseAttrs(companyId: unknown, runId: unknown): SpanAttributes {
 
 /** Sets the outcome on the span. A refused call also carries the engine's fixed reason code. */
 function settle(span: TelemetrySpan, result: RunResult, okOutcome: string): void {
-  const attrs: SpanAttributes = result.ok
-    ? { outcome: okOutcome }
-    : { outcome: 'rejected', refusal_code: String(result.reason) };
+  const attrs: SpanAttributes = 'reason' in result
+    ? { outcome: 'rejected', refusal_code: String(result.reason) }
+    : { outcome: okOutcome };
   span.setAttributes(attrs);
 }
 
