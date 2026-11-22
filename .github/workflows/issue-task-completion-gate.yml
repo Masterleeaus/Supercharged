@@ -46,8 +46,8 @@ jobs:
               await github.rest.issues.createComment({
                 owner, repo, issue_number: number,
                 body: tasks.length === 0
-                  ? 'Issue reopened automatically: add a Markdown task checklist, verify every task, and tick every checkbox before closing.'
-                  : 'Issue reopened automatically: ' + remaining + ' of ' + tasks.length + ' tasks remain unchecked. Verify and complete every task before closing.'
+                  ? 'Issue reopened automatically: add a Markdown task checklist. Before closing, tick every checkbox: a ticked item means done, duplicated elsewhere, superseded, or no longer relevant.'
+                  : 'Issue reopened automatically: ' + remaining + ' of ' + tasks.length + ' tasks are not ticked. Before closing, tick each one as done, duplicated elsewhere, superseded, or no longer relevant.'
               });
-              core.setFailed('Issue must have at least one checklist task and all tasks must be checked to stay closed.');
+              core.setFailed('Issue must have at least one checklist task and every task must be ticked (done, duplicated elsewhere, superseded, or no longer relevant) to stay closed.');
             }
