@@ -47,6 +47,11 @@ test('an event signed with another tenant secret is refused for this tenant', ()
   assert.deepEqual(verifyTelephonyEvent(input(headers, 'tenant-a'), makeDeps()), { accepted: false, reason: 'bad_signature' });
 });
 
+test('a wrong signature for the right tenant is refused as bad_signature', () => {
+  const headers = signedHeaders({ secret: 'wrong-secret-value-000000' });
+  assert.deepEqual(verifyTelephonyEvent(input(headers), makeDeps()), { accepted: false, reason: 'bad_signature' });
+});
+
 test('a tampered body fails the signature check', () => {
   const headers = signedHeaders();
   assert.deepEqual(verifyTelephonyEvent(input(headers, 'tenant-a', body.replace('c-1', 'c-2')), makeDeps()), { accepted: false, reason: 'bad_signature' });
@@ -56,9 +61,18 @@ test('an event for a tenant with no secret is refused', () => {
   assert.deepEqual(verifyTelephonyEvent(input(signedHeaders(), 'tenant-z'), makeDeps()), { accepted: false, reason: 'unknown_tenant' });
 });
 
+test('an event with an empty tenant id is refused as unknown_tenant', () => {
+  assert.deepEqual(verifyTelephonyEvent(input(signedHeaders(), ''), makeDeps()), { accepted: false, reason: 'unknown_tenant' });
+});
+
 test('a stale timestamp outside the window is refused', () => {
   const headers = signedHeaders({ ts: NOW_SEC - 10 * 60 });
   assert.deepEqual(verifyTelephonyEvent(input(headers), makeDeps()), { accepted: false, reason: 'timestamp_out_of_window' });
+});
+
+test('a non-numeric timestamp is refused as missing_timestamp', () => {
+  const headers = { ...signedHeaders(), [TELEPHONY_TIMESTAMP_HEADER]: 'not-a-number' };
+  assert.deepEqual(verifyTelephonyEvent(input(headers), makeDeps()), { accepted: false, reason: 'missing_timestamp' });
 });
 
 test('missing signature, id or timestamp headers are refused', () => {
