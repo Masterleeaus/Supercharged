@@ -251,6 +251,35 @@ jobs:
       - name: Verify company isolation of approvals and rules on real PostgreSQL
         run: node --test --experimental-transform-types tests/postgres/approvals-postgres-tenant.test.mjs
 
+  voltagent-pgvector:
+    # Issue #379. Runs the pgvector store against real PostgreSQL with the vector extension, including the
+    # G7 EXPLAIN check. Without the URL the test file skips, so this job sets it and the run must not skip.
+    name: VoltAgent pgvector store on PostgreSQL (G7)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_PASSWORD: ci-only-throwaway-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      VOLTAGENT_TEST_DATABASE_URL: postgres://postgres:ci-only-throwaway-password@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Verify pgvector store, tenant scope and HNSW plan on real PostgreSQL
+        run: node --test --experimental-transform-types tests/integrations/voltagent/vector-pg.test.mjs
+
   boot-fresh-db:
     # Gating (issue #124). Applies the base schema and every manifest migration, in order,
     # to an empty native PostgreSQL 16, then boots the built server until /health answers.

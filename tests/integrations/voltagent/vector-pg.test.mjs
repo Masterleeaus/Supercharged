@@ -95,7 +95,15 @@ describe('pgvector store against real Postgres (gate G7)', { skip: SKIP }, () =>
   });
 
   test('G7: with sequential scans disabled, the search plan uses the HNSW index', async () => {
+    // Realistic shape: the table is shared by many tenants and the searched scope is one slice of it.
+    // With only the searched scope in the table, the scope btree index matches every row and the planner
+    // can prefer it over HNSW, so the other tenants are seeded here.
     const rows = [];
+    for (let c = 10; c < 20; c += 1) {
+      for (let i = 0; i < 200; i += 1) {
+        rows.push(row(String(c), `u${c}`, `kb-${c}`, i, `other ${c} ${i}`, [Math.cos(i + c), Math.sin(i + c), (i + c) / 300]));
+      }
+    }
     for (let i = 0; i < 200; i += 1) {
       rows.push(row('9', 'g7', 'kb-g7', i, `chunk ${i}`, [Math.cos(i), Math.sin(i), i / 200]));
     }
@@ -105,8 +113,8 @@ describe('pgvector store against real Postgres (gate G7)', { skip: SKIP }, () =>
     try {
       const plan = await store.explainSearch({ companyId: '9', ownerUserId: 'g7', vector: [1, 0, 0], limit: 5 });
       const text = JSON.stringify(plan);
-      assert.ok(text.includes('Index Scan'), 'expected an index scan node');
-      assert.ok(text.includes(`${table}_embedding_hnsw`), 'expected the HNSW index in the plan');
+      assert.ok(text.includes('Index Scan'), `expected an index scan node; plan: ${text.slice(0, 2000)}`);
+      assert.ok(text.includes(`${table}_embedding_hnsw`), `expected the HNSW index in the plan; plan: ${text.slice(0, 2000)}`);
     } finally {
       await client.query('RESET enable_seqscan');
     }
