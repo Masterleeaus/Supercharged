@@ -3,6 +3,6 @@
   "compilerOptions": {
     "strict": true
   },
-  "include": ["shared/**/*", "server/workforce/**/*"],
+  "include": ["shared/**/*", "server/workforce/**/*", "server/services/rag-knowledge.ts"],
   "exclude": ["node_modules", "dist", "server/modules/_template", "_TITAN_HANDOFF", "vendor", "plugins", "packages", "docs", "migrations", "scripts"]
 }
