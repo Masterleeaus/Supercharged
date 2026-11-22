@@ -10,6 +10,7 @@ const { createBookingOps } = await import('../../server/connectors/calendar/book
 const { freeSlots, footprint } = await import('../../server/connectors/calendar/slots.ts');
 const { ConnectorError } = await import('../../server/connectors/sdk/contract.ts');
 const { runAction } = await import('../../server/connectors/sdk/runner.ts');
+const { checkConnectorDefinition } = await import('../../server/connectors/sdk/contract.ts');
 const manifestMod = await import('../../server/plugins/manifest.ts');
 const discovery = await import('../../server/plugins/connector-discovery.ts');
 
@@ -226,6 +227,42 @@ test('runner: a write without a stable id still gets an idempotency key', async 
   assert.equal(typeof r.idempotencyKey, 'string');
 });
 
+test('reference (issue 349): Google Calendar passes the connector contract checker', () => {
+  const def = createGoogleCalendarConnector({ http: fakeGoogle().http });
+  assert.deepEqual(checkConnectorDefinition(def), []);
+  assert.deepEqual(def.capabilities.sort(), ['read', 'write']);
+});
+
+test('reference (issue 349): Google read and write run through the shared runner with one audit record each', async () => {
+  const rec = replay(FIX('google-events.json').interactions);
+  const readAudit = audit();
+  const read = await runAction({
+    definition: createGoogleCalendarConnector({ http: rec.http }), companyId: 'co-1', action: 'listBusy',
+    input: { from: '2026-11-20T00:00:00Z', to: '2026-11-21T00:00:00Z' }, credentials: oauth, audit: readAudit.sink,
+  });
+  assert.deepEqual(read.value.map((b) => b.id), ['busy-1', 'busy-2']);
+  assert.equal(read.idempotencyKey, null);
+  assert.equal(readAudit.rows.length, 1);
+  assert.equal(readAudit.rows[0].outcome, 'success');
+  assert.equal(readAudit.rows[0].companyId, 'co-1');
+});
+
+test('reference (issue 349): a replayed Google write with the same stable id creates one event and two audit records', async () => {
+  const g = fakeGoogle();
+  const def = createGoogleCalendarConnector({ http: g.http });
+  const writeAudit = audit();
+  const args = { definition: def, companyId: 'co-1', action: 'createEvent', input: { ...SLOT, summary: 'Clean' }, credentials: oauth, stableId: 'job-visit-7', audit: writeAudit.sink };
+  const first = await runAction(args);
+  const second = await runAction(args);
+  assert.equal(first.value.id, second.value.id);
+  assert.equal(first.idempotencyKey, second.idempotencyKey);
+  assert.equal(typeof first.idempotencyKey, 'string');
+  assert.equal(g.events.size, 1);
+  assert.equal(writeAudit.rows.length, 2);
+  assert.equal(writeAudit.rows[0].idempotencyKey, writeAudit.rows[1].idempotencyKey);
+  assert.equal(JSON.stringify(writeAudit.rows).includes(TOKEN), false);
+});
+
 // ---- Availability -------------------------------------------------------------
 
 const T = (h, m = 0) => Date.UTC(2026, 10, 20, h, m);
@@ -259,4 +296,34 @@ test('every catalog manifest validates and discovery reports no rejects', () => 
     const r = manifestMod.validateConnectorManifest(JSON.parse(fs.readFileSync(`${CATALOG}/${dir}/connector.json`, 'utf8')));
     assert.equal(r.ok, true, `${dir} manifest is valid`);
   }
+});
+
+// Availability read through the connector (#354): busy time from the recorded Google fixture, then travel and buffers.
+// Busy: busy-1 09:00-10:00 +10:00 is 23:00Z-00:00Z, and its travel reach runs into the window, so starts before 00:45Z
+// are blocked. busy-2 15:00-16:00 +10:00 is 05:00Z-06:00Z.
+// Job: 60 min, travel 30 min each side, buffer 15 min each side, so a start at S blocks S-45 .. S+105.
+// Clear starts are 00:45-03:15 and 06:45-07:00 (window ends 08:00Z). Starts 03:30-06:30 must not be offered.
+test('availability: busy time from the connector, with travel and buffers, leaves the expected starts', async () => {
+  const fixture = FIX('google-events.json');
+  const rec = replay(fixture.interactions);
+  const def = createGoogleCalendarConnector({ http: rec.http });
+  const a = audit();
+  const ops = createBookingOps({ definition: def, companyId: 'co-1', credentials: oauth, audit: a.sink, now: () => new Date('2026-11-18T00:00:00Z') });
+  const job = { durationMin: 60, travelBeforeMin: 30, travelAfterMin: 30, bufferBeforeMin: 15, bufferAfterMin: 15 };
+  const slots = await ops.availability({ from: '2026-11-20T00:00:00Z', to: '2026-11-20T08:00:00Z' }, job);
+  const starts = slots.map((s) => s.startsAt);
+  assert.equal(starts[0], '2026-11-20T00:45:00.000Z', 'earlier starts reach into busy-1 through travel and buffer');
+  assert.ok(starts.includes('2026-11-20T03:15:00.000Z'), 'last start before the busy block is offered');
+  assert.ok(!starts.some((s) => s > '2026-11-20T03:15:00.000Z' && s < '2026-11-20T06:45:00.000Z'), 'no start inside travel/buffer reach of the busy block');
+  assert.ok(starts.includes('2026-11-20T06:45:00.000Z'), 'first start after the busy block is offered');
+  assert.equal(slots.every((s) => s.timezone === 'UTC'), true);
+  assert.equal(a.rows.length, 1, 'the read is audited once');
+});
+
+test('availability: an invalid window is refused before any vendor call', async () => {
+  const rec = replay([]);
+  const def = createGoogleCalendarConnector({ http: rec.http });
+  const ops = createBookingOps({ definition: def, companyId: 'co-1', credentials: oauth, audit: audit().sink });
+  await assert.rejects(ops.availability({ from: '2026-11-20T08:00:00Z', to: '2026-11-20T00:00:00Z' }, { durationMin: 60, travelBeforeMin: 0, travelAfterMin: 0, bufferBeforeMin: 0, bufferAfterMin: 0 }), RangeError);
+  assert.equal(rec.calls.length, 0);
 });

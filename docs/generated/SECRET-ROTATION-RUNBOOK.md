@@ -128,3 +128,19 @@ Owner steps, in order:
 5. Once the warning no longer appears, a follow-up change should remove the legacy route and the flag. This is tracked in #343.
 
 Do not paste the secret into an issue, PR, chat or CI output.
+
+## Appointment webhook decisions and open owner items (issue #343)
+
+Decisions (2026-11-18):
+
+- Transport: the secret travels only in the `X-Appointment-Webhook-Secret` header. Generated tool URLs (`getBookAppointmentWebhookTool`, `getAppointmentToolForAgent`) carry no secret in the path or query. Test: `generated tool URL contains no secret and no path token`.
+- Comparison: header and legacy tokens are compared with `crypto.timingSafeEqual`. Test: `timing-safe matcher rejects empty, wrong-length and wrong values`.
+- Freshness and signature: the ElevenLabs tool call carries no timestamp or request signature, so the server cannot enforce request age or verify a signed body. Default chosen: replay is handled by idempotency. `appointmentReplayKey` returns the existing appointment for a retried call, scoped by company, conversation, slot and phone. Tests: `replay key is stable for a retried identical request`, `replay key differs for another company, conversation, slot or phone`. Revisit if the provider adds signed timestamps.
+- Cross-company: a booking whose call belongs to another company is refused, and an agent with no `company_id` is refused. Static route-wiring test: `route wiring: replay check runs before the appointment insert and the cross-company guard exists`.
+- Logs: the token segment of legacy paths is redacted (`redactWebhookTokenPath`), tested in `legacy appointment URL-token path is redacted in logs`.
+
+Owner-only items (not done in code):
+
+- Rotate `APPOINTMENT_WEBHOOK_SECRET` in production and re-sync every book_appointment tool. Steps 1-5 above. Earlier URLs may already sit in provider dashboards and proxy logs.
+- Run the provider sandbox or live ElevenLabs tool-call test against a real agent. Needs a live account and credentials.
+- Remove the legacy URL-token route and `APPOINTMENT_WEBHOOK_ALLOW_URL_TOKEN` after the warning stops appearing.
