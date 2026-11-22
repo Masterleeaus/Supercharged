@@ -10,6 +10,7 @@ const { createBookingOps } = await import('../../server/connectors/calendar/book
 const { freeSlots, footprint } = await import('../../server/connectors/calendar/slots.ts');
 const { ConnectorError } = await import('../../server/connectors/sdk/contract.ts');
 const { runAction } = await import('../../server/connectors/sdk/runner.ts');
+const { checkConnectorDefinition } = await import('../../server/connectors/sdk/contract.ts');
 const manifestMod = await import('../../server/plugins/manifest.ts');
 const discovery = await import('../../server/plugins/connector-discovery.ts');
 
@@ -224,6 +225,42 @@ test('runner: a write without a stable id still gets an idempotency key', async 
   const a = audit();
   const r = await runAction({ definition: def, companyId: 'co-1', action: 'createEvent', input: { ...SLOT, summary: 'x' }, credentials: oauth, audit: a.sink });
   assert.equal(typeof r.idempotencyKey, 'string');
+});
+
+test('reference (issue 349): Google Calendar passes the connector contract checker', () => {
+  const def = createGoogleCalendarConnector({ http: fakeGoogle().http });
+  assert.deepEqual(checkConnectorDefinition(def), []);
+  assert.deepEqual(def.capabilities.sort(), ['read', 'write']);
+});
+
+test('reference (issue 349): Google read and write run through the shared runner with one audit record each', async () => {
+  const rec = replay(FIX('google-events.json').interactions);
+  const readAudit = audit();
+  const read = await runAction({
+    definition: createGoogleCalendarConnector({ http: rec.http }), companyId: 'co-1', action: 'listBusy',
+    input: { from: '2026-11-20T00:00:00Z', to: '2026-11-21T00:00:00Z' }, credentials: oauth, audit: readAudit.sink,
+  });
+  assert.deepEqual(read.value.map((b) => b.id), ['busy-1', 'busy-2']);
+  assert.equal(read.idempotencyKey, null);
+  assert.equal(readAudit.rows.length, 1);
+  assert.equal(readAudit.rows[0].outcome, 'success');
+  assert.equal(readAudit.rows[0].companyId, 'co-1');
+});
+
+test('reference (issue 349): a replayed Google write with the same stable id creates one event and two audit records', async () => {
+  const g = fakeGoogle();
+  const def = createGoogleCalendarConnector({ http: g.http });
+  const writeAudit = audit();
+  const args = { definition: def, companyId: 'co-1', action: 'createEvent', input: { ...SLOT, summary: 'Clean' }, credentials: oauth, stableId: 'job-visit-7', audit: writeAudit.sink };
+  const first = await runAction(args);
+  const second = await runAction(args);
+  assert.equal(first.value.id, second.value.id);
+  assert.equal(first.idempotencyKey, second.idempotencyKey);
+  assert.equal(typeof first.idempotencyKey, 'string');
+  assert.equal(g.events.size, 1);
+  assert.equal(writeAudit.rows.length, 2);
+  assert.equal(writeAudit.rows[0].idempotencyKey, writeAudit.rows[1].idempotencyKey);
+  assert.equal(JSON.stringify(writeAudit.rows).includes(TOKEN), false);
 });
 
 // ---- Availability -------------------------------------------------------------

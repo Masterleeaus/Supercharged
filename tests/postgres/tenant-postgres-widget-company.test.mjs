@@ -19,9 +19,10 @@ test('PostgreSQL 0026: backfill sets company_id from the owner, keeps NULL when 
     await f.pool.query('DELETE FROM website_widgets');
     await f.pool.query('DELETE FROM users');
     await f.pool.query('INSERT INTO users (id, company_id) VALUES ($1, $2), ($3, NULL)', [OWNER_A, A, OWNER_NONE]);
+    // name and embed_token are NOT NULL in the base schema, so the rows carry them too.
     await f.pool.query(
-      'INSERT INTO website_widgets (id, user_id, company_id) VALUES ($1, $2, NULL), ($3, $4, NULL), ($5, $2, $6)',
-      ['w-owned', OWNER_A, 'w-no-company', OWNER_NONE, 'w-preset', B],
+      'INSERT INTO website_widgets (id, user_id, company_id, name, embed_token) VALUES ($1, $2, NULL, $7, $8), ($3, $4, NULL, $9, $10), ($5, $2, $6, $11, $12)',
+      ['w-owned', OWNER_A, 'w-no-company', OWNER_NONE, 'w-preset', B, 'Owned', 'tok-owned', 'No company', 'tok-no-company', 'Preset', 'tok-preset'],
     );
 
     await f.pool.query(migration);
