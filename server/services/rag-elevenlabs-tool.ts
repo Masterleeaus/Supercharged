@@ -30,80 +30,8 @@ import { getDomain } from "../utils/domain";
 import { ElevenLabsService } from "./elevenlabs";
 import { ElevenLabsPoolService } from "./elevenlabs-pool";
 import { getAppointmentToolForAgent } from "./appointment-elevenlabs-tool";
-import crypto from "crypto";
-import fs from "fs";
-import path from "path";
 import { logger } from "../utils/logger";
-
-const PERSISTED_SECRET_PATH = path.join(process.cwd(), '.rag-webhook-secret');
-
-// Generate or retrieve the RAG webhook secret
-// This is used to authenticate requests from ElevenLabs
-let ragWebhookSecret: string | null = null;
-
-export function getRAGWebhookSecret(): string {
-  if (!ragWebhookSecret) {
-    if (process.env.RAG_WEBHOOK_SECRET) {
-      ragWebhookSecret = process.env.RAG_WEBHOOK_SECRET;
-    } else {
-      // 1. First priority: Check if a persisted file exists (to preserve existing tokens)
-      try {
-        if (fs.existsSync(PERSISTED_SECRET_PATH)) {
-          ragWebhookSecret = fs.readFileSync(PERSISTED_SECRET_PATH, 'utf-8').trim();
-          logger.info(`📚 [RAG Tool] Loaded persisted webhook secret from file`);
-        }
-      } catch (err) {
-        // Unreadable secret file: a new secret is generated below.
-      }
-
-      // 2. Second priority: Derive a stable secret from server key for new installations
-      if (!ragWebhookSecret) {
-        const baseKey = process.env.JWT_SECRET || process.env.ELEVENLABS_AGENT_SECRET;
-        if (baseKey) {
-          ragWebhookSecret = crypto
-            .createHmac('sha256', baseKey)
-            .update('agentlabs:rag-webhook-secret:v1')
-            .digest('hex');
-          logger.info(`📚 [RAG Tool] Derived stable webhook secret from server key`);
-          try {
-            fs.writeFileSync(PERSISTED_SECRET_PATH, ragWebhookSecret, { mode: 0o600 });
-          } catch (err) {
-            logger.error('Could not persist derived RAG webhook secret; it will change on restart', { code: err?.code }, 'RagTool');
-          }
-        }
-      }
-
-      // 3. Fallback: Generate a random secret if no server key is present
-      if (!ragWebhookSecret) {
-        ragWebhookSecret = crypto.randomBytes(32).toString('hex');
-        logger.info(`📚 [RAG Tool] Generated new webhook secret`);
-        try {
-          fs.writeFileSync(PERSISTED_SECRET_PATH, ragWebhookSecret, { mode: 0o600 });
-        } catch (err) {
-          logger.error('Could not persist generated RAG webhook secret; it will change on restart', { code: err?.code }, 'RagTool');
-        }
-      }
-    }
-  }
-  return ragWebhookSecret;
-}
-
-export function validateRAGWebhookToken(providedToken: string | undefined): boolean {
-  if (!providedToken) {
-    return false;
-  }
-  const secret = getRAGWebhookSecret();
-  
-  // Ensure both tokens have the same length for timing-safe comparison
-  const providedBuffer = Buffer.from(providedToken);
-  const secretBuffer = Buffer.from(secret);
-  
-  if (providedBuffer.length !== secretBuffer.length) {
-    return false;
-  }
-  
-  return crypto.timingSafeEqual(providedBuffer, secretBuffer);
-}
+import { tryGetRAGWebhookSecret, getRAGWebhookSecret, validateRAGWebhookToken } from "./rag-webhook-secret";
 
 // Webhook tool configuration for ElevenLabs
 export interface RAGWebhookToolConfig {
@@ -387,6 +315,10 @@ export function buildRAGToolsArray(
 ): RAGWebhookToolConfig[] {
   if (!isRAGEnabled() || !hasKnowledgeBase) {
     logger.warn(`📚 [RAG Tool] Skipping - RAG enabled: ${isRAGEnabled()}, hasKB: ${hasKnowledgeBase}`);
+    return [];
+  }
+
+  if (!tryGetRAGWebhookSecret()) {
     return [];
   }
 
