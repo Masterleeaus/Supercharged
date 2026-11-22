@@ -22,7 +22,7 @@ const ts = require('typescript');
 const storageSrc = read('server/storage.ts');
 const batchSrc = read('server/utils/batch-utils.ts');
 const hydratorSrc = read('server/services/openai-voice-agent/hydrator.ts');
-const routesSrc = read('server/routes/campaign-routes.ts');
+const routesSrc = read('server/routes/campaign-execution-routes.ts');
 const executorSrc = read('server/services/campaign-executor.ts');
 
 // Body of a top-level or class-level function, from its signature to the next sibling at the same indent.
