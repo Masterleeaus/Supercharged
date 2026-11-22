@@ -7,6 +7,8 @@
  *
  * Licence: original TitanZero code. It copies no Mastra or VoltAgent source. See source/mastra-apache-only/README.md.
  */
+import type { ChunkGovernance } from './governance.ts';
+
 export interface StoredChunk {
   companyId: string;
   ownerUserId: string;
@@ -14,6 +16,8 @@ export interface StoredChunk {
   chunkIndex: number;
   chunkText: string;
   vector: readonly number[];
+  /** Provenance, version, approval, expiry and language (issue #335). Enforced by governance.ts. */
+  governance?: ChunkGovernance | null;
 }
 
 export interface ScopedSearch {
@@ -29,6 +33,7 @@ export interface SearchHit {
   chunkIndex: number;
   chunkText: string;
   score: number;
+  governance?: ChunkGovernance | null;
 }
 
 export interface VectorStore {
@@ -72,6 +77,7 @@ export function createInMemoryVectorStoreForTests(): VectorStore {
           chunkIndex: row.chunkIndex,
           chunkText: row.chunkText,
           score: cosineSimilarity(row.vector, query.vector),
+          governance: row.governance ?? null,
         }))
         .sort((a, b) => b.score - a.score || a.knowledgeBaseId.localeCompare(b.knowledgeBaseId) || a.chunkIndex - b.chunkIndex)
         .slice(0, query.limit);

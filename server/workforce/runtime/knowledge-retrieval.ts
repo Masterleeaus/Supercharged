@@ -33,6 +33,8 @@ export interface KnowledgeChunkHit {
   /** The company the chunk belongs to. Null or missing means the hit is dropped. */
   companyId: unknown
   score: number
+  /** Optional provenance record. Governance (issue #335) fills it; retrieval does not read it. */
+  governance?: unknown
 }
 
 export interface KnowledgeSearchPort {
